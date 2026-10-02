@@ -1,0 +1,49 @@
+{
+  "name": "albayan-cairo-erp",
+  "version": "2.0.0",
+  "description": "AlBayan Cairo o'quv markazi uchun ERP tizimi: o'quvchilar, guruhlar, jadval, davomat, to'lovlar, ish haqi, hisobotlar, ichki chat, vazifalar va Telegram bot",
+  "private": true,
+  "main": "server/index.js",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "node build.js",
+    "check:db": "node server/check-db.js",
+    "test": "node tests/run-tests.js",
+    "test:browser": "node tests/smoke.js",
+    "test:server": "node tests/server-test.js",
+    "test:perf": "node tests/perf-test.js",
+    "test:db": "node tests/db-test.js",
+    "test:bot": "node tests/bot-test.js",
+    "test:backup": "node tests/backup-test.js",
+    "test:time": "node tests/time-test.js",
+    "test:lang": "node tests/lang-switch-test.js",
+    "test:menu": "node tests/menu-test.js",
+    "test:perm": "node tests/perm-test.js",
+    "test:bot-idle": "node tests/bot-idle-test.js",
+    "test:chat": "node tests/chat-test.js",
+    "test:sw": "node tests/sw-update-test.js",
+    "test:kabinet": "node tests/kabinet-test.js",
+    "test:kabinet-bot": "node tests/kabinet-bot-test.js",
+    "test:ui": "node tests/ui-flow-test.js",
+    "test:site": "node tests/site-test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.3.0",
+    "pg": "^8.12.0"
+  },
+  "keywords": [
+    "erp",
+    "education",
+    "crm",
+    "telegram-bot",
+    "uzbek",
+    "oquv-markaz"
+  ],
+  "license": "UNLICENSED"
+}
