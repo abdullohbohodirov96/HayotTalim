@@ -1744,6 +1744,10 @@
        bitta. Shuning uchun ariza kursga O'ZI biriktiriladi — odamdan
        ortiqcha savol so'ralmaydi.                                      */
     var leadCourse = '';
+    var fRegion = UI.field({
+      label: 'Qayerdansiz?', id: 'lead-region', type: 'select',
+      options: [{ value: '', label: 'Hududni tanlang' }].concat(A.REGIONS.map(function (r) { return { value: r, label: r }; }))
+    });
     var fTime = UI.field({
       label: 'Dars uchun qulay vaqt', id: 'lead-time', type: 'select',
       options: [{ value: '', label: 'Farqi yo’q' }]
@@ -1796,7 +1800,7 @@
     }, [
       h('b', { class: 'form-title' }, 'Ro’yxatdan o’tish formasi'),
       h('p', { class: 'form-note' }, 'Ma’lumotlaringiz maxfiy, administratorimiz siz bilan bog’lanadi.'),
-      fName.wrap, fPhone.wrap, lvlWrap, fTime.wrap, err, btn,
+      fName.wrap, fPhone.wrap, fRegion.wrap, lvlWrap, fTime.wrap, err, btn,
       h('p', { class: 'form-fine' },
         'Tugmani bosish orqali siz shaxsiy ma’lumotlaringiz qayta ishlanishiga rozilik bildirasiz.')
     ]);
@@ -2457,6 +2461,8 @@
             courseId: leadCourse,
             startLevel: lvlPick,
             wantTime: fTime.input ? fTime.input.value : '',
+            region: fRegion.input ? fRegion.input.value : '',
+            src: A.siteSrc(),
             note: ''
           });
           form.hidden = true;
@@ -2484,6 +2490,21 @@
     }
   }
   A.renderLanding = renderLanding;
+
+  /* Reklama belgisi: saytga ?src=reels1 yoki utm_campaign bilan kelinsa,
+     shu belgi arizaga va bot havolasiga qo'shiladi — qaysi reklama
+     ishlaganini Murojaatlar hisobotida ko'rasiz.                        */
+  A.siteSrc = function () {
+    var v = '';
+    try {
+      var q = new URLSearchParams(location.search);
+      v = q.get('src') || q.get('utm_campaign') || q.get('utm_source') || '';
+      v = String(v).replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40);
+      if (v) sessionStorage.setItem('site_src', v);
+      else v = sessionStorage.getItem('site_src') || '';
+    } catch (e) { }
+    return v;
+  };
 
   /* ---------- Ustozlar: umumiy yordamchilar ---------- */
 

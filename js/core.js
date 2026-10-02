@@ -82,6 +82,14 @@
     var d = parseDate(iso).getDay();
     return d === 0 ? 7 : d;
   }
+  /* Hududlar — onlayn markaz butun O'zbekiston bo'ylab ishlaydi.
+     O'quvchi qayerdanligini bilish oflayn filial joyini tanlashga yordam beradi. */
+  var REGIONS = ['Toshkent shahri', 'Toshkent viloyati', 'Andijon', 'Buxoro', 'Farg’ona', 'Jizzax',
+    'Xorazm', 'Namangan', 'Navoiy', 'Qashqadaryo', 'Qoraqalpog’iston', 'Samarqand', 'Sirdaryo',
+    'Surxondaryo', 'Chet el'];
+  /* Lid manbalari: reklama turlari alohida — qaysi biri arzonroq o'quvchi olib kelishini solishtirish uchun */
+  var LEAD_SOURCES = ['Meta reklama', 'Instagram', 'Telegram posev', 'Telegram Ads', 'Telegram',
+    'Bot', 'Sayt', 'Bepul dars', 'Tanish orqali', 'Banner', 'Yo’l-yo’lakay', 'Boshqa'];
   var WEEKDAYS = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'];
   var WEEKDAYS_SHORT = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
   var MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
@@ -549,6 +557,7 @@
     daysInMonth: daysInMonth, weekdayOf: weekdayOf, parseDate: parseDate,
     monthStart: monthStart, monthEnd: monthEnd, monthLabel: monthLabel, dateLabel: dateLabel,
     WEEKDAYS: WEEKDAYS, WEEKDAYS_SHORT: WEEKDAYS_SHORT, MONTHS: MONTHS,
+    REGIONS: REGIONS, LEAD_SOURCES: LEAD_SOURCES,
     som: som, somFull: somFull, parseSom: parseSom,
     uid: uid, textHash: textHash, normPhone: normPhone, phoneDigits: phoneDigits, esc: esc, clone: clone,
     byId: byId, sortBy: sortBy, sha256: sha256, pad: pad,

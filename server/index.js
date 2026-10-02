@@ -1282,6 +1282,11 @@ async function apiBootstrap(user) {
   };
 }
 
+/** Reklama belgisi (?src=, utm_campaign, bot /start): faqat harf, raqam, _ va - */
+function cleanSrc(v) {
+  return String(v || '').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40);
+}
+
 async function handleApi(req, res, url) {
   const route = url.pathname.replace(/^\/api\//, '');
 
@@ -1834,6 +1839,10 @@ async function handleApi(req, res, url) {
     });
     const startLevel = LEVELS[String(body.startLevel || '')] || '';
     const wantTime = String(body.wantTime || '').slice(0, 40);
+    /* Hudud — yopiq ro'yxatdan; reklama belgisi — faqat oddiy belgilar */
+    const region = (A.REGIONS || []).indexOf(String(body.region || '')) >= 0 ? String(body.region) : '';
+    const district = String(body.district || '').replace(/[<>]/g, '').trim().slice(0, 60);
+    const src = cleanSrc(body.src);
     if (name.length < 2) return send(res, 400, { error: 'Ismingizni yozing.' });
     if (A.phoneDigits(phone).length < 9) return send(res, 400, { error: 'Telefon raqamni to’liq yozing.' });
 
@@ -1870,7 +1879,7 @@ async function handleApi(req, res, url) {
     await store.set('leads/' + id, {
       id, funnelId: funnel.id, name, phone,
       courseId: course ? course.id : '',
-      source: 'Sayt', ownerStaffId: '',
+      source: 'Sayt', src, region, district, ownerStaffId: '',
       stage: stages[0] ? stages[0].id : 'yangi',
       note: [note, startLevel ? 'Daraja: ' + startLevel : '',
              wantTime ? 'Qulay vaqt: ' + wantTime : ''].filter(Boolean).join(' · '),
@@ -1886,6 +1895,8 @@ async function handleApi(req, res, url) {
     const text = 'Yangi murojaat (sayt)\n' +
       'Ism: ' + name + '\n' +
       'Telefon: ' + phone +
+      (region ? '\nHudud: ' + region + (district ? ', ' + district : '') : '') +
+      (src ? '\nReklama: ' + src : '') +
       (course ? '\nKurs: ' + course.name : '') +
       (note ? '\nIzoh: ' + note : '');
     notifyDirectors(text).catch(() => { });

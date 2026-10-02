@@ -507,9 +507,9 @@
       h('button', {
         class: 'btn', onclick: function () {
           UI.exportCsv('murojaatlar-' + funnel.name + '.csv',
-            [['Ism', 'Telefon', 'Kurs', 'Manba', 'Voronka', 'Holat', 'Keyingi aloqa', 'Izoh']].concat(
+            [['Ism', 'Telefon', 'Kurs', 'Manba', 'Reklama belgisi', 'Hudud', 'Tuman', 'Voronka', 'Holat', 'Keyingi aloqa', 'Izoh']].concat(
               leads.map(function (l) {
-                return [l.name, l.phone, Q.courseName(l.courseId), l.source, funnel.name,
+                return [l.name, l.phone, Q.courseName(l.courseId), l.source, l.src || '', l.region || '', l.district || '', funnel.name,
                 A.stageOf(funnel, l.stage).label, l.nextContact || '', l.note || ''];
               })));
         }
@@ -538,6 +538,7 @@
       route.due ? h('button', { class: 'btn sm', onclick: function () { App.go('leads', { funnelId: funnel.id }); } }, 'Filtrni olib tashlash') : null
     ]);
     view.appendChild(segs);
+    view.appendChild(leadStatsCard(allLeads.filter(inFunnel), funnel));
 
     if (!leads.length) {
       view.appendChild(UI.card(null, UI.empty({
@@ -553,7 +554,12 @@
       /* Raqam bosilsa telefon o'zi teradi — qo'lda ko'chirish shart emas */
       { label: 'Telefon', render: function (l) { return UI.phoneLink(l.phone); } },
       { label: 'Kurs', render: function (l) { return Q.courseName(l.courseId); } },
-      { label: 'Manba', key: 'source' },
+      {
+        label: 'Manba', render: function (l) {
+          return h('span', {}, [l.source || '—', l.src ? h('span', { class: 'muted small' }, ' · ' + l.src) : null]);
+        }
+      },
+      { label: 'Hudud', render: function (l) { return l.region ? (l.region + (l.district ? ', ' + l.district : '')) : h('span', { class: 'muted' }, '—'); } },
       { label: 'Mas’ul', render: function (l) { return Q.staffName(l.ownerStaffId); } },
       {
         label: 'Keyingi aloqa', render: function (l) {
@@ -577,6 +583,43 @@
       }
     ], leads, { onRow: function (l) { if (App.can('lead.edit')) leadForm(l, App); }, page: 100 }), null, null, true));
   };
+
+  /* Manba va hudud bo'yicha qisqa hisobot: qaysi reklama ko'proq lid va
+     o'quvchi olib kelyapti, lidlar qaysi hududdan. Oflayn filial joyini
+     tanlash ham shu jadvalga qarab qilinadi.                              */
+  function leadStatsCard(list, funnel) {
+    if (!list.length) return h('div');
+    function won(l) { return !!l.studentId || A.stageOf(funnel, l.stage).type === 'won'; }
+    function group(keyFn) {
+      var m = {};
+      list.forEach(function (l) {
+        var k = keyFn(l) || '—';
+        if (!m[k]) m[k] = { key: k, n: 0, won: 0 };
+        m[k].n++; if (won(l)) m[k].won++;
+      });
+      return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return b.n - a.n; });
+    }
+    function tbl(title, rows) {
+      return h('div', { style: 'flex:1 1 280px;min-width:0' }, [
+        h('b', {}, title),
+        UI.table([
+          { label: 'Nomi', key: 'key' },
+          { label: 'Lid', right: true, render: function (r) { return String(r.n); } },
+          { label: 'O’quvchi', right: true, render: function (r) { return String(r.won); } },
+          { label: 'Konversiya', right: true, render: function (r) { return Math.round(r.won * 100 / r.n) + '%'; } }
+        ], rows.slice(0, 12))
+      ]);
+    }
+    var bySrc = group(function (l) { return (l.source || '') + (l.src ? ' · ' + l.src : ''); });
+    var byReg = group(function (l) { return l.region; });
+    var body = h('div', { class: 'rowflex', style: 'gap:18px;align-items:flex-start' }, [
+      tbl('Manba / reklama bo’yicha', bySrc), tbl('Hudud bo’yicha', byReg)
+    ]);
+    var det = h('details', { class: 'card', style: 'padding:12px 16px;margin-bottom:12px' }, [
+      h('summary', { style: 'cursor:pointer;font-weight:600' }, 'Manba va hudud hisoboti'), body
+    ]);
+    return det;
+  }
 
   function isClosed(funnel, stageId) {
     var t = A.stageOf(funnel, stageId).type;
@@ -629,8 +672,20 @@
       },
       {
         name: 'source', label: 'Qayerdan kelgan', type: 'select', value: lead.source,
-        options: ['Instagram', 'Telegram', 'Tanish orqali', 'Banner', 'Yo’l-yo’lakay', 'Boshqa'].map(function (s) { return { value: s, label: s }; })
+        options: A.LEAD_SOURCES.concat(lead.source && A.LEAD_SOURCES.indexOf(lead.source) < 0 ? [lead.source] : [])
+          .map(function (s) { return { value: s, label: s }; })
       },
+      {
+        name: 'src', label: 'Reklama belgisi (ixtiyoriy)', value: lead.src,
+        placeholder: 'masalan: reels1, posev_kanal',
+        help: 'Bot yoki sayt havolasidagi belgi (?start= / ?src=) — qaysi reklama olib kelganini ko’rsatadi.'
+      },
+      {
+        name: 'region', label: 'Hudud (viloyat)', type: 'select', value: lead.region,
+        options: [{ value: '', label: '— tanlanmagan —' }].concat(A.REGIONS.map(function (r) { return { value: r, label: r }; }))
+      },
+      { name: 'district', label: 'Tuman / shahar (ixtiyoriy)', value: lead.district, placeholder: 'masalan: Yunusobod' },
+
       {
         name: 'ownerStaffId', label: 'Mas’ul administrator', type: 'select', value: lead.ownerStaffId,
         options: [{ value: '', label: '— tanlanmagan —' }].concat(D.all('staff').filter(function (s) { return s.status === 'faol'; })
@@ -720,6 +775,7 @@
       lastName: (lead.name || '').split(' ')[0] || '',
       phone: lead.phone,
       parentName: '', parentPhone: lead.phone,
+      region: lead.region || '', district: lead.district || '',
       note: 'Murojaatdan: ' + (lead.source || '') + (lead.note ? ' · ' + lead.note : ''),
       _fromLead: lead,
       _courseId: lead.courseId
@@ -761,10 +817,11 @@
       h('button', {
         class: 'btn', onclick: function () {
           var bmap = Q.balanceMap();
-          UI.exportRows('oquvchilar', [['Kod', 'Familiya', 'Ism', 'Telefon', 'Ota-ona', 'Ota-ona telefoni', 'Guruhlar', 'Holat', 'Qarz', 'Avans']].concat(
+          UI.exportRows('oquvchilar', [['Kod', 'Familiya', 'Ism', 'Telefon', 'Ota-ona', 'Ota-ona telefoni', 'Hudud', 'Tuman', 'Guruhlar', 'Holat', 'Qarz', 'Avans']].concat(
             list.map(function (s) {
               var b = bmap[s.id] || { debt: 0, advance: 0 };
               return [s.code || '', s.lastName, s.firstName, s.phone, s.parentName || '', s.parentPhone || '',
+              s.region || '', s.district || '',
               Q.membershipsOf(s.id).filter(function (m) { return m.status === 'faol'; }).map(function (m) { return Q.groupName(m.groupId); }).join(', '),
               s.status, b.debt, b.advance];
             })));
@@ -857,6 +914,7 @@
           ]);
         }
       },
+      { label: 'Hudud', render: function (s) { return s.region ? (s.region + (s.district ? ', ' + s.district : '')) : h('span', { class: 'muted' }, '—'); } },
       { label: 'Holat', render: function (s) { return statusPill(s.status); } }
     ];
     if (showMoney) {
@@ -1347,6 +1405,11 @@
         validate: function (v) { return v && A.phoneDigits(v).length < 7 ? 'Raqam to’liq emas.' : null; }
       },
       { name: 'birthDate', label: 'Tug’ilgan sana (ixtiyoriy)', type: 'date', value: draft.birthDate },
+      {
+        name: 'region', label: 'Hudud (viloyat)', type: 'select', value: draft.region,
+        options: [{ value: '', label: '— tanlanmagan —' }].concat(A.REGIONS.map(function (r) { return { value: r, label: r }; }))
+      },
+      { name: 'district', label: 'Tuman / shahar (ixtiyoriy)', value: draft.district, placeholder: 'masalan: Yunusobod' },
       {
         /* Shaxsiy kod — markaz o'zi beradi. Bo'sh qoldirilsa server tanlaydi.
            Berilgan kod o'zgarmaydi: bot ham, kabinet ham shu kod bilan ishlaydi. */
