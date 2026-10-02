@@ -1,4 +1,4 @@
-/* AlBayan Cairo ERP — xizmat ishchisi (service worker).
+/* Markaz ERP — xizmat ishchisi (service worker).
    Qoidalar:
    1. Faqat dastur qobig'i (HTML, CSS, JS, rasm) keshlanadi.
    2. /api/ so'rovlari HECH QACHON keshlanmaydi — maxfiy ma'lumot brauzerda qolmaydi.
@@ -8,7 +8,7 @@
    5. HTML ham, JS/CSS ham BITTA versiya keshidan beriladi.                  */
 'use strict';
 
-const VERSION = 'albayan-2b3b324eca06';
+const VERSION = 'albayan-19c3825425f9';
 const SHELL = [
   './index.html',
   './css/app.css',
@@ -46,9 +46,9 @@ self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const names = await caches.keys();
     // faqat SHU ilovaning eski keshlari o'chiriladi, boshqalarga tegilmaydi
-    const upgrading = names.some(n => n !== VERSION && /^(albayan|albyana)-/.test(n));
+    const upgrading = names.some(n => n !== VERSION && /^(albayan|albyana|markaz)-/.test(n));
     await Promise.all(names
-      .filter(n => n !== VERSION && /^(albayan|albyana)-/.test(n))
+      .filter(n => n !== VERSION && /^(albayan|albyana|markaz)-/.test(n))
       .map(n => caches.delete(n)));
     await self.clients.claim();
     // Avvalgi versiyada avtomatik yangilash yo'q edi: ochiq ommaviy sahifani

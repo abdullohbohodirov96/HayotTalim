@@ -24,7 +24,7 @@
     }
     return {
       username: s.username || '',
-      welcome: s.welcome || 'Assalomu alaykum! AlBayan Cairo o’quv markazi botiga xush kelibsiz.',
+      welcome: s.welcome || 'Assalomu alaykum! Markazimiz botiga xush kelibsiz.',
       staffChats: s.staffChats || '',
       notify: {
         davomat: on('davomat', s.notifyAttendance),
@@ -382,7 +382,7 @@
       var fields = [
         {
           name: 'username', label: 'Bot manzili (@siz)', value: conf.username,
-          placeholder: 'albyana_bot', help: 'BotFather bergan bot nomi'
+          placeholder: 'markaz_bot', help: 'BotFather bergan bot nomi'
         },
         { name: 'welcome', label: 'Salomlashuv matni', type: 'textarea', value: conf.welcome, full: true },
         {

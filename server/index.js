@@ -376,7 +376,7 @@ async function ensureSeed() {
   // Eski bazada telefon bo'sh bo'lsa — markaz raqamini qo'yamiz (sayt uchun kerak)
   if (settings) {
     let touched = false;
-    if (!settings.phone) { settings.phone = '+998 (55) 588-20-28'; touched = true; }
+    
     // Darslar 08:00–22:00, har biri 90 daqiqa (eski standart 20:00 edi)
     if (!settings.workEnd || settings.workEnd === '20:00') { settings.workEnd = '22:00'; touched = true; }
     if (!settings.workStart) { settings.workStart = '08:00'; touched = true; }
@@ -385,12 +385,12 @@ async function ensureSeed() {
   }
   if (!settings) {
     await store.set('meta/settings', {
-      centerName: process.env.APP_NAME || 'AlBayan Cairo',
-      address: '', phone: '+998 (55) 588-20-28', workStart: '08:00', workEnd: '22:00', lessonMinutes: 90, dueDay: 5,
+      centerName: process.env.APP_NAME || 'Arab tili markazi',
+      address: '', phone: '', workStart: '08:00', workEnd: '22:00', lessonMinutes: 90, dueDay: 5,
       expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
       bot: {
         username: process.env.TELEGRAM_BOT_USERNAME || '',
-        welcome: 'Assalomu alaykum! AlBayan Cairo o’quv markazi botiga xush kelibsiz.',
+        welcome: 'Assalomu alaykum! ' + (process.env.APP_NAME || 'Arab tili markazi') + ' botiga xush kelibsiz.',
         notifyAttendance: true, notifyPayment: true, notifyDebt: true, autoApprove: false
       },
       createdAt: stamp()
@@ -411,7 +411,7 @@ async function ensureSeed() {
   const teachers = await store.list('teachers/');
   if (!teachers.length) {
     const seedT = [
-      { id: 'tch_asmaa', name: 'Ustoz Asmaa', audience: 'ayollar', order: 1 },
+      { id: 'tch_ustoz1', name: 'Ustoz', audience: 'ayollar', order: 1 },
       { id: 'tch_kholid', name: 'Ustoz Kholid', audience: 'erkaklar', order: 2 },
       { id: 'tch_ahmad', name: 'Ustoz Ahmad', audience: 'erkaklar', order: 3 },
       { id: 'tch_muhammad', name: 'Ustoz Muhammad', audience: 'erkaklar', order: 4 },
@@ -1628,7 +1628,7 @@ async function handleApi(req, res, url) {
   /* Kirish sahifasi uchun ochiq ma'lumot: faqat markaz nomi.
      (U kirish sahifasida baribir ko'rinadi — boshqa hech narsa berilmaydi.) */
   if (route === 'public' && req.method === 'GET') {
-    const out = { centerName: process.env.APP_NAME || 'AlBayan Cairo' };
+    const out = { centerName: process.env.APP_NAME || 'Arab tili markazi' };
     try {
       const s = (await store.get('meta/settings')) || {};
       if (s.centerName) out.centerName = String(s.centerName);
@@ -2798,7 +2798,7 @@ const server = http.createServer(async (req, res) => {
     if (added) console.log('  O’quvchi kodlari berildi: ' + added + ' ta');
   } catch (e) { console.error('  Kod berishda xato: ' + e.message); }
   server.listen(PORT, () => {
-    console.log('\n  AlBayan Cairo ERP ishga tushdi: http://localhost:' + PORT);
+    console.log('\n  ' + (process.env.APP_NAME || 'Arab tili markazi') + ' ERP ishga tushdi: http://localhost:' + PORT);
     console.log('  Ombor: ' + store.kind + (store.file ? ' (' + store.file + ')' : ''));
   });
   // Kunlik avtomatik zaxira; xato bo'lsa direktorga xabar qoldiriladi

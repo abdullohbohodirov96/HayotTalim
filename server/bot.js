@@ -1,4 +1,4 @@
-/* Albayan Telegram bot.
+/* Markaz Telegram boti.
    Ulash: o'quvchiga administrator bir martalik kod beradi (masalan 7KQ3M2).
    O'quvchi /start bosib shu kodni yozadi — faqat shunda hisob bog'lanadi.
    Kodi bo'lmasa, ism va guruh kodini yozadi; ulashni ADMINISTRATOR tasdiqlaydi.

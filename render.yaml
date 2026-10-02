@@ -2,12 +2,12 @@
 # Repozitoriyani Render'ga ulaganda shu fayl avtomatik o'qiladi.
 #
 # MUHIM: DATABASE_URL ga Render'ning "Internal Database URL" manzilini qo'ying
-# (dpg-xxxxxxxx-a/albayan ko'rinishida, nuqtasiz). U tezroq, bepul va SSL talab
+# (dpg-xxxxxxxx-a/markaz ko'rinishida, nuqtasiz). U tezroq, bepul va SSL talab
 # qilmaydi. "External Database URL" faqat tashqaridan ulanish uchun kerak
 # (kompyuterdan tekshirish, ma'lumot ko'chirish, sinov).
 services:
   - type: web
-    name: albayan-cairo-erp
+    name: arab-markaz-erp
     runtime: node
     plan: starter          # doimiy disk uchun eng kam tarif
     buildCommand: npm install && node build.js
@@ -24,7 +24,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: APP_NAME
-        value: AlBayan Cairo
+        value: Arab tili markazi
       - key: DATA_DIR
         value: /var/data
       - key: BACKUP_DIR
@@ -50,6 +50,6 @@ services:
       - key: TELEGRAM_BOT_USERNAME
         sync: false
     disk:
-      name: albayan-data
+      name: markaz-data
       mountPath: /var/data
       sizeGB: 1

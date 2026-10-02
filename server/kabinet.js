@@ -210,7 +210,7 @@ async function summary(store, student) {
       name: ((student.lastName || '') + ' ' + (student.firstName || '')).trim(),
       status: student.status || 'faol'
     },
-    center: { name: settings.centerName || 'AlBayan Cairo', phone: settings.phone || '' },
+    center: { name: settings.centerName || (process.env.APP_NAME || 'Arab tili markazi'), phone: settings.phone || '' },
     groups: groupList,
     finance: {
       charged: bal.charged, received: bal.received,

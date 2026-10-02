@@ -497,7 +497,7 @@
     var s = D.one('students', pay.studentId);
     var set = D.settings || {};
     var lines = [];
-    lines.push((set.centerName || 'AlBayan Cairo') + ' o’quv markazi');
+    lines.push((set.centerName || 'Arab tili markazi'));
     if (set.address) lines.push(set.address);
     if (set.phone) lines.push('Tel: ' + set.phone);
     lines.push('--------------------------------');
@@ -1691,33 +1691,33 @@
           return yarim.length ? 'Javobi yozilmagan savol bor: ' + yarim[0].slice(0, 34) : null;
         }
       },
-      { name: 'instagram', label: 'Instagram', value: s.instagram, placeholder: '@albayan.cairo yoki havola' },
-      { name: 'youtube', label: 'YouTube', value: s.youtube, placeholder: '@albayan yoki havola' },
+      { name: 'instagram', label: 'Instagram', value: s.instagram, placeholder: '@markaz yoki havola' },
+      { name: 'youtube', label: 'YouTube', value: s.youtube, placeholder: '@kanal yoki havola' },
       {
         /* Ochiq Telegram manzillari. Bot nomidan alohida: o'quvchi
            botga emas, kanalga yoki qabul xodimiga yozadi. */
         name: 'tgChannel', label: 'Telegram kanal', value: s.tgChannel,
-        placeholder: '@albayanuz',
+        placeholder: '@markaz_kanal',
         help: 'Saytda "Telegram kanal" tugmasi bo’lib chiqadi.'
       },
       {
         name: 'tgQabul', label: 'Telegram — qabul', value: s.tgQabul,
-        placeholder: '@Albayan_qabul1',
+        placeholder: '@markaz_qabul',
         help: 'Ariza va savollar uchun odam yoziladigan manzil.'
       },
       {
         name: 'tgQabulLabel', label: 'Qabul qaysi filial', value: s.tgQabulLabel,
-        placeholder: 'masalan: Taxtapul filiali',
+        placeholder: 'masalan: Onlayn qabul',
         help: 'Telegram — qabul tugmasi tagida kichik yozuv bo’lib chiqadi.'
       },
       {
         name: 'tgQabul2', label: 'Telegram — qabul (2-filial)', value: s.tgQabul2,
-        placeholder: '@albayantinchlik',
+        placeholder: '@markaz_admin',
         help: 'Ikkinchi filial uchun. Bo’sh qoldirsangiz saytda chiqmaydi.'
       },
       {
         name: 'tgQabulLabel2', label: 'Ikkinchi qabul qaysi filial', value: s.tgQabulLabel2,
-        placeholder: 'masalan: Tinchlik filiali',
+        placeholder: 'masalan: Yunusobod filiali',
         help: 'Ikkinchi qabul tugmasi tagida kichik yozuv bo’lib chiqadi.'
       },
       {
@@ -1966,7 +1966,7 @@
   function validateDump(dump) {
     var errors = [], warnings = [];
     if (!dump || typeof dump !== 'object') return { ok: false, errors: ['Fayl JSON emas.'], warnings: [], byCollection: {}, count: 0, docs: {} };
-    if (dump.app && dump.app !== 'albyana-erp') errors.push('Bu fayl AlBayan Cairo zaxirasi emas.');
+    if (dump.app && dump.app !== 'albyana-erp') errors.push('Bu fayl shu markaz zaxirasi emas.');
     var docs = dumpDocs(dump);
     var byCollection = {};
     Object.keys(docs).forEach(function (p) {
@@ -2024,7 +2024,7 @@
                     UI.toast('Serverda zaxira olindi: ' + r.file.name, 'ok');
                   } catch (err) { UI.toast(err.message, 'bad'); }
                 }
-                await UI.saveText('albayan-zaxira-' + A.today() + '.json',
+                await UI.saveText('markaz-zaxira-' + A.today() + '.json',
                   JSON.stringify(localDump()));
                 refresh();
               });
@@ -2198,7 +2198,7 @@
                 UI.toast('Tiklandi: ' + r.restored + ' yozuv. Oldingi holat "' + r.safety + '" fayliga saqlandi.', 'ok');
                 await D.loadBootstrap();
               } else {
-                await UI.saveText('albayan-tiklashdan-oldin-' + A.today() + '.json', JSON.stringify(localDump()));
+                await UI.saveText('markaz-tiklashdan-oldin-' + A.today() + '.json', JSON.stringify(localDump()));
                 await localRestore(check.docs);
                 UI.toast('Tiklandi: ' + Object.keys(check.docs).length + ' yozuv.', 'ok');
               }

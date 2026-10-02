@@ -1,7 +1,7 @@
 {
-  "name": "albayan-cairo-erp",
+  "name": "arab-markaz-erp",
   "version": "2.0.0",
-  "description": "AlBayan Cairo o'quv markazi uchun ERP tizimi: o'quvchilar, guruhlar, jadval, davomat, to'lovlar, ish haqi, hisobotlar, ichki chat, vazifalar va Telegram bot",
+  "description": "Onlayn arab tili markazi uchun ERP tizimi: o'quvchilar, guruhlar, jadval, davomat, to'lovlar, ish haqi, hisobotlar, ichki chat, vazifalar va Telegram bot",
   "private": true,
   "main": "server/index.js",
   "engines": {

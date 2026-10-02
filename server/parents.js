@@ -126,7 +126,7 @@ async function summary(store, parent, progress) {
     kind: 'parent',
     parent: { id: parent.id, name: parent.name, code: parent.code, relation: parent.relation || '' },
     children: kids,
-    center: { name: s.centerName || 'AlBayan Cairo', phone: s.phone || '' }
+    center: { name: s.centerName || (process.env.APP_NAME || 'Arab tili markazi'), phone: s.phone || '' }
   };
 }
 

@@ -117,7 +117,7 @@
    * Natija: Uint8Array (.xlsx fayl mazmuni)
    */
   function build(rows, sheetName) {
-    var name = String(sheetName || 'AlBayan').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'AlBayan';
+    var name = String(sheetName || 'Markaz').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Markaz';
     var widths = [];
     rows.forEach(function (r) {
       (r || []).forEach(function (c, i) {

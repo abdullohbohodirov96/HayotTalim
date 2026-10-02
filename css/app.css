@@ -1,5 +1,5 @@
 :root{
-  --brand:#2f4b86; --brand-deep:#1e335e; --brand-light:#4d6cae; --brand-soft:#e8edf8;
+  --brand:#16705f; --brand-deep:#0f4a40; --brand-light:#2f8f7c; --brand-soft:#e3f2ee;
   --bg:#f3f5fa; --surface:#ffffff; --surface-2:#f8f9fc; --line:#e0e5ef; --line-strong:#cdd5e4;
   --ink:#121826; --ink-2:#39435a; --muted:#69738a;
   --ok:#1c7a4f; --ok-soft:#e4f3ec;
@@ -7,9 +7,9 @@
   --bad:#ad2f2a; --bad-soft:#fbe8e7;
   --info:#2a5d9e; --info-soft:#e7effa;
   /* Yon panel uchun alohida ranglar — mavzu almashganda ham mos turadi */
-  --side-bg:#1e335e; --side-ink:#eef2fa; --side-ink-2:#c9d4ea;
+  --side-bg:#0f4a40; --side-ink:#eef2fa; --side-ink-2:#c9d4ea;
   --side-hover:rgba(255,255,255,.10); --side-line:rgba(255,255,255,.12);
-  --side-active-bg:#ffffff; --side-active-ink:#1e335e;
+  --side-active-bg:#ffffff; --side-active-ink:#0f4a40;
   --shadow:0 1px 2px rgba(18,24,38,.05), 0 8px 24px -12px rgba(18,24,38,.18);
   --shadow-lg:0 12px 40px -12px rgba(18,24,38,.30);
   --r:10px; --r-lg:16px;
@@ -22,12 +22,12 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --brand:#7fa0e0; --brand-deep:#9db8ea; --brand-light:#95b2e6; --brand-soft:#223052;
+    --brand:#5fc7ad; --brand-deep:#86d6c2; --brand-light:#7ccfba; --brand-soft:#173a33;
     --bg:#151b27; --surface:#1d2533; --surface-2:#232c3c; --line:#2f3a4c; --line-strong:#42506a;
     --ink:#eef2f9; --ink-2:#cbd4e2; --muted:#9aa6bb;
     --side-bg:#111823; --side-ink:#edf1f8; --side-ink-2:#aab7cc;
     --side-hover:rgba(255,255,255,.07); --side-line:rgba(255,255,255,.08);
-    --side-active-bg:#2c3c63; --side-active-ink:#ffffff;
+    --side-active-bg:#1d4f45; --side-active-ink:#ffffff;
     --ok:#4cc38a; --ok-soft:#14301f;
     --warn:#dfa34a; --warn-soft:#332413;
     --bad:#f07a72; --bad-soft:#3a1a18;
@@ -39,12 +39,12 @@
   }
 }
 :root[data-theme="dark"]{
-  --brand:#7fa0e0; --brand-deep:#9db8ea; --brand-light:#95b2e6; --brand-soft:#223052;
+  --brand:#5fc7ad; --brand-deep:#86d6c2; --brand-light:#7ccfba; --brand-soft:#173a33;
   --bg:#151b27; --surface:#1d2533; --surface-2:#232c3c; --line:#2f3a4c; --line-strong:#42506a;
   --ink:#eef2f9; --ink-2:#cbd4e2; --muted:#9aa6bb;
   --side-bg:#111823; --side-ink:#edf1f8; --side-ink-2:#aab7cc;
   --side-hover:rgba(255,255,255,.07); --side-line:rgba(255,255,255,.08);
-  --side-active-bg:#2c3c63; --side-active-ink:#ffffff;
+  --side-active-bg:#1d4f45; --side-active-ink:#ffffff;
   --ok:#4cc38a; --ok-soft:#14301f;
   --warn:#dfa34a; --warn-soft:#332413;
   --bad:#f07a72; --bad-soft:#3a1a18;
@@ -80,8 +80,8 @@ a{color:var(--brand);text-decoration:none}
    odam "boshqa dasturga tushib qoldim" demasin.                        */
 .login-screen{position:relative;overflow:hidden;
   background:
-    radial-gradient(90% 70% at 15% 0%, #2b4478, transparent 60%),
-    linear-gradient(160deg,#122247 10%,#070e21 85%)}
+    radial-gradient(90% 70% at 15% 0%, #136152, transparent 60%),
+    linear-gradient(160deg,#0a352e 10%,#070e21 85%)}
 .login-art{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .login-art .khatam{position:absolute;inset:-10%;width:120%;height:120%;
   color:#f0d48a;opacity:.09}
@@ -96,9 +96,9 @@ a{color:var(--brand);text-decoration:none}
 .login-screen .login h1{font-family:var(--st-serif,Georgia,serif);font-weight:600;
   font-size:24px;letter-spacing:-.02em}
 .login-screen .login .logo{box-shadow:0 0 0 1px rgba(216,174,67,.45)}
-.login-screen .login .btn.primary{background:linear-gradient(160deg,#1e335e,#122247);
+.login-screen .login .btn.primary{background:linear-gradient(160deg,#0f4a40,#0a352e);
   border-color:transparent;box-shadow:0 16px 34px -18px rgba(11,23,48,.95)}
-.login-screen .login .btn.primary:hover{background:linear-gradient(160deg,#2b4478,#1e335e)}
+.login-screen .login .btn.primary:hover{background:linear-gradient(160deg,#136152,#0f4a40)}
 .login-screen .field input:focus{outline:none;border-color:#b8901f;
   box-shadow:0 0 0 3px rgba(216,174,67,.22)}
 .login-back{align-self:center;color:var(--muted)}
@@ -323,7 +323,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
   :root:not([data-theme="light"]) .site{
     --st-paper:#0c1424; --st-paper-2:#111b2e; --st-card:#151f33;
     --st-ink:#eaf0fa; --st-ink-2:#c3cee1; --st-mut:#93a0b8;
-    --st-line:#23304a; --st-line-2:#33415f;
+    --st-line:#23304a; --st-line-2:#24493f;
     --st-gold:#e0bb5c; --st-gold-2:#efd08a; --st-gold-soft:#2a2313;
     --st-shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -18px rgba(0,0,0,.8);
     --st-shadow-lg:0 26px 60px -26px rgba(0,0,0,.9);
@@ -332,7 +332,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 :root[data-theme="dark"] .site{
   --st-paper:#0c1424; --st-paper-2:#111b2e; --st-card:#151f33;
   --st-ink:#eaf0fa; --st-ink-2:#c3cee1; --st-mut:#93a0b8;
-  --st-line:#23304a; --st-line-2:#33415f;
+  --st-line:#23304a; --st-line-2:#24493f;
   --st-gold:#e0bb5c; --st-gold-2:#efd08a; --st-gold-soft:#2a2313;
   --st-shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -18px rgba(0,0,0,.8);
   --st-shadow-lg:0 26px 60px -26px rgba(0,0,0,.9);

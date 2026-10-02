@@ -15,17 +15,17 @@
        "o'ylab topilmaydi". */
 'use strict';
 
-const DEFAULT_ADDRESS = 'Toshkent, Taxtapul Darvoza ko‘chasi, 336, 2-qavat';
-const DEFAULT_PHONE = '+998 (55) 588-20-28';
-const DEFAULT_INSTAGRAM = 'https://www.instagram.com/albayan.cairo/';
+const DEFAULT_ADDRESS = '';
+const DEFAULT_PHONE = '';
+const DEFAULT_INSTAGRAM = '';
 
 /* Saytning Google dagi nomi. Sozlamadagi nom bo'sh bo'lsa shu ishlatiladi;
    barcha joyda (title, og:site_name, WebSite schema) BITTA nom turadi.   */
-const SITE_NAME = 'AlBayan Cairo';
+const SITE_NAME = process.env.APP_NAME || 'Arab tili markazi';
 
 /* "AlBayan", "Al Bayan", "البيان" deb qidirilganda ham shu sayt
    tanilsin. Bular haqiqiy yozilish variantlari — uydirma nom emas.     */
-const ALT_NAMES = ['AlBayan', 'Al Bayan', 'Al-Bayan Cairo', 'Al Bayan Cairo', 'البيان'];
+const ALT_NAMES = String(process.env.APP_ALT_NAMES || '').split(',').map(s => s.trim()).filter(Boolean);
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({
@@ -33,7 +33,7 @@ function escapeHtml(value) {
   })[ch]);
 }
 
-const DEFAULT_ORIGIN = 'https://albayan-oquv-markz-erp.onrender.com';
+const DEFAULT_ORIGIN = 'https://arab-markaz.onrender.com';
 
 /** Bitta muhit o'zgaruvchisidan to'g'ri manzil o'qish */
 function fromEnv(name) {
@@ -124,14 +124,12 @@ function render(html, settings, host) {
   /* Sarlavha: odam nimani qidirsa, shu oldinda tursin — "arab tili
      kurslari Toshkentda". Markaz nomi oxirida. 60 belgidan oshmaydi,
      shuning uchun Google uni kesib tashlamaydi.                      */
-  const title = 'Arab tili kurslari Toshkentda | ' + name;
+  const title = 'Onlayn arab tili kurslari ayollar uchun | ' + name;
 
   /* Tavsif: ixcham (~155 belgi), faqat haqiqiy ma'lumot. Manzil va
      telefon bu yerda takrorlanmaydi — ular tuzilgan ma'lumotda va
      sahifaning o'zida turadi, tavsif esa qisqa qolsin.               */
-  const description = 'Toshkentda arab tili kurslari: A1–C2 darajalar, arab ' +
-    'ustozlar, ayollar va erkaklar uchun alohida guruhlar. Bepul daraja ' +
-    'aniqlash testi.';
+  const description = "Ayollar uchun onlayn arab tili kurslari: noldan 1 yilda, ayol ustoz bilan jonli Zoom darslar, dars yozuvlari. Butun O'zbekiston bo'ylab. Bepul ochiq dars.";
 
   /* Havolalar: Instagram va Telegram kanallari (bo'sh bo'lsa tushmaydi) */
   const links = [social, telegram(s.tgChannel), telegram(s.tgQabul),
@@ -154,7 +152,7 @@ function render(html, settings, host) {
       '@type': 'PostalAddress', streetAddress: address,
       addressLocality: 'Toshkent', addressCountry: 'UZ'
     },
-    areaServed: { '@type': 'City', name: 'Toshkent' },
+    areaServed: { '@type': 'Country', name: 'O‘zbekiston' },
     knowsLanguage: ['ar', 'uz', 'ru'],
     sameAs
   };
@@ -177,8 +175,7 @@ function render(html, settings, host) {
       {
         '@type': 'Course',
         name: 'Arab tili kurslari — A1 dan C2 gacha',
-        description: 'Alifbodan erkin suhbatgacha olti daraja. Ayollar va erkaklar ' +
-          'uchun alohida guruhlar.',
+        description: 'Noldan boshlab 1 yilda: Qur‘onni tushunib o‘qish va arabcha suhbat. Ayollar uchun jonli onlayn darslar.',
         inLanguage: 'uz', teaches: 'Arab tili',
         about: { '@type': 'Language', name: 'Arab tili', alternateName: 'اللغة العربية' },
         provider: { '@id': url + '#markaz' }
@@ -212,12 +209,11 @@ function render(html, settings, host) {
      deb ko'rardi. <noscript> ichida bo'lgani uchun endi brauzerda
      umuman chizilmaydi, lekin HTML ichida qolgani uchun qidiruv
      tizimlari va JavaScriptsiz brauzerlar uni baribir o'qiydi.       */
-  const intro = '<noscript><main id="seo-prerender" style="max-width:860px;margin:24px auto;padding:28px;font:16px/1.6 system-ui,sans-serif;color:#1e335e;background:white;border-radius:18px">' +
-    '<h1>' + escapeHtml(name) + ' — Toshkentda arab tili kurslari</h1>' +
-    '<p>Arab tilini ona tili arab tili bo‘lgan ustozlar bilan bosqichma-bosqich ' +
-    'o‘rganing. Alifbodan (A1) erkin suhbatgacha (C2) olti daraja. Ayollar va ' +
-    'erkaklar uchun alohida guruhlar, kichik guruhlar, ertalabki va kechki smenalar. ' +
-    'Bepul daraja aniqlash testi saytda.</p>' +
+  const intro = '<noscript><main id="seo-prerender" style="max-width:860px;margin:24px auto;padding:28px;font:16px/1.6 system-ui,sans-serif;color:#0f4a40;background:white;border-radius:18px">' +
+    '<h1>' + escapeHtml(name) + ' — ayollar uchun onlayn arab tili</h1>' +
+    '<p>Arab tilini noldan boshlab 1 yilda o‘rganing: ayol ustoz bilan jonli Zoom ' +
+    'darslar, har bir dars yozuvi, kichik guruhlar. Butun O‘zbekiston bo‘ylab onlayn. ' +
+    'Bepul ochiq dars va daraja aniqlash testi saytda.</p>' +
     '<p><strong>Manzil:</strong> ' + escapeHtml(address) + '</p>' +
     '<p><strong>Telefon:</strong> <a href="tel:' + escapeHtml(phone.replace(/[^+0-9]/g, '')) + '">' + escapeHtml(phone) + '</a></p>' +
     '<p><a href="' + escapeHtml(social) + '">Instagram sahifasi</a></p></main></noscript>\n';
@@ -254,7 +250,7 @@ function render(html, settings, host) {
 function robots(host) {
   const base = origin(host);
   return [
-    '# AlBayan Cairo — ochiq sayt',
+    '# ' + SITE_NAME + ' — ochiq sayt',
     'User-agent: *',
     'Allow: /',
     '',

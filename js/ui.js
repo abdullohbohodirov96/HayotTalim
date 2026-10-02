@@ -940,7 +940,7 @@
    */
   function buildXlsx(clean) {
     // 1) O'zimizning kutubxonaga bog'liq bo'lmagan yozuvchimiz
-    if (global.XlsxLite) return global.XlsxLite.build(clean, 'AlBayan Cairo');
+    if (global.XlsxLite) return global.XlsxLite.build(clean, 'Markaz');
     // 2) SheetJS bo'lsa (ixtiyoriy)
     if (global.XLSX) {
       var ws = global.XLSX.utils.aoa_to_sheet(clean);
@@ -953,7 +953,7 @@
       });
       ws['!cols'] = widths.map(function (w) { return { wch: w }; });
       var wb = global.XLSX.utils.book_new();
-      global.XLSX.utils.book_append_sheet(wb, ws, 'AlBayan Cairo');
+      global.XLSX.utils.book_append_sheet(wb, ws, 'Markaz');
       return global.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     }
     return null;

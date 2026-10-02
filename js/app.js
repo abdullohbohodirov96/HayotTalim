@@ -258,7 +258,7 @@
   /* Markaz nomi: avval serverdagi nom, bo'lmasa brauzerdagi nusxa, oxirida standart.
      Eski nusxa qolib ketmasin uchun server nomi kelganda yangilanadi. */
   function centerNameNow() {
-    return (D.settings && D.settings.centerName) || 'AlBayan Cairo';
+    return (D.settings && D.settings.centerName) || 'Arab tili markazi';
   }
   async function refreshCenterName() {
     try {
@@ -323,7 +323,7 @@
     /* Kirish sahifasi ham saytning ko'rinishida: to'q fon va naqsh */
     wrap.appendChild(h('div', { class: 'login-art', 'aria-hidden': 'true' }, [
       khatamSvg('khatam'),
-      h('span', { class: 'login-ar' }, 'البيان')
+      h('span', { class: 'login-ar' }, 'العربية')
     ]));
     wrap.appendChild(formEl);
     refreshCenterName();
@@ -2633,7 +2633,7 @@
           h('span', { class: 'hero-eyebrow' }, t.tag || 'Ustoz'),
           h('h1', {}, t.name),
           h('p', { class: 'hero-lead' }, t.bio ||
-            'Arab tilini ona tili darajasida biladi va AlBayan Cairo’da dars beradi.'),
+            'Markazimizda arab tilidan dars beradi.'),
           h('div', { class: 'tch-facts' }, [
             t.country ? fact('home', 'Davlat', t.country) : null,
             t.levels ? fact('chart', 'Darajalar', t.levels) : null,
@@ -2747,7 +2747,7 @@
     document.getElementById('me-role').textContent = A.ROLES[user.role] || user.role;
     document.getElementById('me-avatar').textContent =
       (user.name || '?').trim().split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toUpperCase();
-    document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'AlBayan Cairo';
+    document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'Arab tili markazi';
     var mp = document.getElementById('mode-pill');
     if (D.mode === 'local') { mp.hidden = false; mp.textContent = 'Faqat shu brauzerda'; }
     // sahifa yangilanganda oxirgi ochilgan bo'limga qaytamiz

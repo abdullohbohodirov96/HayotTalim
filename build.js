@@ -28,25 +28,23 @@ const body = src.replace(/^[\s\S]*?(?=<div id="boot")/, function (top) {
    SITE_URL — saytning asosiy manzili. O'z domeningiz bo'lsa, uni shu yerga
    yozing (yoki SITE_URL muhit o'zgaruvchisida bering): havolalar, canonical
    va sitemap shunga qarab tuziladi.                                        */
-const SITE_URL = (process.env.SITE_URL || 'https://albayan-oquv-markz-erp.onrender.com')
+const SITE_URL = (process.env.SITE_URL || 'https://arab-markaz.onrender.com')
   .replace(/\/+$/, '');
-const SITE_NAME = 'AlBayan Cairo';
+const SITE_NAME = process.env.APP_NAME || 'Arab tili markazi';
 /* Nom variantlari — server/seo.js dagi ro'yxat bilan BIR XIL bo'lishi
    kerak, aks holda Google statik HTML va serverdan kelgan HTML da
    ikki xil signal ko'radi.                                          */
-const ALT_NAMES = ['AlBayan', 'Al Bayan', 'Al-Bayan Cairo', 'Al Bayan Cairo', 'البيان'];
+const ALT_NAMES = String(process.env.APP_ALT_NAMES || '').split(',').map(s => s.trim()).filter(Boolean);
 /* Sarlavha: qidiruv so'zi oldinda, markaz nomi oxirida (~60 belgi). */
-const SITE_TITLE = 'Arab tili kurslari Toshkentda | ' + SITE_NAME;
+const SITE_TITLE = 'Onlayn arab tili kurslari ayollar uchun | ' + SITE_NAME;
 /* Tavsif: ixcham (~155 belgi) — Google kesib tashlamaydi. */
-const SITE_DESC = 'Toshkentda arab tili kurslari: A1–C2 darajalar, arab ' +
-  'ustozlar, ayollar va erkaklar uchun alohida guruhlar. Bepul daraja ' +
-  'aniqlash testi.';
+const SITE_DESC = "Ayollar uchun onlayn arab tili kurslari: noldan 1 yilda, ayol ustoz bilan jonli Zoom darslar, dars yozuvlari. Butun O'zbekiston bo'ylab. Bepul ochiq dars.";
 
 /* Google Analytics 4. Bo'sh qoldirilsa (GA_ID='') teg umuman
    qo'yilmaydi — mahalliy ishlaganda yoki sinovda statistika
    yuborilmaydi.                                                    */
 const GA_ID = process.env.GA_MEASUREMENT_ID != null
-  ? process.env.GA_MEASUREMENT_ID : 'G-3MYVLL1HML';
+  ? process.env.GA_MEASUREMENT_ID : '';
 
 /* MUHIM — MAXFIYLIK.
    Bu bitta sahifali dastur: ochiq sayt ham, ERP ham bitta manzilda
@@ -181,7 +179,7 @@ const head = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">${GA_TAG}
 <title>${SITE_TITLE}</title>
 <meta name="description" content="${SITE_DESC}">
-<meta name="theme-color" content="#1e335e">
+<meta name="theme-color" content="#0f5c4d">
 <link rel="canonical" href="${SITE_URL}/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 
@@ -191,7 +189,7 @@ const head = `<!doctype html>
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/icon-16.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-180.png">
-<meta name="msapplication-TileColor" content="#1e335e">
+<meta name="msapplication-TileColor" content="#0f5c4d">
 <meta name="msapplication-TileImage" content="/assets/icon-192.png">
 
 <!-- Havola ulashilganda chiqadigan kartochka (Telegram, Facebook, WhatsApp) -->
@@ -239,9 +237,9 @@ const LD = {
       image: SITE_URL + '/assets/icon-512.png',
       description: SITE_DESC,
       address: { '@type': 'PostalAddress', addressLocality: 'Toshkent', addressCountry: 'UZ' },
-      areaServed: { '@type': 'City', name: 'Toshkent' },
+      areaServed: { '@type': 'Country', name: 'O‘zbekiston' },
       knowsLanguage: ['ar', 'uz', 'ru'],
-      sameAs: ['https://www.instagram.com/albayan.cairo/']
+      sameAs: []
     },
     {
       /* Google qidiruvdagi SAYT NOMI aynan shu yozuvdan olinadi */
@@ -256,17 +254,16 @@ const LD = {
     {
       '@type': 'Course',
       name: 'Arab tili kurslari — A1 dan C2 gacha',
-      description: 'Alifbodan erkin suhbatgacha olti daraja. Darslarni ona tili ' +
-        'arab tili bo‘lgan ustozlar olib boradi.',
+      description: 'Noldan boshlab 1 yilda: Qur‘onni tushunib o‘qish va arabcha suhbat. Jonli onlayn darslar.',
       inLanguage: 'uz',
       teaches: 'Arab tili',
       about: { '@type': 'Language', name: 'Arab tili', alternateName: 'اللغة العربية' },
       provider: { '@id': SITE_URL + '/#markaz' },
       hasCourseInstance: {
         '@type': 'CourseInstance',
-        courseMode: 'onsite',
+        courseMode: 'online',
         courseWorkload: 'PT4H30M',
-        location: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: 'Toshkent', addressCountry: 'UZ' } }
+        location: { '@type': 'VirtualLocation', url: SITE_URL + '/' }
       }
     }
   ]
@@ -305,7 +302,7 @@ VERSIONED.forEach(rel => {
   hash.update(rel + '\0');
   hash.update(fs.readFileSync(f));
 });
-const VERSION = 'albayan-' + hash.digest('hex').slice(0, 12);
+const VERSION = 'markaz-' + hash.digest('hex').slice(0, 12);
 
 const swPath = path.join(__dirname, 'sw.js');
 let sw = fs.readFileSync(swPath, 'utf8');

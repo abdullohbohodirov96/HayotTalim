@@ -1,4 +1,4 @@
-/* AlBayan Cairo ERP — dastlabki sozlash va namuna (demo) ma'lumotlari */
+/* Markaz ERP — dastlabki sozlash va namuna (demo) ma'lumotlari */
 (function (global) {
   'use strict';
   var A = global.A, D = A.Data;
@@ -9,9 +9,9 @@
   function salt() { return Math.random().toString(36).slice(2, 10); }
 
   var DEFAULT_SETTINGS = {
-    centerName: 'AlBayan Cairo',
+    centerName: 'Arab tili markazi',
     address: '',
-    phone: '+998 (55) 588-20-28',
+    phone: '',
     workStart: '08:00',
     workEnd: '20:00',
     dueDay: 5,
@@ -26,7 +26,7 @@
     expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
     bot: {
       username: '',
-      welcome: 'Assalomu alaykum! AlBayan Cairo o’quv markazi botiga xush kelibsiz.',
+      welcome: 'Assalomu alaykum! Markazimiz botiga xush kelibsiz.',
       notifyAttendance: true,
       notifyPayment: true,
       notifyDebt: true,
