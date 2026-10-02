@@ -415,6 +415,32 @@ function section(t) { results.push('\n' + t); }
     !(pkg.dependencies && pkg.dependencies['better-sqlite3']),
     JSON.stringify(pkg.optionalDependencies));
 
+  /* --- 23. Onlayn markaz: bo'lib to'lash, zapusk, hudud --- */
+  section('23. Bo’lib to’lash, zapusk chegirmasi, hudud');
+  const memI = { id: 'mI', studentId: 'sI', groupId: 'gI', installments: 2 };
+  const fI = A.installmentFields(memI, '2026-10-05');
+  eq('2 qism: ikkinchi muddat 15 kundan keyin', fI.dueDate2, '2026-10-20');
+  eq('1 martalikda qo’shimcha maydon yo’q', Object.keys(A.installmentFields({ installments: 1 }, '2026-10-05')).length, 0);
+  const invI = { id: 'invI', studentId: 'sI', final: 350000, dueDate: '2026-10-05', parts: 2, dueDate2: '2026-10-20' };
+  eq('1-muddatdan keyin faqat yarmi muddati o’tgan', A.invoiceOverdueAmount(invI, {}, '2026-10-10'), 175000);
+  eq('Yarmi to’langan bo’lsa — qarz muddati o’tmagan', A.invoiceOverdueAmount(invI, { invI: 175000 }, '2026-10-10'), 0);
+  eq('2-muddatdan keyin qolgani to’liq', A.invoiceOverdueAmount(invI, { invI: 175000 }, '2026-10-21'), 175000);
+  eq('Muddatdan oldin qarz o’tmagan', A.invoiceOverdueAmount(invI, {}, '2026-10-01'), 0);
+  const invOne = { id: 'inv1', studentId: 'sI', final: 350000, dueDate: '2026-10-05' };
+  eq('Oddiy hisob: muddat o’tgach to’liq', A.invoiceOverdueAmount(invOne, {}, '2026-10-06'), 350000);
+  const memsP = [{ promo: 'z1' }, { promo: 'z1' }, { promo: 'z0' }, {}];
+  eq('Zapusk joylari faqat shu zapusk bo’yicha sanaladi', A.promoUsed(memsP, 'z1'), 2);
+  ok('Joy bor va muddat o’tmagan — ochiq', A.promoOpen({ active: true, seats: 20, endDate: '2026-10-10' }, 2, '2026-10-09T10:00'));
+  ok('Joylar tugasa — yopiq', !A.promoOpen({ active: true, seats: 2 }, 2, '2026-10-09T10:00'));
+  ok('Muddat o’tsa — yopiq', !A.promoOpen({ active: true, seats: 20, endDate: '2026-10-10', endTime: '23:59' }, 2, '2026-10-11T00:01'));
+  ok('O’chirilgan — yopiq', !A.promoOpen({ active: false }, 0, '2026-10-01T00:00'));
+  const promoMem = { id: 'mP', firstMonth: { month: '2026-10', mode: 'custom', amount: 249000 } };
+  eq('Zapusk narxi birinchi oyga tushadi', A.invoiceAmountFor({ fee: 350000 }, promoMem, '2026-10').final, 249000);
+  eq('Keyingi oy odatiy narx', A.invoiceAmountFor({ fee: 350000 }, promoMem, '2026-11').final, 350000);
+  ok('Hududlar ro’yxatida 15 ta hudud', A.REGIONS.length === 15 && A.REGIONS.indexOf('Chet el') >= 0);
+  eq('Faqat https havola qabul qilinadi', A.safeUrl('javascript:alert(1)'), '');
+  eq('Zoom havolasi o’tadi', A.safeUrl('https://us06web.zoom.us/j/123'), 'https://us06web.zoom.us/j/123');
+
   /* ---------------- Natija ---------------- */
   console.log(results.join('\n'));
   console.log('\n' + '─'.repeat(48));
