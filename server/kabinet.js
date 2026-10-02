@@ -140,7 +140,9 @@ async function summary(store, student) {
       teacher: t ? t.name : '',
       days: g.days || [], daysText: daysText(g.days),
       startTime: g.startTime || '', endTime: g.endTime || '',
-      room: r ? r.name : ''
+      room: g.format === 'oflayn' ? (r ? r.name : '') : 'Onlayn',
+      zoomLink: A.safeUrl ? A.safeUrl(g.zoomLink) : '',
+      recordingsLink: A.safeUrl ? A.safeUrl(g.recordingsLink) : ''
     };
   }).filter(Boolean);
 
@@ -239,6 +241,8 @@ function summaryText(sum) {
       const when = [g.daysText, (g.startTime && g.endTime) ? g.startTime + '–' + g.endTime : '']
         .filter(Boolean).join('  ');
       if (when) L.push('   ' + esc(when) + (g.room ? '  ·  ' + esc(g.room) : ''));
+      if (g.zoomLink) L.push('   Zoom: ' + esc(g.zoomLink));
+      if (g.recordingsLink) L.push('   Yozuvlar: ' + esc(g.recordingsLink));
     });
   } else {
     L.push('Hozircha guruhga yozilmagansiz.');

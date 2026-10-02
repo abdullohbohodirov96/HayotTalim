@@ -163,7 +163,8 @@
     view.appendChild(h('button', { class: 'btn ghost sm', style: 'margin-bottom:8px', onclick: function () { App.go('groups'); } },
       [UI.icon('back'), 'Guruhlar']));
     view.appendChild(UI.pageHead(A.groupLabel(g),
-      Q.courseName(g.courseId) + ' · ' + Q.staffName(g.teacherId) + ' · ' + Q.roomName(g.roomId) + ' · ' +
+      Q.courseName(g.courseId) + ' · ' + Q.staffName(g.teacherId) + ' · ' +
+      (g.format === 'oflayn' ? Q.roomName(g.roomId) : 'Onlayn') + ' · ' +
       (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join(', ') + ' ' + g.startTime + '–' + g.endTime,
       [
         App.can('attendance.mark') ? h('button', {
@@ -177,6 +178,13 @@
       ]));
 
     view.appendChild(tgGroupCard(g, App));
+    if (g.zoomLink || g.recordingsLink) {
+      view.appendChild(h('div', { class: 'card', style: 'padding:12px 16px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center' }, [
+        h('b', { style: 'margin-right:auto' }, 'Onlayn dars'),
+        g.zoomLink ? h('a', { class: 'btn primary sm', href: g.zoomLink, target: '_blank', rel: 'noopener' }, 'Zoom’ga kirish') : null,
+        g.recordingsLink ? h('a', { class: 'btn sm', href: g.recordingsLink, target: '_blank', rel: 'noopener' }, 'Dars yozuvlari') : null
+      ]));
+    }
 
     var members = Q.membersOf(g.id);
     var tiles = h('div', { class: 'tiles' });
@@ -366,9 +374,29 @@
           D.all('staff').filter(function (s) { return s.status === 'faol'; }).map(function (s) { return { value: s.id, label: s.name }; }))
       },
       {
-        name: 'roomId', label: 'Xona', type: 'select', value: g.roomId,
+        name: 'format', label: 'Format', type: 'select', value: g.format || 'onlayn',
+        options: [{ value: 'onlayn', label: 'Onlayn (Zoom)' }, { value: 'oflayn', label: 'Oflayn (xonada)' }]
+      },
+      {
+        name: 'audience', label: 'Kim uchun', type: 'select', value: g.audience || 'ayollar',
+        options: [{ value: 'ayollar', label: 'Ayollar' }, { value: 'erkaklar', label: 'Erkaklar' },
+          { value: 'bolalar', label: 'Bolalar' }, { value: 'aralash', label: 'Aralash' }]
+      },
+      {
+        name: 'roomId', label: 'Xona (oflayn uchun)', type: 'select', value: g.roomId,
         options: [{ value: '', label: '— tanlanmagan —' }].concat(
           D.all('rooms').map(function (r) { return { value: r.id, label: r.name + ' (' + r.capacity + ' joy)' }; }))
+      },
+      {
+        name: 'zoomLink', label: 'Zoom havolasi (onlayn uchun)', value: g.zoomLink, full: true,
+        placeholder: 'https://us06web.zoom.us/j/…',
+        help: 'O’quvchilar bot va kabinetdan shu havola orqali darsga kiradi.',
+        validate: function (v) { return v && !A.safeUrl(v) ? 'Havola https:// bilan boshlanishi kerak.' : null; }
+      },
+      {
+        name: 'recordingsLink', label: 'Dars yozuvlari havolasi (ixtiyoriy)', value: g.recordingsLink, full: true,
+        placeholder: 'https://t.me/+… yoki Google Drive papkasi',
+        validate: function (v) { return v && !A.safeUrl(v) ? 'Havola https:// bilan boshlanishi kerak.' : null; }
       },
       {
         name: 'startTime', label: 'Boshlanish vaqti', type: 'time', required: true, value: g.startTime,
@@ -528,7 +556,10 @@
               return;
             }
             UI.busy(btn, async function () {
-              var rec = Object.assign({}, isNew ? {} : g, v, { days: days, limit: v.limit || 0, fee: v.fee });
+              var rec = Object.assign({}, isNew ? {} : g, v, {
+                days: days, limit: v.limit || 0, fee: v.fee,
+                zoomLink: A.safeUrl(v.zoomLink), recordingsLink: A.safeUrl(v.recordingsLink)
+              });
               // o'qituvchi almashsa — tarixga yozamiz (eski davr ish haqi o'zgarmaydi)
               if (!isNew && g.teacherId !== v.teacherId) {
                 rec.teacherHistory = A.setTeacher(g, v.teacherId, A.today());

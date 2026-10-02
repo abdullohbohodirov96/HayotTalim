@@ -558,6 +558,11 @@
     monthStart: monthStart, monthEnd: monthEnd, monthLabel: monthLabel, dateLabel: dateLabel,
     WEEKDAYS: WEEKDAYS, WEEKDAYS_SHORT: WEEKDAYS_SHORT, MONTHS: MONTHS,
     REGIONS: REGIONS, LEAD_SOURCES: LEAD_SOURCES,
+    /** Faqat https havola (Zoom, Telegram, Drive) — boshqa narsa bo'sh qaytadi */
+    safeUrl: function (u) {
+      var s = String(u || '').trim();
+      return /^https:\/\/[^\s<>"']+$/i.test(s) ? s.slice(0, 500) : '';
+    },
     som: som, somFull: somFull, parseSom: parseSom,
     uid: uid, textHash: textHash, normPhone: normPhone, phoneDigits: phoneDigits, esc: esc, clone: clone,
     byId: byId, sortBy: sortBy, sha256: sha256, pad: pad,

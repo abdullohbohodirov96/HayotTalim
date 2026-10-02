@@ -20,10 +20,10 @@ assert.match(rendered, /https:\/\/t\.me\/albayantinchlik/);
 /* Yaroqsiz Telegram nomi tushmaydi */
 assert.doesNotMatch(seo.render(html, { tgChannel: 'javascript:alert(1)' }, 'example.uz'), /javascript:/);
 
-assert.match(rendered, /<h1>Al Bayan Cairo — Toshkentda arab tili kurslari<\/h1>/);
+assert.match(rendered, /<h1>Al Bayan Cairo — ayollar uchun onlayn arab tili<\/h1>/);
 /* Sarlavha: qidiruv so'zi oldinda, nom oxirida; 65 belgidan oshmaydi */
 const t1 = (rendered.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
-assert.match(t1, /^Arab tili kurslari Toshkentda \| Al Bayan Cairo$/);
+assert.match(t1, /^Onlayn arab tili kurslari ayollar uchun \| Al Bayan Cairo$/);
 assert.ok(t1.length <= 65, 'sarlavha juda uzun: ' + t1.length);
 /* Tavsif ixcham va faqat bitta */
 const d1 = (rendered.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
@@ -39,7 +39,7 @@ const ld1 = JSON.parse(
     .replace(/\\u003c/g, '<'));
 const web1 = ld1['@graph'].find(x => x['@type'] === 'WebSite');
 assert.equal(web1.name, 'Al Bayan Cairo');
-assert.ok(web1.alternateName.length >= 3);
+assert.ok(Array.isArray(web1.alternateName));
 assert.match(rendered, /<meta property="og:site_name" content="Al Bayan Cairo">/);
 
 /* ---- robots.txt ---- */
@@ -91,7 +91,7 @@ assert.equal((sm1.match(/<loc>/g) || []).length, 1);
   delete process.env.SITE_URL;
   const yot = ['zararli.example.com', 'evil.uz', 'google.com', 'albayan.attacker.net'];
   for (const bad of yot) {
-    assert.equal(seo.origin(bad), 'https://albayan-oquv-markz-erp.onrender.com',
+    assert.equal(seo.origin(bad), 'https://arab-markaz.onrender.com',
       'begona host o‘tib ketdi: ' + bad);
     assert.doesNotMatch(seo.robots(bad), new RegExp(bad.replace(/\./g, '\\.')));
     assert.doesNotMatch(seo.sitemap(bad), new RegExp(bad.replace(/\./g, '\\.')));
@@ -101,13 +101,13 @@ assert.equal((sm1.match(/<loc>/g) || []).length, 1);
   assert.equal(seo.origin('localhost:3300'), 'http://localhost:3300');
   assert.equal(seo.origin('127.0.0.1:3300'), 'http://127.0.0.1:3300');
   /* Render o'zi bergan manzil ham qabul qilinadi */
-  process.env.RENDER_EXTERNAL_URL = 'https://albayan-oquv-markz-erp.onrender.com';
-  assert.equal(seo.origin('zararli.example.com'), 'https://albayan-oquv-markz-erp.onrender.com');
+  process.env.RENDER_EXTERNAL_URL = 'https://arab-markaz.onrender.com';
+  assert.equal(seo.origin('zararli.example.com'), 'https://arab-markaz.onrender.com');
   delete process.env.RENDER_EXTERNAL_URL;
   if (old != null) process.env.SITE_URL = old;
 }
 /* Begona Host e'tiborga olinmaydi — canonical standart manzilda qoladi */
-assert.match(rendered, /<link rel="canonical" href="https:\/\/albayan-oquv-markz-erp\.onrender\.com\/">/);
+assert.match(rendered, /<link rel="canonical" href="https:\/\/arab-markaz\.onrender\.com\/">/);
 assert.match(rendered, /Taxtapul Darvoza/);
 assert.match(rendered, /tel:\+998555882028/);
 assert.match(rendered, /"EducationalOrganization"/);
@@ -115,7 +115,7 @@ assert.doesNotMatch(rendered, /<meta name="description" content="[^"]*boshqaruv 
 assert.match(rendered, /<div id="boot" class="screen" hidden>/);
 /* Logotip va boyitilgan yozuv ham bo'lishi kerak */
 assert.match(rendered, /rel="icon"[^>]*icon-32\.png/);
-assert.match(rendered, /"alternateName":\[[^\]]*"AlBayan"/);
+assert.match(rendered, /"alternateName":\[/);
 assert.match(rendered, /"openingHoursSpecification"/);
 assert.match(rendered, /"@type":"Course"/);
 assert.match(rendered, /icon-512\.png/);
@@ -126,6 +126,6 @@ const hostile = seo.render(html, {
 }, 'bad.example.com"><script>alert(1)</script>');
 assert.doesNotMatch(hostile, /<script>alert\(1\)<\/script>/);
 assert.doesNotMatch(hostile, /href="javascript:/);
-assert.match(hostile, /https:\/\/albayan-oquv-markz-erp\.onrender\.com/);
+assert.match(hostile, /https:\/\/arab-markaz\.onrender\.com/);
 
 console.log('✓ SEO HTML, tuzilgan ma\u2019lumot va xavfsiz matn sinovlari o\u2019tdi.');

@@ -527,7 +527,11 @@
               g.teacher ? h('div', { class: 'small' }, 'O’qituvchi: ' + g.teacher) : null,
               h('div', { class: 'small muted' },
                 [g.daysText, (g.startTime && g.endTime) ? g.startTime + '–' + g.endTime : '', g.room]
-                  .filter(Boolean).join('  ·  '))
+                  .filter(Boolean).join('  ·  ')),
+              (g.zoomLink || g.recordingsLink) ? h('div', { class: 'rowflex', style: 'gap:6px;margin-top:6px' }, [
+                g.zoomLink ? h('a', { class: 'btn primary sm', href: g.zoomLink, target: '_blank', rel: 'noopener' }, 'Darsga kirish (Zoom)') : null,
+                g.recordingsLink ? h('a', { class: 'btn sm', href: g.recordingsLink, target: '_blank', rel: 'noopener' }, 'Dars yozuvlari') : null
+              ]) : null
             ]);
           }))
           : h('p', { class: 'muted small' }, 'Hozircha guruhga yozilmagansiz.'),
