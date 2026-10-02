@@ -2634,3 +2634,4 @@ button.cur-title:hover b{text-decoration:underline}
 .hero-badge{border-color:rgba(23,128,95,.35)}
 .zm-tile.host{background:linear-gradient(160deg,var(--st-gold-2),var(--st-gold))}
 .zm-letters span{background:var(--st-gold-soft);color:var(--st-gold)}
+.hero-tel:not([href^="tel:"]){display:none}
