@@ -13,14 +13,15 @@
     address: '',
     phone: '',
     workStart: '08:00',
-    workEnd: '20:00',
+    workEnd: '22:00',
+    lessonMinutes: 80,
     dueDay: 5,
     /* Saytda harf-harf yozilib turadigan iboralar (har qatorda bittasi).
        Markaz Sozlamalardan o'zgartiradi. */
-    taglines: 'Arab tilini arablardan o’rganing\n' +
-      'Arab davlatlarida erkin gaplashing\n' +
-      'Alifbodan C2 darajasigacha\n' +
-      'Kichik guruh — har bir o’quvchiga vaqt',
+    taglines: 'Qur’onni tushunib o’qing\n' +
+      'Noldan boshlab — 1 yilda\n' +
+      'Ayol ustoz bilan jonli Zoom darslar\n' +
+      'Uydan chiqmasdan, butun O’zbekiston bo’ylab',
     /* Darslar orasidagi tanaffus — jadval shunga qarab tuziladi */
     breakMinutes: 30,
     expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
@@ -80,7 +81,7 @@
     var courses = [
       /* Markazda YO'NALISH BITTA, narx ham bitta — daraja bilan
          o'zgarmaydi. Guruhlar faqat daraja bilan farq qiladi.          */
-      { id: 'crs_ar1', name: 'Arab tili (A1–C2)', description: 'Alifbodan erkin suhbatgacha — bitta dastur, olti daraja', monthlyFee: 880000, lessonMinutes: 90, active: true, order: 1, demo: true }
+      { id: 'crs_ar1', name: 'Arab tili — noldan 1 yilda', description: 'Ayollar uchun onlayn: Qur’onni tushunib o’qish va arabcha suhbat', monthlyFee: 350000, lessonMinutes: 80, active: true, order: 1, demo: true }
     ];
     for (i = 0; i < courses.length; i++) await D.save('courses', courses[i]);
 

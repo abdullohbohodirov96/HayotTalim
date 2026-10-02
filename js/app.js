@@ -1370,10 +1370,10 @@
      keyingisi yoziladi. "Harakatni kamaytirish" yoqilgan bo'lsa yozilmaydi —
      iboralar shunchaki navbat bilan almashadi.                            */
   var TAGLINES = [
-    'Arab tilini arablardan o’rganing',
-    'Arab davlatlarida erkin gaplashing',
-    'Alifbodan C2 darajasigacha',
-    'Kichik guruh — har bir o’quvchiga vaqt'
+    'Qur’onni tushunib o’qing',
+    'Noldan boshlab — 1 yilda',
+    'Ayol ustoz bilan jonli Zoom darslar',
+    'Uydan chiqmasdan, butun O’zbekiston bo’ylab'
   ];
   var typeTimer = null;
 
@@ -1541,7 +1541,7 @@
         h('img', { class: 'logo', src: LOGO, alt: '' }),
         h('div', {}, [
           h('b', { id: 'site-name' }, name),
-          h('span', {}, 'Arab tili o’quv markazi')
+          h('span', {}, 'Onlayn arab tili markazi')
         ])
       ]),
       h('nav', { class: 'site-nav' }, [
@@ -1572,7 +1572,7 @@
     var hero = h('section', { class: 'site-hero' }, [
       heroBadge,
       h('div', { class: 'hero-text' }, [
-        h('span', { class: 'hero-eyebrow' }, 'Toshkentda arab tili'),
+        h('span', { class: 'hero-eyebrow' }, 'Ayollar uchun onlayn arab tili'),
         h('h1', {}, [h('span', { class: 'gold', id: 'site-name-hero' }, name)]),
         h('div', { class: 'hero-type' }, [
           h('span', { class: 'hero-type-txt', id: 'hero-type-txt' }, ''),
@@ -1580,13 +1580,13 @@
         ]),
         h('div', { class: 'hero-rule', 'aria-hidden': 'true' }),
         h('p', { class: 'hero-lead', id: 'site-about' },
-          'Alifbodan erkin suhbatgacha. Ayollar va erkaklar uchun alohida guruhlar. ' +
-          'Darsni arab ustozlar olib boradi — siz birinchi kundan arabcha gapira boshlaysiz.'),
+          'Noldan boshlab 1 yilda: Qur’onni tushunib o’qiysiz va arabcha gapirasiz. ' +
+          'Ayol ustoz bilan jonli Zoom darslar, har bir dars yozuvi — butun O’zbekiston bo’ylab, uydan chiqmasdan.'),
         h('div', { class: 'hero-cta' }, [
           h('button', {
-            class: 'btn gold xl', type: 'button',
-            onclick: function () { scrollTo('ariza'); if (fName.input) fName.input.focus(); }
-          }, [h('span', {}, 'Darsga yozilish'), goIcon()]),
+            class: 'btn gold xl', type: 'button', id: 'hero-free-btn',
+            onclick: function () { goFreeLesson(); }
+          }, [h('span', {}, 'Bepul darsga yozilish'), goIcon()]),
           h('button', {
             class: 'btn on-dark lg', type: 'button',
             onclick: function () { location.hash = 'test'; renderTest(); }
@@ -1615,10 +1615,10 @@
           h('div', { class: 'medal-in' }, [
             khatamSvg('khatam-in'),
             h('img', { src: LOGO, alt: '' }),
-            h('span', { class: 'hero-ar', 'aria-hidden': 'true' }, 'البيان')
+            h('span', { class: 'hero-ar', 'aria-hidden': 'true' }, 'العربية')
           ])
         ]),
-        h('div', { class: 'hero-badge' }, [h('b', {}, 'AlBayan'), h('span', {}, 'Cairo')])
+        h('div', { class: 'hero-badge' }, [h('b', {}, 'Onlayn'), h('span', {}, 'Zoom')])
       ])
     ]);
 
@@ -1653,6 +1653,21 @@
        Sozlamada yozilmagan bo'lsa butun tasma ko'rinmaydi.              */
     var statsBand = h('section', { class: 'stat-band reveal', id: 'stat-band', hidden: true }, statsBox);
 
+    /* Zapusk tasmasi: bepul dars sanasi, chegirmali narx, "7/20 joy band"
+       va tugashiga qolgan vaqt. Sozlamada yoqilmasa ko'rinmaydi.        */
+    var promoBand = h('section', { class: 'site-sec promo-band', id: 'promo-band', hidden: true });
+    var botUser = '';
+    function botLink() {
+      if (!botUser) return '';
+      var src = A.siteSrc();
+      return 'https://t.me/' + botUser + '?start=dars' + (src ? '_' + src : '');
+    }
+    function goFreeLesson() {
+      var l = botLink();
+      if (l) { window.open(l, '_blank', 'noopener'); return; }
+      scrollTo('ariza'); if (fName.input) fName.input.focus();
+    }
+
     /* ---------- Nega biz: chapda naqshli panel, o'ngda ro'yxat ---------- */
     function whyRow(t) {
       return h('li', {}, [UI.icon('check'), h('span', {}, t)]);
@@ -1662,7 +1677,7 @@
         h('div', { class: 'why-art' }, [
           khatamSvg('khatam-in'),
           h('div', { class: 'why-art-in' }, [
-            h('span', { class: 'why-ar', 'aria-hidden': 'true' }, 'البيان'),
+            h('span', { class: 'why-ar', 'aria-hidden': 'true' }, 'العربية'),
             h('img', { src: LOGO, alt: '' }),
             h('div', { class: 'why-badge' }, [
               h('b', { id: 'why-badge-v' }, 'A1–C2'),
@@ -1672,18 +1687,18 @@
         ]),
         h('div', { class: 'why-text' }, [
           h('div', { class: 'sec-eyebrow' }, 'Nega biz'),
-          h('h2', {}, 'Til daftarda emas, suhbatda o’rganiladi'),
+          h('h2', {}, 'Uydan chiqmasdan, ayol ustoz bilan'),
           h('p', { class: 'sec-note' },
-            'Har bir daraja bitta aniq maqsad bilan tuzilgan: alifbodan boshlab arab ' +
-            'davlatlarida erkin gaplashgunga qadar. Darsda ko’proq siz gapirasiz — ' +
-            'ustoz esa xatoni o’sha zahoti tuzatadi.'),
+            'Darslar jonli: ustozni ko’rasiz, savol berasiz, xatoingiz o’sha zahoti ' +
+            'tuzatiladi. Dars qoldirsangiz — yozuvi Telegram guruhda turadi. ' +
+            'Noldan boshlab bir yilda Qur’onni tushunib o’qish va arabcha suhbatga yetasiz.'),
           h('ul', { class: 'why-list' }, [
-            whyRow('Darsni ona tili arab tili bo’lgan ustozlar olib boradi'),
-            whyRow('Bir dastur, olti daraja — sakrab o’tish yo’q'),
-            whyRow('Ayollar va erkaklar uchun alohida guruhlar'),
-            whyRow('Kichik guruh: har bir o’quvchiga vaqt yetadi'),
-            whyRow('Har dars davomat — ota-ona kabinetdan ko’rib turadi'),
-            whyRow('Uy vazifasi va natija kabinetda saqlanadi')
+            whyRow('Faqat ayollar guruhi va ayol ustoz'),
+            whyRow('Haftada 3 marta jonli Zoom dars, har biri 80 daqiqa'),
+            whyRow('Har bir dars yozib olinadi — qoldirsangiz ham ortda qolmaysiz'),
+            whyRow('Kichik guruh: 10 kishigacha, har biriga vaqt yetadi'),
+            whyRow('Butun O’zbekiston va chet eldan qatnashish mumkin'),
+            whyRow('Uy vazifasi, davomat va to’lov — shaxsiy kabinetda')
           ]),
           h('button', {
             class: 'btn primary lg', type: 'button',
@@ -1722,9 +1737,8 @@
           h('h2', {}, 'Darsni kim olib boradi')
         ]),
         h('p', { class: 'sec-note' },
-          'Darslarni arab ustozlar olib boradi — arab tili ularning ona tili, ' +
-          'o’zlari arab davlatlarida tug’ilib o’sgan. Siz tilni kitobdan emas, ' +
-          'tilning egasidan o’rganasiz.')
+          'Darslarni tajribali ayol ustoz olib boradi. Noldan boshlovchilar bilan ' +
+          'ishlashni biladi: har bir harf va qoidani sabr bilan, tushunarli qilib o’rgatadi.')
       ]),
       teachBox
     ]);
@@ -1734,7 +1748,7 @@
     var timetable = h('section', { class: 'site-sec reveal', id: 'vaqt' }, [
       h('div', { class: 'sec-eyebrow' }, 'Jadval'),
       h('h2', {}, 'Dars vaqtlari'),
-      h('p', { class: 'muted', id: 'slot-lead' }, 'Har bir dars 1 soat 30 daqiqa.'),
+      h('p', { class: 'muted', id: 'slot-lead' }, 'Har bir dars 80 daqiqa, Zoom orqali.'),
       slotBox
     ]);
 
@@ -1815,15 +1829,17 @@
     var apply = h('section', { class: 'site-sec reveal', id: 'ariza' }, [
       h('div', { class: 'apply-wrap' }, [
         h('div', { class: 'apply-left' }, [
-          h('span', { class: 'hero-eyebrow' }, 'Bepul sinov darsi'),
-          h('h2', {}, 'Bir dars kelib ko’ring — keyin qaror qilasiz'),
-          h('p', {}, 'Raqamingizni qoldiring: qo’ng’iroq qilib, darajangizni aniqlaymiz ' +
-            'va sizga mos guruhni aytamiz.'),
+          h('span', { class: 'hero-eyebrow' }, 'Bepul ochiq dars'),
+          h('h2', {}, 'Bir dars qatnashib ko’ring — keyin qaror qilasiz'),
+          h('p', {}, 'Raqamingizni qoldiring yoki Telegram botimiz orqali yoziling: ' +
+            'bepul dars havolasini va eslatmani yuboramiz.'),
           h('div', { class: 'ben-list' }, [
-            benefit('clock', 'Qisqa suhbat — darajani aniqlash uchun'),
-            benefit('check', 'Bepul sinov darsi — guruhni ichidan ko’rasiz'),
-            benefit('layers', 'Mos guruh va qulay jadval taklifi')
+            benefit('play', 'Jonli bepul dars — darsning o’zida natija ko’rasiz'),
+            benefit('check', 'Dars oxirida kursga qabul va chegirma'),
+            benefit('layers', 'Mos guruh va qulay vaqt taklifi')
           ]),
+          h('a', { class: 'btn primary lg', id: 'apply-bot-btn', hidden: true, target: '_blank', rel: 'noopener' },
+            [UI.icon('bot'), 'Telegram bot orqali yozilish']),
           h('div', { class: 'apply-soc', id: 'apply-soc', hidden: true }),
           h('div', { class: 'site-contact', id: 'contact-box' }, [
             h('div', { class: 'contact-row', id: 'site-phone-row', hidden: true }, [
@@ -1935,7 +1951,7 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, revBand, statsBand, levelsSec, priceSec, feats, teachers,
+      [hero, promoBand, revBand, statsBand, levelsSec, priceSec, feats, teachers,
         timetable, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak
@@ -2027,6 +2043,10 @@
         if (tg) { tg.textContent = '@' + u; tg.href = 'https://t.me/' + u; }
       }
       paintSocial(d);
+      botUser = String(d.telegram || '').replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '');
+      var abb = document.getElementById('apply-bot-btn');
+      if (abb && botUser) { abb.hidden = false; abb.href = botLink(); }
+      paintPromo(d.promo, d.freeLesson);
       paintBadge(d.heroBadge);
       paintProof(d.heroProof);
       paintStats(d.stats, d.lessonMinutes);
@@ -2044,6 +2064,54 @@
         A._siteSeen(lvlGrid); A._siteSeen(statsBox);
       }
       A.I18N.apply(wrap);
+    }
+
+    function paintPromo(p, fl) {
+      var box = document.getElementById('promo-band');
+      if (!box) return;
+      UI.clear(box);
+      if (!p && !fl) { box.hidden = true; return; }
+      box.hidden = false;
+      var kids = [];
+      if (fl && (fl.title || fl.date)) {
+        kids.push(h('div', { class: 'promo-free' }, [
+          h('span', { class: 'hero-eyebrow' }, 'Bepul ochiq dars'),
+          h('b', {}, fl.title || 'Bepul dars'),
+          fl.date ? h('span', { class: 'muted' }, A.dateLabel(fl.date) + (fl.time ? ', soat ' + fl.time : '')) : null
+        ]));
+      }
+      if (p) {
+        var left = p.seats ? Math.max(0, p.seats - (p.used || 0)) : null;
+        var cd = h('span', { class: 'promo-cd', id: 'promo-cd' });
+        kids.push(h('div', { class: 'promo-offer' }, [
+          h('span', { class: 'hero-eyebrow' }, p.open ? 'Zapusk chegirmasi' : 'Chegirma yopildi'),
+          h('div', { class: 'promo-price' }, [
+            h('b', {}, A.som(p.price) + ' so’m'),
+            p.regular ? h('s', { class: 'muted' }, A.som(p.regular) + ' so’m') : null,
+            h('span', { class: 'muted small' }, ' — birinchi oy')
+          ]),
+          p.seats ? h('div', { class: 'promo-seats' }, [
+            h('div', { class: 'promo-bar' }, h('i', { style: 'width:' + Math.min(100, Math.round((p.used || 0) * 100 / p.seats)) + '%' })),
+            h('span', { class: 'small' }, (p.used || 0) + '/' + p.seats + ' joy band' + (left != null && p.open ? ' · ' + left + ' ta qoldi' : ''))
+          ]) : null,
+          p.open && p.endDate ? cd : null
+        ]));
+        if (p.open && p.endDate) {
+          var end = Date.parse(p.endDate + 'T' + (p.endTime || '23:59') + ':00+05:00');
+          var tick = function () {
+            var ms = end - Date.now();
+            if (!document.body.contains(cd)) return;
+            if (ms <= 0) { cd.textContent = 'Muddat tugadi'; return; }
+            var dd = Math.floor(ms / 864e5), hh = Math.floor(ms % 864e5 / 36e5), mm = Math.floor(ms % 36e5 / 6e4);
+            cd.textContent = 'Tugashiga: ' + (dd ? dd + ' kun ' : '') + hh + ' soat ' + mm + ' daqiqa';
+            setTimeout(tick, 30000);
+          };
+          tick();
+        }
+      }
+      kids.push(h('button', { class: 'btn gold lg', type: 'button', onclick: function () { goFreeLesson(); } },
+        ['Bepul darsga yozilish', goIcon()]));
+      box.appendChild(h('div', { class: 'promo-in' }, kids));
     }
 
     function paintBadge(txt) {

@@ -386,7 +386,7 @@ async function ensureSeed() {
   if (!settings) {
     await store.set('meta/settings', {
       centerName: process.env.APP_NAME || 'Arab tili markazi',
-      address: '', phone: '', workStart: '08:00', workEnd: '22:00', lessonMinutes: 90, dueDay: 5,
+      address: '', phone: '', workStart: '08:00', workEnd: '22:00', lessonMinutes: 80, dueDay: 5,
       expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
       bot: {
         username: process.env.TELEGRAM_BOT_USERNAME || '',
@@ -411,15 +411,11 @@ async function ensureSeed() {
   const teachers = await store.list('teachers/');
   if (!teachers.length) {
     const seedT = [
-      { id: 'tch_ustoz1', name: 'Ustoz', audience: 'ayollar', order: 1 },
-      { id: 'tch_kholid', name: 'Ustoz Kholid', audience: 'erkaklar', order: 2 },
-      { id: 'tch_ahmad', name: 'Ustoz Ahmad', audience: 'erkaklar', order: 3 },
-      { id: 'tch_muhammad', name: 'Ustoz Muhammad', audience: 'erkaklar', order: 4 },
-      { id: 'tch_islam', name: 'Ustoz Islam', audience: 'erkaklar', order: 5 }
+      { id: 'tch_ustoz1', name: 'Ustoz', audience: 'ayollar', order: 1 }
     ];
     for (const t of seedT) {
       await store.set('teachers/' + t.id, Object.assign({
-        tag: 'Arab ustoz', country: '', levels: '', bio: '', years: 0,
+        tag: 'Ayol ustoz', country: '', levels: '', bio: '', years: 0,
         active: true, createdAt: stamp()
       }, t));
     }
