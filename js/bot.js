@@ -74,6 +74,22 @@
       return true;
     },
 
+    /** Botda ro'yxatdan o'tgan murojaatga (lead) xabar — masalan bepul dars eslatmasi */
+    async enqueueLead(lead, text) {
+      if (!lead || !lead.chatId || String(lead.chatId).charAt(0) === '-') return false;
+      var key = 'lead:' + lead.chatId + ':' + A.textHash(text);
+      var limit = Date.now() - 24 * 3600 * 1000;
+      var dup = D.all('botout').filter(function (m) {
+        return m.dedupeKey === key && m.status !== 'failed' && Date.parse(m.createdAt || 0) >= limit;
+      })[0];
+      if (dup) return false;
+      await D.save('botout', {
+        id: A.uid('out'), leadId: lead.id, chatId: String(lead.chatId), text: text,
+        kind: 'elon', dedupeKey: key, tries: 0, status: 'pending', createdAt: A.nowStamp()
+      });
+      return true;
+    },
+
     /** Xato bilan tugagan xabarni qayta navbatga qo'yish */
     async retry(msg) {
       var rec = A.clone(msg);

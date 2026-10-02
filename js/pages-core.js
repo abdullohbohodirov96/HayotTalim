@@ -504,6 +504,9 @@
         [UI.icon('plus'), 'Murojaat qo’shish']) : null,
       App.can('lead.import') ? h('button', { class: 'btn', onclick: function () { A.importModal('leads', App, funnel.id); } },
         [UI.icon('upload'), 'Excel’dan import']) : null,
+      App.can('bot.broadcast') && A.Bot ? h('button', {
+        class: 'btn', onclick: function () { leadBroadcast(allLeads.filter(inFunnel), funnel, App); }
+      }, [UI.icon('bot'), 'Botdagilarga xabar']) : null,
       h('button', {
         class: 'btn', onclick: function () {
           UI.exportCsv('murojaatlar-' + funnel.name + '.csv',
@@ -619,6 +622,43 @@
       h('summary', { style: 'cursor:pointer;font-weight:600' }, 'Manba va hudud hisoboti'), body
     ]);
     return det;
+  }
+
+  /* Botda bepul darsga yozilganlarga xabar: eslatma, dars havolasi, taklif.
+     Faqat botni o'zi ishga tushirgan odamlarga boradi (chatId bor). */
+  function leadBroadcast(list, funnel, App) {
+    var targets = list.filter(function (l) { return l.chatId && !isClosed(funnel, l.stage); });
+    var s = D.settings || {};
+    var fl = s.freeLesson || {};
+    var def = fl.title
+      ? 'Eslatma: «' + fl.title + '» bepul darsi ' + (fl.date ? A.dateLabel(fl.date) : 'tez orada') +
+        (fl.time ? ', soat ' + fl.time : '') + ' da boshlanadi.' + (fl.channel ? '\nKanal: ' + fl.channel : '')
+      : '';
+    var fText = UI.field({ label: 'Xabar matni', type: 'textarea', value: def, rows: 5, full: true });
+    UI.modal({
+      title: 'Botdagi ro’yxatga xabar',
+      body: [
+        h('p', { class: 'small muted', style: 'margin-top:0' },
+          targets.length + ' ta odamga yuboriladi (botda ro’yxatdan o’tgan, hali o’quvchi bo’lmagan).'),
+        fText.wrap
+      ],
+      actions: [
+        { label: 'Bekor qilish' },
+        {
+          label: 'Yuborish', cls: 'primary', onClick: function (c, btn) {
+            var text = String(fText.input.value || '').trim();
+            if (text.length < 3) { UI.toast('Matn yozing.', 'warn'); return; }
+            if (!targets.length) { UI.toast('Botda ro’yxatdan o’tgan odam yo’q.', 'warn'); return; }
+            UI.busy(btn, async function () {
+              var n = 0;
+              for (var i = 0; i < targets.length; i++) { if (await A.Bot.enqueueLead(targets[i], text)) n++; }
+              await A.Ops.audit(App.user, 'Botdagi ro’yxatga xabar', funnel.name, n + ' ta');
+              c(); UI.toast(n + ' ta xabar navbatga qo’yildi.', 'ok');
+            });
+          }
+        }
+      ]
+    });
   }
 
   function isClosed(funnel, stageId) {

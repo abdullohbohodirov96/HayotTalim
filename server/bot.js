@@ -650,6 +650,144 @@ async function sendToGroup(group, text) {
   return { ok: true };
 }
 
+
+/* ---------------- Bepul darsga ro'yxat (lid voronkasi) ----------------
+   Reklama → t.me/<bot>?start=dars_reels1 → ism → raqam (bitta tugma) →
+   hudud → murojaat (lead) yaratiladi va yopiq kanal havolasi beriladi.
+   "dars_" dan keyingi qism reklama belgisi (src) bo'lib saqlanadi —
+   qaysi reklama nechta odam olib kelgani Murojaatlar hisobotida ko'rinadi. */
+const REG_BTN = 'Bepul darsga yozilish';
+const REG_PHONE_BTN = '📱 Raqamni yuborish';
+
+function regSrc(payload) {
+  return String(payload || '').replace(/^dars_?/i, '').replace(/^r_/i, '')
+    .replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40);
+}
+function regionKeyboard() {
+  const rows = [];
+  const list = A.REGIONS || [];
+  for (let i = 0; i < list.length; i += 2) {
+    rows.push(list.slice(i, i + 2).map(t => ({ text: t })));
+  }
+  return rows;
+}
+function freeLessonText(s) {
+  const fl = s.freeLesson || {};
+  const L = [];
+  if (fl.title) L.push('<b>' + esc(fl.title) + '</b>');
+  if (fl.date) L.push('Sana: ' + esc(A.dateLabel ? A.dateLabel(fl.date) : fl.date) + (fl.time ? ', soat ' + esc(fl.time) : ''));
+  const ch = A.safeUrl ? A.safeUrl(fl.channel) : '';
+  if (ch) L.push('Dars shu yopiq kanalda bo’ladi:\n' + esc(ch));
+  else L.push('Dars havolasini darsdan oldin shu yerga yuboramiz.');
+  return L.join('\n');
+}
+async function startRegistration(chatId, src, from) {
+  const st = { chatId: String(chatId), step: 'reg_name', reg: { src: regSrc(src) } };
+  const first = String((from && from.first_name) || '').trim().slice(0, 60);
+  if (first) st.reg.suggest = first;
+  await setState(chatId, st);
+  const s = await settings();
+  const fl = s.freeLesson || {};
+  await sendMessage(chatId,
+    'Assalomu alaykum! ' + (fl.title ? '«' + esc(fl.title) + '» bepul darsiga' : 'Bepul darsga') +
+    ' yozilish uchun 3 ta qisqa savol.\n\n<b>Ismingiz nima?</b>',
+    first ? [[{ text: first }]] : null);
+}
+async function finishRegistration(chatId, st, from) {
+  const r = st.reg || {};
+  const s = await settings();
+  const funnels = await listCol('funnels');
+  const funnel = funnels.filter(f => f.isDefault)[0] || funnels[0];
+  const leads = await listCol('leads');
+  const digits = A.phoneDigits(r.phone);
+  const recent = leads.filter(l => A.phoneDigits(l.phone) === digits &&
+    Date.parse(String(l.createdAt || '').replace(' ', 'T') + ':00') > Date.now() - 30 * 864e5)[0];
+  let lead;
+  if (recent) {
+    lead = Object.assign({}, recent, {
+      chatId: String(chatId), region: r.region || recent.region || '',
+      src: recent.src || r.src || '', freeLessonAt: stamp()
+    });
+  } else {
+    const stages = funnel ? A.funnelStages(funnel) : [];
+    lead = {
+      id: 'led_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      funnelId: funnel ? funnel.id : '', name: r.name, phone: r.phone,
+      courseId: '', source: 'Bot', src: r.src || '', region: r.region || '', district: '',
+      ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
+      note: 'Bepul darsga ro’yxatdan o’tdi', nextContact: A.today(),
+      chatId: String(chatId), tgUser: String((from && from.username) || '').slice(0, 40),
+      createdAt: stamp(), viaBot: true, freeLessonAt: stamp()
+    };
+  }
+  await store.set('leads/' + lead.id, lead);
+  st.step = 'registered'; st.leadId = lead.id;
+  await setState(chatId, st);
+  await sendMessage(chatId, 'Rahmat, ' + esc(r.name) + '! Siz ro’yxatdan o’tdingiz ✅\n\n' + freeLessonText(s) +
+    '\n\nDarsdan oldin shu yerga eslatma yuboramiz.');
+  if (!recent) {
+    notifyStaff('Yangi ro’yxat (bot)\nIsm: ' + r.name + '\nTelefon: ' + r.phone +
+      (r.region ? '\nHudud: ' + r.region : '') + (r.src ? '\nReklama: ' + r.src : '')).catch(() => { });
+  }
+}
+/** Ro'yxat qadamlarini yuritadi. true qaytarsa — xabar shu yerda ko'rib chiqildi. */
+async function handleRegistration(chatId, text, contact, from, st) {
+  if (st.step === 'reg_name') {
+    const name = String(text || '').replace(/[<>]/g, '').trim().slice(0, 60);
+    if (name.length < 2 || name.charAt(0) === '/') {
+      await sendMessage(chatId, 'Ismingizni yozing (masalan: Madina).');
+      return true;
+    }
+    st.reg = Object.assign({}, st.reg, { name });
+    st.step = 'reg_phone';
+    await setState(chatId, st);
+    await sendMessage(chatId, 'Telefon raqamingizni yuboring — pastdagi tugmani bosing yoki raqamni yozing.',
+      [[{ text: REG_PHONE_BTN, request_contact: true }]]);
+    return true;
+  }
+  if (st.step === 'reg_phone') {
+    let phone = '';
+    if (contact && contact.phone_number) {
+      /* Faqat o'z raqami: boshqa odamning kontaktini ulashsa qabul qilinmaydi */
+      if (contact.user_id && from && from.id && String(contact.user_id) !== String(from.id)) {
+        await sendMessage(chatId, 'Iltimos, o’zingizning raqamingizni yuboring.',
+          [[{ text: REG_PHONE_BTN, request_contact: true }]]);
+        return true;
+      }
+      phone = A.normPhone(String(contact.phone_number));
+    } else if (A.phoneDigits(text).length >= 9) {
+      phone = A.normPhone(String(text));
+    }
+    if (!phone) {
+      await sendMessage(chatId, 'Raqam to’liq emas. Tugmani bosing yoki raqamni +998 90 123 45 67 ko’rinishida yozing.',
+        [[{ text: REG_PHONE_BTN, request_contact: true }]]);
+      return true;
+    }
+    st.reg = Object.assign({}, st.reg, { phone });
+    st.step = 'reg_region';
+    await setState(chatId, st);
+    await sendMessage(chatId, 'Qaysi hududdansiz?', regionKeyboard());
+    return true;
+  }
+  if (st.step === 'reg_region') {
+    const region = String(text || '').trim();
+    if ((A.REGIONS || []).indexOf(region) < 0) {
+      await sendMessage(chatId, 'Ro’yxatdan hududingizni tanlang.', regionKeyboard());
+      return true;
+    }
+    st.reg = Object.assign({}, st.reg, { region });
+    await finishRegistration(chatId, st, from);
+    return true;
+  }
+  if (st.step === 'registered' && text !== '/start') {
+    const s = await settings();
+    await sendMessage(chatId, 'Siz bepul darsga yozilgansiz ✅\n\n' + freeLessonText(s) +
+      '\n\nSavolingiz bo’lsa, administrator tez orada siz bilan bog’lanadi.');
+    return true;
+  }
+  return false;
+}
+
 /* ---------------- Xabarlarni qayta ishlash ---------------- */
 async function onMessage(msg) {
   const chatId = msg.chat.id;
@@ -682,6 +820,15 @@ async function onMessage(msg) {
       await linkWithToken(chatId, payload, msg.from || {}, st);
       return;
     }
+    if (!student && /^(dars|r_)/i.test(payload)) {
+      return startRegistration(chatId, payload, msg.from || {});
+    }
+  }
+
+  /* Bepul darsga ro'yxat — tugma yoki davom etayotgan qadam */
+  if (!student && text === REG_BTN) return startRegistration(chatId, '', msg.from || {});
+  if (!student && /^reg_|^registered$/.test(String(st.step || ''))) {
+    if (await handleRegistration(chatId, text, msg.contact, msg.from || {}, st)) return;
   }
 
   if (text === '/start' || /^\/start\s/.test(text)) {
@@ -700,7 +847,9 @@ async function onMessage(msg) {
     await sendMessage(chatId,
       conf.welcome + '\n\n<b>Shaxsiy kodingizni</b> yozing — 4 ta raqam, masalan: <code>4077</code>\n' +
       'Kodni markaz administratoridan olasiz.\n\n' +
-      'Kodingiz bo’lmasa, <b>ismim</b> deb yozing.');
+      'Kodingiz bo’lmasa, <b>ismim</b> deb yozing.\n\n' +
+      'Hali o’quvchi emasmisiz? Pastdagi «' + REG_BTN + '» tugmasini bosing.',
+      [[{ text: REG_BTN }]]);
     return;
   }
 
@@ -800,10 +949,10 @@ async function poll() {
           catch (e) { console.error('bot guruh:', e.message); }
           continue;
         }
-        if (u.message && u.message.text) {
+        if (u.message && (u.message.text || u.message.contact)) {
           const chat = u.message.chat || {};
           try {
-            if (/group/.test(String(chat.type || ''))) await onGroupUpdate(chat.id, chat.title, u.message.text);
+            if (/group/.test(String(chat.type || ''))) { if (u.message.text) await onGroupUpdate(chat.id, chat.title, u.message.text); }
             else { await onMessage(u.message); wake(); }
           } catch (e) { console.error('bot message:', e.message); }
         }
@@ -886,6 +1035,7 @@ function _test(ctx) {
     makeCode, normCode, studentByCode, botConf, getState, setState,
     balanceText, attendanceText, scheduleText, daysBetween, KINDS, MAX_TRIES,
     handleLinkFlow, findStudentByChat, notifyStaff,
+    startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, codesInTitle,
     wake,
     /** Sinovda navbatchini qo'lda ishga tushirish/to'xtatish */
