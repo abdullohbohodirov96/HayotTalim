@@ -608,8 +608,8 @@
         UI.table([
           { label: 'Nomi', key: 'key' },
           { label: 'Lid', right: true, render: function (r) { return String(r.n); } },
-          { label: 'O’quvchi', right: true, render: function (r) { return String(r.won); } },
-          { label: 'Konversiya', right: true, render: function (r) { return Math.round(r.won * 100 / r.n) + '%'; } }
+          { label: 'Sotuv', right: true, render: function (r) { return String(r.won); } },
+          { label: '%', right: true, render: function (r) { return Math.round(r.won * 100 / r.n) + '%'; } }
         ], rows.slice(0, 12))
       ]);
     }
