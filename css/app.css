@@ -2616,3 +2616,21 @@ button.cur-title:hover b{text-decoration:underline}
 }
 .zm-chip.c2{top:-6px;right:-18px}
 @media (max-width:900px){ .site-hero .lesson-art{order:2} .site-hero .hero-text{order:1} }
+
+/* ===== YASHIL MAVZU: terrakota o'rniga yashil tuslar ===== */
+.site{
+  --st-gold:#17805f; --st-gold-2:#1f9d74; --st-gold-3:#8fd9bd; --st-gold-soft:#e2f4ec;
+  --st-paper:#f5f9f7; --st-paper-2:#e9f2ee; --st-line:#dbe8e2; --st-line-2:#c5d9cf;
+  --st-glow:0 0 0 1px rgba(31,157,116,.18), 0 20px 60px -28px rgba(7,31,27,.45);
+}
+.site-bg{background:
+  radial-gradient(60% 45% at 92% 6%, rgba(31,157,116,.10), transparent 70%),
+  radial-gradient(55% 45% at 4% 30%, rgba(15,74,64,.08), transparent 70%),
+  var(--st-paper)}
+.site .btn.gold{background:var(--st-gold-2);border-color:var(--st-gold-2);color:#fff;
+  box-shadow:0 14px 30px -16px rgba(23,128,95,.75)}
+.site .btn.gold:hover{background:var(--st-gold)}
+.hero-eyebrow{border-color:rgba(23,128,95,.25)}
+.hero-badge{border-color:rgba(23,128,95,.35)}
+.zm-tile.host{background:linear-gradient(160deg,var(--st-gold-2),var(--st-gold))}
+.zm-letters span{background:var(--st-gold-soft);color:var(--st-gold)}
