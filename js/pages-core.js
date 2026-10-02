@@ -86,7 +86,7 @@
       invoices.forEach(function (i) {
         var r = row(i.studentId);
         r.charged += Math.round(i.final);
-        if (i.dueDate && i.dueDate < today) r.overdue += A.invoiceRemaining(i, paid);
+        r.overdue += A.invoiceOverdueAmount(i, paid, today);
       });
       A.activePayments(payments).forEach(function (p) {
         var r = row(p.studentId);
@@ -152,7 +152,7 @@
       A.Fin.allInvoices().forEach(function (i) {
         var r = rec(i.studentId);
         r.charged += Math.round(i.final);
-        if (i.dueDate && i.dueDate < today) r.overdue += A.invoiceRemaining(i, paid);
+        r.overdue += A.invoiceOverdueAmount(i, paid, today);
       });
       A.activePayments(A.Fin.allPayments()).forEach(function (p) {
         var r = rec(p.studentId);
@@ -178,7 +178,7 @@
         if (rem <= 0) return;
         var s = byStudent[inv.studentId] || (byStudent[inv.studentId] = { studentId: inv.studentId, debt: 0, overdue: 0, months: [] });
         s.debt += rem;
-        if (inv.dueDate && inv.dueDate < A.today()) s.overdue += rem;
+        s.overdue += A.invoiceOverdueAmount(inv, paid, A.today());
         s.months.push(inv.month);
       });
       return Object.keys(byStudent).map(function (k) { return byStudent[k]; })
@@ -1301,7 +1301,7 @@
           {
             label: 'Qolgan', right: true, render: function (i) {
               var r = A.invoiceRemaining(i, paidMap);
-              return r > 0 ? UI.pill(A.som(r), i.dueDate < A.today() ? 'bad' : 'warn') : UI.pill('To’langan', 'ok');
+              return r > 0 ? UI.pill(A.som(r), A.invoiceOverdueAmount(i, paidMap, A.today()) > 0 ? 'bad' : 'warn') : UI.pill('To’langan', 'ok');
             }
           },
           { label: 'Muddat', render: function (i) { return A.dateLabel(i.dueDate); } }

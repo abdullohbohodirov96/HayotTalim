@@ -669,8 +669,19 @@
       { name: 'discountValue', label: 'Chegirma miqdori', type: 'number', value: (mem.discount && mem.discount.value) || '' },
       { name: 'discountReason', label: 'Chegirma sababi', value: (mem.discount && mem.discount.reason) || '' },
       { name: 'discountFrom', label: 'Chegirma boshlanishi', type: 'month', value: (mem.discount && mem.discount.from) || A.thisMonth() },
-      { name: 'discountTo', label: 'Chegirma tugashi (ixtiyoriy)', type: 'month', value: (mem.discount && mem.discount.to) || '' }
-    ]);
+      { name: 'discountTo', label: 'Chegirma tugashi (ixtiyoriy)', type: 'month', value: (mem.discount && mem.discount.to) || '' },
+      {
+        name: 'installments', label: 'To’lov tartibi', type: 'select', value: String(mem.installments || 1),
+        options: [{ value: '1', label: 'Bir martada' }, { value: '2', label: '2 qismga bo’lib (15 kun oralig’ida)' }],
+        help: 'Ikki qismda: birinchi yarmi muddatda, qolgani 15 kundan keyin to’lanadi.'
+      }
+    ].concat(isNew && D.settings && D.settings.promo && D.settings.promo.active ? [{
+      name: 'promo', label: 'Zapusk chegirmasi', type: 'select', value: '',
+      options: [{ value: '', label: 'Yo’q' }, {
+        value: 'ha', label: 'Ha — birinchi oy ' + A.som(D.settings.promo.price) + ' so’m (' +
+          A.promoUsed(D.all('memberships'), D.settings.promo.code) + '/' + (D.settings.promo.seats || '∞') + ' joy band)'
+      }]
+    }] : []));
 
     var firstMonthBox = h('div', { class: 'field full' });
     var fmMode, fmAmount, fmNote, fmDue;
@@ -770,6 +781,16 @@
                 studentId: student.id, groupId: v.groupId, joinedAt: v.joinedAt,
                 status: mem.status || 'faol', leftAt: mem.leftAt || null
               });
+              rec.installments = Number(v.installments) === 2 ? 2 : 1;
+              var promoOn = isNew && v.promo === 'ha' && D.settings && D.settings.promo;
+              if (promoOn) {
+                rec.promo = D.settings.promo.code;
+                rec.firstMonth = {
+                  month: A.ymOf(v.joinedAt), mode: 'custom',
+                  amount: Math.max(0, Math.round(Number(D.settings.promo.price) || 0)),
+                  note: 'Zapusk chegirmasi'
+                };
+              }
               rec.discount = v.discountType ? {
                 type: v.discountType === 'percent' ? 'percent' : 'sum',
                 value: v.discountValue, reason: v.discountReason,
@@ -787,6 +808,7 @@
                   opts.amount = A.parseSom(fmAmount.input.value);
                   opts.note = fmNote.input.value;
                 }
+                if (promoOn) { opts.amount = rec.firstMonth.amount; opts.note = 'Zapusk chegirmasi'; }
                 if (fmDue && fmDue.input.value) opts.dueDate = fmDue.input.value;
                 if (!Object.keys(opts).length) opts = null;
                 if (ym >= A.thisMonth() && g && g.status === 'faol') {

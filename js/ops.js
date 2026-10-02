@@ -136,7 +136,7 @@
     if (!(opts && opts.dueDate) && membership.joinedAt && membership.joinedAt > due) {
       due = A.addDays(membership.joinedAt, 7);
     }
-    return {
+    return Object.assign({
       id: A.invoiceId(membership.id, ym),
       membershipId: membership.id, studentId: membership.studentId,
       groupId: membership.groupId, month: ym,
@@ -144,7 +144,7 @@
       dueDate: due, createdAt: A.nowStamp(),
       createdBy: actor ? actor.name : 'tizim',
       note: (opts && opts.note) || (membership.firstMonth && membership.firstMonth.month === ym && membership.firstMonth.note) || ''
-    };
+    }, A.installmentFields(membership, due));
   }
 
   /** Shu oy uchun faol a'zoliklarga hisob yaratadi (takrorlanmaydi). */

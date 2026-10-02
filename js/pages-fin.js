@@ -813,7 +813,8 @@
         label: 'Holat', render: function (i) {
           var rem = A.invoiceRemaining(i, paidMap);
           if (rem <= 0) return UI.pill('To’langan', 'ok');
-          if (i.dueDate < A.today()) return UI.pill('Muddati o’tgan', 'bad');
+          if (A.invoiceOverdueAmount(i, paidMap, A.today()) > 0) return UI.pill('Muddati o’tgan', 'bad');
+          if (Number(i.parts) === 2) return UI.pill('2 qismga bo’lingan', 'info');
           return UI.pill('Kutilmoqda', 'warn');
         }
       },
@@ -1632,6 +1633,71 @@
 
     if (tab === 'funnels') renderFunnels(view, App);
 
+    /* Zapusk: bepul ochiq dars va birinchi N ta to'lovchiga chegirma.
+       Saytda "X/20 joy band" hisobi va muddat shu yerdan olinadi.          */
+    function launchCard(App) {
+      var s0 = D.settings || {};
+      var p = s0.promo || {}, fl = s0.freeLesson || {};
+      var used = A.promoUsed(D.all('memberships'), p.code);
+      var lf = UI.form([
+        {
+          name: 'promoActive', label: 'Zapusk chegirmasi', type: 'select', value: p.active ? 'ha' : 'yoq',
+          options: [{ value: 'yoq', label: 'O’chiq' }, { value: 'ha', label: 'Yoqilgan (saytda ko’rinadi)' }]
+        },
+        {
+          name: 'promoCode', label: 'Zapusk nomi', value: p.code || 'zapusk-1', placeholder: 'zapusk-1',
+          help: 'Har yangi zapuskda yangi nom bering — joylar soni noldan sanaladi.'
+        },
+        { name: 'promoPrice', label: 'Birinchi oy narxi (so’m)', type: 'number', value: p.price || 249000 },
+        { name: 'promoRegular', label: 'Odatiy narx (so’m)', type: 'number', value: p.regular || 350000 },
+        { name: 'promoSeats', label: 'Joylar soni', type: 'number', value: p.seats || 20 },
+        { name: 'promoEndDate', label: 'Chegirma tugash sanasi', type: 'date', value: p.endDate || '' },
+        { name: 'promoEndTime', label: 'Tugash vaqti', type: 'time', value: p.endTime || '23:59' },
+        { name: 'freeTitle', label: 'Bepul dars mavzusi', value: fl.title || '', full: true,
+          placeholder: 'masalan: Arab harflarini 1 kunda o’qishni o’rganing' },
+        { name: 'freeDate', label: 'Bepul dars sanasi', type: 'date', value: fl.date || '' },
+        { name: 'freeTime', label: 'Bepul dars vaqti', type: 'time', value: fl.time || '20:30' },
+        {
+          name: 'freeChannel', label: 'Yopiq kanal havolasi', value: fl.channel || '', full: true,
+          placeholder: 'https://t.me/+…',
+          help: 'Bot ro’yxatdan o’tganlarga shu havolani beradi.',
+          validate: function (v) { return v && !A.safeUrl(v) ? 'Havola https:// bilan boshlanishi kerak.' : null; }
+        }
+      ]);
+      return UI.card('Zapusk va bepul dars', [
+        h('p', { class: 'small muted', style: 'margin-top:0' },
+          'Band joylar: ' + used + (p.seats ? ' / ' + p.seats : '') +
+          '. O’quvchini guruhga yozayotganda "Zapusk chegirmasi" belgilansa, joy band hisoblanadi.'),
+        lf.node,
+        h('div', { style: 'margin-top:14px' }, h('button', {
+          class: 'btn primary', onclick: function (e) {
+            if (!lf.validate()) return;
+            UI.busy(e.currentTarget, async function () {
+              var v = lf.values();
+              var next = Object.assign({}, D.settings || {}, {
+                promo: {
+                  active: v.promoActive === 'ha',
+                  code: String(v.promoCode || 'zapusk-1').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 30) || 'zapusk-1',
+                  price: Math.max(0, Math.round(Number(v.promoPrice) || 0)),
+                  regular: Math.max(0, Math.round(Number(v.promoRegular) || 0)),
+                  seats: Math.max(0, Math.round(Number(v.promoSeats) || 0)),
+                  endDate: v.promoEndDate || '', endTime: v.promoEndTime || '23:59'
+                },
+                freeLesson: {
+                  title: String(v.freeTitle || '').slice(0, 120),
+                  date: v.freeDate || '', time: v.freeTime || '',
+                  channel: A.safeUrl(v.freeChannel)
+                }
+              });
+              await D.saveSettings(next);
+              await A.Ops.audit(App.user, 'Zapusk sozlamalari', next.promo.code, next.promo.active ? 'yoqilgan' : 'o’chiq');
+              UI.toast('Saqlandi.', 'ok'); App.render();
+            });
+          }
+        }, 'Saqlash'))
+      ]);
+    }
+
     if (tab === 'general') {
       var s = D.settings || A.Seed.DEFAULT_SETTINGS;
       var f = UI.form([
@@ -1808,6 +1874,7 @@
           }
         }, 'Saqlash'))]));
 
+      view.appendChild(h('div', { style: 'margin-top:14px' }, launchCard(App)));
       if (App.can('invoice.create')) {
         view.appendChild(h('div', { id: 'auto-inv', style: 'margin-top:14px' }, autoInvoiceCard(App)));
       }

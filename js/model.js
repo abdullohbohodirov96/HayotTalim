@@ -360,12 +360,29 @@
     var advance = Math.max(0, received - allocated);
     return { charged: charged, received: received, allocated: allocated, debt: debt, advance: advance };
   }
+  /** Bo'lib to'lash: a'zolikda installments=2 bo'lsa, hisob ikki qismga
+      bo'linadi — birinchi yarmi asosiy muddatda, qolgani 15 kundan keyin. */
+  function installmentFields(membership, due) {
+    if (!membership || Number(membership.installments) !== 2 || !due) return {};
+    return { parts: 2, dueDate2: A.addDays(due, 15) };
+  }
+  /** Shu hisobdan BUGUNGACHA to'lanishi kerak bo'lib, to'lanmagan summa */
+  function invoiceOverdueAmount(inv, paidMap, todayIso) {
+    if (!inv || !inv.dueDate || !(inv.dueDate < todayIso)) return 0;
+    var rem = invoiceRemaining(inv, paidMap);
+    if (Number(inv.parts) === 2 && inv.dueDate2 && !(inv.dueDate2 < todayIso)) {
+      var firstHalf = Math.ceil((Number(inv.final) || 0) / 2);
+      var paid = (Number(inv.final) || 0) - rem;
+      return Math.max(0, firstHalf - paid);
+    }
+    return rem;
+  }
   /** Muddati o'tgan qarz (bugungi sanaga nisbatan) */
   function overdueOf(studentId, invoices, payments, todayIso) {
     var paidMap = paidByInvoice(payments);
     return (invoices || [])
-      .filter(function (i) { return i.studentId === studentId && i.dueDate && i.dueDate < todayIso; })
-      .reduce(function (s, i) { return s + invoiceRemaining(i, paidMap); }, 0);
+      .filter(function (i) { return i.studentId === studentId; })
+      .reduce(function (s, i) { return s + invoiceOverdueAmount(i, paidMap, todayIso); }, 0);
   }
 
   /* =============== JADVAL =============== */
@@ -630,6 +647,22 @@
     feeForMonth: feeForMonth, feeUpcoming: feeUpcoming,
     discountFor: discountFor, invoiceAmountFor: invoiceAmountFor,
     membershipActiveIn: membershipActiveIn, invoiceId: invoiceId, dueDateFor: dueDateFor,
+    installmentFields: installmentFields, invoiceOverdueAmount: invoiceOverdueAmount,
+    /** Zapusk chegirmasi bilan yozilgan (band) joylar soni */
+    promoUsed: function (memberships, code) {
+      if (!code) return 0;
+      return (memberships || []).filter(function (m) { return m && m.promo === code; }).length;
+    },
+    /** Zapusk hozir amaldami: yoqilgan, joy bor va muddat o'tmagan */
+    promoOpen: function (promo, used, nowIso) {
+      if (!promo || !promo.active) return false;
+      if (promo.seats && used >= promo.seats) return false;
+      if (promo.endDate) {
+        var end = promo.endDate + 'T' + (promo.endTime || '23:59');
+        if (nowIso && nowIso > end) return false;
+      }
+      return true;
+    },
     allocate: allocate, activePayments: activePayments, paidByInvoice: paidByInvoice,
     invoiceRemaining: invoiceRemaining, balanceOf: balanceOf, overdueOf: overdueOf,
     timeToMin: timeToMin, overlaps: overlaps, scheduleConflicts: scheduleConflicts,

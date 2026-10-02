@@ -772,11 +772,11 @@ async function generateInvoicesServer(ym, user) {
       const amt = A.invoiceAmountFor(g, m, ym);
       let due = A.dueDateFor(ym, settings.dueDay || 5);
       if (m.joinedAt && m.joinedAt > due) due = A.addDays(m.joinedAt, 7);
-      await store.set('invoices/' + id, {
+      await store.set('invoices/' + id, Object.assign({
         id, membershipId: m.id, studentId: m.studentId, groupId: m.groupId, month: ym,
         base: amt.base, discount: amt.discount, final: amt.final,
         dueDate: due, createdAt: stamp(), createdBy: user ? user.name : 'tizim', note: ''
-      });
+      }, A.installmentFields(m, due)));
       created++;
     } catch (e) {
       errors.push(String(e.message));
@@ -1734,6 +1734,27 @@ async function handleApi(req, res, url) {
          son o'ylab topmaymiz va bazadan sanab chiqarmaymiz (o'quvchilar
          soni ichki ma'lumot, u kirishsiz ochilmaydi).                    */
       out.heroProof = String(s.heroProof || '').slice(0, 60);
+      /* Zapusk: faqat ochiq ma'lumot — narx, joylar soni, band joylar, muddat.
+         Kim yozilgani tashqariga chiqmaydi, faqat son. */
+      const promo = s.promo || {};
+      if (promo.active) {
+        const mems = (await store.list('memberships/')).map(x => x.data).filter(Boolean);
+        const used = A.promoUsed(mems, promo.code);
+        const nowIso = stamp().replace(' ', 'T');
+        out.promo = {
+          price: Number(promo.price) || 0, regular: Number(promo.regular) || 0,
+          seats: Number(promo.seats) || 0, used,
+          endDate: String(promo.endDate || ''), endTime: String(promo.endTime || ''),
+          open: A.promoOpen(promo, used, nowIso)
+        };
+      }
+      const fl = s.freeLesson || {};
+      if (fl.title || fl.date) {
+        out.freeLesson = {
+          title: String(fl.title || '').slice(0, 120),
+          date: String(fl.date || ''), time: String(fl.time || '')
+        };
+      }
       /* Darajalar — CEFR (A1…C2). Bu markazning da'vosi emas, tizimda
          allaqachon bor ro'yxat (server/levels.js): daraja testi ham,
          o'quv dasturi ham shu darajalar ustiga qurilgan. Shuning uchun

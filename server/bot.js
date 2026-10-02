@@ -403,7 +403,10 @@ async function remindDebtors(todayIso) {
     const open = invoices.filter(i => i.studentId === s.id && A.invoiceRemaining(i, paid) > 0 && i.dueDate);
     if (!open.length) continue;
     // eng eski muddati o'tgan hisob
-    const late = open.filter(i => daysBetween(i.dueDate, today) >= conf.remindDays)
+    /* Bo'lib to'lashda ikkinchi qism muddati hali kelmagan bo'lsa, birinchi
+       yarmi to'langan hisob uchun eslatma yuborilmaydi. */
+    const late = open.filter(i => daysBetween(i.dueDate, today) >= conf.remindDays &&
+      A.invoiceOverdueAmount(i, paid, today) > 0)
       .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))[0];
     if (!late) continue;
 
