@@ -294,7 +294,7 @@ async function api(p, opts = {}) {
   const txt = await page.evaluate(() => document.body.innerText);
   ok('Markaz nomi ko’rinadi', /AlBayan/.test(txt), txt.slice(0, 120));
   ok('Markaz haqida matn ko’rinadi', /Misr uslubida/.test(txt), txt.slice(0, 300));
-  ok('Logotip bor', await page.evaluate(() => !!document.querySelector('.site-brand img') && !!document.querySelector('.hero-art img')));
+  ok('Logotip bor', await page.evaluate(() => !!document.querySelector('.site-brand img') && !!document.querySelector('.hero-art')));
   /* Yangi tuzilish: KURS bitta, DARAJA oltita.
      Darajalar serverdan keladi (server/levels.js), narx esa markazning
      kurs kartochkasidan.                                               */
@@ -770,8 +770,9 @@ async function api(p, opts = {}) {
     return { hero: y(hero), band: y(band), stat: y(stat), statHidden: stat ? stat.hidden : null };
   });
   ok('Tasma hero blokdan keyin', order.band > order.hero, JSON.stringify(order));
-  ok('Tasma ko’rsatkichlar tasmasidan oldin',
-    order.stat === null || order.statHidden || order.band < order.stat, JSON.stringify(order));
+  /* Yangi maket: izohlar ariza formasidan oldin, ishonch beradigan joyda */
+  const arizaY = await page.evaluate(() => Math.round(document.getElementById('ariza').getBoundingClientRect().top + window.scrollY));
+  ok('Izohlar tasmasi ariza formasidan oldin', order.band < arizaY, JSON.stringify(order) + ' ariza:' + arizaY);
 
   section('   Saytdan izoh yozish oynasi');
   await page.evaluate(() => {

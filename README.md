@@ -1,9 +1,30 @@
-# AlBayan Cairo — o'quv markazi ERP tizimi
+# Arab tili markazi — onlayn markaz uchun ERP va sayt
 
-AlBayan Cairo arab tili o'quv markazini to'liq yuritish uchun veb-tizim: murojaatlardan
+> Vaqtinchalik nom. Markaz nomi **Sozlamalar → Markaz ma’lumotlari** dan yoki
+> `APP_NAME` muhit o‘zgaruvchisidan o‘zgartiriladi.
+
+## Bu versiyada nima yangi
+
+- **Hudud va tuman** — murojaat va o‘quvchida viloyat/tuman; Murojaatlar sahifasida
+  *Manba va hudud hisoboti* (qaysi reklama va qaysi hududdan nechta lid va o‘quvchi).
+- **Reklama belgisi** — saytga `?src=reels1` (yoki `utm_campaign`) bilan kelinsa,
+  belgi arizaga va bot havolasiga yoziladi.
+- **Telegram bot: bepul darsga ro‘yxat** — `t.me/<bot>?start=dars_reels1` →
+  ism → raqam (bitta tugma) → hudud → murojaat yaratiladi va yopiq kanal havolasi beriladi.
+  Murojaatlar sahifasidagi *Botdagilarga xabar* tugmasi bilan eslatma yuboriladi.
+- **Onlayn guruh** — format (onlayn/oflayn), Zoom havolasi va dars yozuvlari havolasi;
+  bot jadvali va o‘quvchi kabinetida “Darsga kirish” tugmasi.
+- **Zapusk chegirmasi** — *Sozlamalar → Zapusk va bepul dars*: birinchi oy narxi,
+  joylar soni (masalan 20), tugash muddati. Saytda “7/20 joy band” va ortga sanash.
+- **2 qismga bo‘lib to‘lash** — a’zolikda tanlanadi; qarz 1-qism va 2-qism (15 kundan
+  keyin) muddatlariga qarab hisoblanadi.
+- **Yangi dizayn** — zumrad + terrakota, “onlayn darsxona” maketi.
+
+
+Arab tili markazi arab tili o'quv markazini to'liq yuritish uchun veb-tizim: murojaatlardan
 tortib o'quvchi, guruh, dars jadvali, davomat, to'lov, qarzdorlik, xarajat,
 ish haqi va hisobotlargacha. Ustiga — xodimlar o'rtasidagi ichki suhbat,
-vazifalar va **Albayan Telegram boti**.
+vazifalar va **markaz Telegram boti**.
 
 Interfeys to'rt tilda: **o'zbek, rus, ingliz, arab** (arabcha o'ngdan chapga).
 Yorug' va qorong'i ko'rinish. Valyuta — so'm, vaqt mintaqasi — Asia/Tashkent.
@@ -19,8 +40,8 @@ to'lov qabul qilish va hisobot yuklab olish mumkin.
 ### A. Serverli versiya (tavsiya etiladi — bot shu yerda ishlaydi)
 
 ```bash
-git clone https://github.com/abdullohbohodirov96/albayan-oquv-markz-ERP.git
-cd albayan-oquv-markz-ERP
+git clone https://github.com/abdullohbohodirov96/arab-markaz-erp.git
+cd arab-markaz-erp
 npm install
 cp .env.example .env         # va ichini to'ldiring
 node build.js
@@ -72,7 +93,7 @@ qo'yiladi — qo'lda faqat "siz kiritasiz" deb belgilanganlari kerak.
 | Nomi | Qiymati | Kim qo'yadi |
 |---|---|---|
 | `NODE_ENV` | `production` | avtomatik |
-| `APP_NAME` | `AlBayan Cairo` | avtomatik |
+| `APP_NAME` | `Arab tili markazi` | avtomatik |
 | `DATA_DIR` | `/var/data` | avtomatik |
 | `BACKUP_DIR` | `/var/data/backups` | avtomatik |
 | `BACKUP_KEEP` | `30` | avtomatik |

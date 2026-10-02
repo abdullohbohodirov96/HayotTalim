@@ -156,6 +156,9 @@
     modalStack.push(back);
     document.addEventListener('keydown', onKey);
     setTimeout(function () {
+      /* Foydalanuvchi allaqachon oynadagi maydonga o'tgan bo'lsa,
+         fokusni birinchi maydonga qaytarib tortmaymiz */
+      if (box.contains(document.activeElement)) return;
       var f = box.querySelector('input,select,textarea,button.primary');
       if (f) try { f.focus(); } catch (e) { }
     }, 30);

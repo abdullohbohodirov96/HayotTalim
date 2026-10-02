@@ -1610,15 +1610,72 @@
           h('span', { class: 'hero-hours', id: 'hero-hours', hidden: true })
         ])
       ]),
-      h('div', { class: 'hero-art' }, [
-        h('div', { class: 'site-medal' }, [
-          h('div', { class: 'medal-in' }, [
-            khatamSvg('khatam-in'),
-            h('img', { src: LOGO, alt: '' }),
-            h('span', { class: 'hero-ar', 'aria-hidden': 'true' }, 'العربية')
-          ])
+      /* Hero rasmi: jonli onlayn dars oynasi (chizma — haqiqiy
+         odamlar surati emas, yuzlar chizilmaydi). Markaz g'oyasini
+         bir qarashda ko'rsatadi: dars uydan, ekran orqali, ayollar
+         guruhida, ustoz doskada harflarni tushuntiryapti.            */
+      h('div', { class: 'hero-art lesson-art', 'aria-hidden': 'true' }, [
+        h('div', { class: 'zm' }, [
+          h('div', { class: 'zm-top' }, [
+            h('span', { class: 'zm-live' }, 'JONLI'),
+            h('span', { class: 'zm-title' }, 'Arab tili · 12-dars'),
+            h('span', { class: 'zm-time' }, '00:34:12')
+          ]),
+          h('div', { class: 'zm-body' }, [
+            h('div', { class: 'zm-board' }, [
+              h('div', { class: 'zm-ar' }, 'كِتَابٌ'),
+              h('div', { class: 'zm-tr' }, 'kitābun — kitob'),
+              h('div', { class: 'zm-letters' }, ['ك', 'ت', 'ا', 'ب'].map(function (l) { return h('span', {}, l); }))
+            ]),
+            h('div', { class: 'zm-side' }, ['Ustoz', 'Madina', 'Zarina', 'Nodira'].map(function (n, i) {
+              return h('div', { class: 'zm-tile' + (i === 0 ? ' host' : '') }, [
+                h('span', { class: 'zm-ava' }, personSvg('rumol')),
+                h('span', { class: 'zm-name' }, n)
+              ]);
+            }))
+          ]),
+          h('div', { class: 'zm-bar' }, [h('i'), h('i'), h('i', { class: 'end' })])
         ]),
-        h('div', { class: 'hero-badge' }, [h('b', {}, 'Onlayn'), h('span', {}, 'Zoom')])
+        h('div', { class: 'zm-chip c1' }, [UI.icon('play'), 'Har dars yozib olinadi']),
+        h('div', { class: 'zm-chip c2' }, [UI.icon('users'), 'Faqat ayollar guruhi'])
+      ])
+    ]);
+
+    /* ---------- Natija yo'li: 1 yil — 4 bosqich ---------- */
+    function stepCard(n, when, title, text) {
+      return h('div', { class: 'rm-step' }, [
+        h('span', { class: 'rm-dot' }, n),
+        h('span', { class: 'rm-when' }, when),
+        h('b', {}, title),
+        h('p', {}, text)
+      ]);
+    }
+    var roadmap = h('section', { class: 'site-sec reveal rm-sec', id: 'natija' }, [
+      h('div', { class: 'sec-eyebrow' }, 'Natija yo’li'),
+      h('h2', {}, 'Noldan 1 yilda — qadam-baqadam'),
+      h('p', { class: 'sec-note' }, 'Har bir bosqichda nimani o’rganishingiz oldindan ma’lum. Sakrab o’tish yo’q.'),
+      h('div', { class: 'rm-line' }, [
+        stepCard('1', '1-oy', 'Harflar va o’qish', 'Arab alifbosi, harakatlar, so’zlarni bo’g’inlab o’qish.'),
+        stepCard('2', '3-oy', 'Qur’onni ravon o’qish', 'Tajvid asoslari, Fotiha va qisqa suralarni xatosiz o’qish.'),
+        stepCard('3', '6-oy', 'Ma’noni tushunish', 'Asosiy grammatika va 1000 ta ko’p uchraydigan so’z.'),
+        stepCard('4', '12-oy', 'Arabcha gaplashish', 'Kundalik suhbat, matn o’qib tushunish, A2–B1 daraja.')
+      ])
+    ]);
+
+    /* ---------- Dars qanday o'tadi: 3 qadam ---------- */
+    function howCard(icon, n, title, text) {
+      return h('div', { class: 'how-card' }, [
+        h('div', { class: 'how-top' }, [h('span', { class: 'how-ico' }, UI.icon(icon)), h('span', { class: 'how-n' }, n)]),
+        h('b', {}, title), h('p', {}, text)
+      ]);
+    }
+    var howSec = h('section', { class: 'site-sec reveal how-sec', id: 'jarayon' }, [
+      h('div', { class: 'sec-eyebrow' }, 'Qanday ishlaydi'),
+      h('h2', {}, 'Boshlash uchun 3 qadam'),
+      h('div', { class: 'how-grid' }, [
+        howCard('play', '01', 'Bepul darsga yoziling', 'Telegram bot orqali 1 daqiqada. Jonli ochiq darsda usulimizni ko’rasiz.'),
+        howCard('users', '02', 'Guruhga qo’shiling', 'Haftada 3 marta Zoom’da jonli dars. Guruhda 10 kishigacha, faqat ayollar.'),
+        howCard('check', '03', 'Har kuni o’sing', 'Dars yozuvlari, uy vazifasi va ustoz izohlari — hammasi kabinetingizda.')
       ])
     ]);
 
@@ -1951,8 +2008,8 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, promoBand, revBand, statsBand, levelsSec, priceSec, feats, teachers,
-        timetable, apply, faq, ctaBand, foot]));
+      [hero, promoBand, statsBand, roadmap, feats, howSec, priceSec, teachers,
+        levelsSec, timetable, revBand, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak
        emas — u ko'zdan yo'qolgandan keyin chiqadi.                     */
@@ -1964,7 +2021,7 @@
         waiting = false;
         var r = heroBtn.getBoundingClientRect();
         /* Hero tugmasi ekrandan chiqib ketgan bo'lsa — tasma chiqadi */
-        ctaBar.classList.toggle('on', r.bottom <= 0 || r.top >= window.innerHeight);
+        ctaBar.classList.toggle('on', r.bottom <= 0);
       }
       function onScroll() {
         if (waiting) return;

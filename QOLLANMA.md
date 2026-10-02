@@ -1,4 +1,4 @@
-# AlBayan Cairo — foydalanish yo'riqnomasi
+# Arab tili markazi — foydalanish yo'riqnomasi
 
 Bu yo'riqnoma administrator uchun yozilgan. Dasturlashni bilish shart emas.
 
