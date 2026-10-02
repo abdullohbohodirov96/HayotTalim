@@ -239,7 +239,7 @@ async function scheduleText(student) {
     out.push('');
     out.push('<b>' + (g.code ? g.code + ' · ' : '') + g.name + '</b>');
     out.push(days + '  ' + g.startTime + '–' + g.endTime);
-    if (g.format === 'oflayn' && room) out.push('Xona: ' + room.name);
+    if (A.isOffline(g) && room) out.push('Xona: ' + room.name);
     const zoom = A.safeUrl ? A.safeUrl(g.zoomLink) : '';
     const rec = A.safeUrl ? A.safeUrl(g.recordingsLink) : '';
     if (zoom) out.push('Darsga kirish (Zoom): ' + esc(zoom));

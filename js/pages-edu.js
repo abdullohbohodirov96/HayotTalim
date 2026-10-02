@@ -164,7 +164,7 @@
       [UI.icon('back'), 'Guruhlar']));
     view.appendChild(UI.pageHead(A.groupLabel(g),
       Q.courseName(g.courseId) + ' · ' + Q.staffName(g.teacherId) + ' · ' +
-      (g.format === 'oflayn' ? Q.roomName(g.roomId) : 'Onlayn') + ' · ' +
+      (A.isOffline(g) ? Q.roomName(g.roomId) : 'Onlayn') + ' · ' +
       (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join(', ') + ' ' + g.startTime + '–' + g.endTime,
       [
         App.can('attendance.mark') ? h('button', {
@@ -374,7 +374,7 @@
           D.all('staff').filter(function (s) { return s.status === 'faol'; }).map(function (s) { return { value: s.id, label: s.name }; }))
       },
       {
-        name: 'format', label: 'Format', type: 'select', value: g.format || 'onlayn',
+        name: 'format', label: 'Format', type: 'select', value: g.format || (g.roomId ? 'oflayn' : 'onlayn'),
         options: [{ value: 'onlayn', label: 'Onlayn (Zoom)' }, { value: 'oflayn', label: 'Oflayn (xonada)' }]
       },
       {

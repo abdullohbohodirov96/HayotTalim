@@ -140,7 +140,7 @@ async function summary(store, student) {
       teacher: t ? t.name : '',
       days: g.days || [], daysText: daysText(g.days),
       startTime: g.startTime || '', endTime: g.endTime || '',
-      room: g.format === 'oflayn' ? (r ? r.name : '') : 'Onlayn',
+      room: A.isOffline(g) ? (r ? r.name : '') : 'Onlayn',
       zoomLink: A.safeUrl ? A.safeUrl(g.zoomLink) : '',
       recordingsLink: A.safeUrl ? A.safeUrl(g.recordingsLink) : ''
     };

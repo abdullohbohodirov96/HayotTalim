@@ -66,7 +66,7 @@ a{color:var(--brand);text-decoration:none}
 
 /* ---------- Kirish ekrani ---------- */
 .screen{min-height:100%;display:grid;place-items:center;padding:24px 16px;
-  background:linear-gradient(160deg,var(--side-bg),#0d1424 75%)}
+  background:linear-gradient(160deg,var(--side-bg),#0a1714 75%)}
 .login{width:100%;max-width:400px;background:var(--surface);border-radius:var(--r-lg);
   box-shadow:var(--shadow-lg);padding:28px 24px;display:flex;flex-direction:column;gap:16px}
 .login .brandline{display:flex;align-items:center;gap:12px}
@@ -81,7 +81,7 @@ a{color:var(--brand);text-decoration:none}
 .login-screen{position:relative;overflow:hidden;
   background:
     radial-gradient(90% 70% at 15% 0%, #136152, transparent 60%),
-    linear-gradient(160deg,#0a352e 10%,#070e21 85%)}
+    linear-gradient(160deg,#0a352e 10%,#04150f 85%)}
 .login-art{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .login-art .khatam{position:absolute;inset:-10%;width:120%;height:120%;
   color:#f0d48a;opacity:.09}
@@ -97,7 +97,7 @@ a{color:var(--brand);text-decoration:none}
   font-size:24px;letter-spacing:-.02em}
 .login-screen .login .logo{box-shadow:0 0 0 1px rgba(216,174,67,.45)}
 .login-screen .login .btn.primary{background:linear-gradient(160deg,#0f4a40,#0a352e);
-  border-color:transparent;box-shadow:0 16px 34px -18px rgba(11,23,48,.95)}
+  border-color:transparent;box-shadow:0 16px 34px -18px rgba(7,31,27,.95)}
 .login-screen .login .btn.primary:hover{background:linear-gradient(160deg,#136152,#0f4a40)}
 .login-screen .field input:focus{outline:none;border-color:#b8901f;
   box-shadow:0 0 0 3px rgba(216,174,67,.22)}
@@ -299,17 +299,17 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 
 .site{
   /* Logotip gradienti */
-  --st-n9:#0b1730; --st-n8:#101f3c; --st-n7:#16294d; --st-n6:#1e355f;
-  --st-n5:#274377; --st-n4:#3f5a8f; --st-n3:#6d85b4; --st-n2:#a8b8d6;
+  --st-n9:#071f1b; --st-n8:#0a2b25; --st-n7:#0e3a32; --st-n6:#134a40;
+  --st-n5:#1a5e51; --st-n4:#2c7a6a; --st-n3:#5fa597; --st-n2:#a3cfc5;
   /* Qo'lyozma tillasi */
   --st-gold:#b8901f; --st-gold-2:#d8ae43; --st-gold-3:#efd08a; --st-gold-soft:#f7edd6;
   /* Qog'oz */
   --st-paper:#fbf8f3; --st-paper-2:#f4efe5; --st-card:#ffffff;
-  --st-ink:#101c33; --st-ink-2:#3c4a64; --st-mut:#6f7c94;
+  --st-ink:#10241f; --st-ink-2:#3a4f4a; --st-mut:#6c7d78;
   --st-line:#e6dfd1; --st-line-2:#d6cdb9;
-  --st-shadow:0 1px 2px rgba(16,28,51,.05), 0 14px 34px -18px rgba(16,28,51,.30);
-  --st-shadow-lg:0 26px 60px -26px rgba(16,28,51,.45);
-  --st-glow:0 0 0 1px rgba(216,174,67,.28), 0 20px 60px -24px rgba(11,23,48,.65);
+  --st-shadow:0 1px 2px rgba(10,40,35,.05), 0 14px 34px -18px rgba(10,40,35,.30);
+  --st-shadow-lg:0 26px 60px -26px rgba(10,40,35,.45);
+  --st-glow:0 0 0 1px rgba(216,174,67,.28), 0 20px 60px -24px rgba(7,31,27,.65);
   --st-serif:'Fraunces','Archivo',Georgia,serif;
   --st-ar:'Amiri','Times New Roman',serif;
   /* Xatam yulduzi naqshi — to'q panellar ustida tilla chiziqlar */
@@ -321,18 +321,18 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]) .site{
-    --st-paper:#0c1424; --st-paper-2:#111b2e; --st-card:#151f33;
+    --st-paper:#0b1513; --st-paper-2:#0f1d1a; --st-card:#132622;
     --st-ink:#eaf0fa; --st-ink-2:#c3cee1; --st-mut:#93a0b8;
-    --st-line:#23304a; --st-line-2:#24493f;
+    --st-line:#213834; --st-line-2:#24493f;
     --st-gold:#e0bb5c; --st-gold-2:#efd08a; --st-gold-soft:#2a2313;
     --st-shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -18px rgba(0,0,0,.8);
     --st-shadow-lg:0 26px 60px -26px rgba(0,0,0,.9);
   }
 }
 :root[data-theme="dark"] .site{
-  --st-paper:#0c1424; --st-paper-2:#111b2e; --st-card:#151f33;
+  --st-paper:#0b1513; --st-paper-2:#0f1d1a; --st-card:#132622;
   --st-ink:#eaf0fa; --st-ink-2:#c3cee1; --st-mut:#93a0b8;
-  --st-line:#23304a; --st-line-2:#24493f;
+  --st-line:#213834; --st-line-2:#24493f;
   --st-gold:#e0bb5c; --st-gold-2:#efd08a; --st-gold-soft:#2a2313;
   --st-shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -18px rgba(0,0,0,.8);
   --st-shadow-lg:0 26px 60px -26px rgba(0,0,0,.9);
@@ -378,7 +378,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .site-top-in{max-width:1140px;margin:0 auto;padding:12px 20px;
   display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .site-top.stuck{border-bottom-color:color-mix(in srgb,var(--st-line) 80%,transparent);
-  box-shadow:0 10px 30px -22px rgba(16,28,51,.55)}
+  box-shadow:0 10px 30px -22px rgba(10,40,35,.55)}
 .site-brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
 .site-brand .logo{width:44px;height:44px;border-radius:15px;
   box-shadow:0 0 0 1px color-mix(in srgb,var(--st-gold) 42%,transparent), var(--st-shadow)}
@@ -398,7 +398,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
   .btn.xl{width:100%;padding:17px 22px;font-size:16.5px}
 }
 .site .btn.primary{background:linear-gradient(160deg,var(--st-n5),var(--st-n7));border-color:var(--st-n7);
-  color:#fff;box-shadow:0 10px 26px -14px rgba(11,23,48,.8)}
+  color:#fff;box-shadow:0 10px 26px -14px rgba(7,31,27,.8)}
 .site .btn.primary:hover{background:linear-gradient(160deg,var(--st-n4),var(--st-n6))}
 
 /* --- Hero: to'q ko'k panel, tilla hoshiya, xatam naqshi --- */
@@ -528,7 +528,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .feat:hover::before{width:100%}
 .feat-ico{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;margin-bottom:14px;
   background:linear-gradient(155deg,var(--st-n5),var(--st-n7));
-  box-shadow:0 10px 22px -12px rgba(11,23,48,.8)}
+  box-shadow:0 10px 22px -12px rgba(7,31,27,.8)}
 .feat-ico .ico{width:20px;height:20px;color:var(--st-gold-3)}
 .feat b{display:block;margin-bottom:6px;font-size:16px;font-family:var(--st-serif);font-weight:600;
   color:var(--st-ink);letter-spacing:-.01em}
@@ -616,7 +616,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
   border-radius:50%;overflow:hidden;flex:none;
   background:linear-gradient(150deg,var(--st-n5),var(--st-n8));
   box-shadow:0 0 0 2px color-mix(in srgb,var(--st-gold) 46%,transparent),
-    0 14px 30px -16px rgba(11,23,48,.8)}
+    0 14px 30px -16px rgba(7,31,27,.8)}
 .tch-ava img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top}
 .tch-ini{font-family:var(--st-serif);font-weight:700;color:var(--st-gold-3);
   font-size:calc(min(34px, 1em + 12px));letter-spacing:.02em}
@@ -1029,7 +1029,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .js-reveal .site .btn:hover::after{opacity:1;animation:stShine .75s ease-out}
 @keyframes stShine{from{inset-inline-start:-60%}to{inset-inline-start:120%}}
 .hero-cta .btn.gold:hover{box-shadow:0 18px 40px -14px rgba(216,174,67,.95)}
-.site .btn.primary:hover{box-shadow:0 16px 34px -14px rgba(11,23,48,.9)}
+.site .btn.primary:hover{box-shadow:0 16px 34px -14px rgba(7,31,27,.9)}
 
 /* Menyu tugmalari ostida tilla chiziq */
 .site-nav .btn.ghost{position:relative}
@@ -1074,11 +1074,11 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 /* Karta ichidagi belgi ustiga kelganda jonlanadi */
 .feat-ico{transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s}
 .feat:hover .feat-ico{transform:translateY(-3px) rotate(-6deg) scale(1.06);
-  box-shadow:0 16px 30px -12px rgba(11,23,48,.9)}
+  box-shadow:0 16px 30px -12px rgba(7,31,27,.9)}
 .tch-ava{transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s}
 .tch-card:hover .tch-ava{transform:scale(1.07);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--st-gold) 60%,transparent),
-    0 18px 34px -16px rgba(11,23,48,.9)}
+    0 18px 34px -16px rgba(7,31,27,.9)}
 
 /* Aloqa kartasidagi qatorlar ketma-ket */
 .js-reveal .site-contact .contact-row{opacity:0;transform:translateX(-10px)}
@@ -1179,12 +1179,12 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .lvl-ico{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
   background:linear-gradient(155deg,var(--st-n5),var(--st-n7));
   box-shadow:0 0 0 1px color-mix(in srgb,var(--st-gold) 26%,transparent),
-    0 10px 22px -12px rgba(11,23,48,.8);
+    0 10px 22px -12px rgba(7,31,27,.8);
   transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
 .lvl-ico .ico{width:20px;height:20px;color:var(--st-gold-3)}
 .lvl:hover .lvl-ico{transform:translateY(-3px) rotate(-6deg) scale(1.06);
   box-shadow:0 0 0 1px color-mix(in srgb,var(--st-gold) 62%,transparent),
-    0 16px 30px -12px rgba(11,23,48,.9)}
+    0 16px 30px -12px rgba(7,31,27,.9)}
 .lvl-code{font-family:var(--st-serif);font-weight:700;font-size:21px;letter-spacing:.02em;
   color:var(--st-gold);font-variant-numeric:tabular-nums}
 .lvl > b{font-family:var(--st-serif);font-weight:600;font-size:18px;
@@ -1309,7 +1309,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 /* Logotip uchun oq doira — rangli belgi har qanday fonda toza ko'rinadi */
 .soc-btn .soc-logo{width:26px;height:26px;flex:none;display:block;border-radius:50%;
   background:#fff;padding:1px;box-sizing:border-box;
-  box-shadow:0 1px 2px rgba(16,28,51,.12)}
+  box-shadow:0 1px 2px rgba(10,40,35,.12)}
 .soc-btn .soc-ico{width:26px;height:26px;flex:none;border-radius:50%;display:grid;
   place-items:center;background:var(--st-n7)}
 .soc-btn .soc-ico .ico{width:14px;height:14px;color:var(--st-gold-2)}
@@ -1537,13 +1537,13 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 /* --- Imkoniyat kartalari: ikonka tilla halqa ichida --- */
 .feat-ico{position:relative;
   box-shadow:0 0 0 1px color-mix(in srgb,var(--st-gold) 26%,transparent),
-    0 10px 22px -12px rgba(11,23,48,.8)}
+    0 10px 22px -12px rgba(7,31,27,.8)}
 .feat-ico::after{content:'';position:absolute;inset:0;border-radius:inherit;
   background:radial-gradient(70% 70% at 30% 20%,rgba(216,174,67,.26),transparent 70%);
   opacity:0;transition:opacity .3s}
 .feat:hover .feat-ico::after{opacity:1}
 .feat:hover .feat-ico{box-shadow:0 0 0 1px color-mix(in srgb,var(--st-gold) 62%,transparent),
-  0 16px 30px -12px rgba(11,23,48,.9)}
+  0 16px 30px -12px rgba(7,31,27,.9)}
 .feat{cursor:default}
 .feat b{transition:color .2s}
 .feat:hover b{color:var(--st-n6)}
@@ -1566,7 +1566,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 
 /* --- Ustoz kartalari: surat yaqinlashadi, tagida "Batafsil" --- */
 .tch-photo::after{content:'';position:absolute;inset:auto 0 0 0;height:56%;pointer-events:none;
-  background:linear-gradient(to top,rgba(8,16,36,.82),transparent);opacity:.9}
+  background:linear-gradient(to top,rgba(5,22,18,.82),transparent);opacity:.9}
 .tch-photo .tch-ava img{transition:transform .5s cubic-bezier(.22,.9,.28,1)}
 .tch-card:hover .tch-photo .tch-ava img{transform:scale(1.07)}
 .tch-card:hover .tch-photo .tch-ava{transform:none;box-shadow:none}
@@ -1606,7 +1606,7 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .faq-q.pressing{background:color-mix(in srgb,var(--st-gold) 13%,transparent)}
 .faq-item{transition:border-color .18s,box-shadow .22s}
 .faq-item:hover{border-color:var(--st-line-2)}
-.faq-item.open{box-shadow:0 10px 26px -18px rgba(11,23,48,.7)}
+.faq-item.open{box-shadow:0 10px 26px -18px rgba(7,31,27,.7)}
 
 /* --- Dars vaqtlari: ustiga kelganda tilla nuqta --- */
 .slot{position:relative}
@@ -2425,3 +2425,87 @@ button.cur-title:hover b{text-decoration:underline}
 .promo-bar i{display:block;height:100%;background:var(--brand)}
 .promo-cd{font-size:13px;color:var(--warn);font-weight:600}
 @media (max-width:600px){.promo-in{padding:14px 16px}.promo-in .btn{width:100%}}
+
+
+/* =====================================================================
+   ZUMRAD + TERRAKOTA MAVZUSI
+   Yorug' qum fon, zumrad asosiy rang, iliq terrakota urg'u.
+   Yulduz naqshi yo'q — yumaloq, to'lqinsimon yumshoq shakllar.
+   Shrift: sarlavhalar Nunito (yumaloq), matn Manrope.
+   ===================================================================== */
+.site{
+  --st-gold:#c2603a; --st-gold-2:#d9774f; --st-gold-3:#f0b49a; --st-gold-soft:#fbe9e0;
+  --st-paper:#faf6f0; --st-paper-2:#f3ece2; --st-line:#eadfd2; --st-line-2:#dccbb8;
+  --st-serif:'Nunito','Manrope',system-ui,sans-serif;
+  --st-khatam:none;
+  --st-glow:0 0 0 1px rgba(194,96,58,.18), 0 20px 60px -28px rgba(7,31,27,.45);
+}
+.site-bg .khatam,.medal-in .khatam-in,.why-art .khatam-in,.login-art .khatam{display:none}
+.site h1,.site h2,.site h3{letter-spacing:-.01em}
+.site-sec h2,.site-hero h1{font-weight:800}
+.sec-eyebrow::after{display:none}
+.sec-eyebrow{letter-spacing:.14em}
+
+/* Fon: ikkita yumshoq "to'lqin" dog' */
+.site-bg{background:
+  radial-gradient(60% 45% at 92% 6%, rgba(217,119,79,.10), transparent 70%),
+  radial-gradient(55% 45% at 4% 30%, rgba(26,94,81,.09), transparent 70%),
+  var(--st-paper)}
+
+/* --- Hero: yorug', to'lqinli --- */
+.site-hero{color:var(--st-ink);border-radius:36px;
+  background:
+    radial-gradient(70% 90% at 100% 0%, rgba(217,119,79,.16), transparent 60%),
+    radial-gradient(80% 100% at 0% 100%, rgba(26,94,81,.14), transparent 62%),
+    linear-gradient(160deg,#ffffff,#f4efe7);
+  box-shadow:0 0 0 1px var(--st-line), 0 30px 70px -40px rgba(7,31,27,.35)}
+.site-hero::before{background:none;opacity:1;inset:auto -60px -90px auto;width:320px;height:320px;
+  border-radius:46% 54% 60% 40% / 52% 44% 56% 48%;background-color:rgba(26,94,81,.07)}
+.site-hero::after{box-shadow:none}
+.site-hero h1{color:var(--st-n6)}
+.site-hero h1 .gold{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--st-n6)}
+.hero-eyebrow{color:var(--st-gold);background:var(--st-gold-soft);border-color:rgba(194,96,58,.25)}
+.hero-eyebrow::before{background:var(--st-gold-2);box-shadow:none}
+.hero-type{color:var(--st-gold);text-shadow:none}
+.hero-type-cur{background:var(--st-gold-2);box-shadow:none}
+.hero-type.full .hero-type-txt{text-shadow:none}
+.hero-lead{color:var(--st-ink-2)}
+.hero-rule{background:linear-gradient(90deg,var(--st-gold-2),transparent)}
+.site .btn.gold{background:var(--st-gold-2);border-color:var(--st-gold-2);color:#fff;
+  box-shadow:0 14px 30px -16px rgba(194,96,58,.75)}
+.site .btn.gold:hover{background:var(--st-gold)}
+.hero-cta .btn.on-dark{background:#fff;border-color:var(--st-line-2);color:var(--st-n6)}
+.hero-cta .btn.on-dark:hover{background:#fff;border-color:var(--st-n4)}
+.site .hero-tel{color:var(--st-n6);background:#fff;border-color:var(--st-line-2)}
+.site .hero-hours{color:var(--st-mut)}
+.site .hero-proof .proof-text{color:var(--st-ink-2)}
+
+/* Hero rasmi: medal o'rniga yumaloq "tomchi" shakl */
+.site-medal{border-radius:42% 58% 55% 45% / 48% 42% 58% 52%}
+.site-medal::before{animation:none;inset:-14px;border-radius:inherit;
+  background:linear-gradient(140deg,rgba(217,119,79,.35),rgba(26,94,81,.25));opacity:1}
+.site-medal::after{border-radius:inherit;box-shadow:none;
+  background:linear-gradient(150deg,var(--st-n5),var(--st-n7))}
+.medal-in{border-radius:inherit}
+.hero-art img{box-shadow:0 18px 40px -18px rgba(0,0,0,.6)}
+.hero-ar{color:#fff;opacity:.28}
+.hero-badge{border-color:rgba(194,96,58,.35)}
+.hero-badge span{color:var(--st-gold)}
+
+/* Ko'rsatkichlar tasmasi — yorug' karta */
+.stat-band{background:#fff !important;box-shadow:0 0 0 1px var(--st-line), var(--st-shadow) !important;color:var(--st-ink)}
+.stat-band::before{display:none !important}
+.stat-band .hero-stat b{color:var(--st-n6)}
+.stat-band .hero-stat span{color:var(--st-mut)}
+.stat-band .hero-stat{border-color:var(--st-line)}
+.stat-band .stat-ico{color:var(--st-gold);background:var(--st-gold-soft);border-color:transparent}
+
+/* Qolgan to'q panellar — zumrad, naqshsiz, yumaloqroq */
+.price-card,.cta-band,.apply-wrap,.why-art{border-radius:32px}
+.site .card,.lvl,.tch,.faq-item{border-radius:22px}
+.medal-in img{display:none}
+.site-medal .hero-ar{position:static;font-size:clamp(46px,9vw,72px);opacity:.95;color:#fbe9e0}
+.promo-bar{background:var(--st-line)}
+.promo-bar i{background:var(--st-gold-2)}
+/* Ustoz kartasi bitta bo'lsa ham butun kenglikka cho'zilmasin */
+.site .tch-grid{grid-template-columns:repeat(auto-fill,minmax(240px,300px)) !important;justify-content:start}

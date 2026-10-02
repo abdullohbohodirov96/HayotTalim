@@ -558,6 +558,8 @@
     monthStart: monthStart, monthEnd: monthEnd, monthLabel: monthLabel, dateLabel: dateLabel,
     WEEKDAYS: WEEKDAYS, WEEKDAYS_SHORT: WEEKDAYS_SHORT, MONTHS: MONTHS,
     REGIONS: REGIONS, LEAD_SOURCES: LEAD_SOURCES,
+    /** Guruh oflaynmi: format yozilmagan eski guruhlarda xona bo'lsa — oflayn */
+    isOffline: function (g) { return !!g && (g.format === 'oflayn' || (!g.format && !!g.roomId)); },
     /** Faqat https havola (Zoom, Telegram, Drive) — boshqa narsa bo'sh qaytadi */
     safeUrl: function (u) {
       var s = String(u || '').trim();

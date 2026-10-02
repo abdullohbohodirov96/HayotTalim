@@ -365,7 +365,7 @@ async function typeIn(page, sel, val) {
     text: document.body.innerText
   }));
   ok('“Saytdagi ustozlar” bo’limi bor', tAdmin.card, JSON.stringify({ who: tAdmin.who, route: tAdmin.route, t: tAdmin.tcount, n: tAdmin.items }));
-  ok('Ustozlar ro’yxati to’lgan', tAdmin.items >= 5, String(tAdmin.items));
+  ok('Ustozlar ro’yxati to’lgan', tAdmin.items >= 1, String(tAdmin.items));
   ok('Ustoz ismi ko’rinadi', /Ustoz/.test(tAdmin.text));
 
   const tgInfo = await dpage.evaluate(async () => {

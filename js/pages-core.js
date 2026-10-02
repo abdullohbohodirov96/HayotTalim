@@ -504,9 +504,6 @@
         [UI.icon('plus'), 'Murojaat qo’shish']) : null,
       App.can('lead.import') ? h('button', { class: 'btn', onclick: function () { A.importModal('leads', App, funnel.id); } },
         [UI.icon('upload'), 'Excel’dan import']) : null,
-      App.can('bot.broadcast') && A.Bot ? h('button', {
-        class: 'btn', onclick: function () { leadBroadcast(allLeads.filter(inFunnel), funnel, App); }
-      }, [UI.icon('bot'), 'Botdagilarga xabar']) : null,
       h('button', {
         class: 'btn', onclick: function () {
           UI.exportCsv('murojaatlar-' + funnel.name + '.csv',
@@ -538,7 +535,10 @@
             onclick: function () { App.go('leads', { funnelId: funnel.id, stage: s.id }); }
           }, s.label);
         })),
-      route.due ? h('button', { class: 'btn sm', onclick: function () { App.go('leads', { funnelId: funnel.id }); } }, 'Filtrni olib tashlash') : null
+      route.due ? h('button', { class: 'btn sm', onclick: function () { App.go('leads', { funnelId: funnel.id }); } }, 'Filtrni olib tashlash') : null,
+      App.can('bot.broadcast') && A.Bot ? h('button', {
+        class: 'btn sm', onclick: function () { leadBroadcast(allLeads.filter(inFunnel), funnel, App); }
+      }, [UI.icon('bot'), 'Botdagilarga xabar']) : null
     ]);
     view.appendChild(segs);
     view.appendChild(leadStatsCard(allLeads.filter(inFunnel), funnel));

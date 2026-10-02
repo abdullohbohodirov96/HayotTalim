@@ -2075,7 +2075,7 @@
       var kids = [];
       if (fl && (fl.title || fl.date)) {
         kids.push(h('div', { class: 'promo-free' }, [
-          h('span', { class: 'hero-eyebrow' }, 'Bepul ochiq dars'),
+          h('span', { class: 'sec-eyebrow' }, 'Bepul ochiq dars'),
           h('b', {}, fl.title || 'Bepul dars'),
           fl.date ? h('span', { class: 'muted' }, A.dateLabel(fl.date) + (fl.time ? ', soat ' + fl.time : '')) : null
         ]));
@@ -2084,7 +2084,7 @@
         var left = p.seats ? Math.max(0, p.seats - (p.used || 0)) : null;
         var cd = h('span', { class: 'promo-cd', id: 'promo-cd' });
         kids.push(h('div', { class: 'promo-offer' }, [
-          h('span', { class: 'hero-eyebrow' }, p.open ? 'Zapusk chegirmasi' : 'Chegirma yopildi'),
+          h('span', { class: 'sec-eyebrow' }, p.open ? 'Zapusk chegirmasi' : 'Chegirma yopildi'),
           h('div', { class: 'promo-price' }, [
             h('b', {}, A.som(p.price) + ' so’m'),
             p.regular ? h('s', { class: 'muted' }, A.som(p.regular) + ' so’m') : null,
@@ -2131,9 +2131,9 @@
     function paintStats(list, minutes) {
       UI.clear(statsBox);
       var rows = (list && list.length) ? list : [
-        { v: '6', t: 'daraja: A1–C2' },
-        { v: String(Math.round((minutes || 90) / 60 * 10) / 10).replace('.', ',') + ' soat',
-          t: 'har bir dars' }
+        { v: '1 yil', t: 'noldan natijagacha' },
+        { v: (minutes || 80) + ' daqiqa', t: 'jonli Zoom dars' },
+        { v: '3 marta', t: 'haftasiga dars' }
       ];
       rows.forEach(function (r, i) {
         statsBox.appendChild(h('div', { class: 'hero-stat', style: '--i:' + i }, [
