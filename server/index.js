@@ -1748,6 +1748,8 @@ async function handleApi(req, res, url) {
       let r;
       if (op === 'step') r = await course.markStep(A, store, sid, body, stamp);
       else if (op === 'test') r = await course.submitTest(A, store, sid, body, stamp);
+      else if (op === 'review') r = await course.submitReview(A, store, sid, body, stamp);
+      else if (op === 'vocab') r = await course.vocabMark(A, store, sid, body);
       else if (op === 'homework') {
         r = await course.submitHomework(A, store, sid, body, stamp, files);
         if (r && r.ok) {
@@ -1844,6 +1846,24 @@ async function handleApi(req, res, url) {
 
   /* Kirish sahifasi uchun ochiq ma'lumot: faqat markaz nomi.
      (U kirish sahifasida baribir ko'rinadi — boshqa hech narsa berilmaydi.) */
+  /* ---- Qissa ovozlari (ochiq): dars videosi va qissa uchun studiya ovozi ----
+     qissaaudio/<darsId> { lines: {i: fileId}, words: {k: fileId}, at }       */
+  if (route === 'qissa-audio' && req.method === 'GET') {
+    const lid = String(url.searchParams.get('l') || '');
+    if (!/^[a-z0-9-]{2,20}$/.test(lid)) return send(res, 404, { error: 'Topilmadi.' });
+    const doc = (await store.get('qissaaudio/' + lid)) || { lines: {}, words: {} };
+    const i = url.searchParams.get('i'), w = url.searchParams.get('w');
+    if (i == null && w == null) {
+      return send(res, 200, { lines: Object.keys(doc.lines || {}).map(Number), words: Object.keys(doc.words || {}).map(Number), at: doc.at || null });
+    }
+    const fid = i != null ? (doc.lines || {})[String(Number(i))] : (doc.words || {})[String(Number(w))];
+    const rec = fid ? await files.meta(store, fid) : null;
+    const buf = rec ? files.readBody(rec) : null;
+    if (!buf) return send(res, 404, { error: 'Ovoz yo’q.' });
+    res.writeHead(200, { 'Content-Type': rec.type, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+    return res.end(buf);
+  }
+
   if (route === 'public' && req.method === 'GET') {
     const out = { centerName: process.env.APP_NAME || 'Arab tili markazi' };
     try {
@@ -2300,6 +2320,49 @@ async function handleApi(req, res, url) {
         rows,
         lessons: A.Course.LESSONS.map(l => ({ id: l.id, n: l.n, title: l.title, unit: l.unit }))
       });
+    }
+    /* ---- Qissa ovozlarini ElevenLabs bilan yaratish (serverda ELEVENLABS_API_KEY bo'lsa) ---- */
+    if (route === 'course/tts' && req.method === 'POST') {
+      if (!A.can(user, 'settings.edit') && !A.can(user, 'curriculum.edit')) return nope();
+      const key = process.env.ELEVENLABS_API_KEY || '';
+      if (!key) return send(res, 400, { error: 'Serverda ELEVENLABS_API_KEY sozlanmagan. .env fayliga kalitni yozing va serverni qayta ishga tushiring.' });
+      const body = await readBody(req);
+      const lesson = A.Course.byId(String(body.lessonId || ''));
+      if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
+      const voiceA = process.env.ELEVEN_VOICE_A || 'R5kMoWNNTn84ezIJA53m';     // Wiam — fusha, yosh ayol
+      const voiceB = process.env.ELEVEN_VOICE_B || 'VjxKp6w1MCufETfW5zFM';     // Nouf — yosh ayol
+      const model = process.env.ELEVEN_MODEL || 'eleven_multilingual_v2';
+      async function tts(text, voice, slow) {
+        const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + voice + '?output_format=mp3_44100_128', {
+          method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+          body: JSON.stringify({ text, model_id: model, voice_settings: { stability: 0.6, similarity_boost: 0.8, speed: slow ? 0.8 : 0.9 } })
+        });
+        if (!r.ok) throw new Error('ElevenLabs: ' + r.status + ' ' + (await r.text()).slice(0, 200));
+        return Buffer.from(await r.arrayBuffer());
+      }
+      try {
+        const doc = { lines: {}, words: {}, at: stamp(), by: user.name, model };
+        const lines = lesson.dialog.lines;
+        for (let i = 0; i < lines.length; i++) {
+          const buf = await tts(lines[i].ar, i % 2 ? voiceB : voiceA);
+          const sv = await files.save(store, { name: lesson.id + '-' + i + '.mp3', type: 'audio/mpeg', dataBase64: buf.toString('base64'), purpose: 'qissa-audio', refPath: 'qissaaudio/' + lesson.id, byUserId: user.id, stamp });
+          if (sv.ok) doc.lines[i] = sv.file.id;
+        }
+        const sc = A.QissaVideo ? A.QissaVideo.scriptFor(lesson) : null;
+        const words = sc && sc.recap ? sc.recap.words.map(w => w[0]) : lesson.words.map(w => w.ar);
+        for (let k = 0; k < words.length; k++) {
+          const buf = await tts(words[k], voiceA, true);
+          const sv = await files.save(store, { name: lesson.id + '-w' + k + '.mp3', type: 'audio/mpeg', dataBase64: buf.toString('base64'), purpose: 'qissa-audio', refPath: 'qissaaudio/' + lesson.id, byUserId: user.id, stamp });
+          if (sv.ok) doc.words[k] = sv.file.id;
+        }
+        const old = await store.get('qissaaudio/' + lesson.id);
+        if (old) for (const fid of [...Object.values(old.lines || {}), ...Object.values(old.words || {})]) { try { await files.remove(store, fid); } catch (e) { } }
+        await store.set('qissaaudio/' + lesson.id, doc);
+        await writeAudit(user, 'Qissa ovozi yaratildi (ElevenLabs)', lesson.id, Object.keys(doc.lines).length + ' gap');
+        return send(res, 200, { ok: true, lines: Object.keys(doc.lines).length, words: Object.keys(doc.words).length });
+      } catch (e) {
+        return send(res, 502, { error: e.message || 'Ovoz yaratilmadi.' });
+      }
     }
     if (route === 'course/files' && req.method === 'GET') {
       const scope = await scopeStudentIds();
@@ -3028,7 +3091,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8'
+  '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
+  '.mp3': 'audio/mpeg', '.mp4': 'video/mp4'
 };
 
 /**
@@ -3037,10 +3101,10 @@ const MIME = {
  */
 /* robots.txt va sitemap.xml fayl emas — ular serverda tuziladi
    (pastdagi yo'llarga qarang), shuning uchun bu ro'yxatda yo'q. */
-const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico']);
+const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/qissa.html']);
 const PUBLIC_DIRS = ['/css/', '/js/', '/assets/'];
 const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.jpg', '.svg', '.ico', '.webmanifest',
-  '.txt', '.xml']);
+  '.txt', '.xml', '.mp3', '.mp4']);
 
 /* Qidiruv tizimlarining tasdiqlash fayllari.
    Google Search Console sayt sizniki ekanini tasdiqlash uchun ildizda

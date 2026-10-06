@@ -76,7 +76,10 @@
             }
           });
         }
-      }, [UI.icon('play'), 'Darslarni ko’rish (o’quvchi ko’rinishi)'])
+      }, [UI.icon('play'), 'Darslarni ko’rish (o’quvchi ko’rinishi)']),
+      D.mode === 'server' && (App.can('settings.edit') || App.can('curriculum.edit')) ? h('button', {
+        class: 'btn', onclick: function () { ttsModal(); }
+      }, '🎙 Qissa ovozlari') : null
     ]));
     var body = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
     view.appendChild(body);
@@ -152,6 +155,14 @@
               }));
             }
           },
+          { label: 'Takrorlash · lug’at', render: function (r) {
+            return h('div', {}, [
+              h('div', { class: 'cr-dots' }, (r.reviews || []).map(function (rv) {
+                return h('span', { class: 'cr-dot ' + (rv.status === 'done' ? 'ok' : rv.status === 'open' ? 'open' : 'lock'), title: rv.title + (rv.best != null ? ': ' + rv.best + '%' : '') }, 'T' + rv.n);
+              })),
+              r.vocab ? h('div', { class: 'small muted' }, r.vocab.learned + '/' + r.vocab.total + ' so’z yodlangan') : null
+            ]);
+          } },
           { label: 'Kutilmoqda', render: function (r) { return r.pending.length ? UI.pill(r.pending.length + ' vazifa', 'warn') : h('span', { class: 'muted' }, '—'); } },
           {
             label: '', right: true, render: function (r) {
@@ -244,6 +255,41 @@
         h('button', { class: 'btn primary', onclick: function (e) { act('qabul', e.currentTarget); } }, 'Qabul qilish')
       ])
     ]));
+  }
+
+  /* Qissa ovozlari: ElevenLabs studiya ovozini serverda yaratish */
+  function ttsModal() {
+    var list = h('div', { class: 'list' }, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
+    UI.modal({
+      title: 'Qissa ovozlari (ElevenLabs)',
+      body: [
+        h('p', { class: 'small muted' }, 'Har bir darsning qissasi ikki xil ayol ovozida (Maryam va Zaynab) va yangi so’zlar alohida o’qiladi. ' +
+          'Ovoz videodars, qissa va lug’atda ishlatiladi. Serverda ELEVENLABS_API_KEY bo’lishi kerak; har yaratish ElevenLabs kreditini sarflaydi.'),
+        list
+      ],
+      actions: [{ label: 'Yopish' }]
+    });
+    (async function () {
+      UI.clear(list);
+      for (var i = 0; i < C.LESSONS.length; i++) {
+        (function (l) {
+          var stat = h('span', { class: 'small muted' }, '…');
+          var btn = h('button', { class: 'btn sm primary', onclick: function (e) {
+            UI.busy(e.currentTarget, async function () {
+              try {
+                var r = await D.api('POST', 'api/course/tts', { lessonId: l.id });
+                stat.textContent = '✓ ' + r.lines + ' gap, ' + r.words + ' so’z'; UI.toast('Ovoz yaratildi.', 'ok');
+              } catch (ex) { UI.toast(ex.message || 'Yaratilmadi', 'bad'); }
+            });
+          } }, 'Yaratish');
+          list.appendChild(h('div', { class: 'list-item' }, [h('div', { class: 'main-col' }, [h('b', {}, l.n + '. ' + l.title), stat]), btn]));
+          D.api('GET', 'api/qissa-audio?l=' + l.id).then(function (st) {
+            stat.textContent = st.lines.length ? '✓ ovoz bor (' + st.lines.length + ' gap) · ' + (st.at || '') : 'Brauzer ovozi (studiya ovozi yo’q)';
+            if (st.lines.length) btn.textContent = 'Qayta yaratish';
+          }).catch(function () { stat.textContent = '—'; });
+        })(C.LESSONS[i]);
+      }
+    })();
   }
 
   function moveForm(r, lessons, App) {

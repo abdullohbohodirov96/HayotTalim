@@ -173,6 +173,43 @@ const ID = n => R + '_' + n;
   const pend = ov2.json.rows.find(r => r.studentId === ID('s1')).pending.find(p => p.lessonId === L5.id);
   ok('Ustozga ovoz fayli turi bilan keladi', pend && pend.files.some(f => /^audio\//.test(f.type)));
 
+  section('8. Har 2 darsdan keyin takrorlash testi va lug’at');
+  await put('students/' + ID('s3'), { id: ID('s3'), firstName: 'Takror', lastName: 'Sinov', phone: '+998901234502', status: 'faol' }, dir);
+  await put('memberships/' + ID('m3'), { id: ID('m3'), studentId: ID('s3'), groupId: ID('g1'), joinedAt: '2026-09-01', status: 'faol' }, dir);
+  const code3 = (await getDoc('students/' + ID('s3'), dir)).json.data.code;
+  const k3 = await req('/api/kabinet', { body: { login: code3, password: code3 }, ip: '10.3.3.3' });
+  const kp3 = (sub, body) => req('/api/kabinet/' + sub, { cookie: k3.cookie, csrf: k3.json.csrf, body });
+  for (const L of [C.LESSONS[0], C.LESSONS[1]]) {
+    await kp3('course/test', { lessonId: L.id, answers: C.buildTest(L).map(q => q.answer) });
+    const w = C.buildWritten(L);
+    await kp3('course/homework', { lessonId: L.id, autoAnswers: (L.homework.auto || []).map(q => q.answer), fillAnswers: w.fill.map(f => f.answer), texts: ['ok ok'] });
+  }
+  let v3 = (await req('/api/kabinet/course', { cookie: k3.cookie })).json;
+  eq('2 dars tugadi, lekin 3-dars yopiq (takrorlash kerak)', v3.lessons[2].status, 'locked');
+  eq('1-takrorlash ochiq', v3.reviews[0].status, 'open');
+  eq('2-takrorlash hali yopiq', v3.reviews[1].status, 'locked');
+  eq('Yopiq takrorlashni ishlab bo’lmaydi', (await kp3('course/review', { reviewId: 'r2', answers: [] })).status, 403);
+  const rq = C.buildReview(C.REVIEWS[0]);
+  const rBad = await kp3('course/review', { reviewId: 'r1', answers: rq.map(q => (q.answer + 1) % q.options.length) });
+  ok('Xato javoblar — o’tmadi', rBad.status === 200 && !rBad.json.passed);
+  eq('…3-dars hali yopiq', rBad.json.view.lessons[2].status, 'locked');
+  ok('Xato so’zlar lug’atda 0-qutida', Object.values(rBad.json.view.vocab.map).every(x => x.b === 0));
+  const rGood = await kp3('course/review', { reviewId: 'r1', answers: rq.map(q => q.answer) });
+  ok('To’g’ri javoblar — o’tdi', rGood.json.passed && rGood.json.result.percent === 100);
+  eq('3-dars ochildi', rGood.json.view.lessons[2].status, 'open');
+  eq('1-takrorlash bajarildi', rGood.json.view.reviews[0].status, 'done');
+  const vk = 'a1-01:0';
+  const vm = await kp3('course/vocab', { items: [{ key: vk, ok: true }, { key: 'a1-08:0', ok: true }] });
+  eq('Faqat ochiq dars so’zi saqlandi', vm.json.saved, 1);
+  ok('So’z keyingi qutiga o’tdi', vm.json.view.vocab.map[vk].b === 2, JSON.stringify(vm.json.view.vocab.map[vk]));
+  ok('Ochiq so’zlar soni to’g’ri', vm.json.view.vocab.total === C.LESSONS.slice(0, 3).reduce((n, l) => n + l.words.length, 0), String(vm.json.view.vocab.total));
+  const ov3 = await req('/api/course/overview', { cookie: dir });
+  const r3 = ov3.json.rows.find(r => r.studentId === ID('s3'));
+  ok('Ustoz panelida takrorlash va lug’at ko’rinadi', r3 && r3.reviews[0].status === 'done' && r3.vocab.total > 0);
+  const qa = await req('/api/qissa-audio?l=a1-01');
+  ok('Qissa ovozi holati (ochiq yo’l)', qa.status === 200 && Array.isArray(qa.json.lines));
+  eq('Kalitsiz ElevenLabs yaratish aniq xato beradi', (await req('/api/course/tts', { cookie: dir, body: { lessonId: 'a1-01' } })).status, 400);
+
   console.log(out.join('\n'));
   console.log('\n' + (fail ? '✗ ' + fail + ' ta xato, ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o’tdi');
   process.exit(fail ? 1 : 0);

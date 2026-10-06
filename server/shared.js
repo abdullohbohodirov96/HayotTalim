@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const files = ['core.js', 'model.js', 'course-a1.js'];
+const files = ['core.js', 'model.js', 'course-a1.js', 'qissa-video.js'];
 files.forEach(function (f) {
   const code = fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8');
   (0, eval)(code);

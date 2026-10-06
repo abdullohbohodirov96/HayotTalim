@@ -453,6 +453,39 @@ async function remindDebtors(todayIso) {
   return { queued, skipped };
 }
 
+/* ---------------- Kunlik o'qish eslatmasi ----------------
+   Onlayn kursdagi o'quvchiga kuniga bir marta: bugun takrorlanadigan
+   so'zlar soni, joriy dars va (bo'lsa) ochiq takrorlash testi.
+   Hech narsa qilish kerak bo'lmasa — xabar yuborilmaydi.               */
+async function remindStudy(todayIso) {
+  const conf = await botConf();
+  if (!conf.notify.elon || !A.Course) return { queued: 0 };
+  const today = todayIso || A.today();
+  const base = String(process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+  const students = (await listCol('students')).filter(s => s.telegram && s.telegram.id && s.status !== 'o’chirilgan');
+  let queued = 0;
+  for (const s of students) {
+    const doc = await store.get('courseprog/' + s.id);
+    if (!doc) continue;                                   // kursni boshlamagan
+    doc.lessons = doc.lessons || {}; doc.unlocked = doc.unlocked || {}; doc.reviews = doc.reviews || {}; doc.vocab = doc.vocab || {};
+    const v = A.Course.buildView(doc, today);
+    const cur = v.lessons.filter(l => l.status === 'open')[0];
+    const rv = (v.reviews || []).filter(r => r.status === 'open')[0];
+    const back = v.lessons.filter(l => l.hw && l.hw.status === 'qayta')[0];
+    const words = v.vocab.due + v.vocab.fresh;
+    const parts = [];
+    if (back) parts.push('• «' + back.title + '» vazifasini qayta yuboring');
+    if (rv) parts.push('• ' + rv.title + ' testi ochiq — o’tsangiz keyingi dars ochiladi');
+    else if (cur) parts.push('• ' + cur.n + '-dars «' + cur.title + '»ni davom ettiring');
+    if (words) parts.push('• ' + words + ' ta so’zni lug’atda takrorlang (5 daqiqa)');
+    if (!parts.length) continue;
+    const text = '📚 Bugungi mashg’ulot:\n' + parts.join('\n') + (base ? '\n\nKabinet: ' + base + '/kabinet' : '\n\n«Kabinet (veb)» tugmasini bosing.');
+    const r = await enqueue({ studentId: s.id, chatId: String(s.telegram.id), text, kind: 'elon', dedupeKey: 'oqish:' + s.id + ':' + today }, 20 * 3600 * 1000);
+    if (!r.skipped) queued++;
+  }
+  return { queued };
+}
+
 function daysBetween(fromIso, toIso) {
   const a = Date.parse(fromIso + 'T00:00:00Z'), b = Date.parse(toIso + 'T00:00:00Z');
   if (isNaN(a) || isNaN(b)) return -1;
@@ -1118,6 +1151,8 @@ function startReminders() {
       lastDay = today;
       const r = await remindDebtors(today);
       if (r.queued) console.log('  Bot: ' + r.queued + ' ta qarz eslatmasi navbatga qo’yildi.');
+      const rs = await remindStudy(today);
+      if (rs.queued) console.log('  Bot: ' + rs.queued + ' ta o’qish eslatmasi navbatga qo’yildi.');
     } catch (e) { console.error('bot remind:', e.message); }
   }, 30 * 60 * 1000);
   if (t.unref) t.unref();
@@ -1165,7 +1200,7 @@ function _test(ctx) {
     handleLinkFlow, findStudentByChat, notifyStaff,
     startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, codesInTitle,
-    wake, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
+    wake, remindStudy, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
     /** Sinovda navbatchini qo'lda ishga tushirish/to'xtatish */
     startQueue: function (opts) { running = true; queueLoop(opts); },
     stopQueue: function () { running = false; wake(); }

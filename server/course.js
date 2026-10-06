@@ -27,42 +27,22 @@ const COL = 'courseprog/';
 
 function txt(v, max) { return String(v == null ? '' : v).replace(/\u0000/g, '').slice(0, max || 2000); }
 
-function empty(sid) { return { studentId: String(sid), lessons: {}, unlocked: {} }; }
+function empty(sid) { return { studentId: String(sid), lessons: {}, unlocked: {}, reviews: {}, vocab: {} }; }
 
 async function get(store, sid) {
   const d = await store.get(COL + sid);
   if (!d) return empty(sid);
   d.lessons = d.lessons || {};
   d.unlocked = d.unlocked || {};
+  d.reviews = d.reviews || {};
+  d.vocab = d.vocab || {};
   return d;
 }
 async function put(store, sid, doc) { await store.set(COL + sid, doc); }
 
-/** O'quvchiga ko'rsatiladigan holat */
+/** O'quvchiga ko'rsatiladigan holat (darslar, takrorlashlar, lug'at) — js/course-a1.js dagi bilan bir xil */
 function view(A, doc) {
-  const C = A.Course;
-  const st = C.statuses(doc);
-  return {
-    course: { code: C.code, title: C.title, pass: C.PASS },
-    lessons: C.LESSONS.map(l => {
-      const p = doc.lessons[l.id] || {};
-      const hw = p.hw || null;
-      return {
-        id: l.id, n: l.n, unit: l.unit, title: l.title, titleAr: l.titleAr,
-        status: st[l.id],
-        steps: p.steps || {},
-        testBest: p.testBest == null ? null : p.testBest,
-        testTries: p.testTries || 0,
-        hw: hw ? {
-          submittedAt: hw.submittedAt || null, status: hw.status || null,
-          auto: hw.auto || null, grade: hw.grade == null ? null : hw.grade,
-          comment: hw.comment || '', texts: hw.texts || [], fileIds: hw.fileIds || [],
-          written: hw.written || null, readPercent: hw.readPercent == null ? null : hw.readPercent,
-          fillAnswers: hw.fillAnswers || [], trAnswers: hw.trAnswers || []
-        } : null
-      };
-    })
-  };
+  return A.Course.buildView(doc, A.today());
 }
 
 function lessonOpen(A, doc, lessonId) {
@@ -143,6 +123,43 @@ async function submitHomework(A, store, sid, body, stamp, files) {
   return { ok: true, auto, view: view(A, doc) };
 }
 
+/** Takrorlash testi (har 2 darsdan keyin). O'tilsa keyingi dars ochiladi;
+    xato so'zlar lug'atda boshiga qaytadi, to'g'rilari keyingi qutiga o'tadi. */
+async function submitReview(A, store, sid, body, stamp) {
+  const C = A.Course;
+  const rv = C.reviewById(String(body.reviewId || ''));
+  if (!rv) return { error: 'Takrorlash topilmadi.', code: 404 };
+  const doc = await get(store, sid);
+  const rs = C.reviewStatuses(doc).filter(r => r.id === rv.id)[0];
+  if (!rs || rs.status === 'locked') return { error: 'Avval shu ikki darsni tugating.', code: 403 };
+  const answers = Array.isArray(body.answers) ? body.answers.slice(0, 80).map(Number) : [];
+  const g = C.gradeReview(rv, answers);
+  const r = doc.reviews[rv.id] = doc.reviews[rv.id] || {};
+  r.last = g.percent; r.tries = (r.tries || 0) + 1; r.at = stamp();
+  if (r.best == null || g.percent > r.best) r.best = g.percent;
+  const today = A.today();
+  C.buildReview(rv).forEach(q => C.vocabUpdate(doc.vocab, q.key, g.wrong.indexOf(q.key) < 0, today));
+  await put(store, sid, doc);
+  return { ok: true, result: g, passed: g.percent >= C.PASS, view: view(A, doc) };
+}
+
+/** Lug'at kartochkalari natijasi: [{key, ok}] — faqat ochiq darslar so'zlari */
+async function vocabMark(A, store, sid, body) {
+  const C = A.Course;
+  const doc = await get(store, sid);
+  const open = {};
+  C.vocabState(doc, A.today()).words.forEach(w => { open[w.key] = 1; });
+  const items = (Array.isArray(body.items) ? body.items : []).slice(0, 60);
+  let n = 0;
+  items.forEach(it => {
+    const key = String((it && it.key) || '');
+    if (!open[key]) return;
+    C.vocabUpdate(doc.vocab, key, !!it.ok, A.today()); n++;
+  });
+  await put(store, sid, doc);
+  return { ok: true, saved: n, view: view(A, doc) };
+}
+
 /* ---------------- Ustoz / admin ---------------- */
 
 /** Vazifani tekshirish: qabul (baho, izoh) yoki qayta topshirishga qaytarish */
@@ -212,9 +229,11 @@ async function overview(A, store, studentIds) {
           auto: p.hw.auto, texts: p.hw.texts || [], fileIds: p.hw.fileIds || [], comment: p.hw.comment || '' } : null
       };
     });
-    out.push({ studentId: sid, done, total: C.LESSONS.length, current, pending, lessons });
+    const vs = C.vocabState(doc, A.today());
+    out.push({ studentId: sid, done, total: C.LESSONS.length, current, pending, lessons,
+      reviews: C.reviewStatuses(doc), vocab: { total: vs.total, learned: vs.learned, due: vs.due } });
   }
   return out;
 }
 
-module.exports = { COL, get, view, markStep, submitTest, submitHomework, review, moveTo, overview };
+module.exports = { COL, get, view, markStep, submitTest, submitHomework, submitReview, vocabMark, review, moveTo, overview };

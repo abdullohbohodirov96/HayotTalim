@@ -635,11 +635,132 @@
     LESSONS.forEach(function (l, i) {
       var p = pl[l.id];
       var done = lessonDone(p);
-      var open = i === 0 || prevDone || !!manual[l.id];
+      /* Har REVIEW_EVERY darsdan keyin takrorlash testi bor: undan o'tmaguncha keyingi dars yopiq */
+      var gate = i > 0 ? reviewAfter(LESSONS[i - 1].id) : null;
+      var gateOk = !gate || reviewPassed(progress, gate.id);
+      var open = i === 0 || (prevDone && gateOk) || !!manual[l.id];
       out[l.id] = done ? 'done' : (open ? 'open' : 'locked');
       prevDone = done;
     });
     return out;
+  }
+
+  /* ================= LUG'AT VA TAKRORLASH =================
+     — Har REVIEW_EVERY (2) darsdan keyin «Takrorlash» testi: shu ikki darsning
+       barcha so'zlari + oldingi darslardan bir nechta so'z (unutilmasin).
+     — Lug'at kartochkalari: Leitner qutilari (0…5). Har to'g'ri javobda so'z
+       keyingi qutiga o'tadi va kamroq takrorlanadi, xatoda — boshiga qaytadi.  */
+  var REVIEW_EVERY = 2;
+  var REVIEWS = [];
+  (function () {
+    for (var i = REVIEW_EVERY - 1, n = 1; i < LESSONS.length; i += REVIEW_EVERY, n++) {
+      var ids = LESSONS.slice(i - REVIEW_EVERY + 1, i + 1).map(function (l) { return l.id; });
+      REVIEWS.push({ id: 'r' + n, n: n, after: LESSONS[i].id, lessons: ids,
+        title: n + '-takrorlash', sub: ids.map(function (x) { return byId(x).n; }).join('–') + '-darslar so’zlari' });
+    }
+  })();
+  function reviewAfter(lessonId) { return REVIEWS.filter(function (r) { return r.after === lessonId; })[0] || null; }
+  function reviewById(id) { return REVIEWS.filter(function (r) { return r.id === id; })[0] || null; }
+  function reviewPassed(progress, rid) {
+    var r = progress && progress.reviews && progress.reviews[rid];
+    return !!(r && r.best != null && r.best >= PASS);
+  }
+  function wordKey(lessonId, k) { return lessonId + ':' + k; }
+  function allWords() {
+    var out = [];
+    LESSONS.forEach(function (l) { l.words.forEach(function (w, k) { out.push({ key: wordKey(l.id, k), lessonId: l.id, n: l.n, ar: w.ar, tr: w.tr, uz: w.uz, anim: w.anim }); }); });
+    return out;
+  }
+  function reviewWords(rv) {
+    var own = allWords().filter(function (w) { return rv.lessons.indexOf(w.lessonId) >= 0; });
+    var firstIdx = indexOf(rv.lessons[0]);
+    var older = allWords().filter(function (w) { return indexOf(w.lessonId) < firstIdx; });
+    var rnd = seeded('rev-old:' + rv.id);
+    return own.concat(shuffle(older, rnd).slice(0, 6));
+  }
+  /** Takrorlash testi: har so'zga bitta savol; javob variantlari butun lug'atdan */
+  function buildReview(rv) {
+    var words = reviewWords(rv);
+    var pool = allWords();
+    var rnd = seeded('review:' + rv.id);
+    var kinds = ['ar2uz', 'uz2ar', 'listen', 'anim2ar'];
+    return shuffle(words, rnd).map(function (wd, i) {
+      var kind = kinds[i % kinds.length];
+      var others = shuffle(pool.filter(function (x) { return x.uz !== wd.uz && x.ar !== wd.ar; }), rnd).slice(0, 3);
+      var opts = shuffle([wd].concat(others), rnd);
+      var q = { id: rv.id + ':q' + i, kind: kind, word: wd.ar, key: wd.key };
+      if (kind === 'ar2uz') { q.prompt = 'Ma’nosini tanlang'; q.show = wd.ar; q.options = opts.map(function (x) { return x.uz; }); }
+      else if (kind === 'listen') { q.prompt = 'Tinglang va ma’nosini tanlang'; q.say = wd.ar; q.options = opts.map(function (x) { return x.uz; }); }
+      else if (kind === 'uz2ar') { q.prompt = '«' + wd.uz + '» — arabchada?'; q.options = opts.map(function (x) { return x.ar; }); q.optionsAr = true; }
+      else { q.prompt = 'Rasmda nima?'; q.anim = wd.anim; q.options = opts.map(function (x) { return x.ar; }); q.optionsAr = true; }
+      q.answer = opts.indexOf(wd);
+      return q;
+    });
+  }
+  function gradeReview(rv, answers) {
+    var t = buildReview(rv), ok = 0, wrong = [];
+    t.forEach(function (q, i) { if (answers && Number(answers[i]) === q.answer) ok++; else wrong.push(q.key); });
+    return { correct: ok, total: t.length, percent: t.length ? Math.round(ok * 100 / t.length) : 0, wrong: wrong };
+  }
+  /* Leitner: qutidagi so'z necha kundan keyin qayta so'raladi */
+  var BOX_DAYS = [0, 1, 3, 7, 14, 30];
+  function addDays(iso, d) { var x = new Date(iso + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); }
+  function vocabUpdate(vocab, key, ok, today) {
+    var v = vocab[key] || { b: 0, ok: 0, bad: 0 };
+    if (ok) { v.b = Math.min(5, (v.b || 0) + 1); v.ok = (v.ok || 0) + 1; }
+    else { v.b = 0; v.bad = (v.bad || 0) + 1; }
+    v.due = addDays(today, BOX_DAYS[v.b]);
+    v.seen = today;
+    vocab[key] = v;
+    return v;
+  }
+  /** Ochiq darslarning so'zlari va ularning holati */
+  function vocabState(progress, today) {
+    var st = statuses(progress), vocab = (progress && progress.vocab) || {};
+    var words = allWords().filter(function (w) { return st[w.lessonId] !== 'locked'; });
+    var learned = 0, due = 0, fresh = 0;
+    words.forEach(function (w) {
+      var v = vocab[w.key];
+      w.b = v ? v.b : null; w.due = v ? v.due : null;
+      if (!v) fresh++;
+      else { if (v.b >= 3) learned++; if (!v.due || v.due <= today) due++; }
+    });
+    return { words: words, total: words.length, learned: learned, due: due, fresh: fresh };
+  }
+  function reviewStatuses(progress) {
+    var st = statuses(progress);
+    return REVIEWS.map(function (r) {
+      var lastDone = st[r.after] === 'done';
+      var rec = (progress && progress.reviews && progress.reviews[r.id]) || {};
+      return { id: r.id, n: r.n, title: r.title, sub: r.sub, after: r.after, lessons: r.lessons,
+        status: reviewPassed(progress, r.id) ? 'done' : (lastDone ? 'open' : 'locked'),
+        best: rec.best == null ? null : rec.best, tries: rec.tries || 0 };
+    });
+  }
+  /** O'quvchiga ko'rsatiladigan umumiy holat (server va brauzer bir xil) */
+  function buildView(doc, today) {
+    var st = statuses(doc);
+    var vs = vocabState(doc, today || '9999-12-31');
+    return {
+      course: { code: 'A1', title: 'Arab tili — A1 (Oila, Uy-joy)', pass: PASS },
+      lessons: LESSONS.map(function (l) {
+        var p = (doc.lessons || {})[l.id] || {};
+        var hw = p.hw || null;
+        return {
+          id: l.id, n: l.n, unit: l.unit, title: l.title, titleAr: l.titleAr, status: st[l.id],
+          steps: p.steps || {}, testBest: p.testBest == null ? null : p.testBest, testTries: p.testTries || 0,
+          hw: hw ? {
+            submittedAt: hw.submittedAt || null, status: hw.status || null, auto: hw.auto || null,
+            grade: hw.grade == null ? null : hw.grade, comment: hw.comment || '', texts: hw.texts || [],
+            fileIds: hw.fileIds || [], files: hw.files || [], written: hw.written || null,
+            readPercent: hw.readPercent == null ? null : hw.readPercent,
+            fillAnswers: hw.fillAnswers || [], trAnswers: hw.trAnswers || []
+          } : null
+        };
+      }),
+      reviews: reviewStatuses(doc),
+      vocab: { total: vs.total, learned: vs.learned, due: vs.due, fresh: vs.fresh, map: doc.vocab || {} }
+    };
   }
 
   /* «Darsda» o'tiladigan bosqichlar va «Uyda» bajariladigan vazifa alohida guruh */
@@ -732,6 +853,9 @@
     byId: byId, indexOf: indexOf, unitOf: unitOf,
     buildTest: buildTest, gradeTest: gradeTest, gradeHomeworkAuto: gradeHomeworkAuto,
     checkPractice: checkPractice, lessonDone: lessonDone, statuses: statuses,
-    normAr: normAr, compareAr: compareAr, buildWritten: buildWritten, gradeWritten: gradeWritten
+    normAr: normAr, compareAr: compareAr, buildWritten: buildWritten, gradeWritten: gradeWritten,
+    REVIEW_EVERY: REVIEW_EVERY, REVIEWS: REVIEWS, reviewById: reviewById, reviewAfter: reviewAfter, reviewPassed: reviewPassed,
+    buildReview: buildReview, gradeReview: gradeReview, reviewWords: reviewWords, allWords: allWords, wordKey: wordKey,
+    vocabUpdate: vocabUpdate, vocabState: vocabState, reviewStatuses: reviewStatuses, buildView: buildView, BOX_DAYS: BOX_DAYS
   };
 })(typeof window !== 'undefined' ? window : globalThis);

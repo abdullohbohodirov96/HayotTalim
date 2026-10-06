@@ -17,18 +17,8 @@
   function stampNow() { return A.nowStamp ? A.nowStamp() : new Date().toISOString().slice(0, 16).replace('T', ' '); }
 
   function viewOf(doc) {
-    var st = C.statuses(doc);
-    return {
-      course: { code: C.code, title: C.title, pass: C.PASS },
-      lessons: C.LESSONS.map(function (l) {
-        var p = doc.lessons[l.id] || {};
-        return {
-          id: l.id, n: l.n, unit: l.unit, title: l.title, titleAr: l.titleAr, status: st[l.id],
-          steps: p.steps || {}, testBest: p.testBest == null ? null : p.testBest, testTries: p.testTries || 0,
-          hw: p.hw || null
-        };
-      })
-    };
+    doc.reviews = doc.reviews || {}; doc.vocab = doc.vocab || {};
+    return C.buildView(doc, (A.today ? A.today() : new Date().toISOString().slice(0, 10)));
   }
 
   /** Manba: server (kabinet) yoki demo (brauzer). preview — ustoz ko'rinishi, hammasi ochiq, saqlanmaydi */
@@ -101,6 +91,7 @@
     } catch (e) { voice = null; }
   }
   if (global.speechSynthesis) { pickVoice(); try { speechSynthesis.onvoiceschanged = pickVoice; } catch (e) { } }
+  A.CourseSay = function (t, r) { return say(t, r); };
   function say(text, rate) {
     if (!global.speechSynthesis) { UI.toast('Bu brauzerda ovoz yo’q.', 'warn'); return; }
     try {
@@ -390,7 +381,7 @@
             type: 'button', class: 'cr-lesson ' + l.status + (cur ? ' cur' : ''),
             'aria-disabled': l.status === 'locked' ? 'true' : 'false',
             onclick: function () {
-              if (l.status === 'locked') { UI.toast('Bu dars oldingi dars tugagach ochiladi.', 'warn'); return; }
+              if (l.status === 'locked') { UI.toast(gateMsg(l.id), 'warn'); return; }
               openLesson(l.id, firstStepFor(l));
             }
           }, [
@@ -411,6 +402,19 @@
       }
     }
 
+    /** Dars nega yopiq: oldingi dars yoki takrorlash testi */
+    function gateMsg(id) {
+      var i = C.indexOf(id);
+      var gate = i > 0 && C.reviewAfter ? C.reviewAfter(C.LESSONS[i - 1].id) : null;
+      var prev = i > 0 ? lessonView(C.LESSONS[i - 1].id) : null;
+      if (gate && prev && prev.status === 'done') return 'Avval «' + gate.title + '» testini topshiring (Kabinet → Lug’at yodlash).';
+      return 'Bu dars oldingi dars va vazifa tugagach ochiladi.';
+    }
+    function goReview(rid) {
+      try { sessionStorage.setItem('kab_b', 'lugat'); } catch (e) { }
+      location.hash = 'kabinet?b=lugat&rv=' + rid;
+      if (A.renderKabinet) A.renderKabinet();
+    }
     function lessonView(id) { return state.view.lessons.filter(function (l) { return l.id === id; })[0]; }
     function firstStepFor(lv) {
       if (lv.status === 'done') return 'words';
@@ -505,6 +509,24 @@
         h('h2', {}, lesson.dialog.title),
         h('p', {}, lesson.dialog.scene)
       ]));
+      /* 🎬 Qissa videosi: qahramonlar harakatda, ovoz va subtitr bilan */
+      if (A.QissaVideo) {
+        var vbox = h('div', { class: 'cr-video' });
+        body.appendChild(vbox);
+        (async function () {
+          var have = { lines: [], words: [] };
+          if (D.mode === 'server') { try { have = await D.api('GET', 'api/qissa-audio?l=' + encodeURIComponent(lesson.id)); } catch (e) { } }
+          var sc = A.QissaVideo.scriptFor(lesson);
+          A.QissaVideo.mount(vbox, lesson, {
+            audioUrl: function (i) { return have.lines.indexOf(i) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&i=' + i : null; },
+            wordUrl: function (text) {
+              var k = sc.recap ? sc.recap.words.map(function (w) { return w[0]; }).indexOf(text) : -1;
+              return k >= 0 && have.words.indexOf(k) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&w=' + k : null;
+            },
+            onEnd: function () { markStep('dialog'); }
+          });
+        })();
+      }
       body.appendChild(h('div', { class: 'cr-howread' }, [
         h('b', {}, '1. Tinglang'), h('span', {}, ' — «Qissani tinglash»: har bir gap navbat bilan o’qiladi va belgilanadi. '),
         h('b', {}, '2. O’zingiz o’qing'), h('span', {}, SR ? ' — gap yonidagi 🎤 ni bosib, ovoz chiqarib o’qing: to’g’ri o’qilgan so’zlar yashil, xatolari qizil bo’ladi.' : ' — ovoz chiqarib o’qing. (Talaffuzni avtomatik tekshirish Chrome brauzerida ishlaydi.)')
@@ -698,9 +720,17 @@
         if (cur.status !== 'qayta') {
           var nxt = nextLessonId(lesson.id);
           var nv = nxt ? lessonView(nxt) : null;
-          body.appendChild(nv && nv.status !== 'locked'
-            ? nextBtn('Keyingi darsga o’tish', function () { openLesson(nxt, 'words'); })
-            : h('p', { class: 'muted small' }, nxt ? 'Keyingi dars test ' + C.PASS + '% dan o’tilgach ochiladi.' : 'Bu bo’limdagi oxirgi dars. Barakalla!'));
+          var gateRv = C.reviewAfter ? C.reviewAfter(lesson.id) : null;
+          var gateOpen = gateRv && lv.status === 'done' && !(state.view.reviews || []).some(function (r) { return r.id === gateRv.id && r.status === 'done'; });
+          body.appendChild(gateOpen && src.kind !== 'preview'
+            ? h('div', { class: 'cr-gate' }, [
+              h('b', {}, '🔁 ' + gateRv.title + ' vaqti!'),
+              h('span', {}, gateRv.sub + ' bo’yicha qisqa test. ' + C.PASS + '% dan o’tsangiz keyingi dars ochiladi.'),
+              h('button', { class: 'btn primary lg', type: 'button', onclick: function () { goReview(gateRv.id); } }, 'Takrorlash testiga o’tish →')
+            ])
+            : nv && nv.status !== 'locked'
+              ? nextBtn('Keyingi darsga o’tish', function () { openLesson(nxt, 'words'); })
+              : h('p', { class: 'muted small' }, nxt ? 'Keyingi dars test ' + C.PASS + '% dan o’tilgach ochiladi.' : 'Bu bo’limdagi oxirgi dars. Barakalla!'));
           return;
         }
       } else if (cur && cur.status === 'qayta') {
@@ -920,12 +950,33 @@
       }
       paintHead();
       var wantStep = null;
-      try { wantStep = sessionStorage.getItem('kurs_step'); sessionStorage.removeItem('kurs_step'); } catch (e) { }
+      /* Sahifa ikki marta chizilishi mumkin (hash + to'g'ridan-to'g'ri chaqiruv) — biroz kutib o'chiramiz */
+      try { wantStep = sessionStorage.getItem('kurs_step'); setTimeout(function () { try { sessionStorage.removeItem('kurs_step'); } catch (e) { } }, 2500); } catch (e) { }
       var okStep = wantStep && C.STEPS.some(function (x) { return x.id === wantStep; }) && lv.id === last;
       openLesson(lv.id, okStep ? wantStep : firstStepFor(lv));
     })();
   }
 
   A.renderCourse = renderCourse;
-  A.CourseLocal = { doc: localDoc, save: localSave, PREFIX: LOCAL_PREFIX, view: function (sid) { return viewOf(localDoc(sid)); } };
+  A.CourseLocal = {
+    doc: localDoc, save: localSave, PREFIX: LOCAL_PREFIX,
+    view: function (sid) { return viewOf(localDoc(sid)); },
+    /* demo: takrorlash va lug'at (server mantiqi bilan bir xil) */
+    review: function (sid, rid, answers) {
+      var doc = localDoc(sid); doc.reviews = doc.reviews || {}; doc.vocab = doc.vocab || {};
+      var rv = C.reviewById(rid); var g = C.gradeReview(rv, answers);
+      var r = doc.reviews[rid] = doc.reviews[rid] || {};
+      r.last = g.percent; r.tries = (r.tries || 0) + 1; if (r.best == null || g.percent > r.best) r.best = g.percent;
+      var today = A.today ? A.today() : new Date().toISOString().slice(0, 10);
+      C.buildReview(rv).forEach(function (q) { C.vocabUpdate(doc.vocab, q.key, g.wrong.indexOf(q.key) < 0, today); });
+      localSave(sid, doc);
+      return { result: g, passed: g.percent >= C.PASS, view: viewOf(doc) };
+    },
+    vocab: function (sid, items) {
+      var doc = localDoc(sid); doc.vocab = doc.vocab || {};
+      var today = A.today ? A.today() : new Date().toISOString().slice(0, 10);
+      (items || []).forEach(function (it) { C.vocabUpdate(doc.vocab, it.key, !!it.ok, today); });
+      localSave(sid, doc); return { view: viewOf(doc) };
+    }
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

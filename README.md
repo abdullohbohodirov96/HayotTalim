@@ -634,3 +634,17 @@ sinalmagan** — ishlatishni boshlashdan oldin telefoningizda bir marta tekshiri
 4. Kanalga kirim xabari kelishi bilan bot summani tanib to'lovni yozadi, o'quvchiga kvitansiya va keyingi to'lov sanasini yuboradi.
 5. Mos kelmaganlar ERP → Telegram bot → «Karta to'lovlari» da qo'lda biriktiriladi. To'lov muddatidan N kun oldin eslatma ham boradi.
 - Sinov: `node tests/paybot-test.js`.
+
+## Qissa videodarsi (motion video)
+
+- Har darsning «Qissa» bosqichida harakatli video: ikki qahramon sahnaga kiradi, salomlashadi, gapiradi, qo'l bilan ko'rsatadi; 1-darsda oila surati kattalashib, har a'zo nomi chiqadi. Oxirida yangi so'zlar va qoida kartasi. Davomiyligi ~1 daqiqa.
+- Rejimlar: «Takrorlash rejimi» (har gapdan keyin o'quvchi takrorlashi uchun pauza), «Sekin», tarjima, istalgan gapga o'tish.
+- Ovoz: studiya ovozi bo'lsa — u, bo'lmasa qurilmaning o'z arabcha ovozi (bepul).
+- Studiya ovozi (ElevenLabs): serverda `ELEVENLABS_API_KEY` (ixtiyoriy: `ELEVEN_VOICE_A`, `ELEVEN_VOICE_B`, `ELEVEN_MODEL`) → ERP → Onlayn kurs → «🎙 Qissa ovozlari» → «Yaratish».
+- MP4 fayl (Instagram/Telegram): `node scripts/render-qissa.js --lesson a1-01 --audio-dir <papka> --base http://localhost:3000 --out qissa.mp4` (Playwright + ffmpeg kerak). Alohida sahifa: `/qissa.html?l=a1-01`.
+
+## Lug'at yodlash va takrorlash
+
+- Kabinet → «Lug'at yodlash»: ochiq darslarning barcha so'zlari, kartochkalar (arabcha→o'zbekcha va teskari), Leitner qutilari (1, 3, 7, 14, 30 kun).
+- Har 2 darsdan keyin «Takrorlash testi» (shu darslar so'zlari + oldingilardan bir nechtasi). 80% dan o'tilmaguncha keyingi dars ochilmaydi; xato so'zlar kartochkalarga qaytadi.
+- Telegram bot kuniga bir marta o'qish eslatmasi yuboradi (takrorlanadigan so'zlar, joriy dars, ochiq test).
