@@ -31,7 +31,8 @@
     "test:site": "node tests/site-test.js",
     "test:bot-reg": "node tests/bot-reg-test.js",
     "test:pay": "node tests/paybot-test.js",
-    "test:course": "node tests/course-test.js"
+    "test:course": "node tests/course-test.js",
+    "test:e2e": "node tests/full-course-e2e.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

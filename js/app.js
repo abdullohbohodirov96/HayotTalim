@@ -277,6 +277,7 @@
   }
 
   function renderLogin(msg) {
+    if (A.leaveSite) A.leaveSite();
     hidePreRender();
     document.getElementById('boot').hidden = true;
     document.getElementById('app').hidden = true;
@@ -362,7 +363,31 @@
   /* ---------- O'quvchi kabineti (kirishsiz, shaxsiy kod bilan) ----------
      O'quvchi 4 xonali kodini kiritadi va o'z ma'lumotini ko'radi:
      guruhi, jadvali, keyingi to'lovi va davomati. Xodimlar tizimiga aloqasi yo'q. */
+  /* Bir xil sahifa ikki marta chizilmasin: tugma manzilni o'zgartiradi VA sahifani
+     chizadi, so'ng «hashchange» ham xuddi shu sahifani yana chizardi — natijada ikki
+     nusxa bir-biriga xalal berardi (ovoz, test, kartochkalar). 600 ms ichida takror
+     chaqiruv o'tkazib yuboriladi. */
+  var lastView = { key: '', at: 0 };
+  /** Ochiq saytdan chiqqanda uning taymer va kuzatuvchilarini to'xtatamiz —
+      kabinet va darslarda fon ishlari sekinlashtirmasin. */
+  function leaveSite() {
+    if (A._ctaOff) { A._ctaOff(); A._ctaOff = null; }
+    if (A._scrollFxOff) { A._scrollFxOff(); A._scrollFxOff = null; }
+    if (A._typeRO) { try { A._typeRO.disconnect(); } catch (e) { } A._typeRO = null; }
+    if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+  }
+  A.leaveSite = leaveSite;
+  function dupView(name) {
+    var key = name + '|' + String(location.hash || '');
+    var now = Date.now();
+    if (lastView.key === key && now - lastView.at < 600) return true;
+    lastView = { key: key, at: now };
+    return false;
+  }
+
   function renderKabinet(prefill) {
+    if (dupView('kabinet')) return;
+    leaveSite();
     hidePreRender();
     document.getElementById('boot').hidden = true;
     document.getElementById('app').hidden = true;
@@ -806,6 +831,8 @@
   /* Onlayn kurs sahifasi (#kurs). Serverda — kabinet sessiyasi bilan.
      Demo (brauzer) rejimida — namunaviy o'quvchi nomidan. */
   function openCourse() {
+    if (dupView('kurs')) return;
+    leaveSite();
     if (!A.renderCourse) return;
     if (D.mode === 'server') { A.renderCourse({}); return; }
     var st = D.all('students').filter(function (s) { return s.status === 'faol'; })[0];
@@ -891,6 +918,8 @@
      darajani o'zboshimchalik bilan yozib bo'lmaydi.
      Uch til: o'zbek, rus, arab (arabchada sahifa o'ngdan chapga). */
   function renderTest() {
+    if (dupView('test')) return;
+    leaveSite();
     hidePreRender();
     document.getElementById('boot').hidden = true;
     document.getElementById('app').hidden = true;
@@ -1302,6 +1331,7 @@
         });
       };
       window.addEventListener('scroll', onScroll, { passive: true });
+      A._scrollFxOff = function () { window.removeEventListener('scroll', onScroll); };
       onScroll();
     }
 
@@ -1332,12 +1362,16 @@
       "Harakatni kamaytirish" yoqilgan bo'lsa to'lqin qo'shilmaydi.       */
   function siteTouch(host) {
     if (!host || !host.addEventListener || !host.querySelectorAll) return;
+    if (host.__siteTouch) return;                 // har chizishda qayta ulanmasin
+    host.__siteTouch = true;
     var SEL = '.btn, .chip, .faq-q, .tch-card, .lvl, .soc-btn, .site-phone, .hero-tel, .foot-link';
     var slow = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function hit(e) {
       var t = e.target && e.target.closest ? e.target.closest(SEL) : null;
-      if (!t || t.disabled || !host.contains(t)) return;
+      /* Faqat ochiq sayt sahifasida: kabinet, darslar va ERP shu konteynerda chizilganda
+         to'lqin tugma ichiga qo'shilib, bosish "o'tib ketardi" (tugma ishlamay qolardi). */
+      if (!t || t.disabled || !host.contains(t) || !t.closest('.site')) return;
       t.classList.add('pressing');
       if (slow) return;
       var r = t.getBoundingClientRect();
@@ -1363,7 +1397,7 @@
     host.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       var t = e.target && e.target.closest ? e.target.closest(SEL) : null;
-      if (t) t.classList.add('pressing');
+      if (t && t.closest('.site')) t.classList.add('pressing');
     });
     host.addEventListener('keyup', off);
   }
@@ -1479,6 +1513,7 @@
      kabi) kodda yozilmaydi. Ular Sozlamalardan keladi va bo'sh bo'lsa
      bo'lim umuman ko'rinmaydi — saytda tekshirilmagan gap turmasin.   */
   function renderLanding() {
+    if (dupView('landing')) return;
     hidePreRender();
     document.getElementById('boot').hidden = true;
     document.getElementById('app').hidden = true;
@@ -3115,6 +3150,8 @@
       var whereL = String(location.hash || '').replace('#', '').split('?')[0];
       if (whereL === 'kurs') { openCourse(); return; }
       if (whereL === 'kabinet') { renderKabinet(); return; }
+      /* Namoyish (demo) nusxasi: manzil bo'sh bo'lsa — ochiq sayt, xodimlar kirishi emas */
+      if (!whereL && global.MARKAZ_DEMO && !(u && u.active !== false)) { renderLanding(); return; }
       if (u && u.active !== false) startSession(u);
       else renderLogin(null);
     } catch (e) {

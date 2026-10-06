@@ -648,3 +648,8 @@ sinalmagan** — ishlatishni boshlashdan oldin telefoningizda bir marta tekshiri
 - Kabinet → «Lug'at yodlash»: ochiq darslarning barcha so'zlari, kartochkalar (arabcha→o'zbekcha va teskari), Leitner qutilari (1, 3, 7, 14, 30 kun).
 - Har 2 darsdan keyin «Takrorlash testi» (shu darslar so'zlari + oldingilardan bir nechtasi). 80% dan o'tilmaguncha keyingi dars ochilmaydi; xato so'zlar kartochkalarga qaytadi.
 - Telegram bot kuniga bir marta o'qish eslatmasi yuboradi (takrorlanadigan so'zlar, joriy dars, ochiq test).
+
+## To‘liq sinov (brauzerda)
+
+- `node tests/full-course-e2e.js 3300` — server versiyasi: kirish, 9 bo‘lim, 1–2-dars to‘liq (video, qissa, so‘zlar, qoida, mashq, test, uy vazifasi), takrorlash testi, lug‘at, fayl, parol, 8 darsning har bosqichi; har «🔊» va video ovozi, o‘tish tezligi, kompyuter va telefon o‘lchami.
+- `node tests/full-course-e2e.js --demo http://localhost:8090/markaz-demo.html` — namoyish nusxasi, ochiq saytdan boshlab, sandbox iframe ichida.

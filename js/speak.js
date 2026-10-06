@@ -14,7 +14,13 @@
   var map = {};                 // normallashgan matn → audio manzil
   var current = null;           // hozir chalinayotgan Audio
   var keep = null;              // utterance havolasi (GC dan saqlash)
-  var warned = false;
+  var warned = false, warnedClick = false;
+  var logs = [];
+  function log(what, text) {
+    var line = '[Ovoz] ' + what + ' · ' + String(text || '').slice(0, 30) + (keep && keep.voice ? ' · ' + keep.voice.name + ' (' + keep.voice.lang + ')' : '');
+    logs.push(line); if (logs.length > 50) logs.shift();
+    try { console.info(line); } catch (e) { }
+  }
 
   function norm(t) {
     return String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -70,7 +76,7 @@
         if (opts.rate && opts.rate < 0.8) au.playbackRate = 0.85;
         au.onended = function () { if (current === au) current = null; resolve(true); };
         au.onerror = function () { if (current === au) current = null; viaSynth(text, opts, wasBusy).then(resolve); };
-        au.play().then(function () { if (opts.onStart) opts.onStart(); })
+        au.play().then(function () { log('fayl chalindi', text); if (opts.onStart) opts.onStart(); })
           .catch(function () { viaSynth(text, opts, wasBusy).then(resolve); });
       });
     }
@@ -78,10 +84,10 @@
   }
   function viaSynth(text, opts, wasBusy) {
     return new Promise(function (resolve) {
-      if (!synth || typeof global.SpeechSynthesisUtterance === 'undefined') { help(); resolve(false); return; }
+      if (!synth || typeof global.SpeechSynthesisUtterance === 'undefined') { log('brauzerda ovoz yo’q', text); help(); resolve(false); return; }
       if (!voices.length) loadVoices();
       var v = pickVoice(opts.who);
-      if (!v && voices.length) { help(); resolve(false); return; }   // ovozlar bor, lekin arabchasi yo'q
+      if (!v && voices.length) { log('arabcha ovoz yo’q (' + voices.length + ' ta boshqa ovoz)', text); help(); resolve(false); return; }
       var u = new SpeechSynthesisUtterance(text);
       keep = u;
       u.lang = v ? v.lang : 'ar-SA';
@@ -94,9 +100,15 @@
         clearInterval(timer); clearTimeout(guard);
         resolve(ok !== false);
       }
-      u.onstart = function () { if (opts.onStart) opts.onStart(); };
-      u.onend = function () { fin(true); };
-      u.onerror = function (e) { fin(e && e.error === 'interrupted'); };
+      u.onstart = function () { log('boshlandi', text); if (opts.onStart) opts.onStart(); };
+      u.onend = function () { log('tugadi', text); fin(true); };
+      u.onerror = function (e) {
+        var code = e && e.error;
+        log('xato: ' + code, text);
+        /* Brauzer ruxsat bermadi (sahifada hali bosish bo'lmagan) — keyingi bosishda ishlaydi */
+        if (code === 'not-allowed' && A.UI && A.UI.toast && !warnedClick) { warnedClick = true; A.UI.toast('Ovoz uchun sahifani bir marta bosing va qayta urinib ko’ring.', 'warn'); }
+        fin(code === 'interrupted' || code === 'canceled');
+      };
       var start = function () {
         try { synth.resume(); } catch (e) { }
         try { synth.speak(u); } catch (e) { fin(false); return; }
@@ -122,6 +134,7 @@
     say: say, stop: stop, loadMap: loadMap, norm: norm,
     hasStudio: function (t) { return !!map[norm(t)]; },
     hasArabicVoice: function () { if (!voices.length) loadVoices(); return arVoices().length > 0; },
-    voices: function () { return arVoices().map(function (v) { return v.name + ' (' + v.lang + ')'; }); }
+    voices: function () { return arVoices().map(function (v) { return v.name + ' (' + v.lang + ')'; }); },
+    logs: function () { return logs.slice(); }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
