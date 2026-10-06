@@ -107,6 +107,7 @@
     if (!App.user) {
       var where = String(location.hash || '').replace('#', '').split('?')[0];
       if (where === 'kabinet') { renderKabinet(); return; }
+      if (where === 'kurs') { openCourse(); return; }
       if (where === 'test' || where === 'daraja') { renderTest(); return; }
       if (where === 'ustoz') { renderTeacherFromHash(); return; }
       if (where === 'kirish' || where === 'login') { renderLogin(null); return; }
@@ -130,6 +131,7 @@
     { id: 'attendance', label: 'Davomat', icon: 'check', perm: 'nav.attendance' },
     { id: 'curriculum', label: 'O’quv dasturi', icon: 'layers', perm: 'nav.curriculum' },
     { id: 'learning', label: 'Dars jarayoni', icon: 'task', perm: 'lesson.log' },
+    { id: 'course', label: 'Onlayn kurs', icon: 'play', perm: 'lesson.log' },
     { id: 'finance', label: 'Moliya', icon: 'wallet', perm: 'nav.finance' },
     { id: 'staff', label: 'Xodimlar', icon: 'badge', perm: 'nav.staff' },
     { id: 'reports', label: 'Hisobotlar', icon: 'chart', perm: 'nav.reports' },
@@ -178,7 +180,7 @@
     var role = App.user.role;
     var want = {
       admin: ['dashboard', 'students', 'PAY', 'attendance'],
-      oqituvchi: ['schedule', 'groups', 'attendance'],
+      oqituvchi: ['schedule', 'course', 'attendance'],
       direktor: ['dashboard', 'students', 'finance', 'reports'],
       buxgalter: ['dashboard', 'finance', 'PAY', 'reports']
     }[role] || ['dashboard', 'students', 'attendance', 'finance'];
@@ -395,7 +397,42 @@
     ]);
     wrap.appendChild(box);
     refreshCenterName();
+    /* Demo (serversiz) rejim: namunaviy o'quvchi kabineti brauzerdagi ma'lumotdan */
+    if (D.mode !== 'server') { info.hidden = true; showInfo(localKab()); return; }
     start();
+
+    function localKab() {
+      var st = D.all('students').filter(function (s) { return s.status === 'faol'; })[0] ||
+        { id: 'demo', firstName: 'O’quvchi', lastName: 'Demo', code: '0000' };
+      var names = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'];
+      var groups = D.all('memberships').filter(function (m) { return m.studentId === st.id && m.status !== 'chiqdi'; })
+        .map(function (m) {
+          var g = D.one('groups', m.groupId); if (!g) return null;
+          var t = D.one('staff', g.teacherId);
+          return {
+            id: g.id, code: g.code || '', name: g.name, teacher: t ? t.name : '',
+            daysText: (g.days || []).map(function (d) { return names[d - 1] || ''; }).join(', '),
+            startTime: g.startTime || '', endTime: g.endTime || '', room: A.isOffline && A.isOffline(g) ? '' : 'Onlayn',
+            zoomLink: A.safeUrl ? A.safeUrl(g.zoomLink) : ''
+          };
+        }).filter(Boolean);
+      var inv = D.all('invoices'), pay = D.all('payments');
+      var bal = A.balanceOf(st.id, inv, pay);
+      var paid = A.paidByInvoice(pay);
+      var open = inv.filter(function (i) { return i.studentId === st.id && A.invoiceRemaining(i, paid) > 0; })
+        .sort(function (a, b) { return String(a.month).localeCompare(String(b.month)); });
+      var next = open.length
+        ? { amount: A.invoiceRemaining(open[0], paid), dueDate: open[0].dueDate || (open[0].month + '-05') }
+        : { amount: 0, upcoming: true, dueDate: A.addMonths(A.today().slice(0, 7), 1) + '-05' };
+      return {
+        kind: 'student',
+        student: { id: st.id, code: String(st.code || '0000'), name: ((st.lastName || '') + ' ' + (st.firstName || '')).trim() },
+        center: { phone: (D.settings && D.settings.phone) || '' },
+        groups: groups,
+        finance: { debt: bal.debt, advance: bal.advance, overdue: A.overdueOf(st.id, inv, pay, A.today()), next: next },
+        attendance: { total: 0, attended: 0, missed: 0, late: 0, excused: 0, percent: null, last: [] }
+      };
+    }
 
     /* Kirish tartibi:
        1) manzilda bir martalik havola (?t=...) bo'lsa — uni sessiyaga almashtiramiz;
@@ -489,12 +526,48 @@
 
     /* Kabinet ikki xil bo'ladi: o'quvchi va ota-ona.
        Ota-onaga farzandlari ro'yxati chiqadi. */
+    function portalOn(on) {
+      box.className = 'login kabinet' + (on ? ' portal' : '');
+      wrap.className = on ? 'screen kab-screen' : 'screen';
+    }
+    function logoutBtn() {
+      return h('div', { class: 'kab-out' }, [
+        h('button', {
+          class: 'btn sm', type: 'button',
+          onclick: async function () {
+            if (D.mode !== 'server') { location.hash = ''; renderLanding(); return; }
+            try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
+            err.hidden = true;
+            portalOn(false);
+            showForm();
+          }
+        }, 'Chiqish')
+      ]);
+    }
+    function portalBar(name, subText) {
+      return h('header', { class: 'kp-bar' }, [
+        h('button', { class: 'kp-brand', type: 'button', onclick: function () { location.hash = ''; renderLanding(); } }, [
+          h('img', { src: LOGO, alt: '' }),
+          h('div', {}, [h('b', {}, centerNameNow()), h('span', {}, subText)])
+        ]),
+        h('div', { class: 'kp-who' }, [
+          UI.avatar(name),
+          h('div', { class: 'main-col' }, [h('b', {}, name)])
+        ]),
+        logoutBtn()
+      ]);
+    }
+    function goLesson(id) {
+      try { if (id) sessionStorage.setItem('kurs_last', id); } catch (e) { }
+      location.hash = 'kurs'; openCourse();
+    }
+
     function showInfo(d) {
       if (d && d.kind === 'parent') return showParent(d);
       UI.clear(result);
-      var sub0 = document.getElementById('kab-sub');
-      if (sub0) sub0.textContent = 'O’quvchi kabineti';
+      portalOn(true);
       var st = d.student, fin = d.finance, att = d.attendance;
+      var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
 
       var money = fin.debt > 0
         ? h('div', { class: 'kab-money bad' }, [
@@ -510,15 +583,71 @@
           A.dateLabel(fin.next.dueDate) + ' gacha')
       ]) : null;
 
-      result.appendChild(h('div', { class: 'kab-card' }, [
-        h('div', { class: 'kab-head' }, [
-          UI.avatar(st.name),
-          h('div', { class: 'main-col' }, [
-            h('b', {}, st.name),
-            h('span', { class: 'small muted' }, 'Kod: ' + st.code)
-          ])
+      /* --- Onlayn kurs: hero va darslar xaritasi (serverdan alohida yuklanadi) --- */
+      var contEl = h('div', { class: 'kp-hero-c', id: 'kp-cont' }, h('p', { class: 'small' }, 'Darslar yuklanmoqda…'));
+      var hero = h('section', { class: 'kp-hero' }, [
+        h('div', { class: 'kp-hero-t' }, [
+          h('span', { class: 'kp-eyebrow' }, 'O’quvchi kabineti'),
+          h('h1', {}, 'Assalomu alaykum' + (first ? ', ' + first : '') + '!'),
+          h('div', { class: 'kp-me' }, st.name + ' · kod ' + st.code),
+          h('p', {}, 'Bugungi darsingizni davom ettiring. Har bir dars: so’zlar → matn → qoida → mashq → test → uy vazifasi.')
         ]),
+        contEl
+      ]);
+      var map = h('div', { class: 'kp-map' }, h('p', { class: 'small muted' }, 'Yuklanmoqda…'));
+      (async function () {
+        var cv;
+        try {
+          cv = D.mode === 'server' ? await D.api('GET', 'api/kabinet/course') : A.CourseLocal.view(st.id);
+        } catch (e) { UI.clear(map); return; }
+        var ls = cv.lessons || [];
+        var done = ls.filter(function (l) { return l.status === 'done'; }).length;
+        var cur = ls.filter(function (l) { return l.status === 'open'; })[0];
+        var pct = ls.length ? Math.round(done * 100 / ls.length) : 0;
+        var cont = contEl;
+        if (cont) {
+          UI.clear(cont);
+          var stepName = '';
+          if (cur) {
+            var order = (A.Course ? A.Course.STEPS : []);
+            for (var i = 0; i < order.length; i++) { if (!cur.steps[order[i].id]) { stepName = order[i].label || order[i].title || ''; break; } }
+          }
+          var hwBack = ls.filter(function (l) { return l.hw && l.hw.status === 'qayta'; })[0];
+          cont.appendChild(h('div', { class: 'kp-ring', style: '--p:' + pct }, [h('b', {}, pct + '%'), h('span', {}, done + '/' + ls.length + ' dars')]));
+          cont.appendChild(h('div', { class: 'kp-next' }, [
+            h('span', { class: 'small' }, cur ? 'Joriy dars' : (done === ls.length && ls.length ? 'Kurs tugadi' : 'Darslar')),
+            h('b', {}, cur ? cur.n + '. ' + cur.title : (cv.course && cv.course.title) || 'A1'),
+            cur && stepName ? h('span', { class: 'small' }, 'Keyingi bosqich: ' + stepName) : null,
+            hwBack ? h('span', { class: 'kp-warn' }, '«' + hwBack.title + '» vazifasi qayta topshirishga qaytarildi') : null,
+            h('button', { class: 'btn kp-go', type: 'button', onclick: function () { goLesson(cur ? cur.id : (ls[0] && ls[0].id)); } },
+              cur ? 'Darsni davom ettirish →' : 'Darslarni ochish →')
+          ]));
+        }
+        UI.clear(map);
+        ls.forEach(function (l) {
+          var hwTxt = l.hw ? (l.hw.status === 'qabul' ? 'Vazifa qabul' + (l.hw.grade ? ' · ' + l.hw.grade : '')
+            : l.hw.status === 'qayta' ? 'Qayta topshiring' : l.hw.submittedAt ? 'Tekshirilmoqda' : '') : '';
+          map.appendChild(h('button', {
+            type: 'button', class: 'kp-l ' + l.status,
+            onclick: function () {
+              if (l.status === 'locked') { UI.toast('Bu dars oldingi dars va vazifa tugagach ochiladi.', 'warn'); return; }
+              goLesson(l.id);
+            }
+          }, [
+            h('span', { class: 'kp-l-n' }, l.status === 'done' ? '✓' : l.status === 'locked' ? '🔒' : String(l.n)),
+            h('span', { class: 'kp-l-t' }, [
+              h('b', {}, l.n + '. ' + l.title),
+              h('span', { class: 'kp-ar', dir: 'rtl' }, l.titleAr || ''),
+              h('span', { class: 'small muted' }, [
+                l.testBest != null ? 'Test ' + l.testBest + '%' : (l.status === 'locked' ? 'Yopiq' : 'Boshlanmagan'),
+                hwTxt ? ' · ' + hwTxt : ''
+              ].join(''))
+            ])
+          ]));
+        });
+      })();
 
+      var groupsCard = h('section', { class: 'kp-card' }, [
         h('h3', {}, 'Guruhlarim'),
         d.groups.length
           ? h('div', { class: 'kab-groups' }, d.groups.map(function (g) {
@@ -534,15 +663,20 @@
               ]) : null
             ]);
           }))
-          : h('p', { class: 'muted small' }, 'Hozircha guruhga yozilmagansiz.'),
+          : h('p', { class: 'muted small' }, 'Hozircha guruhga yozilmagansiz.')
+      ]);
 
+      var payCard = h('section', { class: 'kp-card' }, [
         h('h3', {}, 'To’lov'),
         money,
         next,
         fin.overdue > 0 ? h('div', { class: 'kab-line warn' }, [
           h('span', {}, 'Muddati o’tgan'), h('b', {}, A.somFull(fin.overdue))
         ]) : null,
+        h('p', { class: 'small muted', style: 'margin:4px 0 0' }, 'To’lov eslatmasi va karta raqami Telegram botda keladi.')
+      ]);
 
+      var attCard = h('section', { class: 'kp-card' }, [
         h('h3', {}, 'Davomat'),
         att.total ? h('div', {}, [
           h('div', { class: 'kab-stats' }, [
@@ -558,24 +692,27 @@
               h('span', {}, A.dateLabel(r.date)), h('b', {}, r.label)
             ]);
           })) : null
-        ]) : h('p', { class: 'muted small' }, 'Hozircha davomat yozuvi yo’q.'),
+        ]) : h('p', { class: 'muted small' }, 'Hozircha davomat yozuvi yo’q.')
+      ]);
 
-        h('div', { class: 'small muted', style: 'margin-top:10px' },
-          'Savol bo’lsa markazga murojaat qiling' + (d.center.phone ? ': ' + d.center.phone : '.')),
-
-        /* O'quv bo'limi: vazifa, test, savol-javob */
-        learnSection(st.id, true),
-
-        /* Umumiy (birovning) kompyuterida kabinetni yopish uchun. */
-        h('div', { class: 'kab-out' }, [
-          h('button', {
-            class: 'btn sm', type: 'button',
-            onclick: async function () {
-              try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
-              err.hidden = true;
-              showForm();
-            }
-          }, 'Chiqish')
+      result.appendChild(h('div', { class: 'kab-card kp' }, [
+        portalBar(st.name, 'O’quvchi kabineti · kod ' + st.code),
+        hero,
+        h('div', { class: 'kp-grid' }, [
+          h('div', { class: 'kp-col' }, [
+            h('section', { class: 'kp-card' }, [
+              h('div', { class: 'kp-card-h' }, [
+                h('h3', {}, 'Onlayn darslarim — A1'),
+                h('a', { class: 'kp-all', href: '#kurs', onclick: function (e) { e.preventDefault(); goLesson(''); } }, 'Hammasi →')
+              ]),
+              map
+            ]),
+            D.mode === 'server' ? h('section', { class: 'kp-card' }, [learnSection(st.id, true)]) : null
+          ]),
+          h('div', { class: 'kp-col' }, [groupsCard, payCard, attCard,
+            h('div', { class: 'small muted kp-help' },
+              'Savol bo’lsa markazga murojaat qiling' + (d.center.phone ? ': ' + d.center.phone : '.'))
+          ])
         ])
       ]));
       A.I18N.apply(result);
@@ -584,21 +721,17 @@
     /* ---- Ota-ona kabineti: farzandlar ro'yxati ---- */
     function showParent(d) {
       UI.clear(result);
-      var sub = document.getElementById('kab-sub');
-      if (sub) sub.textContent = 'Ota-ona kabineti';
+      portalOn(true);
       var kids = d.children || [];
-      result.appendChild(h('div', { class: 'kab-card' }, [
-        h('div', { class: 'kab-head' }, [
-          UI.avatar(d.parent.name),
-          h('div', { class: 'main-col' }, [
-            h('b', {}, d.parent.name),
-            h('span', { class: 'small muted' },
-              'Ota-ona kabineti' + (d.parent.relation ? ' · ' + d.parent.relation : ''))
-          ])
+      result.appendChild(h('div', { class: 'kab-card kp' }, [
+        portalBar(d.parent.name, 'Ota-ona kabineti' + (d.parent.relation ? ' · ' + d.parent.relation : '')),
+        h('div', { class: 'kp-phead' }, [
+          h('h1', {}, d.parent.name),
+          h('span', {}, 'Ota-ona kabineti' + (d.parent.relation ? ' · ' + d.parent.relation : ''))
         ]),
         kids.length ? null : h('p', { class: 'muted small' },
           'Sizga hali farzand biriktirilmagan. Markazga murojaat qiling.'),
-        h('div', { class: 'kab-sec' }, kids.map(function (k) {
+        h('div', { class: 'kab-sec kp-kids' }, kids.map(function (k) {
           var fin = k.finance || {}, att = k.attendance || {};
           return h('div', { class: 'kab-kid' }, [
             h('b', {}, k.student.name),
@@ -625,17 +758,7 @@
           ]);
         })),
         h('div', { class: 'small muted', style: 'margin-top:10px' },
-          'Savol bo’lsa markazga murojaat qiling' + (d.center.phone ? ': ' + d.center.phone : '.')),
-        h('div', { class: 'kab-out' }, [
-          h('button', {
-            class: 'btn sm', type: 'button',
-            onclick: async function () {
-              try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
-              err.hidden = true;
-              showForm();
-            }
-          }, 'Chiqish')
-        ])
+          'Savol bo’lsa markazga murojaat qiling' + (d.center.phone ? ': ' + d.center.phone : '.'))
       ]));
     }
 
@@ -810,6 +933,20 @@
     }
   }
   A.renderKabinet = renderKabinet;
+
+  /* Onlayn kurs sahifasi (#kurs). Serverda — kabinet sessiyasi bilan.
+     Demo (brauzer) rejimida — namunaviy o'quvchi nomidan. */
+  function openCourse() {
+    if (!A.renderCourse) return;
+    if (D.mode === 'server') { A.renderCourse({}); return; }
+    var st = D.all('students').filter(function (s) { return s.status === 'faol'; })[0];
+    A.renderCourse({
+      studentId: st ? st.id : 'demo',
+      studentName: st ? (st.lastName + ' ' + st.firstName) : 'Demo o’quvchi',
+      onExit: function () { location.hash = 'kabinet'; renderKabinet(); }
+    });
+  }
+  A.openCourse = openCourse;
 
 
   /* ================= DARAJA ANIQLASH TESTI (A1 → C2) =================
@@ -3051,6 +3188,7 @@
   /* ---------- Ishga tushirish ---------- */
   async function boot() {
     LOGO = document.querySelector('#boot img').getAttribute('src');
+    A.LOGO = LOGO;
     wireTheme();
     A.I18N.init();
     A.I18N.observe();
@@ -3077,6 +3215,7 @@
         }
         var where = String(location.hash || '').replace('#', '').split('?')[0];
         if (where === 'kabinet') { renderKabinet(kabinetCodeFromHash()); return; }
+        if (where === 'kurs') { openCourse(); return; }
         if (where === 'test' || where === 'daraja') { renderTest(); return; }
         if (where === 'ustoz') { renderTeacherFromHash(); return; }
         if (where === 'kirish' || where === 'login') { renderLogin(null); return; }
@@ -3104,6 +3243,9 @@
       var sid = null;
       try { sid = sessionStorage.getItem('albyana_session'); } catch (e) { }
       var u = sid ? D.one('users', sid) : null;
+      var whereL = String(location.hash || '').replace('#', '').split('?')[0];
+      if (whereL === 'kurs') { openCourse(); return; }
+      if (whereL === 'kabinet') { renderKabinet(); return; }
       if (u && u.active !== false) startSession(u);
       else renderLogin(null);
     } catch (e) {

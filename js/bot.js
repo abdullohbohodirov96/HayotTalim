@@ -35,7 +35,11 @@
       },
       remindDays: Number(s.remindDays || 3),
       remindEvery: Number(s.remindEvery || 7),
-      codeHours: Number(s.codeHours || 48)
+      codeHours: Number(s.codeHours || 48),
+      payCard: s.payCard || '',
+      payHolder: s.payHolder || '',
+      payBankChat: s.payBankChat || '',
+      payPreDays: s.payPreDays == null ? 2 : Number(s.payPreDays)
     };
   }
 
@@ -229,6 +233,7 @@
     var tabs = [{ id: 'holat', label: 'Holat' }];
     if (App.can('bot.broadcast')) tabs.push({ id: 'xabar', label: 'Xabar yuborish' });
     tabs.push({ id: 'oquvchilar', label: 'Ulangan o’quvchilar' });
+    if (App.can('payment.create') && D.mode === 'server') tabs.push({ id: 'karta', label: 'Karta to’lovlari' });
     if (App.can('bot.manage')) tabs.push({ id: 'sozlama', label: 'Sozlamalar' });
     view.appendChild(UI.tabs(tabs, tab, function (id) { App.go('bot', { tab: id }); }));
 
@@ -365,6 +370,80 @@
         ], sent) : h('p', { class: 'muted' }, 'Hali xabar yo’q.'), null, null, true)));
     }
 
+    if (tab === 'karta') {
+      var box = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
+      view.appendChild(box);
+      (async function () {
+        var d;
+        try { d = await D.api('GET', 'api/paybank'); }
+        catch (e) { UI.clear(box); box.appendChild(h('p', { class: 'err-msg' }, e.message || 'Yuklanmadi.')); return; }
+        UI.clear(box);
+        var ST = { kutilmoqda: ['Summa berildi', ''], tolandi: ['«To’ladim» bosildi', 'warn'], tasdiqlandi: ['Tasdiqlandi', 'ok'], rad: ['Rad etildi', 'bad'], eskirdi: ['Eskirdi', ''] };
+        var waiting = d.claims.filter(function (c) { return c.status === 'tolandi'; });
+        var loose = d.txs.filter(function (t) { return t.status === 'mos-emas' || t.status === 'yangi'; });
+        box.appendChild(h('div', { class: 'tiles' }, [
+          UI.tile({ label: 'Avtomatik tasdiqlangan (30 kun)', value: d.claims.filter(function (c) { return c.status === 'tasdiqlandi' && !c.manual; }).length }),
+          UI.tile({ label: '«To’ladim» — pul hali ko’rinmadi', value: waiting.length, cls: waiting.length ? 'alert' : '' }),
+          UI.tile({ label: 'Egasi aniqlanmagan kirimlar', value: loose.length, cls: loose.length ? 'alert' : '' })
+        ]));
+        box.appendChild(h('div', { class: 'banner info', style: 'margin:12px 0' }, h('div', {}, [
+          h('b', {}, 'Qanday ishlaydi: '),
+          'o’quvchi botda «To’lov qilish 💳» ni bosadi → unga karta raqami va aniq summa (masalan 400 037) chiqadi → ',
+          'pul kartaga tushganda bank bildirishnomasi kanalga keladi → bot summani tanib, to’lovni o’zi yozadi va o’quvchiga ',
+          'kvitansiya hamda keyingi to’lov sanasini yuboradi. Faqat mos kelmagan holatlar shu yerda qo’lda hal qilinadi.'
+        ])));
+        function act(body, msg) {
+          return async function (e) {
+            var btn = e.currentTarget;
+            UI.busy(btn, async function () {
+              try { await D.api('POST', 'api/paybank/confirm', body); UI.toast(msg || 'Tasdiqlandi.', 'ok'); App.render(); }
+              catch (ex) { UI.toast(ex.message || 'Xato.', 'bad'); }
+            });
+          };
+        }
+        box.appendChild(UI.card('O’quvchilar da’volari', d.claims.length ? UI.table([
+          { label: 'O’quvchi', render: function (c) { return h('b', {}, c.name); } },
+          { label: 'Summa', render: function (c) { return h('span', { class: 'mono' }, A.som(c.amount)); } },
+          { label: 'Vaqt', render: function (c) { return h('span', { class: 'small muted' }, c.paidPressedAt || c.createdAt); } },
+          { label: 'Holat', render: function (c) { var t = ST[c.status] || [c.status, '']; return UI.pill ? UI.pill(t[0] + (c.receiptNo ? ' · ' + c.receiptNo : ''), t[1]) : t[0]; } },
+          {
+            label: '', right: true, render: function (c) {
+              if (c.status !== 'kutilmoqda' && c.status !== 'tolandi') return '';
+              return h('div', { class: 'rowflex', style: 'gap:6px;justify-content:flex-end' }, [
+                h('button', { class: 'btn sm', onclick: async function (e) {
+                  e.stopPropagation();
+                  try { await D.api('POST', 'api/paybank/reject', { claimId: c.id }); App.render(); } catch (ex) { UI.toast(ex.message, 'bad'); }
+                } }, 'Rad'),
+                h('button', { class: 'btn sm primary', onclick: function (e) { e.stopPropagation(); act({ claimId: c.id })(e); } }, 'Pul keldi — tasdiqlash')
+              ]);
+            }
+          }
+        ], d.claims) : UI.empty({ title: 'Hali da’vo yo’q', text: 'O’quvchilar botda «To’lov qilish» ni bosganda shu yerda ko’rinadi.' })));
+        box.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('Kartaga tushgan pullar (bildirishnoma kanalidan)', d.txs.length ? UI.table([
+          { label: 'Summa', render: function (t) { return h('b', { class: 'mono' }, A.som(t.amount)); } },
+          { label: 'Karta', render: function (t) { return t.card4 ? '*' + t.card4 : '—'; } },
+          { label: 'Vaqt', render: function (t) { return h('span', { class: 'small muted' }, t.at); } },
+          { label: 'Holat', render: function (t) { return t.status === 'mos' ? 'Biriktirildi' : 'Egasi aniqlanmadi'; } },
+          {
+            label: '', right: true, render: function (t) {
+              if (t.status === 'mos') return '';
+              var sel = h('select', { class: 'sm' }, [h('option', { value: '' }, 'O’quvchini tanlang…')].concat(
+                D.all('students').filter(function (s) { return s.status === 'faol'; })
+                  .sort(function (a, b) { return (a.lastName + a.firstName).localeCompare(b.lastName + b.firstName); })
+                  .map(function (s) { return h('option', { value: s.id }, s.lastName + ' ' + s.firstName); })));
+              return h('div', { class: 'rowflex', style: 'gap:6px;justify-content:flex-end' }, [sel,
+                h('button', { class: 'btn sm primary', onclick: function (e) {
+                  e.stopPropagation();
+                  if (!sel.value) { UI.toast('O’quvchini tanlang.', 'bad'); return; }
+                  act({ txId: t.id, studentId: sel.value }, 'Biriktirildi.')(e);
+                } }, 'Biriktirish')
+              ]);
+            }
+          }
+        ], d.txs) : UI.empty({ title: 'Bildirishnoma kelmagan', text: 'Sozlamalarda bildirishnoma kanalini kiriting va botni kanalga administrator qiling.' }))));
+      })();
+    }
+
     if (tab === 'oquvchilar') {
       view.appendChild(UI.card(null, linked.length ? UI.table([
         { label: 'O’quvchi', render: function (s) { return h('b', {}, s.lastName + ' ' + s.firstName); } },
@@ -418,6 +497,20 @@
         {
           name: 'codeHours', label: 'Ulash kodi necha soat amal qiladi', type: 'number',
           value: conf.codeHours
+        },
+        {
+          name: 'payCard', label: 'To’lov kartasi raqami (Humo/Uzcard)', value: conf.payCard,
+          placeholder: '9860 0000 0000 0000', help: 'Botdagi «To’lov qilish» tugmasida o’quvchiga shu raqam chiqadi'
+        },
+        { name: 'payHolder', label: 'Karta egasi', value: conf.payHolder, placeholder: 'Ism Familiya' },
+        {
+          name: 'payBankChat', label: 'Bildirishnoma kanali (raqami yoki @nomi)', value: conf.payBankChat,
+          placeholder: '-1001234567890',
+          help: 'Karta SMS/bot bildirishnomalari tushadigan kanal. Botni shu kanalga administrator qilib qo’shing — raqamni bot o’zi yozib yuboradi.'
+        },
+        {
+          name: 'payPreDays', label: 'To’lovdan necha kun oldin eslatilsin', type: 'number', value: conf.payPreDays,
+          help: '0 — oldindan eslatma yuborilmaydi'
         }
       ];
       var f = UI.form(fields);
@@ -453,7 +546,11 @@
                 notify[k.id] = !!(cb && cb.checked);
               });
               await D.saveSettings(Object.assign({}, D.settings, {
-                bot: {
+                bot: Object.assign({}, D.settings.bot || {}, {
+                  payCard: String(v.payCard || '').replace(/[^\d ]/g, '').trim(),
+                  payHolder: String(v.payHolder || '').trim(),
+                  payBankChat: String(v.payBankChat || '').trim(),
+                  payPreDays: Math.max(0, Number(v.payPreDays) || 0),
                   username: String(v.username || '').replace('@', ''),
                   welcome: v.welcome,
                   staffChats: String(v.staffChats || '').trim(),
@@ -461,7 +558,7 @@
                   remindDays: Math.max(0, Number(v.remindDays) || 3),
                   remindEvery: Math.max(1, Number(v.remindEvery) || 7),
                   codeHours: Math.max(1, Number(v.codeHours) || 48)
-                }
+                })
               }));
               await A.Ops.audit(App.user, 'Bot sozlamalari o’zgartirildi', v.username, '');
               UI.toast('Saqlandi.', 'ok'); App.render();

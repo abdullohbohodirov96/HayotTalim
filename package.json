@@ -29,7 +29,9 @@
     "test:kabinet-bot": "node tests/kabinet-bot-test.js",
     "test:ui": "node tests/ui-flow-test.js",
     "test:site": "node tests/site-test.js",
-    "test:bot-reg": "node tests/bot-reg-test.js"
+    "test:bot-reg": "node tests/bot-reg-test.js",
+    "test:pay": "node tests/paybot-test.js",
+    "test:course": "node tests/course-test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

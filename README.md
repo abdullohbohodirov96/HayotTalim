@@ -615,3 +615,19 @@ Tizimda bular bor deb ko'rsatuvchi ishlamaydigan tugmalar yo'q.
 Chromium asosidagi brauzerlarda 360, 390 va 1320 px o'lchamlarda avtomatik
 sinovdan o'tkazilgan. iPhone Safari va Android Chrome **haqiqiy qurilmada
 sinalmagan** — ishlatishni boshlashdan oldin telefoningizda bir marta tekshiring.
+
+## Onlayn kurs (A1) va o'quvchi kabineti
+
+- O'quvchi `#kabinet` da 4 xonali kodi bilan kiradi va to'liq sahifali kabinetni ko'radi: joriy dars, taraqqiyot, darslar xaritasi, guruh/Zoom, to'lov, davomat, savol-javob.
+- Darslar (`#kurs`): so'zlar (harakatli rasmlar, talaffuz) → matn → qoida → mashq → so'z testi (≥80%) → uy vazifasi (javoblar, yozma ish, rasm/PDF yuklash).
+- Keyingi dars oldingi darsning testi va vazifasi topshirilgach o'zi ochiladi. Ustoz/admin ERP → «Onlayn kurs» bo'limida vazifani tekshiradi (baho, izoh yoki «qayta topshirsin») va o'quvchini istalgan darsga o'tkaza oladi. Natija o'quvchiga botda boradi.
+- Sinov: `node tests/course-test.js 3300`.
+
+## Botda karta orqali to'lov
+
+1. ERP → Telegram bot → Sozlamalar: karta raqami, egasi, «Bildirishnoma kanali».
+2. Humo/Uzcard bildirishnomalari tushadigan kanalga botni **administrator** qilib qo'shing — bot kanal raqamini xodimlar chatiga yozib yuboradi.
+3. O'quvchi botda «To'lov qilish 💳» → karta va aniq summa (masalan 400 037) → «To'ladim ✅».
+4. Kanalga kirim xabari kelishi bilan bot summani tanib to'lovni yozadi, o'quvchiga kvitansiya va keyingi to'lov sanasini yuboradi.
+5. Mos kelmaganlar ERP → Telegram bot → «Karta to'lovlari» da qo'lda biriktiriladi. To'lov muddatidan N kun oldin eslatma ham boradi.
+- Sinov: `node tests/paybot-test.js`.

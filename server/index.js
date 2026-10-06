@@ -22,6 +22,7 @@ const quiz = require('./quiz');
 const progress = require('./progress');
 const seo = require('./seo');
 const parents = require('./parents');
+const course = require('./course');
 
 /** Zaxira faylini xavfsiz o'qish — nomi noto'g'ri bo'lsa null */
 function backupReadSafe(name) {
@@ -683,6 +684,32 @@ async function createPaymentServer(body, user) {
   return rec;
 }
 
+
+/** Bot karta kirimini tanidi: to'lov eng eski ochiq hisoblarga taqsimlanadi.
+    Bir bank xabari uchun bitta to'lov (id = pay_<banktx>) — takror yozilmaydi. */
+const BOT_USER = { id: 'bot', name: 'Avto (karta)', role: 'direktor' };
+async function autoCardPayment(o) {
+  const id = 'pay_' + String(o.extId || Date.now().toString(36)).replace(/[^\w-]/g, '').slice(0, 50);
+  return withLock('payments', async () => {
+    const invs = (await store.list('invoices/')).map(x => x.data).filter(i => i && i.studentId === o.studentId);
+    const pays = (await store.list('payments/')).map(x => x.data).filter(Boolean);
+    const paid = A.paidByInvoice(pays);
+    let left = Math.round(o.amount);
+    const allocations = [];
+    invs.sort((a, b) => String(a.dueDate || a.month).localeCompare(String(b.dueDate || b.month)))
+      .forEach(i => {
+        const rem = Math.round(A.invoiceRemaining(i, paid));
+        if (left <= 0 || rem <= 0) return;
+        const amt = Math.min(rem, left);
+        allocations.push({ invoiceId: i.id, amount: amt });
+        left -= amt;
+      });
+    return createPaymentServer({
+      id, studentId: o.studentId, amount: o.amount, date: A.today(), method: 'karta',
+      note: o.note || 'Karta (avtomatik)', allocations
+    }, BOT_USER);
+  });
+}
 
 /** O'quvchining ishlatilmagan avansi: olingan pul − hisoblarga yozilgani */
 async function advanceOf(studentId) {
@@ -1550,6 +1577,58 @@ async function handleApi(req, res, url) {
     }
 
     /* ---- Material yoki vazifa fayli ---- */
+    /* ---- Onlayn kurs (A1): ketma-ket ochiladigan darslar ---- */
+    if (sub === 'course' && req.method === 'GET') {
+      const sid = String(url.searchParams.get('studentId') || mine[0] || '');
+      if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
+      const doc = await course.get(store, sid);
+      return send(res, 200, Object.assign({ canAct: !isParent }, course.view(A, doc)));
+    }
+    if (sub.indexOf('course/') === 0 && req.method === 'POST') {
+      if (isParent) return send(res, 403, { error: 'Darsni o’quvchining o’zi bajaradi.' });
+      const sid = mine[0];
+      const op = sub.slice('course/'.length);
+      if (op === 'upload') {
+        const body = await readBody(req, BODY_MAX_FILE);
+        const type = String(body.type || '').toLowerCase();
+        if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(type)) {
+          return send(res, 400, { error: 'Faqat rasm (JPG, PNG) yoki PDF yuklang.' });
+        }
+        const r = await files.save(store, {
+          name: body.name, type, dataBase64: body.data,
+          purpose: 'kurs-vazifa', refPath: course.COL + sid,
+          byUserId: sid, byKind: 'oquvchi', stamp
+        });
+        if (!r.ok) {
+          return send(res, 400, {
+            error: r.reason === 'kattaligi' ? 'Fayl juda katta (' + Math.round(files.MAX_BYTES / 1048576) + ' MB gacha).'
+              : 'Fayl yuklanmadi.'
+          });
+        }
+        return send(res, 200, { ok: true, file: { id: r.file.id, name: r.file.name, type: r.file.type, bytes: r.file.bytes } });
+      }
+      const body = await readBody(req);
+      let r;
+      if (op === 'step') r = await course.markStep(A, store, sid, body, stamp);
+      else if (op === 'test') r = await course.submitTest(A, store, sid, body, stamp);
+      else if (op === 'homework') {
+        r = await course.submitHomework(A, store, sid, body, stamp, files);
+        if (r && r.ok) {
+          const st = await store.get('students/' + sid);
+          const lesson = A.Course.byId(String(body.lessonId));
+          const who = st ? (st.lastName + ' ' + st.firstName).trim() : sid;
+          try {
+            require('./bot').notifyStaff('Yangi uy vazifasi: ' + who + '\n' +
+              lesson.n + '-dars «' + lesson.title + '» · avtomatik qism ' + r.auto.correct + '/' + r.auto.total +
+              '\nERP → Onlayn kurs bo’limida tekshiring.');
+          } catch (e) { /* bot o'chiq */ }
+        }
+      }
+      else return send(res, 404, { error: 'Topilmadi.' });
+      if (r.error) return send(res, r.code || 400, { error: r.error });
+      return send(res, 200, r);
+    }
+
     if (sub === 'file' && req.method === 'GET') {
       const fid = String(url.searchParams.get('id') || '');
       const rec = await files.meta(store, fid);
@@ -2041,6 +2120,128 @@ async function handleApi(req, res, url) {
     const gone = await curriculum.cascadeDelete(store, kind, id);
     await writeAudit(user, 'Dasturdan o’chirildi', kind + ' ' + id, gone.length + ' ta yozuv');
     return send(res, 200, { ok: true, removed: gone.length });
+  }
+
+  /* ---- Onlayn kurs: ustoz va admin paneli ----
+     Ustoz faqat o'z guruhlaridagi o'quvchilarni ko'radi; admin/direktor — hammasini. */
+  if (route.indexOf('course/') === 0) {
+    const canView = A.can(user, 'lesson.log') || A.can(user, 'student.view');
+    const canAct = A.can(user, 'lesson.log') || A.can(user, 'student.edit');
+    if (!canView) return nope();
+    async function scopeStudentIds() {
+      const groups = (await store.list('groups/')).map(x => x.data).filter(Boolean);
+      const mems = (await store.list('memberships/')).map(x => x.data).filter(m => m && m.status === 'faol');
+      let gs = groups;
+      if (user.role === 'oqituvchi') gs = A.scopeGroups(user, groups);
+      const gids = {}; gs.forEach(g => { gids[g.id] = g; });
+      const ids = {};
+      mems.forEach(m => { if (gids[m.groupId]) (ids[m.studentId] = ids[m.studentId] || []).push(gids[m.groupId]); });
+      if (user.role !== 'oqituvchi') {
+        (await store.list('students/')).map(x => x.data).filter(s => s && s.status === 'faol')
+          .forEach(s => { if (!ids[s.id]) ids[s.id] = []; });
+      }
+      return ids;
+    }
+    if (route === 'course/overview' && req.method === 'GET') {
+      const scope = await scopeStudentIds();
+      const sids = Object.keys(scope);
+      const rows = await course.overview(A, store, sids);
+      for (const r of rows) {
+        const st = await store.get('students/' + r.studentId);
+        r.name = st ? ((st.lastName || '') + ' ' + (st.firstName || '')).trim() : r.studentId;
+        r.groups = (scope[r.studentId] || []).map(g => ({ id: g.id, name: g.name, code: g.code || '' }));
+      }
+      rows.sort((a, b) => (b.pending.length - a.pending.length) || a.name.localeCompare(b.name));
+      return send(res, 200, {
+        rows,
+        lessons: A.Course.LESSONS.map(l => ({ id: l.id, n: l.n, title: l.title, unit: l.unit }))
+      });
+    }
+    if ((route === 'course/review' || route === 'course/move') && req.method === 'POST') {
+      if (!canAct) return nope();
+      const body = await readBody(req);
+      const scope = await scopeStudentIds();
+      if (!scope[String(body.studentId || '')]) return nope('Bu o’quvchi sizning guruhingizda emas.');
+      if (route === 'course/review') {
+        const r = await course.review(A, store, body, user, stamp);
+        if (r.error) return send(res, r.code || 400, { error: r.error });
+        await writeAudit(user, 'Kurs vazifasi tekshirildi', String(body.studentId), r.lesson.id + ' · ' + r.decision);
+        /* O'quvchiga botda xabar */
+        const st = await store.get('students/' + body.studentId);
+        if (st && st.telegram && st.telegram.id) {
+          const msg = r.decision === 'qayta'
+            ? '«' + r.lesson.title + '» darsi vazifasi qayta topshirishga qaytarildi.' + (r.doc.lessons[r.lesson.id].hw.comment ? '\nUstoz izohi: ' + r.doc.lessons[r.lesson.id].hw.comment : '')
+            : '«' + r.lesson.title + '» darsi vazifasi qabul qilindi ✅' +
+              (r.doc.lessons[r.lesson.id].hw.grade ? '\nBaho: ' + r.doc.lessons[r.lesson.id].hw.grade : '') +
+              (r.doc.lessons[r.lesson.id].hw.comment ? '\nUstoz izohi: ' + r.doc.lessons[r.lesson.id].hw.comment : '');
+          await store.set('botout/out_cr' + Date.now().toString(36), {
+            id: 'out_cr' + Date.now().toString(36), studentId: st.id, chatId: String(st.telegram.id),
+            text: msg, kind: 'elon', status: 'pending', tries: 0, createdAt: stamp(),
+            dedupeKey: 'kurs:' + st.id + ':' + r.lesson.id + ':' + r.decision + ':' + Date.now()
+          });
+          try { require('./bot').wake(); } catch (e) { }
+        }
+        return send(res, 200, { ok: true });
+      }
+      const r = await course.moveTo(A, store, body);
+      if (r.error) return send(res, r.code || 400, { error: r.error });
+      await writeAudit(user, 'O’quvchi darsga o’tkazildi', String(body.studentId), String(body.lessonId));
+      return send(res, 200, { ok: true });
+    }
+    return send(res, 404, { error: 'Topilmadi.' });
+  }
+
+  /* ---- Karta to'lovlari: botdagi da'volar va bank bildirishnomalari ---- */
+  if (route.indexOf('paybank') === 0) {
+    const paybot = require('./paybot');
+    if (!A.can(user, 'payment.create')) return nope();
+    if (route === 'paybank' && req.method === 'GET') {
+      const since = Date.now() - 30 * 24 * 3600 * 1000;
+      const claims = (await paybot.listCol(store, 'payclaim')).filter(c => c.atMs >= since).sort((a, b) => b.atMs - a.atMs);
+      const txs = (await paybot.listCol(store, 'banktx')).filter(t => t.atMs >= since).sort((a, b) => b.atMs - a.atMs);
+      for (const c of claims) {
+        const st = await store.get('students/' + c.studentId);
+        c.name = st ? ((st.lastName || '') + ' ' + (st.firstName || '')).trim() : c.studentId;
+      }
+      return send(res, 200, { claims: claims.slice(0, 200), txs: txs.slice(0, 200) });
+    }
+    if (req.method === 'POST') {
+      const body = await readBody(req);
+      if (route === 'paybank/reject') {
+        const c = await store.get('payclaim/' + String(body.claimId || ''));
+        if (!c) return send(res, 404, { error: 'Topilmadi.' });
+        c.status = 'rad'; c.closedBy = user.name;
+        await store.set('payclaim/' + c.id, c);
+        return send(res, 200, { ok: true });
+      }
+      if (route === 'paybank/confirm') {
+        /* Qo'lda: da'voni bank kirimiga yoki kirimni o'quvchiga biriktirish */
+        let c = body.claimId ? await store.get('payclaim/' + String(body.claimId)) : null;
+        let tx = body.txId ? await store.get('banktx/' + String(body.txId)) : null;
+        if (tx && tx.status === 'mos') return send(res, 400, { error: 'Bu kirim allaqachon biriktirilgan.' });
+        if (c && c.status === 'tasdiqlandi') return send(res, 400, { error: 'Bu da’vo allaqachon tasdiqlangan.' });
+        if (!c && tx && body.studentId) {
+          const st = await store.get('students/' + String(body.studentId));
+          if (!st) return send(res, 404, { error: 'O’quvchi topilmadi.' });
+          c = { id: 'pc_m' + Date.now().toString(36), studentId: st.id, chatId: st.telegram && st.telegram.id ? String(st.telegram.id) : '',
+            base: tx.amount, tail: 0, amount: tx.amount, status: 'kutilmoqda', createdAt: stamp(), atMs: Date.now(), manual: true };
+        }
+        if (!c) return send(res, 400, { error: 'Da’vo yoki o’quvchi ko’rsatilmagan.' });
+        if (!tx) {
+          /* Bildirishnoma kelmagan (masalan naqd/boshqa karta) — summa da'vodan olinadi */
+          tx = { id: 'bt_m' + Date.now().toString(36), amount: c.amount, card4: '', text: 'Qo’lda tasdiq: ' + user.name,
+            chatId: '', at: stamp(), atMs: Date.now(), status: 'yangi', claimId: null };
+        }
+        try {
+          const rec = await require('./bot').confirmClaimManual(c, tx);
+          await writeAudit(user, 'Karta to’lovi qo’lda tasdiqlandi', rec.receiptNo, rec.amount + ' so’m');
+          return send(res, 200, { ok: true, payment: rec });
+        } catch (e) {
+          return send(res, 400, { error: e.message });
+        }
+      }
+    }
+    return send(res, 404, { error: 'Topilmadi.' });
   }
 
   /* ---- Fayl ombori ---- */
@@ -2840,8 +3041,10 @@ const server = http.createServer(async (req, res) => {
   // Kunlik tozalash — baza va disk cheksiz o'smasin
   startMaintenance();
 
+  /* Bot modulini doim tayyorlaymiz — token bo'lmasa ham ERP dan karta to'lovini tasdiqlash ishlaydi */
+  require('./bot').init({ store, stamp, A, recordPayment: autoCardPayment });
   if (process.env.TELEGRAM_BOT_TOKEN) {
-    require('./bot').start({ store, stamp, A });
+    require('./bot').start({ store, stamp, A, recordPayment: autoCardPayment });
   } else {
     console.log('  Telegram bot o’chirilgan (TELEGRAM_BOT_TOKEN berilmagan).\n');
   }

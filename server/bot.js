@@ -15,6 +15,8 @@ const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const API = 'https://api.telegram.org/bot' + TOKEN + '/';
 
 let store, stamp, A;
+let recordPayment = null;      // index.js beradi: karta to'lovini yozish
+const paybot = require('./paybot');
 let offset = 0;
 let running = false;
 let timers = [];
@@ -63,7 +65,12 @@ function esc(t) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+const PAY_BTN = 'To’lov qilish 💳';
+const PAID_BTN = 'To’ladim ✅';
+const BACK_BTN = 'Orqaga';
+const PAY_KB = [[{ text: PAID_BTN }], [{ text: BACK_BTN }]];
 const MENU = [
+  [{ text: PAY_BTN }],
   [{ text: 'Ma’lumotim' }, { text: 'To’lovim' }],
   [{ text: 'Davomatim' }, { text: 'Jadvalim' }],
   [{ text: 'Kabinet (veb)' }, { text: 'Markazga yozish' }]
@@ -179,6 +186,7 @@ async function balanceText(student) {
   if (bal.debt > 0) {
     lines.push('Qarz: <b>' + A.som(bal.debt) + ' so’m</b>');
     if (overdue > 0) lines.push('Shundan muddati o’tgan: ' + A.som(overdue) + ' so’m');
+    lines.push('To’lash uchun «' + PAY_BTN + '» tugmasini bosing.');
   } else if (bal.advance > 0) {
     lines.push('Avans: ' + A.som(bal.advance) + ' so’m');
   } else {
@@ -422,6 +430,25 @@ async function remindDebtors(todayIso) {
       dedupeKey: 'qarz:' + s.id
     }, conf.remindEvery * 24 * 3600 * 1000);
     if (r.skipped) skipped++; else queued++;
+  }
+
+  /* Muddatidan OLDIN eslatma: to'lov kuni yaqinlashganda (karta sozlangan bo'lsa) */
+  const pc = paybot.payConf(await settings());
+  if (pc.card && pc.preDays > 0) {
+    for (const s of students) {
+      const soon = invoices.filter(i => i.studentId === s.id && i.dueDate && A.invoiceRemaining(i, paid) > 0 &&
+        daysBetween(today, i.dueDate) >= 0 && daysBetween(today, i.dueDate) <= pc.preDays);
+      for (const inv of soon) {
+        const text = 'Eslatma: ' + A.monthLabel(inv.month) + ' uchun to’lov muddati — ' + A.dateLabel(inv.dueDate) + '.\n' +
+          'Summa: ' + A.som(A.invoiceRemaining(inv, paid)) + ' so’m\n' +
+          'To’lash uchun «' + PAY_BTN + '» tugmasini bosing — karta raqami va aniq summa chiqadi.';
+        const r = await enqueue({
+          studentId: s.id, chatId: String(s.telegram.id), text, kind: 'qarz',
+          dedupeKey: 'oldin:' + inv.id
+        }, 40 * 24 * 3600 * 1000);
+        if (r.skipped) skipped++; else queued++;
+      }
+    }
   }
   return { queued, skipped };
 }
@@ -881,6 +908,9 @@ async function onMessage(msg) {
     return sendMessage(chatId, kabinet.summaryText(await kabinet.summary(store, student)), MENU);
   }
   if (text === 'To’lovim' || text === '/tolov') return sendMessage(chatId, await balanceText(student), MENU);
+  if (text === PAY_BTN || text === '/pay' || text === '/tolash') return payStart(chatId, student);
+  if (text === PAID_BTN) return payPressed(chatId, student);
+  if (text === BACK_BTN) return sendMessage(chatId, 'Asosiy menyu.', MENU);
   if (text === 'Davomatim' || text === '/davomat') return sendMessage(chatId, await attendanceText(student), MENU);
   if (text === 'Jadvalim' || text === '/jadval') return sendMessage(chatId, await scheduleText(student), MENU);
   /* Vebdagi kabinetga xavfsiz kirish: bir martalik, 15 daqiqalik havola.
@@ -906,6 +936,82 @@ async function onMessage(msg) {
   }
 
   return sendMessage(chatId, 'Quyidagi tugmalardan birini tanlang.', MENU);
+}
+
+/* ---------------- Karta orqali to'lov ---------------- */
+function payCtx() {
+  return { store, stamp, A, confirm: confirmClaim, notifyStaff };
+}
+async function nextDueText(student) {
+  try {
+    const sum = await kabinet.summary(store, student);
+    const fin = sum && sum.finance;
+    if (fin && fin.debt > 0) return 'Qolgan qarz: ' + A.som(fin.debt) + ' so’m';
+    if (fin && fin.next && fin.next.dueDate) return 'Keyingi to’lov: <b>' + A.dateLabel(fin.next.dueDate) + '</b> gacha';
+  } catch (e) { }
+  return '';
+}
+async function payStart(chatId, student) {
+  const conf = paybot.payConf(await settings());
+  if (!conf.card) {
+    return sendMessage(chatId, 'Karta orqali to’lov hali sozlanmagan. Markaz administratoriga murojaat qiling.', MENU);
+  }
+  const r = await paybot.startClaim(payCtx(), student, chatId);
+  if (r.none) {
+    const nx = await nextDueText(student);
+    return sendMessage(chatId, 'Hozir to’lanadigan summa yo’q ✅' + (nx ? '\n' + nx : ''), MENU);
+  }
+  const c = r.claim;
+  const lines = [
+    '<b>To’lov</b>',
+    'To’lanadigan summa: <b>' + paybot.fmt(c.amount) + ' so’m</b>',
+    c.tail ? '<i>Aynan shu summani o’tkazing — oxirgi ' + c.tail + ' so’m to’lovingizni avtomatik tanish uchun (keyingi oyga avans bo’lib o’tadi).</i>' : '',
+    '',
+    'Karta: <code>' + esc(paybot.cardFmt(conf.card)) + '</code>',
+    conf.holder ? 'Egasi: ' + esc(conf.holder) : '',
+    '',
+    'Pulni o’tkazgach «' + PAID_BTN + '» tugmasini bosing. Kartaga tushishi bilan to’lov avtomatik tasdiqlanadi.'
+  ].filter((x, i, arr) => x !== '' || (arr[i - 1] !== '' && i > 0));
+  return sendMessage(chatId, lines.join('\n'), PAY_KB);
+}
+async function payPressed(chatId, student) {
+  const c = await paybot.markPaid(payCtx(), student);
+  if (!c) return sendMessage(chatId, 'Avval «' + PAY_BTN + '» tugmasini bosing — summa va karta raqami chiqadi.', MENU);
+  await sendMessage(chatId, 'Rahmat! ' + paybot.fmt(c.amount) + ' so’m to’lovingiz tekshirilmoqda. ' +
+    'Kartaga tushishi bilan shu yerga tasdiq keladi (odatda bir necha daqiqa).', MENU);
+  try { await paybot.reconcile(payCtx()); } catch (e) { console.error('paybot:', e.message); }
+}
+/** Mos kelgan kirim: to'lovni yozish va o'quvchiga xabar */
+async function confirmClaim(claim, tx) {
+  if (!recordPayment) throw new Error('to’lov yozuvchisi yo’q');
+  const rec = await recordPayment({
+    studentId: claim.studentId, amount: tx.amount, extId: tx.id,
+    note: 'Karta (avtomatik): ' + (tx.card4 ? '*' + tx.card4 + ' · ' : '') + 'da’vo ' + claim.id
+  });
+  claim.status = 'tasdiqlandi'; claim.txId = tx.id; claim.paymentId = rec.id; claim.receiptNo = rec.receiptNo;
+  claim.confirmedAt = stamp();
+  await store.set('payclaim/' + claim.id, claim);
+  tx.status = 'mos'; tx.claimId = claim.id;
+  await store.set('banktx/' + tx.id, tx);
+  const student = await store.get('students/' + claim.studentId);
+  const nx = student ? await nextDueText(student) : '';
+  const text = '✅ To’lovingiz qabul qilindi!\n' +
+    'Summa: <b>' + paybot.fmt(tx.amount) + ' so’m</b>\n' +
+    'Kvitansiya: ' + esc(rec.receiptNo || '') + (nx ? '\n' + nx : '') + '\nRahmat!';
+  try { await sendMessage(claim.chatId, text, MENU); }
+  catch (e) {
+    await enqueue({ studentId: claim.studentId, chatId: claim.chatId, text, kind: 'elon', dedupeKey: 'paid:' + claim.id }, 0);
+  }
+  return rec;
+}
+/** Bank bildirishnomasi keldi (kanal yoki guruh) */
+async function onBankPost(chat, msg) {
+  const conf = paybot.payConf(await settings());
+  if (!paybot.isBankChat(conf, chat)) return false;
+  const text = msg.text || msg.caption || '';
+  const tx = await paybot.saveBankTx(payCtx(), text, chat.id, msg.message_id);
+  if (tx) { try { await paybot.reconcile(payCtx()); } catch (e) { console.error('paybot:', e.message); } }
+  return true;
 }
 
 /* ---------------- Administrator tasdig'i ---------------- */
@@ -937,12 +1043,25 @@ async function poll() {
   while (running) {
     try {
       const updates = await tg('getUpdates', {
-        offset, timeout: 25, allowed_updates: ['message', 'my_chat_member']
+        offset, timeout: 25, allowed_updates: ['message', 'my_chat_member', 'channel_post']
       });
       for (const u of updates) {
         offset = u.update_id + 1;
         // botni guruhga qo'shishdi — darhol ulashga urinamiz
         const cm = u.my_chat_member;
+        /* Bank bildirishnomasi kanali */
+        if (u.channel_post && u.channel_post.chat) {
+          try { await onBankPost(u.channel_post.chat, u.channel_post); } catch (e) { console.error('bot bank:', e.message); }
+          continue;
+        }
+        if (cm && cm.chat && cm.chat.type === 'channel' &&
+          /administrator|member/.test(String((cm.new_chat_member || {}).status || ''))) {
+          try {
+            await notifyStaff('Bot kanalga qo’shildi: ' + (cm.chat.title || '') + '\nKanal raqami: ' + cm.chat.id +
+              '\nAgar bu karta bildirishnomalari kanali bo’lsa — shu raqamni ERP → Telegram bot → Sozlamalar → «Bildirishnoma kanali» ga yozing.');
+          } catch (e) { }
+          continue;
+        }
         if (cm && cm.chat && /group/.test(String(cm.chat.type || '')) &&
           /member|administrator/.test(String((cm.new_chat_member || {}).status || ''))) {
           try { await linkGroupChat(cm.chat.id, cm.chat.title); }
@@ -952,7 +1071,10 @@ async function poll() {
         if (u.message && (u.message.text || u.message.contact)) {
           const chat = u.message.chat || {};
           try {
-            if (/group/.test(String(chat.type || ''))) { if (u.message.text) await onGroupUpdate(chat.id, chat.title, u.message.text); }
+            if (/group/.test(String(chat.type || ''))) {
+              if (await onBankPost(chat, u.message)) continue;
+              if (u.message.text) await onGroupUpdate(chat.id, chat.title, u.message.text);
+            }
             else { await onMessage(u.message); wake(); }
           } catch (e) { console.error('bot message:', e.message); }
         }
@@ -1000,10 +1122,15 @@ function startReminders() {
   }, 30 * 60 * 1000);
   if (t.unref) t.unref();
   timers.push(t);
+  /* Kirim va da'volarni har 2 daqiqada solishtirish (kechikkan «To'ladim» uchun) */
+  const t2 = setInterval(() => { paybot.reconcile(payCtx()).catch(e => console.error('paybot:', e.message)); }, 2 * 60 * 1000);
+  if (t2.unref) t2.unref();
+  timers.push(t2);
 }
 
 function start(ctx) {
   store = ctx.store; stamp = ctx.stamp; A = ctx.A;
+  if (ctx.recordPayment) recordPayment = ctx.recordPayment;
   if (ctx.send) setTransport(ctx.send);
   if (!TOKEN && !ctx.send) { console.log('  Bot: token yo’q, ishga tushmadi.'); return; }
   running = true;
@@ -1029,6 +1156,7 @@ function stop() {
 /** Sinov uchun: ichki funksiyalarni ochamiz (haqiqiy Telegram ishlatilmaydi) */
 function _test(ctx) {
   store = ctx.store; stamp = ctx.stamp; A = ctx.A;
+  if (ctx.recordPayment) recordPayment = ctx.recordPayment;
   if (ctx.send) setTransport(ctx.send);
   return {
     onMessage, flushQueue, enqueue, remindDebtors, notifyApproved,
@@ -1037,11 +1165,21 @@ function _test(ctx) {
     handleLinkFlow, findStudentByChat, notifyStaff,
     startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, codesInTitle,
-    wake,
+    wake, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
     /** Sinovda navbatchini qo'lda ishga tushirish/to'xtatish */
     startQueue: function (opts) { running = true; queueLoop(opts); },
     stopQueue: function () { running = false; wake(); }
   };
 }
 
-module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, _test };
+/** ERP dan qo'lda tasdiq: bot ishlamayotgan bo'lsa ham to'lov yoziladi */
+function init(ctx) {
+  store = ctx.store; stamp = ctx.stamp; A = ctx.A;
+  if (ctx.recordPayment) recordPayment = ctx.recordPayment;
+}
+async function confirmClaimManual(claim, tx) {
+  if (!store) throw new Error('Bot moduli ishga tushmagan.');
+  return confirmClaim(claim, tx);
+}
+
+module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, init, _test };
