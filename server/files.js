@@ -73,7 +73,7 @@ async function save(store, opts) {
     buf = Buffer.from(String((opts && opts.dataBase64) || ''), 'base64');
   } catch (e) { return { ok: false, reason: 'bosh' }; }
   if (!buf || !buf.length) return { ok: false, reason: 'bosh' };
-  if (buf.length > MAX_BYTES) return { ok: false, reason: 'kattaligi' };
+  if (buf.length > ((opts && opts.maxBytes) || MAX_BYTES)) return { ok: false, reason: 'kattaligi' };
 
   ensureDir();
   const id = 'f' + crypto.randomBytes(8).toString('hex');

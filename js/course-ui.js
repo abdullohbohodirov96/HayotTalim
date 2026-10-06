@@ -83,25 +83,10 @@
   }
 
   /* ================= Ovoz (talaffuz) ================= */
-  var voice = null;
-  function pickVoice() {
-    try {
-      var vs = global.speechSynthesis ? speechSynthesis.getVoices() : [];
-      voice = vs.filter(function (v) { return /^ar/i.test(v.lang); })[0] || null;
-    } catch (e) { voice = null; }
-  }
-  if (global.speechSynthesis) { pickVoice(); try { speechSynthesis.onvoiceschanged = pickVoice; } catch (e) { } }
+  /* Ovoz umumiy modulda (js/speak.js): studiya ovozi → qurilma ovozi */
   A.CourseSay = function (t, r) { return say(t, r); };
   function say(text, rate) {
-    if (!global.speechSynthesis) { UI.toast('Bu brauzerda ovoz yo’q.', 'warn'); return; }
-    try {
-      speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
-      u.lang = (voice && voice.lang) || 'ar-SA';
-      if (voice) u.voice = voice;
-      u.rate = rate || 0.8;
-      speechSynthesis.speak(u);
-    } catch (e) { }
+    if (A.Speak) return A.Speak.say(text, { rate: rate || 0.8 });
   }
   function sayBtn(text, label) {
     return h('button', {
@@ -123,22 +108,10 @@
   function ar(text, cls) { return h('span', { class: 'cr-ar ' + (cls || ''), lang: 'ar', dir: 'rtl' }, text); }
 
   /** Ovozli o'qish tugashini kutish (qissani ketma-ket o'qish uchun) */
-  function sayAsync(text, rate) {
-    return new Promise(function (resolve) {
-      if (!global.speechSynthesis) { resolve(); return; }
-      try {
-        var u = new SpeechSynthesisUtterance(text);
-        u.lang = (voice && voice.lang) || 'ar-SA';
-        if (voice) u.voice = voice;
-        u.rate = rate || 0.8;
-        var done = false;
-        var fin = function () { if (!done) { done = true; resolve(); } };
-        u.onend = fin; u.onerror = fin;
-        speechSynthesis.speak(u);
-        setTimeout(fin, 2500 + String(text).length * 260 / (rate || 0.8));   // ehtiyot: onend kelmasa
-      } catch (e) { resolve(); }
-    });
+  function sayAsync(text, rate, who) {
+    return A.Speak ? A.Speak.say(text, { rate: rate || 0.8, who: who }) : Promise.resolve(false);
   }
+  function stopSpeech() { if (A.Speak) A.Speak.stop(); }
 
   /* ---- Nutqni tanish: o'quvchi o'zi o'qiydi, brauzer eshitib tekshiradi ---- */
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition || null;
@@ -255,17 +228,17 @@
     setPlay();
     async function playAll() {
       st.playing = true; setPlay();
-      try { speechSynthesis.cancel(); } catch (e) { }
+      stopSpeech();
       for (var i = 0; i < lines.length && st.playing; i++) {
         rows.forEach(function (r, k) { r.classList.toggle('now', k === i); });
         if (!opts.compact) { try { rows[i].scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { } }
-        await sayAsync(lines[i].ar, st.rate);
+        await sayAsync(lines[i].ar, st.rate, i % 2 ? 'B' : 'A');
         await new Promise(function (r) { setTimeout(r, 350); });
       }
       rows.forEach(function (r) { r.classList.remove('now'); });
       st.playing = false; setPlay();
     }
-    function stopAll() { st.playing = false; try { speechSynthesis.cancel(); } catch (e) { } setPlay(); rows.forEach(function (r) { r.classList.remove('now'); }); }
+    function stopAll() { st.playing = false; stopSpeech(); setPlay(); rows.forEach(function (r) { r.classList.remove('now'); }); }
 
     function paint() {
       UI.clear(list); rows = [];
@@ -334,6 +307,7 @@
     UI.clear(wrap);
 
     var src = makeSource(opts);
+    if (A.Speak) A.Speak.loadMap();
     var state = { view: null, lessonId: null, step: 'words' };
 
     var head = h('header', { class: 'cr-top' });
@@ -417,7 +391,7 @@
     }
     function lessonView(id) { return state.view.lessons.filter(function (l) { return l.id === id; })[0]; }
     function firstStepFor(lv) {
-      if (lv.status === 'done') return 'words';
+      if (lv.status === 'done') return 'video';
       var order = C.STEPS.map(function (s) { return s.id; });
       for (var i = 0; i < order.length; i++) if (!lv.steps[order[i]]) return order[i];
       return 'homework';
@@ -453,7 +427,7 @@
         var seen = !!lv.steps[s.id];
         return h('button', {
           type: 'button', class: 'cr-step' + (s.id === state.step ? ' on' : '') + (seen ? ' seen' : ''),
-          onclick: function () { try { speechSynthesis.cancel(); } catch (e) { } state.step = s.id; paintMain(); }
+          onclick: function () { stopSpeech(); state.step = s.id; paintMain(); }
         }, [h('span', { class: 'cr-step-n' }, seen ? '✓' : String(i + 1)), h('span', {}, s.label)]);
       }
       var inClass = C.STEPS.filter(function (s) { return s.part !== 'uyda'; });
@@ -470,7 +444,7 @@
       }, 0);
       var body = h('section', { class: 'cr-panel' });
       main.appendChild(body);
-      ({ words: stepWords, dialog: stepDialog, grammar: stepGrammar, practice: stepPractice, test: stepTest, homework: stepHomework })[state.step](body, lesson, lv);
+      ({ video: stepVideo, words: stepWords, dialog: stepDialog, grammar: stepGrammar, practice: stepPractice, test: stepTest, homework: stepHomework })[state.step](body, lesson, lv);
     }
 
     function nextBtn(label, onClick) {
@@ -498,10 +472,52 @@
           sayBtn(wd.ar)
         ]);
       })));
-      body.appendChild(nextBtn('Qissaga o’tish', function () { markStep('words'); goStep('dialog'); }));
+      body.appendChild(nextBtn('Qoidaga o’tish', function () { markStep('words'); goStep('grammar'); }));
     }
 
     /* ---- 2. Qissa: tinglash, o'zi o'qib tekshirish ---- */
+    /* ---- 1. Video: darsga kirgan o'quvchi avval qissani videoda ko'radi ---- */
+    function stepVideo(body, lesson) {
+      body.appendChild(h('div', { class: 'cr-ph' }, [
+        h('span', { class: 'cr-eyebrow dark' }, 'Darsda · 1-qadam'),
+        h('h2', {}, '🎬 ' + lesson.dialog.title + ' — videoni ko’ring'),
+        h('p', {}, 'Avval qissani videoda tomosha qiling: kim nima deyotganini harakatdan tushunasiz. Keyin qissani o’zingiz o’qiysiz.')
+      ]));
+      var vbox = h('div', { class: 'cr-video' });
+      body.appendChild(vbox);
+      (async function () {
+        /* Markaz yuklagan MP4 bo'lsa — o'sha; bo'lmasa harakatli sahna (ovoz bilan) */
+        var mp4 = null;
+        if (D.mode === 'server') { try { var vi = await D.api('GET', 'api/lesson-video?l=' + encodeURIComponent(lesson.id) + '&info=1'); if (vi && vi.has) mp4 = 'api/lesson-video?l=' + encodeURIComponent(lesson.id); } catch (e) { } }
+        var anim = h('div', {});
+        function mountAnim() {
+          if (anim.firstChild) return;
+          var have = { lines: [], words: [] };
+          (async function () {
+            if (D.mode === 'server') { try { have = await D.api('GET', 'api/qissa-audio?l=' + encodeURIComponent(lesson.id)); } catch (e) { } }
+            var sc = A.QissaVideo.scriptFor(lesson);
+            A.QissaVideo.mount(anim, lesson, {
+              audioUrl: function (i) { return have.lines.indexOf(i) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&i=' + i : null; },
+              wordUrl: function (text) {
+                var k = sc.recap ? sc.recap.words.map(function (w) { return w[0]; }).indexOf(text) : -1;
+                return k >= 0 && have.words.indexOf(k) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&w=' + k : null;
+              },
+              onEnd: function () { markStep('video'); }
+            });
+          })();
+        }
+        if (mp4) {
+          var vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4 });
+          vid.addEventListener('ended', function () { markStep('video'); });
+          vbox.appendChild(vid);
+          vbox.appendChild(h('button', { class: 'btn sm', type: 'button', style: 'margin-top:8px', onclick: function (e) {
+            e.currentTarget.remove(); vid.pause(); vid.hidden = true; vbox.appendChild(anim); mountAnim();
+          } }, 'Harakatli versiyani ochish (takrorlash rejimi bilan)'));
+        } else if (A.QissaVideo) { vbox.appendChild(anim); mountAnim(); }
+      })();
+      body.appendChild(nextBtn('Qissani o’qishga o’tish', function () { stopSpeech(); markStep('video'); goStep('dialog'); }));
+    }
+
     function stepDialog(body, lesson) {
       var sum = h('div', { class: 'cr-readsum', hidden: true });
       body.appendChild(h('div', { class: 'cr-ph' }, [
@@ -509,24 +525,6 @@
         h('h2', {}, lesson.dialog.title),
         h('p', {}, lesson.dialog.scene)
       ]));
-      /* 🎬 Qissa videosi: qahramonlar harakatda, ovoz va subtitr bilan */
-      if (A.QissaVideo) {
-        var vbox = h('div', { class: 'cr-video' });
-        body.appendChild(vbox);
-        (async function () {
-          var have = { lines: [], words: [] };
-          if (D.mode === 'server') { try { have = await D.api('GET', 'api/qissa-audio?l=' + encodeURIComponent(lesson.id)); } catch (e) { } }
-          var sc = A.QissaVideo.scriptFor(lesson);
-          A.QissaVideo.mount(vbox, lesson, {
-            audioUrl: function (i) { return have.lines.indexOf(i) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&i=' + i : null; },
-            wordUrl: function (text) {
-              var k = sc.recap ? sc.recap.words.map(function (w) { return w[0]; }).indexOf(text) : -1;
-              return k >= 0 && have.words.indexOf(k) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&w=' + k : null;
-            },
-            onEnd: function () { markStep('dialog'); }
-          });
-        })();
-      }
       body.appendChild(h('div', { class: 'cr-howread' }, [
         h('b', {}, '1. Tinglang'), h('span', {}, ' — «Qissani tinglash»: har bir gap navbat bilan o’qiladi va belgilanadi. '),
         h('b', {}, '2. O’zingiz o’qing'), h('span', {}, SR ? ' — gap yonidagi 🎤 ni bosib, ovoz chiqarib o’qing: to’g’ri o’qilgan so’zlar yashil, xatolari qizil bo’ladi.' : ' — ovoz chiqarib o’qing. (Talaffuzni avtomatik tekshirish Chrome brauzerida ishlaydi.)')
@@ -543,7 +541,7 @@
       });
       body.appendChild(panel);
       body.appendChild(sum);
-      body.appendChild(nextBtn('Qoidaga o’tish', function () { panel.stop(); markStep('dialog'); goStep('grammar'); }));
+      body.appendChild(nextBtn('Yangi so’zlarga o’tish', function () { panel.stop(); markStep('dialog'); goStep('words'); }));
     }
 
     /* ---- 3. Qoida ---- */
@@ -729,7 +727,7 @@
               h('button', { class: 'btn primary lg', type: 'button', onclick: function () { goReview(gateRv.id); } }, 'Takrorlash testiga o’tish →')
             ])
             : nv && nv.status !== 'locked'
-              ? nextBtn('Keyingi darsga o’tish', function () { openLesson(nxt, 'words'); })
+              ? nextBtn('Keyingi darsga o’tish', function () { openLesson(nxt, 'video'); })
               : h('p', { class: 'muted small' }, nxt ? 'Keyingi dars test ' + C.PASS + '% dan o’tilgach ochiladi.' : 'Bu bo’limdagi oxirgi dars. Barakalla!'));
           return;
         }
@@ -814,12 +812,53 @@
         kbFocus(inp);
         return { f: f, inp: inp };
       });
+      /* Yordam darhol berilmaydi: o'quvchi avval o'zi urinadi. Xato tekshirsa yoki
+         40 soniya o'tsa «💡 Yordam» chiqadi; har bosishda bittadan kuchliroq ishora. */
+      function hintBox(levels, onUse) {
+        var used = 0;
+        var area = h('div', { class: 'cr-hints' });
+        var btn = h('button', { type: 'button', class: 'cr-hint-btn', hidden: true, onclick: function () {
+          if (used >= levels.length) return;
+          var lv = levels[used++];
+          area.appendChild(typeof lv === 'function' ? lv() : h('div', { class: 'cr-hint' }, lv));
+          if (onUse) onUse(used);
+          btn.textContent = used >= levels.length ? '💡 Yordam tugadi' : '💡 Yana yordam (' + used + '/' + levels.length + ')';
+          if (used >= levels.length) btn.disabled = true;
+        } }, '💡 Yordam');
+        var timer = setTimeout(function () { btn.hidden = false; }, 40000);
+        return { btn: btn, area: area, show: function () { btn.hidden = false; }, done: function () { clearTimeout(timer); btn.hidden = true; }, used: function () { return used; } };
+      }
+      function sameWord(a, b) {
+        var x = C.normAr(a).replace(/^ال/, ''), y = C.normAr(b).replace(/^ال/, '');
+        return !!x && (x === y || (y.length > 3 && C.compareAr(y, x).percent === 100));
+      }
       if (fillInputs.length) {
-        body.appendChild(exCard('Bo’sh joyga mos so’zni yozing', 'Qissadagi gaplar — tushib qolgan so’zni arabcha yozing', fillInputs.map(function (x, i) {
+        body.appendChild(exCard('Bo’sh joyga mos so’zni yozing', 'Qissadagi gaplar — tushib qolgan so’zni arabcha yozing. Avval o’zingiz urinib ko’ring, qiyin bo’lsa «💡 Yordam» chiqadi.', fillInputs.map(function (x, i) {
           var parts = x.f.text.split('_____');
+          var plain = C.normAr(x.f.answer);
+          var hb = hintBox([
+            'Gapning tarjimasi: «' + x.f.uz + '»',
+            'So’zning ma’nosi: «' + x.f.hint + '»',
+            'Birinchi harfi: «' + plain.charAt(0) + '» · jami ' + plain.replace(/\s/g, '').length + ' ta harf',
+            function () { return h('div', { class: 'cr-hint' }, [h('span', {}, 'So’zni tinglang va yozing: '), h('button', { type: 'button', class: 'cr-say', onclick: function () { say(x.f.answer); } }, speakerSvg())]); }
+          ], function (n) { x.hints = n; });
+          var mark = h('span', { class: 'cr-fill-mark' });
+          var chk = h('button', { type: 'button', class: 'btn sm', onclick: function () {
+            var v = x.inp.value.trim();
+            if (!v) { x.inp.focus(); return; }
+            if (sameWord(v, x.f.answer)) {
+              mark.textContent = '✓ To’g’ri!'; mark.className = 'cr-fill-mark ok'; x.inp.classList.add('ok'); x.inp.classList.remove('bad'); hb.done();
+            } else {
+              x.tries = (x.tries || 0) + 1;
+              mark.textContent = '✗ Yana urinib ko’ring'; mark.className = 'cr-fill-mark bad'; x.inp.classList.add('bad'); hb.show();
+            }
+          } }, 'Tekshirish');
+          x.inp.addEventListener('input', function () { mark.textContent = ''; x.inp.classList.remove('ok', 'bad'); });
+          x.inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); chk.click(); } });
           return h('div', { class: 'cr-fill' }, [
             h('div', { class: 'cr-fill-ar', dir: 'rtl', lang: 'ar' }, [h('span', { class: 'cr-fill-n' }, (i + 1) + '.'), parts[0], x.inp, parts[1] || '']),
-            h('div', { class: 'cr-fill-uz' }, x.f.uz + '  ·  yordam: «' + x.f.hint + '»')
+            h('div', { class: 'cr-fill-ctl' }, [chk, mark, hb.btn]),
+            hb.area
           ]);
         })));
       }
@@ -831,8 +870,32 @@
         return { t: t, ta: ta };
       });
       if (trInputs.length) {
-        body.appendChild(exCard('Arabchaga tarjima qiling', 'Qissadagi gaplarni eslab, arabcha yozing', trInputs.map(function (x, i) {
-          return h('div', { class: 'cr-q' }, [h('p', { class: 'cr-q-t' }, (i + 1) + '. «' + x.t.uz + '»'), x.ta]);
+        body.appendChild(exCard('Arabchaga tarjima qiling', 'Qissadagi gaplarni eslab, arabcha yozing. Tekshirib ko’ring — qiyin bo’lsa yordam chiqadi.', trInputs.map(function (x, i) {
+          var words = String(x.t.ar).split(/\s+/);
+          var hb = hintBox([
+            'Birinchi so’zi: «' + words[0] + '»',
+            'Gapda ' + words.length + ' ta so’z bor. Boshlanishi: «' + words.slice(0, Math.max(1, Math.ceil(words.length / 2))).join(' ') + ' …»',
+            function () { return h('div', { class: 'cr-hint' }, [h('span', {}, 'Gapni tinglang va yozing: '), h('button', { type: 'button', class: 'cr-say', onclick: function () { say(x.t.ar); } }, speakerSvg())]); }
+          ], function (n) { x.hints = n; });
+          var res = h('div', { class: 'cr-tr-res' });
+          var chk = h('button', { type: 'button', class: 'btn sm', onclick: function () {
+            var v = x.ta.value.trim(); if (!v) { x.ta.focus(); return; }
+            var c = C.compareAr(x.t.ar, v);
+            UI.clear(res);
+            if (c.percent === 100) { res.appendChild(h('span', { class: 'cr-fill-mark ok' }, '✓ A’lo, to’liq to’g’ri!')); hb.done(); }
+            else {
+              res.appendChild(h('span', { class: 'cr-fill-mark ' + (c.percent >= 70 ? 'ok' : 'bad') }, c.percent + '% to’g’ri — yashil so’zlar to’g’ri, qolganini to’g’rilang'));
+              /* To'g'ri yozilgan so'zlar ko'rinadi, qolgani bo'sh joy — javob oshkor bo'lmaydi */
+              var k = 0;
+              res.appendChild(h('div', { class: 'cr-marked', dir: 'rtl', lang: 'ar' }, String(x.t.ar).split(/\s+/).map(function (w) {
+                var okw = C.normAr(w) ? c.marks[k++] : true;
+                return h('span', { class: okw ? 'g' : 'gap' }, okw ? w + ' ' : '＿＿＿ ');
+              })));
+              hb.show();
+            }
+          } }, 'Tekshirish');
+          return h('div', { class: 'cr-q' }, [h('p', { class: 'cr-q-t' }, (i + 1) + '. «' + x.t.uz + '»'), x.ta,
+            h('div', { class: 'cr-fill-ctl' }, [chk, hb.btn]), res, hb.area]);
         })));
       }
 
@@ -891,6 +954,7 @@
             try {
               var r = await src.homework(lesson.id, {
                 autoAnswers: autoAns, texts: tv, fillAnswers: fa, trAnswers: ta2, readPercent: reading.percent,
+                hints: { fill: fillInputs.map(function (x) { return x.hints || 0; }), tr: trInputs.map(function (x) { return x.hints || 0; }) },
                 fileIds: uploaded.map(function (f) { return f.id; }),
                 files: uploaded.map(function (f) { return { name: f.name, dataUrl: f.dataUrl || '' }; })
               });

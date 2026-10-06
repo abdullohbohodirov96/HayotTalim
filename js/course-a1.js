@@ -765,8 +765,9 @@
 
   /* «Darsda» o'tiladigan bosqichlar va «Uyda» bajariladigan vazifa alohida guruh */
   var STEPS = [
-    { id: 'words', label: 'So’zlar', part: 'darsda' },
+    { id: 'video', label: 'Video', part: 'darsda' },
     { id: 'dialog', label: 'Qissa', part: 'darsda' },
+    { id: 'words', label: 'So’zlar', part: 'darsda' },
     { id: 'grammar', label: 'Qoida', part: 'darsda' },
     { id: 'practice', label: 'Mashq', part: 'darsda' },
     { id: 'test', label: 'Test', part: 'darsda' },

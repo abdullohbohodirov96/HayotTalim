@@ -360,24 +360,21 @@
       }
       return speakTts();
       function speakTts() {
-        if (!global.speechSynthesis) return animate(est, tok, onP);
-        return new Promise(function (res, rej) {
-          try { speechSynthesis.cancel(); } catch (e) { }
-          var u = new SpeechSynthesisUtterance(ln.ar);
-          var v = ttsVoice(i % 2 ? 'B' : 'A');
-          u.lang = v ? v.lang : 'ar-SA'; if (v) u.voice = v;
-          u.rate = rate; u.pitch = i % 2 ? 0.95 : 1.15;
-          var done = false, t0 = performance.now(), raf;
-          function fin() { if (done) return; done = true; cancelAnimationFrame(raf); onP(1); res(); }
-          u.onend = fin; u.onerror = fin;
-          (function f(now) {
-            if (done) return;
-            if (tok !== st.token) { done = true; try { speechSynthesis.cancel(); } catch (e) { } rej('stop'); return; }
-            onP(Math.min(0.97, (now - t0) / est));
-            raf = requestAnimationFrame(f);
-          })(t0);
-          speechSynthesis.speak(u);
-          setTimeout(fin, est * 2.2 + 2500);          // ehtiyot: onend kelmasa
+        if (!A.Speak) return animate(est, tok, onP);
+        var t0 = performance.now(), raf, done = false;
+        (function f(now) {
+          if (done) return;
+          if (tok !== st.token) { done = true; A.Speak.stop(); return; }
+          onP(Math.min(0.97, (now - t0) / est));
+          raf = requestAnimationFrame(f);
+        })(t0);
+        return A.Speak.say(ln.ar, { rate: rate, who: i % 2 ? 'B' : 'A', onStart: function () { t0 = performance.now(); } }).then(function (ok) {
+          done = true; cancelAnimationFrame(raf);
+          if (tok !== st.token) throw 'stop';
+          /* Ovoz chiqmagan bo'lsa — subtitr o'qish tezligida davom etadi */
+          var left = est - (performance.now() - t0);
+          if (!ok && left > 0) return animate(left, tok, function (p) { onP(Math.min(1, ((est - left) + p * left) / est)); });
+          onP(1);
         });
       }
     }
@@ -442,16 +439,12 @@
       recap.appendChild(el('div', { class: 'qv-end' }, 'Barakalla! Endi «Mashq» va «Uy vazifasi»ga o’ting.'));
     }
     function sayWord(text, tok) {
-      if (opts.wordUrl && opts.wordUrl(text)) {
-        return new Promise(function (res) { var au = new Audio(opts.wordUrl(text)); au.onended = res; au.onerror = res; au.play().catch(res); });
-      }
-      if (!global.speechSynthesis) return wait(1200, tok);
-      return new Promise(function (res) {
-        try { speechSynthesis.cancel(); } catch (e) { }
-        var u = new SpeechSynthesisUtterance(text); var v = ttsVoice('A');
-        u.lang = v ? v.lang : 'ar-SA'; if (v) u.voice = v; u.rate = 0.75;
-        var d = false; var fin = function () { if (!d) { d = true; res(); } };
-        u.onend = fin; u.onerror = fin; speechSynthesis.speak(u); setTimeout(fin, 3500);
+      var url = opts.wordUrl && opts.wordUrl(text);
+      if (!A.Speak) return wait(1200, tok);
+      var t0 = Date.now();
+      return A.Speak.say(text, { rate: 0.75, url: url || undefined }).then(function (ok) {
+        if (tok !== st.token) throw 'stop';
+        if (!ok) return wait(Math.max(0, 1300 - (Date.now() - t0)), tok);
       });
     }
 
@@ -479,7 +472,7 @@
     }
     function pause() {
       st.token++; st.playing = false;
-      try { speechSynthesis.cancel(); } catch (e) { }
+      if (A.Speak) A.Speak.stop();
       talk(null); setBtn();
     }
     function restart() { pause(); reset(); play(); }

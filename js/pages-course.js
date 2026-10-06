@@ -79,7 +79,7 @@
       }, [UI.icon('play'), 'Darslarni ko’rish (o’quvchi ko’rinishi)']),
       D.mode === 'server' && (App.can('settings.edit') || App.can('curriculum.edit')) ? h('button', {
         class: 'btn', onclick: function () { ttsModal(); }
-      }, '🎙 Qissa ovozlari') : null
+      }, '🎙 Ovoz va video') : null
     ]));
     var body = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
     view.appendChild(body);
@@ -257,39 +257,71 @@
     ]));
   }
 
-  /* Qissa ovozlari: ElevenLabs studiya ovozini serverda yaratish */
+  /* Dars ovozlari (ElevenLabs) va dars videolari (MP4) */
   function ttsModal() {
     var list = h('div', { class: 'list' }, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
+    var timers = [];
     UI.modal({
-      title: 'Qissa ovozlari (ElevenLabs)',
+      title: 'Dars ovozlari va videolari',
       body: [
-        h('p', { class: 'small muted' }, 'Har bir darsning qissasi ikki xil ayol ovozida (Maryam va Zaynab) va yangi so’zlar alohida o’qiladi. ' +
-          'Ovoz videodars, qissa va lug’atda ishlatiladi. Serverda ELEVENLABS_API_KEY bo’lishi kerak; har yaratish ElevenLabs kreditini sarflaydi.'),
+        h('p', { class: 'small muted' }, 'Ovoz: darsning barcha so’zlari, qissa gaplari (Maryam va Zaynab ovozida) va qoida misollari studiya ovozida yoziladi — o’quvchi «🔊» ni bosganda shu ovoz chalinadi, qurilmada arabcha ovoz bo’lishi shart emas. ' +
+          'Serverda ELEVENLABS_API_KEY kerak; har yaratish ElevenLabs kreditini sarflaydi (bir dars ≈ 25–30 ta qisqa ovoz).'),
+        h('p', { class: 'small muted' }, 'Video: MP4 (60 MB gacha) yuklasangiz, o’quvchi darsni shu videodan boshlaydi. Yuklanmasa — harakatli sahna ko’rsatiladi.'),
         list
       ],
-      actions: [{ label: 'Yopish' }]
+      actions: [{ label: 'Yopish', onClick: function (close) { timers.forEach(clearInterval); close(); } }]
     });
-    (async function () {
-      UI.clear(list);
-      for (var i = 0; i < C.LESSONS.length; i++) {
-        (function (l) {
-          var stat = h('span', { class: 'small muted' }, '…');
-          var btn = h('button', { class: 'btn sm primary', onclick: function (e) {
-            UI.busy(e.currentTarget, async function () {
-              try {
-                var r = await D.api('POST', 'api/course/tts', { lessonId: l.id });
-                stat.textContent = '✓ ' + r.lines + ' gap, ' + r.words + ' so’z'; UI.toast('Ovoz yaratildi.', 'ok');
-              } catch (ex) { UI.toast(ex.message || 'Yaratilmadi', 'bad'); }
-            });
-          } }, 'Yaratish');
-          list.appendChild(h('div', { class: 'list-item' }, [h('div', { class: 'main-col' }, [h('b', {}, l.n + '. ' + l.title), stat]), btn]));
-          D.api('GET', 'api/qissa-audio?l=' + l.id).then(function (st) {
-            stat.textContent = st.lines.length ? '✓ ovoz bor (' + st.lines.length + ' gap) · ' + (st.at || '') : 'Brauzer ovozi (studiya ovozi yo’q)';
-            if (st.lines.length) btn.textContent = 'Qayta yaratish';
-          }).catch(function () { stat.textContent = '—'; });
-        })(C.LESSONS[i]);
+    UI.clear(list);
+    C.LESSONS.forEach(function (l) {
+      var aStat = h('span', { class: 'small muted' }, '…');
+      var vStat = h('span', { class: 'small muted' }, '…');
+      var aBtn = h('button', { class: 'btn sm primary', onclick: function (e) {
+        UI.busy(e.currentTarget, async function () {
+          try { await D.api('POST', 'api/course/tts', { lessonId: l.id }); watch(); UI.toast('Ovoz yaratish boshlandi.', 'ok'); }
+          catch (ex) { UI.toast(ex.message || 'Boshlanmadi', 'bad'); }
+        });
+      } }, 'Ovoz yaratish');
+      var file = h('input', { type: 'file', accept: 'video/mp4', hidden: true });
+      var vBtn = h('button', { class: 'btn sm', onclick: function () { file.click(); } }, 'MP4 yuklash');
+      var vDel = h('button', { class: 'btn sm', hidden: true, onclick: function (e) {
+        UI.busy(e.currentTarget, async function () {
+          try { await D.api('POST', 'api/course/video', { lessonId: l.id, remove: true }); refresh(); } catch (ex) { UI.toast(ex.message, 'bad'); }
+        });
+      } }, 'O’chirish');
+      file.addEventListener('change', function () {
+        var f = file.files && file.files[0]; if (!f) return;
+        if (f.size > 60 * 1024 * 1024) { UI.toast('Video 60 MB dan katta.', 'bad'); return; }
+        vStat.textContent = 'Yuklanmoqda…';
+        var rd = new FileReader();
+        rd.onload = async function () {
+          try {
+            await D.api('POST', 'api/course/video', { lessonId: l.id, name: f.name, type: 'video/mp4', data: String(rd.result).split(',')[1] });
+            UI.toast('Video yuklandi.', 'ok'); refresh();
+          } catch (ex) { vStat.textContent = ex.message || 'Yuklanmadi'; }
+        };
+        rd.readAsDataURL(f);
+        file.value = '';
+      });
+      list.appendChild(h('div', { class: 'list-item', style: 'flex-wrap:wrap;gap:8px' }, [
+        h('div', { class: 'main-col', style: 'min-width:200px' }, [h('b', {}, l.n + '. ' + l.title), h('span', {}, ['🎙 ', aStat]), h('span', {}, ['🎬 ', vStat])]),
+        h('div', { class: 'rowflex', style: 'gap:6px;flex-wrap:wrap' }, [aBtn, vBtn, vDel, file])
+      ]));
+      function refresh() {
+        D.api('GET', 'api/qissa-audio?l=' + l.id).then(function (st) {
+          if (st.job && st.job.running) { aStat.textContent = 'Yaratilmoqda: ' + st.job.done + ' / ' + st.job.total; aBtn.disabled = true; return; }
+          aBtn.disabled = false;
+          if (st.job && st.job.error) aStat.textContent = 'Xato: ' + st.job.error;
+          else aStat.textContent = st.items ? '✓ studiya ovozi (' + st.items + ' ta) · ' + (st.at || '') : 'Studiya ovozi yo’q (qurilma ovozi)';
+          aBtn.textContent = st.items ? 'Qayta yaratish' : 'Ovoz yaratish';
+        }).catch(function () { aStat.textContent = '—'; });
+        D.api('GET', 'api/lesson-video?l=' + l.id + '&info=1').then(function (v) {
+          vStat.textContent = v.has ? '✓ ' + v.name + ' · ' + (v.at || '') : 'MP4 yo’q (harakatli sahna ko’rsatiladi)';
+          vDel.hidden = !v.has; vBtn.textContent = v.has ? 'Almashtirish' : 'MP4 yuklash';
+        }).catch(function () { vStat.textContent = '—'; });
       }
-    })();
+      function watch() { refresh(); var t = setInterval(function () { refresh(); if (!aBtn.disabled) clearInterval(t); }, 2500); timers.push(t); }
+      refresh();
+    });
   }
 
   function moveForm(r, lessons, App) {

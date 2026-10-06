@@ -153,13 +153,14 @@
     if (hw && hw.submittedAt) return { id: 'tekshir', label: 'Ustoz tekshirmoqda', cls: 'info' };
     return { id: 'bajar', label: 'Bajarish kerak', cls: 'todo' };
   }
-  var STEP_IDS = ['words', 'dialog', 'grammar', 'practice', 'test', 'homework'];
+  var STEP_IDS = ['video', 'dialog', 'words', 'grammar', 'practice', 'test', 'homework'];
   function stepsDone(l) { return STEP_IDS.filter(function (s) { return l.steps && l.steps[s]; }).length; }
 
   /* =================== Portal =================== */
   function render(root, d, opts) {
     opts = opts || {};
     var src = makeSource(d);
+    if (A.Speak) A.Speak.loadMap();
     var st = d.student, fin = d.finance || {}, att = d.attendance || {};
     var groups = d.groups || [];
     var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
@@ -362,7 +363,7 @@
           h('button', { class: 'btn sm primary', onclick: function () { goLesson(back.id, 'homework'); } }, 'Qayta yuborish'), 'warn'));
         if (curL) {
           var sd = stepsDone(curL);
-          items.push(todoItem('play', curL.n + '-dars: ' + curL.title, sd + ' / 6 bosqich bajarildi',
+          items.push(todoItem('play', curL.n + '-dars: ' + curL.title, sd + ' / 7 bosqich bajarildi',
             h('button', { class: 'btn sm primary', onclick: function () { goLesson(curL.id); } }, 'Davom etish')));
         }
         var openRv = (cv.reviews || []).filter(function (r) { return r.status === 'open'; })[0];
@@ -411,7 +412,7 @@
     /* ---------- 2. Darslarim ---------- */
     function vLessons(el) {
       var box = h('div', {}, loading());
-      el.appendChild(h('p', { class: 'sp-lead' }, 'Har bir dars: so’zlar → matn → qoida → mashq → test → uy vazifasi. Test 80% dan yuqori va vazifa yuborilgach keyingi dars ochiladi.'));
+      el.appendChild(h('p', { class: 'sp-lead' }, 'Har bir dars: video → qissa → so’zlar → qoida → mashq → test, keyin uy vazifasi. Test 80% dan yuqori va vazifa yuborilgach keyingi dars ochiladi.'));
       el.appendChild(box);
       load('course').then(function (cv) {
         UI.clear(box);
@@ -460,7 +461,7 @@
               h('b', {}, l.n + '. ' + l.title),
               h('div', { class: 'sp-steps' }, STEP_IDS.map(function (s) { return h('i', { class: l.steps && l.steps[s] ? 'on' : '' }); })),
               h('span', { class: 'sp-lesson-s' }, locked ? 'Yopiq' : l.status === 'done' ? 'Tugallangan' + (l.testBest != null ? ' · test ' + l.testBest + '%' : '')
-                : sd ? sd + ' / 6 bosqich' : 'Boshlanmagan')
+                : sd ? sd + ' / 7 bosqich' : 'Boshlanmagan')
             ]);
       })();
     }

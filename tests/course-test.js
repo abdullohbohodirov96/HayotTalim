@@ -208,6 +208,12 @@ const ID = n => R + '_' + n;
   ok('Ustoz panelida takrorlash va lug’at ko’rinadi', r3 && r3.reviews[0].status === 'done' && r3.vocab.total > 0);
   const qa = await req('/api/qissa-audio?l=a1-01');
   ok('Qissa ovozi holati (ochiq yo’l)', qa.status === 200 && Array.isArray(qa.json.lines));
+  const mp4 = Buffer.from('00000018667479706d703432000000006d703432', 'hex').toString('base64');
+  eq('Dars videosi (MP4) yuklandi', (await req('/api/course/video', { cookie: dir, body: { lessonId: 'a1-03', name: 'dars3.mp4', type: 'video/mp4', data: mp4 } })).status, 200);
+  ok('Video ochiq yo’lda bor', (await req('/api/lesson-video?l=a1-03&info=1')).json.has === true);
+  eq('Faqat MP4 qabul qilinadi', (await req('/api/course/video', { cookie: dir, body: { lessonId: 'a1-03', name: 'x.exe', type: 'application/octet-stream', data: mp4 } })).status, 400);
+  eq('O’quvchi video yuklay olmaydi', (await req('/api/course/video', { cookie: k3.cookie, body: { lessonId: 'a1-03', type: 'video/mp4', data: mp4 } })).status, 401);
+  ok('Ovoz xaritasi ochiq yo’lda', (await req('/api/qissa-audio/map')).status === 200);
   eq('Kalitsiz ElevenLabs yaratish aniq xato beradi', (await req('/api/course/tts', { cookie: dir, body: { lessonId: 'a1-01' } })).status, 400);
 
   console.log(out.join('\n'));

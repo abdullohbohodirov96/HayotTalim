@@ -922,6 +922,66 @@ async function kabLogin(login, pw) {
   return null;
 }
 
+/* ---- ElevenLabs: darsning barcha arabcha matnlarini bir marta ovozlash ----
+   Qissa gaplari ikki qahramon ovozida (A/B), so'zlar va misollar — A ovozida.
+   Natija: qissaaudio/<darsId> { lessonId, lines:{i:fid}, words:{k:fid}, items:{matn:fid} } */
+const ttsJobs = {};
+function normArText(t) {
+  return String(t || '').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[^\u0621-\u064A\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+async function elevenTts(text, voice, slow) {
+  const key = process.env.ELEVENLABS_API_KEY;
+  const model = process.env.ELEVEN_MODEL || 'eleven_multilingual_v2';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + voice + '?output_format=mp3_44100_128', {
+      method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+      body: JSON.stringify({ text, model_id: model, voice_settings: { stability: 0.6, similarity_boost: 0.8, speed: slow ? 0.82 : 0.92 } })
+    });
+    if (r.ok) return Buffer.from(await r.arrayBuffer());
+    if (r.status === 429 || r.status >= 500) { await new Promise(x => setTimeout(x, 1500 * (attempt + 1))); continue; }
+    throw new Error('ElevenLabs: ' + r.status + ' ' + (await r.text()).slice(0, 200));
+  }
+  throw new Error('ElevenLabs javob bermadi (qayta urinib ko’ring).');
+}
+async function generateLessonAudio(lesson, user, job) {
+  const voiceA = process.env.ELEVEN_VOICE_A || 'R5kMoWNNTn84ezIJA53m';     // Wiam — fusha, yosh ayol
+  const voiceB = process.env.ELEVEN_VOICE_B || 'VjxKp6w1MCufETfW5zFM';     // Nouf — yosh ayol
+  const tasks = [];
+  lesson.dialog.lines.forEach((ln, i) => tasks.push({ kind: 'line', i, text: ln.ar, voice: i % 2 ? voiceB : voiceA }));
+  const sc = A.QissaVideo ? A.QissaVideo.scriptFor(lesson) : null;
+  const recap = sc && sc.recap ? sc.recap.words.map(w => w[0]) : [];
+  recap.forEach((t, k) => tasks.push({ kind: 'word', k, text: t, voice: voiceA, slow: true }));
+  const extra = [];
+  (lesson.words || []).forEach(w => extra.push(w.ar));
+  ((lesson.grammar && lesson.grammar.points) || []).forEach(pt => (pt.ex || []).forEach(e => extra.push(e.ar)));
+  const seen = {};
+  tasks.forEach(t => { seen[normArText(t.text)] = 1; });
+  extra.forEach(t => { const n = normArText(t); if (n && !seen[n]) { seen[n] = 1; tasks.push({ kind: 'item', text: t, voice: voiceA, slow: true }); } });
+  job.total = tasks.length;
+  const doc = { lessonId: lesson.id, lines: {}, words: {}, items: {}, at: stamp(), by: user.name };
+  for (const t of tasks) {
+    const buf = await elevenTts(t.text, t.voice, t.slow);
+    const sv = await files.save(store, { name: lesson.id + '-' + (t.kind === 'line' ? t.i : t.kind === 'word' ? 'w' + t.k : 'x' + job.done) + '.mp3', type: 'audio/mpeg',
+      dataBase64: buf.toString('base64'), purpose: 'qissa-audio', refPath: 'qissaaudio/' + lesson.id, byUserId: user.id, stamp });
+    if (sv.ok) {
+      if (t.kind === 'line') doc.lines[t.i] = sv.file.id;
+      if (t.kind === 'word') doc.words[t.k] = sv.file.id;
+      doc.items[normArText(t.text)] = sv.file.id;
+    }
+    job.done++;
+  }
+  const old = await store.get('qissaaudio/' + lesson.id);
+  if (old) {
+    const keepIds = new Set(Object.values(doc.items));
+    for (const fid of [...Object.values(old.lines || {}), ...Object.values(old.words || {}), ...Object.values(old.items || {})]) {
+      if (!keepIds.has(fid)) { try { await files.remove(store, fid); } catch (e) { } }
+    }
+  }
+  await store.set('qissaaudio/' + lesson.id, doc);
+  await writeAudit(user, 'Dars ovozlari yaratildi (ElevenLabs)', lesson.id, job.done + ' ta ovoz');
+  job.running = false; job.finishedAt = stamp();
+}
+
 async function fileVisibleToStudents(rec, studentIds) {
   if (!rec) return false;
   const ids = (studentIds || []).map(String);
@@ -1848,13 +1908,51 @@ async function handleApi(req, res, url) {
      (U kirish sahifasida baribir ko'rinadi — boshqa hech narsa berilmaydi.) */
   /* ---- Qissa ovozlari (ochiq): dars videosi va qissa uchun studiya ovozi ----
      qissaaudio/<darsId> { lines: {i: fileId}, words: {k: fileId}, at }       */
+  /* Studiya ovozlari xaritasi: matn (harakatsiz) → fayl manzili. Brauzerdagi barcha «🔊» shu orqali */
+  if (route === 'qissa-audio/map' && req.method === 'GET') {
+    const lid = String(url.searchParams.get('l') || '');
+    const rows = (await store.list('qissaaudio/')).map(r => r.data).filter(Boolean)
+      .filter(d => !lid || d.lessonId === lid || !d.lessonId);
+    const items = {};
+    rows.forEach(d => Object.keys(d.items || {}).forEach(k => { items[k] = 'api/qissa-audio?f=' + d.items[k]; }));
+    return send(res, 200, { items }, { 'Cache-Control': 'public, max-age=300' });
+  }
+  /* Dars videosi (MP4) — markaz yuklagan bo'lsa, o'quvchi darsni shundan boshlaydi. Range qo'llab-quvvatlanadi. */
+  if (route === 'lesson-video' && req.method === 'GET') {
+    const lid = String(url.searchParams.get('l') || '');
+    const doc = /^[a-z0-9-]{2,20}$/.test(lid) ? await store.get('lessonvideo/' + lid) : null;
+    if (url.searchParams.get('info')) return send(res, 200, { has: !!(doc && doc.fileId), name: doc ? doc.name : '', at: doc ? doc.at : null });
+    const rec = doc ? await files.meta(store, doc.fileId) : null;
+    const buf = rec ? files.readBody(rec) : null;
+    if (!buf) return send(res, 404, { error: 'Video yo’q.' });
+    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+    if (range) {
+      let a = range[1] === '' ? buf.length - Number(range[2]) : Number(range[1]);
+      let b = range[1] !== '' && range[2] !== '' ? Number(range[2]) : buf.length - 1;
+      a = Math.max(0, a); b = Math.min(buf.length - 1, b);
+      if (a > b) { res.writeHead(416, { 'Content-Range': 'bytes */' + buf.length }); return res.end(); }
+      res.writeHead(206, { 'Content-Type': rec.type, 'Content-Length': b - a + 1, 'Content-Range': 'bytes ' + a + '-' + b + '/' + buf.length, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600' });
+      return res.end(buf.subarray(a, b + 1));
+    }
+    res.writeHead(200, { 'Content-Type': rec.type, 'Content-Length': buf.length, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600' });
+    return res.end(buf);
+  }
+  if (route === 'qissa-audio' && req.method === 'GET' && url.searchParams.get('f')) {
+    const rec = await files.meta(store, String(url.searchParams.get('f')));
+    const buf = rec && rec.purpose === 'qissa-audio' ? files.readBody(rec) : null;
+    if (!buf) return send(res, 404, { error: 'Ovoz yo’q.' });
+    res.writeHead(200, { 'Content-Type': rec.type, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=604800', 'X-Content-Type-Options': 'nosniff' });
+    return res.end(buf);
+  }
   if (route === 'qissa-audio' && req.method === 'GET') {
     const lid = String(url.searchParams.get('l') || '');
     if (!/^[a-z0-9-]{2,20}$/.test(lid)) return send(res, 404, { error: 'Topilmadi.' });
     const doc = (await store.get('qissaaudio/' + lid)) || { lines: {}, words: {} };
     const i = url.searchParams.get('i'), w = url.searchParams.get('w');
     if (i == null && w == null) {
-      return send(res, 200, { lines: Object.keys(doc.lines || {}).map(Number), words: Object.keys(doc.words || {}).map(Number), at: doc.at || null });
+      const job = ttsJobs[lid] || null;
+      return send(res, 200, { lines: Object.keys(doc.lines || {}).map(Number), words: Object.keys(doc.words || {}).map(Number),
+        items: Object.keys(doc.items || {}).length, at: doc.at || null, job });
     }
     const fid = i != null ? (doc.lines || {})[String(Number(i))] : (doc.words || {})[String(Number(w))];
     const rec = fid ? await files.meta(store, fid) : null;
@@ -2324,45 +2422,34 @@ async function handleApi(req, res, url) {
     /* ---- Qissa ovozlarini ElevenLabs bilan yaratish (serverda ELEVENLABS_API_KEY bo'lsa) ---- */
     if (route === 'course/tts' && req.method === 'POST') {
       if (!A.can(user, 'settings.edit') && !A.can(user, 'curriculum.edit')) return nope();
-      const key = process.env.ELEVENLABS_API_KEY || '';
-      if (!key) return send(res, 400, { error: 'Serverda ELEVENLABS_API_KEY sozlanmagan. .env fayliga kalitni yozing va serverni qayta ishga tushiring.' });
+      if (!process.env.ELEVENLABS_API_KEY) return send(res, 400, { error: 'Serverda ELEVENLABS_API_KEY sozlanmagan. .env fayliga kalitni yozing va serverni qayta ishga tushiring.' });
       const body = await readBody(req);
       const lesson = A.Course.byId(String(body.lessonId || ''));
       if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
-      const voiceA = process.env.ELEVEN_VOICE_A || 'R5kMoWNNTn84ezIJA53m';     // Wiam — fusha, yosh ayol
-      const voiceB = process.env.ELEVEN_VOICE_B || 'VjxKp6w1MCufETfW5zFM';     // Nouf — yosh ayol
-      const model = process.env.ELEVEN_MODEL || 'eleven_multilingual_v2';
-      async function tts(text, voice, slow) {
-        const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + voice + '?output_format=mp3_44100_128', {
-          method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-          body: JSON.stringify({ text, model_id: model, voice_settings: { stability: 0.6, similarity_boost: 0.8, speed: slow ? 0.8 : 0.9 } })
-        });
-        if (!r.ok) throw new Error('ElevenLabs: ' + r.status + ' ' + (await r.text()).slice(0, 200));
-        return Buffer.from(await r.arrayBuffer());
+      if (ttsJobs[lesson.id] && ttsJobs[lesson.id].running) return send(res, 200, { ok: true, job: ttsJobs[lesson.id] });
+      const job = ttsJobs[lesson.id] = { running: true, done: 0, total: 0, error: null, startedAt: stamp() };
+      generateLessonAudio(lesson, user, job).catch(e => { job.error = e.message || String(e); job.running = false; });
+      return send(res, 200, { ok: true, started: true, job });
+    }
+    /* Dars videosini yuklash / o'chirish (MP4, 60 MB gacha) */
+    if (route === 'course/video' && req.method === 'POST') {
+      if (!A.can(user, 'settings.edit') && !A.can(user, 'curriculum.edit')) return nope();
+      const body = await readBody(req, Number(process.env.VIDEO_MAX_BODY || 85e6));
+      const lesson = A.Course.byId(String(body.lessonId || ''));
+      if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
+      const old = await store.get('lessonvideo/' + lesson.id);
+      if (body.remove) {
+        if (old) { try { await files.remove(store, old.fileId); } catch (e) { } if (store.del) await store.del('lessonvideo/' + lesson.id); }
+        return send(res, 200, { ok: true });
       }
-      try {
-        const doc = { lines: {}, words: {}, at: stamp(), by: user.name, model };
-        const lines = lesson.dialog.lines;
-        for (let i = 0; i < lines.length; i++) {
-          const buf = await tts(lines[i].ar, i % 2 ? voiceB : voiceA);
-          const sv = await files.save(store, { name: lesson.id + '-' + i + '.mp3', type: 'audio/mpeg', dataBase64: buf.toString('base64'), purpose: 'qissa-audio', refPath: 'qissaaudio/' + lesson.id, byUserId: user.id, stamp });
-          if (sv.ok) doc.lines[i] = sv.file.id;
-        }
-        const sc = A.QissaVideo ? A.QissaVideo.scriptFor(lesson) : null;
-        const words = sc && sc.recap ? sc.recap.words.map(w => w[0]) : lesson.words.map(w => w.ar);
-        for (let k = 0; k < words.length; k++) {
-          const buf = await tts(words[k], voiceA, true);
-          const sv = await files.save(store, { name: lesson.id + '-w' + k + '.mp3', type: 'audio/mpeg', dataBase64: buf.toString('base64'), purpose: 'qissa-audio', refPath: 'qissaaudio/' + lesson.id, byUserId: user.id, stamp });
-          if (sv.ok) doc.words[k] = sv.file.id;
-        }
-        const old = await store.get('qissaaudio/' + lesson.id);
-        if (old) for (const fid of [...Object.values(old.lines || {}), ...Object.values(old.words || {})]) { try { await files.remove(store, fid); } catch (e) { } }
-        await store.set('qissaaudio/' + lesson.id, doc);
-        await writeAudit(user, 'Qissa ovozi yaratildi (ElevenLabs)', lesson.id, Object.keys(doc.lines).length + ' gap');
-        return send(res, 200, { ok: true, lines: Object.keys(doc.lines).length, words: Object.keys(doc.words).length });
-      } catch (e) {
-        return send(res, 502, { error: e.message || 'Ovoz yaratilmadi.' });
-      }
+      if (String(body.type || '') !== 'video/mp4') return send(res, 400, { error: 'Faqat MP4 video yuklang.' });
+      const sv = await files.save(store, { name: body.name || (lesson.id + '.mp4'), type: 'video/mp4', dataBase64: body.data,
+        purpose: 'dars-video', refPath: 'lessonvideo/' + lesson.id, byUserId: user.id, stamp, maxBytes: 60 * 1024 * 1024 });
+      if (!sv.ok) return send(res, 400, { error: sv.reason === 'kattaligi' ? 'Video juda katta (60 MB gacha).' : 'Video yuklanmadi.' });
+      if (old) { try { await files.remove(store, old.fileId); } catch (e) { } }
+      await store.set('lessonvideo/' + lesson.id, { lessonId: lesson.id, fileId: sv.file.id, name: sv.file.name, at: stamp(), by: user.name });
+      await writeAudit(user, 'Dars videosi yuklandi', lesson.id, sv.file.name);
+      return send(res, 200, { ok: true });
     }
     if (route === 'course/files' && req.method === 'GET') {
       const scope = await scopeStudentIds();

@@ -112,9 +112,13 @@ async function submitHomework(A, store, sid, body, stamp, files) {
   /* Qissani ovoz chiqarib o'qish natijasi (brauzerdagi nutqni tanish) — ustoz uchun ma'lumot */
   const rp = Number(body.readPercent);
   const readPercent = Number.isFinite(rp) ? Math.max(0, Math.min(100, Math.round(rp))) : null;
+  const hints = body.hints && typeof body.hints === 'object' ? {
+    fill: (Array.isArray(body.hints.fill) ? body.hints.fill : []).slice(0, 10).map(x => Math.max(0, Math.min(9, Number(x) || 0))),
+    tr: (Array.isArray(body.hints.tr) ? body.hints.tr : []).slice(0, 10).map(x => Math.max(0, Math.min(9, Number(x) || 0)))
+  } : null;
   const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
   p.hw = {
-    auto, autoAnswers, texts, fileIds, fillAnswers, trAnswers, written, readPercent,
+    auto, autoAnswers, texts, fileIds, fillAnswers, trAnswers, written, readPercent, hints,
     submittedAt: stamp(), status: 'tekshirilmoqda', grade: null, comment: ''
   };
   p.steps = p.steps || {};
