@@ -452,15 +452,17 @@
           return;
         }
       }
+      var d;
       try {
-        var d = await D.api('GET', 'api/kabinet/me');
+        d = await D.api('GET', 'api/kabinet/me');
         D.kabCsrf = d.csrf || '';
-        info.hidden = true;
-        showInfo(d);
       } catch (ex) {
         info.hidden = true;
         showForm();
+        return;
       }
+      info.hidden = true;
+      showInfo(d);
     }
 
     function tokenFromHash() {
@@ -476,52 +478,54 @@
        qayta yozish shart emas. Umumiy kompyuterda “Chiqish” tugmasi bor. */
     function showForm() {
       UI.clear(result);
-      var input = h('input', {
-        id: 'kab-code', class: 'kab-code', type: 'text', inputmode: 'numeric',
-        autocomplete: 'off', maxlength: '4', placeholder: '····',
-        'aria-label': 'Shaxsiy kod'
+      var sub0 = document.getElementById('kab-sub');
+      if (sub0) sub0.textContent = 'O’quvchi kabineti — kirish';
+      var login = h('input', {
+        id: 'kab-login', class: 'kab-in', type: 'text', autocomplete: 'username', inputmode: 'tel',
+        placeholder: '+998 90 123 45 67 yoki kod', 'aria-label': 'Login'
       });
-      var btn = h('button', { class: 'btn primary', type: 'submit' }, 'Kirish');
-      var form = h('form', {
-        class: 'kab-form',
-        onsubmit: function (e) { e.preventDefault(); go(); }
-      }, [
-        h('label', { class: 'small', for: 'kab-code' }, 'Shaxsiy kodingiz (4 ta raqam)'),
-        h('div', { class: 'kab-row' }, [input, btn])
+      var pass = h('input', {
+        id: 'kab-pass', class: 'kab-in', type: 'password', autocomplete: 'current-password',
+        placeholder: 'Parol', 'aria-label': 'Parol'
+      });
+      var eye = h('button', { type: 'button', class: 'kab-eye', 'aria-label': 'Parolni ko’rsatish', onclick: function () {
+        pass.type = pass.type === 'password' ? 'text' : 'password'; eye.textContent = pass.type === 'password' ? '👁' : '🙈';
+      } }, '👁');
+      var btn = h('button', { id: 'kab-go', class: 'btn primary lg block', type: 'submit' }, 'Kirish');
+      var form = h('form', { class: 'kab-form', onsubmit: function (e) { e.preventDefault(); go(); } }, [
+        h('label', { class: 'kab-lb', for: 'kab-login' }, 'Login — telefon raqamingiz yoki shaxsiy kodingiz'),
+        login,
+        h('label', { class: 'kab-lb', for: 'kab-pass' }, 'Parol'),
+        h('div', { class: 'kab-passw' }, [pass, eye]),
+        btn
       ]);
-
-      input.addEventListener('input', function () {
-        input.value = input.value.replace(/\D/g, '').slice(0, 4);
-        err.hidden = true;
-        if (input.value.length === 4) go();
-      });
+      [login, pass].forEach(function (i) { i.addEventListener('input', function () { err.hidden = true; }); });
 
       async function go() {
-        var code = String(input.value || '').replace(/\D/g, '');
-        if (code.length !== 4) {
-          err.hidden = false; err.textContent = 'Kod 4 ta raqamdan iborat.';
-          return;
-        }
+        var l = String(login.value || '').trim(), p = String(pass.value || '');
+        if (!l || !p) { err.hidden = false; err.textContent = 'Login va parolni yozing.'; return; }
         btn.disabled = true; btn.textContent = 'Tekshirilmoqda…'; err.hidden = true;
         try {
-          var d = await D.api('POST', 'api/kabinet', { code: code });
+          var d = await D.api('POST', 'api/kabinet', { login: l, password: p });
           D.kabCsrf = d.csrf || '';
           showInfo(d);
         } catch (ex) {
           btn.disabled = false; btn.textContent = 'Kirish';
-          input.value = ''; input.focus();
+          pass.value = ''; pass.focus();
           err.hidden = false;
-          err.textContent = ex.message || 'Kod topilmadi.';
+          err.textContent = ex.message || 'Login yoki parol noto’g’ri.';
         }
       }
 
       result.appendChild(h('div', { class: 'kab-howto' }, [
         form,
-        h('p', { class: 'small muted' },
-          'Kodni bilmasangiz markaz administratoridan so’rang. ' +
-          'Telegram botdagi “Kabinet (veb)” tugmasi ham shu sahifani ochadi.')
+        h('div', { class: 'kab-hint' }, [
+          h('b', {}, 'Birinchi marta kiryapsizmi? '),
+          'Parol — administrator bergan 4 xonali shaxsiy kodingiz. Kirgach, «Profil» bo’limida o’zingiz yangi parol qo’ying.'
+        ]),
+        h('p', { class: 'small muted' }, 'Kodni bilmasangiz markaz administratoridan so’rang. Telegram botdagi «Kabinet (veb)» tugmasi ham kabinetni ochadi.')
       ]));
-      try { input.focus(); } catch (e) { }
+      try { login.focus(); } catch (e) { }
     }
 
     /* Kabinet ikki xil bo'ladi: o'quvchi va ota-ona.
@@ -566,156 +570,21 @@
       if (d && d.kind === 'parent') return showParent(d);
       UI.clear(result);
       portalOn(true);
-      var st = d.student, fin = d.finance, att = d.attendance;
-      var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
-
-      var money = fin.debt > 0
-        ? h('div', { class: 'kab-money bad' }, [
-          h('span', {}, 'Qarz'), h('b', {}, A.somFull(fin.debt))
-        ])
-        : (fin.advance > 0
-          ? h('div', { class: 'kab-money ok' }, [h('span', {}, 'Avans'), h('b', {}, A.somFull(fin.advance))])
-          : h('div', { class: 'kab-money ok' }, [h('span', {}, 'To’lov'), h('b', {}, 'Qarz yo’q')]));
-
-      var next = fin.next ? h('div', { class: 'kab-line' }, [
-        h('span', {}, fin.next.upcoming ? 'Keyingi hisob' : 'Keyingi to’lov'),
-        h('b', {}, (fin.next.upcoming ? '' : A.som(fin.next.amount) + ' so’m · ') +
-          A.dateLabel(fin.next.dueDate) + ' gacha')
-      ]) : null;
-
-      /* --- Onlayn kurs: hero va darslar xaritasi (serverdan alohida yuklanadi) --- */
-      var contEl = h('div', { class: 'kp-hero-c', id: 'kp-cont' }, h('p', { class: 'small' }, 'Darslar yuklanmoqda…'));
-      var hero = h('section', { class: 'kp-hero' }, [
-        h('div', { class: 'kp-hero-t' }, [
-          h('span', { class: 'kp-eyebrow' }, 'O’quvchi kabineti'),
-          h('h1', {}, 'Assalomu alaykum' + (first ? ', ' + first : '') + '!'),
-          h('div', { class: 'kp-me' }, st.name + ' · kod ' + st.code),
-          h('p', {}, 'Bugungi darsingizni davom ettiring. Har bir dars: so’zlar → matn → qoida → mashq → test → uy vazifasi.')
-        ]),
-        contEl
-      ]);
-      var map = h('div', { class: 'kp-map' }, h('p', { class: 'small muted' }, 'Yuklanmoqda…'));
-      (async function () {
-        var cv;
-        try {
-          cv = D.mode === 'server' ? await D.api('GET', 'api/kabinet/course') : A.CourseLocal.view(st.id);
-        } catch (e) { UI.clear(map); return; }
-        var ls = cv.lessons || [];
-        var done = ls.filter(function (l) { return l.status === 'done'; }).length;
-        var cur = ls.filter(function (l) { return l.status === 'open'; })[0];
-        var pct = ls.length ? Math.round(done * 100 / ls.length) : 0;
-        var cont = contEl;
-        if (cont) {
-          UI.clear(cont);
-          var stepName = '';
-          if (cur) {
-            var order = (A.Course ? A.Course.STEPS : []);
-            for (var i = 0; i < order.length; i++) { if (!cur.steps[order[i].id]) { stepName = order[i].label || order[i].title || ''; break; } }
-          }
-          var hwBack = ls.filter(function (l) { return l.hw && l.hw.status === 'qayta'; })[0];
-          cont.appendChild(h('div', { class: 'kp-ring', style: '--p:' + pct }, [h('b', {}, pct + '%'), h('span', {}, done + '/' + ls.length + ' dars')]));
-          cont.appendChild(h('div', { class: 'kp-next' }, [
-            h('span', { class: 'small' }, cur ? 'Joriy dars' : (done === ls.length && ls.length ? 'Kurs tugadi' : 'Darslar')),
-            h('b', {}, cur ? cur.n + '. ' + cur.title : (cv.course && cv.course.title) || 'A1'),
-            cur && stepName ? h('span', { class: 'small' }, 'Keyingi bosqich: ' + stepName) : null,
-            hwBack ? h('span', { class: 'kp-warn' }, '«' + hwBack.title + '» vazifasi qayta topshirishga qaytarildi') : null,
-            h('button', { class: 'btn kp-go', type: 'button', onclick: function () { goLesson(cur ? cur.id : (ls[0] && ls[0].id)); } },
-              cur ? 'Darsni davom ettirish →' : 'Darslarni ochish →')
-          ]));
+      var root = h('div', {});
+      result.appendChild(root);
+      A.StudentPortal.render(root, d, {
+        centerName: centerNameNow(),
+        openCourse: function () { location.hash = 'kurs'; openCourse(); },
+        runQuiz: runQuiz,
+        logout: async function () {
+          if (D.mode !== 'server') { location.hash = ''; renderLanding(); return; }
+          try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
+          err.hidden = true;
+          try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { }
+          portalOn(false);
+          showForm();
         }
-        UI.clear(map);
-        ls.forEach(function (l) {
-          var hwTxt = l.hw ? (l.hw.status === 'qabul' ? 'Vazifa qabul' + (l.hw.grade ? ' · ' + l.hw.grade : '')
-            : l.hw.status === 'qayta' ? 'Qayta topshiring' : l.hw.submittedAt ? 'Tekshirilmoqda' : '') : '';
-          map.appendChild(h('button', {
-            type: 'button', class: 'kp-l ' + l.status,
-            onclick: function () {
-              if (l.status === 'locked') { UI.toast('Bu dars oldingi dars va vazifa tugagach ochiladi.', 'warn'); return; }
-              goLesson(l.id);
-            }
-          }, [
-            h('span', { class: 'kp-l-n' }, l.status === 'done' ? '✓' : l.status === 'locked' ? '🔒' : String(l.n)),
-            h('span', { class: 'kp-l-t' }, [
-              h('b', {}, l.n + '. ' + l.title),
-              h('span', { class: 'kp-ar', dir: 'rtl' }, l.titleAr || ''),
-              h('span', { class: 'small muted' }, [
-                l.testBest != null ? 'Test ' + l.testBest + '%' : (l.status === 'locked' ? 'Yopiq' : 'Boshlanmagan'),
-                hwTxt ? ' · ' + hwTxt : ''
-              ].join(''))
-            ])
-          ]));
-        });
-      })();
-
-      var groupsCard = h('section', { class: 'kp-card' }, [
-        h('h3', {}, 'Guruhlarim'),
-        d.groups.length
-          ? h('div', { class: 'kab-groups' }, d.groups.map(function (g) {
-            return h('div', { class: 'kab-group' }, [
-              h('b', {}, (g.code ? g.code + ' · ' : '') + g.name),
-              g.teacher ? h('div', { class: 'small' }, 'O’qituvchi: ' + g.teacher) : null,
-              h('div', { class: 'small muted' },
-                [g.daysText, (g.startTime && g.endTime) ? g.startTime + '–' + g.endTime : '', g.room]
-                  .filter(Boolean).join('  ·  ')),
-              (g.zoomLink || g.recordingsLink) ? h('div', { class: 'rowflex', style: 'gap:6px;margin-top:6px' }, [
-                g.zoomLink ? h('a', { class: 'btn primary sm', href: g.zoomLink, target: '_blank', rel: 'noopener' }, 'Darsga kirish (Zoom)') : null,
-                g.recordingsLink ? h('a', { class: 'btn sm', href: g.recordingsLink, target: '_blank', rel: 'noopener' }, 'Dars yozuvlari') : null
-              ]) : null
-            ]);
-          }))
-          : h('p', { class: 'muted small' }, 'Hozircha guruhga yozilmagansiz.')
-      ]);
-
-      var payCard = h('section', { class: 'kp-card' }, [
-        h('h3', {}, 'To’lov'),
-        money,
-        next,
-        fin.overdue > 0 ? h('div', { class: 'kab-line warn' }, [
-          h('span', {}, 'Muddati o’tgan'), h('b', {}, A.somFull(fin.overdue))
-        ]) : null,
-        h('p', { class: 'small muted', style: 'margin:4px 0 0' }, 'To’lov eslatmasi va karta raqami Telegram botda keladi.')
-      ]);
-
-      var attCard = h('section', { class: 'kp-card' }, [
-        h('h3', {}, 'Davomat'),
-        att.total ? h('div', {}, [
-          h('div', { class: 'kab-stats' }, [
-            h('div', {}, [h('b', {}, String(att.attended)), h('span', {}, 'Keldi')]),
-            h('div', {}, [h('b', {}, String(att.missed)), h('span', {}, 'Kelmadi')]),
-            h('div', {}, [h('b', {}, String(att.late)), h('span', {}, 'Kechikdi')]),
-            h('div', {}, [h('b', {}, String(att.excused)), h('span', {}, 'Sababli')])
-          ]),
-          h('div', { class: 'small muted' }, 'Jami dars: ' + att.total +
-            (att.percent != null ? '  ·  ' + att.percent + '%' : '')),
-          att.last.length ? h('div', { class: 'kab-last' }, att.last.slice(0, 5).map(function (r) {
-            return h('div', { class: 'kab-line' }, [
-              h('span', {}, A.dateLabel(r.date)), h('b', {}, r.label)
-            ]);
-          })) : null
-        ]) : h('p', { class: 'muted small' }, 'Hozircha davomat yozuvi yo’q.')
-      ]);
-
-      result.appendChild(h('div', { class: 'kab-card kp' }, [
-        portalBar(st.name, 'O’quvchi kabineti · kod ' + st.code),
-        hero,
-        h('div', { class: 'kp-grid' }, [
-          h('div', { class: 'kp-col' }, [
-            h('section', { class: 'kp-card' }, [
-              h('div', { class: 'kp-card-h' }, [
-                h('h3', {}, 'Onlayn darslarim — A1'),
-                h('a', { class: 'kp-all', href: '#kurs', onclick: function (e) { e.preventDefault(); goLesson(''); } }, 'Hammasi →')
-              ]),
-              map
-            ]),
-            D.mode === 'server' ? h('section', { class: 'kp-card' }, [learnSection(st.id, true)]) : null
-          ]),
-          h('div', { class: 'kp-col' }, [groupsCard, payCard, attCard,
-            h('div', { class: 'small muted kp-help' },
-              'Savol bo’lsa markazga murojaat qiling' + (d.center.phone ? ': ' + d.center.phone : '.'))
-          ])
-        ])
-      ]));
-      A.I18N.apply(result);
+      });
     }
 
     /* ---- Ota-ona kabineti: farzandlar ro'yxati ---- */

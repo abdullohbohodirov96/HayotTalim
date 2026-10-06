@@ -27,6 +27,7 @@ const TYPES = {
   'image/gif': 'gif',
   'application/pdf': 'pdf',
   'audio/mpeg': 'mp3',
+  'audio/webm': 'webm',
   'audio/mp4': 'm4a',
   'audio/ogg': 'ogg',
   'audio/wav': 'wav',

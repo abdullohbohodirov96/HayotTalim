@@ -642,20 +642,96 @@
     return out;
   }
 
+  /* «Darsda» o'tiladigan bosqichlar va «Uyda» bajariladigan vazifa alohida guruh */
   var STEPS = [
-    { id: 'words', label: 'So’zlar' },
-    { id: 'dialog', label: 'Matn' },
-    { id: 'grammar', label: 'Qoida' },
-    { id: 'practice', label: 'Mashq' },
-    { id: 'test', label: 'Test' },
-    { id: 'homework', label: 'Vazifa' }
+    { id: 'words', label: 'So’zlar', part: 'darsda' },
+    { id: 'dialog', label: 'Qissa', part: 'darsda' },
+    { id: 'grammar', label: 'Qoida', part: 'darsda' },
+    { id: 'practice', label: 'Mashq', part: 'darsda' },
+    { id: 'test', label: 'Test', part: 'darsda' },
+    { id: 'homework', label: 'Uy vazifasi', part: 'uyda' }
   ];
+
+  /* ---------- Arab matnini solishtirish (harakatlarsiz) ---------- */
+  function normAr(t) {
+    return String(t || '')
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')          // harakat, tatvil
+      .replace(/[\u0622\u0623\u0625\u0671]/g, '\u0627')     // alif turlari → ا
+      .replace(/\u0629/g, '\u0647').replace(/\u0649/g, '\u064A')
+      .replace(/[^\u0621-\u064A\s]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function lev(a, b) {
+    if (a === b) return 0;
+    var m = a.length, n = b.length, d = [], i, j;
+    for (i = 0; i <= m; i++) d[i] = [i];
+    for (j = 0; j <= n; j++) d[0][j] = j;
+    for (i = 1; i <= m; i++) for (j = 1; j <= n; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    return d[m][n];
+  }
+  /** O'qilgan (yoki yozilgan) matnni namuna bilan solishtirish: so'zma-so'z */
+  function compareAr(expected, got) {
+    var ew = normAr(expected).split(' ').filter(Boolean);
+    var gw = normAr(got).split(' ').filter(Boolean);
+    var used = {};
+    var marks = ew.map(function (w) {
+      for (var k = 0; k < gw.length; k++) {
+        if (used[k]) continue;
+        var g = gw[k], ok = g === w || (w.length > 3 && lev(g, w) <= 1) ||
+          (g.length > 2 && (g === 'ال' + w || 'ال' + g === w || g === 'و' + w || 'و' + g === w));
+        if (ok) { used[k] = 1; return true; }
+      }
+      return false;
+    });
+    var ok = marks.filter(Boolean).length;
+    return { marks: marks, words: ew, percent: ew.length ? Math.round(ok * 100 / ew.length) : 0 };
+  }
+
+  /** Kitobdagidek yozma mashqlar — qissa va so'zlardan avtomatik tuziladi:
+      fill: gapdagi darsning so'zi tushirib qoldirilgan — o'quvchi yozadi;
+      tr:   qissadagi qisqa gaplarni arabchaga tarjima qilish.            */
+  function buildWritten(lesson) {
+    var lines = (lesson.dialog && lesson.dialog.lines) || [];
+    var wordsN = (lesson.words || []).map(function (w) { return { w: w, n: normAr(w.ar).replace(/^ال/, '') }; });
+    var fill = [];
+    lines.forEach(function (ln, li) {
+      if (fill.length >= 4) return;
+      var toks = String(ln.ar).split(/\s+/);
+      for (var t = 0; t < toks.length; t++) {
+        var nt = normAr(toks[t]).replace(/^و/, '').replace(/^ال/, '');
+        var hit = nt && wordsN.filter(function (x) { return x.n && (nt === x.n || nt.indexOf(x.n) === 0 && nt.length - x.n.length <= 2); })[0];
+        if (hit) {
+          var shown = toks.slice(); shown[t] = '_____';
+          fill.push({ id: lesson.id + ':f' + li, text: shown.join(' '), answer: toks[t].replace(/[.,،؟!?]/g, ''), uz: ln.uz, hint: hit.w.uz });
+          break;
+        }
+      }
+    });
+    var tr = lines.filter(function (ln) { return normAr(ln.ar).split(' ').length <= 6; })
+      .slice(0, 3).map(function (ln, i) { return { id: lesson.id + ':r' + i, uz: ln.uz, ar: ln.ar }; });
+    return { fill: fill, tr: tr };
+  }
+  function gradeWritten(lesson, fillAns, trAns) {
+    var w = buildWritten(lesson);
+    var fOk = 0;
+    w.fill.forEach(function (f, i) {
+      var a = normAr(fillAns && fillAns[i]), b = normAr(f.answer);
+      if (a && (a === b || (b.length > 3 && lev(a, b) <= 1))) fOk++;
+    });
+    var trPct = w.tr.length ? Math.round(w.tr.reduce(function (s, t, i) {
+      return s + compareAr(t.ar, (trAns && trAns[i]) || '').percent;
+    }, 0) / w.tr.length) : 0;
+    return { fillOk: fOk, fillTotal: w.fill.length, trPercent: trPct };
+  }
 
   A.Course = {
     code: 'A1', title: 'Arab tili — A1 (Oila, Uy-joy)',
     PASS: PASS, UNITS: UNITS, LESSONS: LESSONS, STEPS: STEPS,
     byId: byId, indexOf: indexOf, unitOf: unitOf,
     buildTest: buildTest, gradeTest: gradeTest, gradeHomeworkAuto: gradeHomeworkAuto,
-    checkPractice: checkPractice, lessonDone: lessonDone, statuses: statuses
+    checkPractice: checkPractice, lessonDone: lessonDone, statuses: statuses,
+    normAr: normAr, compareAr: compareAr, buildWritten: buildWritten, gradeWritten: gradeWritten
   };
 })(typeof window !== 'undefined' ? window : globalThis);

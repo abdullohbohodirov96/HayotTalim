@@ -56,7 +56,9 @@ function view(A, doc) {
         hw: hw ? {
           submittedAt: hw.submittedAt || null, status: hw.status || null,
           auto: hw.auto || null, grade: hw.grade == null ? null : hw.grade,
-          comment: hw.comment || '', texts: hw.texts || [], fileIds: hw.fileIds || []
+          comment: hw.comment || '', texts: hw.texts || [], fileIds: hw.fileIds || [],
+          written: hw.written || null, readPercent: hw.readPercent == null ? null : hw.readPercent,
+          fillAnswers: hw.fillAnswers || [], trAnswers: hw.trAnswers || []
         } : null
       };
     })
@@ -118,12 +120,21 @@ async function submitHomework(A, store, sid, body, stamp, files) {
     const rec = await files.meta(store, String(fid));
     if (rec && rec.byKind === 'oquvchi' && String(rec.by) === String(sid)) fileIds.push(rec.id);
   }
-  const hasWork = texts.some(t => t.trim().length >= 2) || fileIds.length > 0;
+  const hasWork = texts.some(t => t.trim().length >= 2) || fileIds.length > 0 ||
+    (Array.isArray(body.fillAnswers) && body.fillAnswers.some(t => String(t || '').trim())) ||
+    (Array.isArray(body.trAnswers) && body.trAnswers.some(t => String(t || '').trim().length >= 2));
   if (!hasWork) return { error: 'Yozma javob yozing yoki daftaringiz rasmini yuklang.', code: 400 };
   const auto = C.gradeHomeworkAuto(lesson, autoAnswers);
+  /* Kitobdagidek yozma mashqlar: bo'sh joyni to'ldirish va tarjima — server o'zi baholaydi */
+  const fillAnswers = (Array.isArray(body.fillAnswers) ? body.fillAnswers : []).slice(0, 10).map(t => txt(t, 200));
+  const trAnswers = (Array.isArray(body.trAnswers) ? body.trAnswers : []).slice(0, 10).map(t => txt(t, 600));
+  const written = C.gradeWritten ? C.gradeWritten(lesson, fillAnswers, trAnswers) : null;
+  /* Qissani ovoz chiqarib o'qish natijasi (brauzerdagi nutqni tanish) — ustoz uchun ma'lumot */
+  const rp = Number(body.readPercent);
+  const readPercent = Number.isFinite(rp) ? Math.max(0, Math.min(100, Math.round(rp))) : null;
   const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
   p.hw = {
-    auto, autoAnswers, texts, fileIds,
+    auto, autoAnswers, texts, fileIds, fillAnswers, trAnswers, written, readPercent,
     submittedAt: stamp(), status: 'tekshirilmoqda', grade: null, comment: ''
   };
   p.steps = p.steps || {};
@@ -186,7 +197,9 @@ async function overview(A, store, studentIds) {
       if (p && p.hw && p.hw.submittedAt && p.hw.status === 'tekshirilmoqda') {
         pending.push({
           lessonId: l.id, title: l.title, n: l.n, submittedAt: p.hw.submittedAt,
-          auto: p.hw.auto, texts: p.hw.texts || [], fileIds: p.hw.fileIds || []
+          auto: p.hw.auto, texts: p.hw.texts || [], fileIds: p.hw.fileIds || [],
+          written: p.hw.written || null, readPercent: p.hw.readPercent == null ? null : p.hw.readPercent,
+          fillAnswers: p.hw.fillAnswers || [], trAnswers: p.hw.trAnswers || []
         });
       }
     });

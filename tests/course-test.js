@@ -137,6 +137,42 @@ const ID = n => R + '_' + n;
   eq('O’quvchi courseprog ni o’zi yoza olmaydi',
     (await put('courseprog/' + ID('s1'), { lessons: {} }, dir)).status, 403);
 
+  section('6. Login + parol, to’lovlar, fayllar, parolni almashtirish');
+  const ph = '+998 90 123 45 00';
+  const badPw = await req('/api/kabinet', { body: { login: ph, password: '9999' }, ip: '10.2.2.2' });
+  eq('Noto’g’ri parol rad etildi', badPw.status, 404);
+  const lp = await req('/api/kabinet', { body: { login: ph, password: code }, ip: '10.2.2.3' });
+  eq('Telefon + boshlang’ich parol (kod) bilan kirdi', lp.status, 200);
+  ok('Parol hali qo’yilmagan deb aytildi', lp.json.hasOwnPassword === false);
+  const c2 = lp.cookie, s2 = lp.json.csrf;
+  const kp2 = (sub, body) => req('/api/kabinet/' + sub, { cookie: c2, csrf: s2, body });
+  eq('To’lovlar ro’yxati', (await req('/api/kabinet/payments', { cookie: c2 })).status, 200);
+  const upf = await kp2('files/upload', { name: 'daftar.png', type: 'image/png', data: png, note: '3-dars' });
+  eq('Fayl yuklandi', upf.status, 200);
+  const fl = await req('/api/kabinet/files', { cookie: c2 });
+  ok('Fayllarim ro’yxatida bor (vazifa fayllari ham)', fl.json.files.length >= 3 && fl.json.files.some(f => f.note === '3-dars'), JSON.stringify(fl.json.files.map(f => f.name)));
+  const audio = await kp2('course/upload', { name: 'oqish.webm', type: 'audio/webm', data: Buffer.from('webmtest-audio-bytes').toString('base64') });
+  eq('Ovoz yozuvi yuklandi', audio.status, 200);
+  eq('Qisqa parol rad etildi', (await kp2('password', { old: code, password: '123' })).status, 400);
+  eq('Parol o’zgartirildi', (await kp2('password', { old: code, password: 'Madina2026' })).status, 200);
+  eq('Endi eski kod parol bo’lmaydi', (await req('/api/kabinet', { body: { login: ph, password: code }, ip: '10.2.2.4' })).status, 404);
+  eq('Yangi parol bilan kirdi', (await req('/api/kabinet', { body: { login: code, password: 'Madina2026' }, ip: '10.2.2.5' })).status, 200);
+  eq('Parol xeshi o’qib bo’lmaydi', (await getDoc('kabpass/' + ID('s1'), dir)).status, 403);
+
+  section('7. Kitobdagidek yozma mashqlar serverda baholanadi');
+  const L5w = C.buildWritten(L5);
+  const hw5 = await kp2('course/homework', {
+    lessonId: L5.id, autoAnswers: (L5.homework.auto || []).map(q => q.answer),
+    fillAnswers: L5w.fill.map(f => f.answer), trAnswers: L5w.tr.map(t => t.ar), readPercent: 83, fileIds: [audio.json.file.id]
+  });
+  eq('Vazifa (faqat yozma mashqlar + ovoz) qabul qilindi', hw5.status, 200);
+  const v5 = hw5.json.view.lessons[4].hw;
+  ok('Bo’sh joy to’liq to’g’ri', v5.written && v5.written.fillOk === v5.written.fillTotal, JSON.stringify(v5.written));
+  eq('O’qish natijasi saqlandi', v5.readPercent, 83);
+  const ov2 = await req('/api/course/overview', { cookie: dir });
+  const pend = ov2.json.rows.find(r => r.studentId === ID('s1')).pending.find(p => p.lessonId === L5.id);
+  ok('Ustozga ovoz fayli turi bilan keladi', pend && pend.files.some(f => /^audio\//.test(f.type)));
+
   console.log(out.join('\n'));
   console.log('\n' + (fail ? '✗ ' + fail + ' ta xato, ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o’tdi');
   process.exit(fail ? 1 : 0);

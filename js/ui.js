@@ -20,10 +20,13 @@
         else el.setAttribute(k, v);
       });
     }
-    (Array.isArray(kids) ? kids : kids == null ? [] : [kids]).forEach(function (c) {
-      if (c == null || c === false) return;
-      el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
-    });
+    (function add(list) {
+      list.forEach(function (c) {
+        if (c == null || c === false) return;
+        if (Array.isArray(c)) { add(c); return; }        // ichma-ich ro'yxat ham qabul qilinadi
+        el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+      });
+    })(Array.isArray(kids) ? kids : kids == null ? [] : [kids]);
     return el;
   }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }

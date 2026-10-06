@@ -21,7 +21,9 @@
         var p = doc.lessons[l.id] || {};
         if (p.hw && p.hw.submittedAt && p.hw.status === 'tekshirilmoqda') {
           pending.push({ lessonId: l.id, title: l.title, n: l.n, submittedAt: p.hw.submittedAt, auto: p.hw.auto,
-            texts: p.hw.texts || [], fileIds: p.hw.fileIds || [], files: p.hw.files || [] });
+            texts: p.hw.texts || [], fileIds: p.hw.fileIds || [], files: p.hw.files || [],
+            written: p.hw.written || null, readPercent: p.hw.readPercent == null ? null : p.hw.readPercent,
+            fillAnswers: p.hw.fillAnswers || [], trAnswers: p.hw.trAnswers || [] });
         }
         lessons[l.id] = { status: st[l.id], testBest: p.testBest == null ? null : p.testBest, hw: p.hw || null };
       });
@@ -97,8 +99,33 @@
 
       body.appendChild(UI.tabs([
         { id: 'tekshirish', label: 'Tekshirish kerak (' + pendingAll.length + ')' },
-        { id: 'oquvchilar', label: 'O’quvchilar va darslar' }
+        { id: 'oquvchilar', label: 'O’quvchilar va darslar' },
+        { id: 'fayllar', label: 'O’quvchilar fayllari' }
       ], tab, function (id) { App.go('course', { tab: id }); }));
+
+      if (tab === 'fayllar') {
+        var fbox = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
+        body.appendChild(UI.card(null, fbox, null, null, true));
+        (async function () {
+          var fr;
+          try { fr = D.mode === 'server' ? await D.api('GET', 'api/course/files') : { files: [] }; }
+          catch (e) { UI.clear(fbox); fbox.appendChild(h('p', { class: 'err-msg' }, e.message || 'Yuklanmadi.')); return; }
+          UI.clear(fbox);
+          if (!fr.files.length) { fbox.appendChild(UI.empty({ title: 'Fayl yo’q', text: 'O’quvchilar kabinetdagi «Fayllarim» bo’limidan yuborgan fayllar shu yerda ko’rinadi.' })); return; }
+          fbox.appendChild(UI.table([
+            { label: 'O’quvchi', render: function (f) { return h('b', {}, f.studentName); } },
+            { label: 'Fayl', render: function (f) {
+              var url = 'api/file?id=' + encodeURIComponent(f.id);
+              if (/^audio\//.test(f.type)) return h('audio', { controls: true, preload: 'none', src: url, class: 'cr-audio' });
+              return h('a', { href: url, target: '_blank', rel: 'noopener' }, f.name);
+            } },
+            { label: 'Turi', render: function (f) { return f.purpose === 'kurs-vazifa' ? UI.pill('Uy vazifasi', 'ok') : UI.pill('Fayl', 'mute'); } },
+            { label: 'Izoh', render: function (f) { return h('span', { class: 'small' }, f.note || '—'); } },
+            { label: 'Vaqt', render: function (f) { return h('span', { class: 'small muted' }, f.at); } }
+          ], fr.files, { page: 50 }));
+        })();
+        return;
+      }
 
       if (tab === 'tekshirish') {
         if (!pendingAll.length) {
@@ -140,14 +167,46 @@
     var out = [];
     (p.files || []).forEach(function (f) {
       if (f.dataUrl && /^data:image\//.test(f.dataUrl)) out.push(h('a', { href: f.dataUrl, target: '_blank', class: 'cr-thumb' }, h('img', { src: f.dataUrl, alt: f.name })));
-      else if (f.name) out.push(h('span', { class: 'pill mute' }, f.name));
+      else if (f.dataUrl && /^data:audio\//.test(f.dataUrl)) out.push(h('audio', { controls: true, src: f.dataUrl, class: 'cr-audio' }));
+      else if (f.name && !f.id) out.push(h('span', { class: 'pill mute' }, f.name));
     });
     if (D.mode === 'server') {
+      var metas = {};
+      (p.files || []).forEach(function (f) { if (f.id) metas[f.id] = f; });
       (p.fileIds || []).forEach(function (id, i) {
-        out.push(h('a', { class: 'btn sm', href: 'api/file?id=' + encodeURIComponent(id), target: '_blank', rel: 'noopener' }, [UI.icon('down'), 'Fayl ' + (i + 1)]));
+        var m = metas[id] || {};
+        var url = 'api/file?id=' + encodeURIComponent(id);
+        if (/^audio\//.test(m.type || '')) out.push(h('div', { class: 'cr-audio-w' }, [h('span', { class: 'small muted' }, '🎤 Qissani o’qishi:'), h('audio', { controls: true, preload: 'none', src: url, class: 'cr-audio' })]));
+        else if (/^image\//.test(m.type || '')) out.push(h('a', { href: url, target: '_blank', rel: 'noopener', class: 'cr-thumb' }, h('img', { src: url, alt: m.name || '', loading: 'lazy' })));
+        else out.push(h('a', { class: 'btn sm', href: url, target: '_blank', rel: 'noopener' }, [UI.icon('down'), m.name || ('Fayl ' + (i + 1))]));
       });
     }
     return out.length ? h('div', { class: 'cr-filelinks' }, out) : null;
+  }
+
+  /* Bo'sh joy va tarjima javoblari — to'g'ri javob yonida */
+  function writtenBlock(lesson, p) {
+    if (!C.buildWritten || (!(p.fillAnswers || []).length && !(p.trAnswers || []).length)) return null;
+    var w = C.buildWritten(lesson);
+    var rows = [];
+    w.fill.forEach(function (f, i) {
+      var a = (p.fillAnswers || [])[i] || '';
+      var ok = a && C.normAr(a) === C.normAr(f.answer);
+      rows.push(h('div', { class: 'cr-wr ' + (ok ? 'ok' : 'no') }, [
+        h('span', { class: 'cr-ar', dir: 'rtl' }, f.text.replace('_____', '[' + (a || '—') + ']')),
+        ok ? h('span', { class: 'small' }, '✓') : h('span', { class: 'small muted' }, 'to’g’risi: ' + f.answer)
+      ]));
+    });
+    w.tr.forEach(function (t, i) {
+      var a = (p.trAnswers || [])[i] || '';
+      var c = C.compareAr(t.ar, a);
+      rows.push(h('div', { class: 'cr-wr ' + (c.percent >= 70 ? 'ok' : 'no') }, [
+        h('span', { class: 'small muted' }, '«' + t.uz + '» →'),
+        h('span', { class: 'cr-ar', dir: 'rtl' }, a || '—'),
+        h('span', { class: 'small muted' }, c.percent + '%')
+      ]));
+    });
+    return h('div', { class: 'cr-wrs' }, rows);
   }
 
   function reviewCard(r, p, App) {
@@ -168,6 +227,12 @@
         h('div', {}, [h('b', {}, r.name), h('div', { class: 'small muted' }, lesson.n + '-dars «' + lesson.title + '» · yuborildi ' + p.submittedAt)]),
         p.auto ? UI.pill('Test qismi: ' + p.auto.correct + '/' + p.auto.total, p.auto.percent >= 80 ? 'ok' : 'warn') : null
       ]),
+      h('div', { class: 'rowflex', style: 'gap:6px;flex-wrap:wrap;margin:4px 0' }, [
+        p.readPercent != null ? UI.pill('🎤 O’qish: ' + p.readPercent + '%', p.readPercent >= 70 ? 'ok' : 'warn') : null,
+        p.written ? UI.pill('To’ldirish: ' + p.written.fillOk + '/' + p.written.fillTotal, p.written.fillOk >= p.written.fillTotal - 1 ? 'ok' : 'warn') : null,
+        p.written ? UI.pill('Tarjima: ' + p.written.trPercent + '%', p.written.trPercent >= 70 ? 'ok' : 'warn') : null
+      ]),
+      writtenBlock(lesson, p),
       h('div', { class: 'cr-review-task' }, lesson.homework.write.map(function (wr) { return h('div', { class: 'small muted' }, 'Topshiriq: ' + wr.prompt); })),
       (p.texts || []).filter(function (t) { return t && t.trim(); }).length
         ? h('div', { class: 'cr-review-text', dir: 'auto' }, p.texts.filter(function (t) { return t && t.trim(); }).join('\n\n'))

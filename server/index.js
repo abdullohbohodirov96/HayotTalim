@@ -890,6 +890,38 @@ async function notifyTeacherOfGroup(group, text) {
  * Faqat uning guruhidagi dars yozuvi, materiali yoki vazifasiga biriktirilgan
  * fayl, yoki o'zi yuborgan fayl ochiladi. Boshqa hech narsa.
  */
+/* ---- O'quvchi paroli: kabpass/<studentId> { salt, hash } (faqat server o'qiydi) ---- */
+function kabHash(pw, salt) { return crypto.scryptSync(String(pw), salt, 32).toString('hex'); }
+async function kabPassOk(student, pw) {
+  const rec = await store.get('kabpass/' + student.id);
+  if (rec && rec.salt && rec.hash) {
+    const a = Buffer.from(kabHash(pw, rec.salt), 'hex'), b = Buffer.from(rec.hash, 'hex');
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+  /* Parol qo'yilmagan — boshlang'ich parol shaxsiy kod */
+  return !!student.code && String(pw).trim() === String(student.code);
+}
+async function kabLogin(login, pw) {
+  const raw = String(login || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  if (!digits || !String(pw || '').length || String(pw).length > 100) return null;
+  const students = (await store.list('students/')).map(r => r.data)
+    .filter(s => s && s.status !== 'o’chirilgan');
+  let cands = [];
+  if (digits.length === kabinet.CODE_LEN) {
+    cands = students.filter(s => String(s.code || '') === digits);
+    if (!cands.length) {
+      const par = await parents.byCode(store, digits);
+      if (par && String(pw).trim() === digits) return { parent: par };
+    }
+  } else if (digits.length >= 9) {
+    const tail = digits.slice(-9);
+    cands = students.filter(s => String(s.phone || '').replace(/\D/g, '').slice(-9) === tail);
+  }
+  for (const st of cands) { if (await kabPassOk(st, pw)) return { student: st }; }
+  return null;
+}
+
 async function fileVisibleToStudents(rec, studentIds) {
   if (!rec) return false;
   const ids = (studentIds || []).map(String);
@@ -1339,6 +1371,36 @@ async function handleApi(req, res, url) {
       });
     }
     const body = await readBody(req);
+
+    /* ---- Login + parol bilan kirish (asosiy yo'l) ----
+       Login: telefon raqami yoki shaxsiy kod. Parol: o'quvchi o'zi qo'ygan parol,
+       qo'ymagan bo'lsa — administrator bergan 4 xonali shaxsiy kod.            */
+    if (body.login != null) {
+      const who = await kabLogin(String(body.login || ''), String(body.password || ''));
+      if (!who) {
+        const f = kabinetFail(ip);
+        if (f.notify) {
+          await writeAudit(null, 'Kabinet: ko’p noto’g’ri parol', ip, f.n + ' ta urinish');
+          await notifyDirectors('Diqqat: ' + ip + ' manzilidan o’quvchi kabinetiga ' + f.n + ' marta noto’g’ri parol kiritildi.');
+        }
+        await new Promise(r => setTimeout(r, 400));
+        return send(res, 404, { error: 'Login yoki parol noto’g’ri.' });
+      }
+      kabinetOk(ip);
+      if (who.parent) {
+        const ses = await kabsess.create(store, { kind: 'parent', parentId: who.parent.id, studentIds: who.parent.studentIds || [], via: 'parol', stamp });
+        const sum = await parents.summary(store, who.parent, progress);
+        await writeAudit(null, 'Kabinet: ota-ona kirdi', who.parent.name || '', ip);
+        return send(res, 200, Object.assign({ csrf: ses.csrf }, sum), { 'Set-Cookie': kabsess.cookieHeader(ses.cookie, kabsess.TTL_MS / 1000) });
+      }
+      const sum = await kabinet.summary(store, who.student);
+      sum.hasOwnPassword = !!(await store.get('kabpass/' + who.student.id));
+      const ses = await kabsess.create(store, { studentId: who.student.id, kind: 'student', via: 'parol', stamp });
+      await writeAudit(null, 'Kabinet: parol bilan kirildi', (who.student.lastName || '') + ' ' + (who.student.firstName || ''), ip);
+      return send(res, 200, Object.assign({ csrf: ses.csrf, kind: 'student' }, sum), {
+        'Set-Cookie': kabsess.cookieHeader(ses.cookie, kabsess.TTL_MS / 1000)
+      });
+    }
     const code = kabinet.normCode(body.code);
     if (!kabinet.validCode(code)) {
       kabinetFail(ip);
@@ -1438,6 +1500,7 @@ async function handleApi(req, res, url) {
       return send(res, 401, { error: 'Kirish kerak.' }, { 'Set-Cookie': kabsess.clearHeader() });
     }
     const sum = await kabinet.summary(store, st);
+    sum.hasOwnPassword = !!(await store.get('kabpass/' + st.id));
     return send(res, 200, Object.assign({ csrf: ses.csrf, kind: 'student' }, sum));
   }
 
@@ -1577,6 +1640,80 @@ async function handleApi(req, res, url) {
     }
 
     /* ---- Material yoki vazifa fayli ---- */
+    /* ---- To'lovlar tarixi va ochiq hisoblar ---- */
+    if (sub === 'payments' && req.method === 'GET') {
+      const sid = String(url.searchParams.get('studentId') || mine[0] || '');
+      if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
+      const pays = (await store.list('payments/')).map(r => r.data).filter(Boolean);
+      const invs = (await store.list('invoices/')).map(r => r.data).filter(i => i && i.studentId === sid);
+      const paid = A.paidByInvoice(pays);
+      const groupsAll = {};
+      (await store.list('groups/')).forEach(r => { if (r.data) groupsAll[r.data.id] = r.data.name; });
+      const sett = (await store.get('meta/settings')) || {};
+      const b = sett.bot || {};
+      return send(res, 200, {
+        payments: pays.filter(p => p.studentId === sid && !p.voided && p.type !== 'advance')
+          .sort((a, b2) => String(b2.date).localeCompare(String(a.date)))
+          .map(p => ({ id: p.id, date: p.date, amount: p.amount, type: p.type || 'payment', method: p.method || '', receiptNo: p.receiptNo || '' })),
+        invoices: invs.sort((a, b2) => String(b2.month).localeCompare(String(a.month)))
+          .map(i => ({ id: i.id, month: i.month, monthLabel: A.monthLabel(i.month), group: groupsAll[i.groupId] || '',
+            amount: Math.round(i.final || 0), remaining: A.invoiceRemaining(i, paid), dueDate: i.dueDate || '' })),
+        card: b.payCard ? { number: String(b.payCard), holder: String(b.payHolder || '') } : null,
+        botUsername: String(b.username || '').replace('@', '')
+      });
+    }
+
+    /* ---- Mening fayllarim: o'quvchi yuklagan barcha fayllar ---- */
+    if (sub === 'files' && req.method === 'GET') {
+      if (isParent) return send(res, 200, { files: [] });
+      const sid = mine[0];
+      const list = (await store.list('files/')).map(r => r.data)
+        .filter(f => f && f.byKind === 'oquvchi' && String(f.by) === String(sid))
+        .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+        .map(f => ({ id: f.id, name: f.name, type: f.type, bytes: f.bytes, at: f.at, purpose: f.purpose, note: f.note || '' }));
+      return send(res, 200, { files: list });
+    }
+    if (sub === 'files/upload' && req.method === 'POST') {
+      if (isParent) return send(res, 403, { error: 'Faylni o’quvchining o’zi yuklaydi.' });
+      const sid = mine[0];
+      const body = await readBody(req, BODY_MAX_FILE);
+      const type = String(body.type || '').toLowerCase();
+      if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(type)) {
+        return send(res, 400, { error: 'Faqat rasm (JPG, PNG) yoki PDF yuklang.' });
+      }
+      const r = await files.save(store, {
+        name: body.name, type, dataBase64: body.data,
+        purpose: 'oquvchi-fayl', refPath: 'students/' + sid, byUserId: sid, byKind: 'oquvchi', stamp
+      });
+      if (!r.ok) {
+        return send(res, 400, { error: r.reason === 'kattaligi' ? 'Fayl juda katta (' + Math.round(files.MAX_BYTES / 1048576) + ' MB gacha).' : 'Fayl yuklanmadi.' });
+      }
+      const note = String(body.note || '').slice(0, 300);
+      if (note) { r.file.note = note; await store.set('files/' + r.file.id, r.file); }
+      const st = await store.get('students/' + sid);
+      try {
+        require('./bot').notifyStaff('O’quvchi fayl yubordi: ' + (st ? (st.lastName + ' ' + st.firstName) : sid) +
+          '\n' + r.file.name + (note ? '\nIzoh: ' + note : '') + '\nERP → Onlayn kurs → O’quvchilar fayllari');
+      } catch (e) { }
+      return send(res, 200, { ok: true, file: { id: r.file.id, name: r.file.name, type: r.file.type, bytes: r.file.bytes, at: r.file.at, note } });
+    }
+
+    /* ---- Parolni o'zgartirish ---- */
+    if (sub === 'password' && req.method === 'POST') {
+      if (isParent) return send(res, 403, { error: 'Faqat o’quvchi uchun.' });
+      const body = await readBody(req);
+      const st = await store.get('students/' + mine[0]);
+      if (!st) return send(res, 404, { error: 'O’quvchi topilmadi.' });
+      if (!(await kabPassOk(st, String(body.old || '')))) return send(res, 400, { error: 'Joriy parol noto’g’ri.' });
+      const nw = String(body.password || '');
+      if (nw.length < 6 || nw.length > 64) return send(res, 400, { error: 'Yangi parol kamida 6 ta belgidan iborat bo’lsin.' });
+      if (/^\d{4}$/.test(nw)) return send(res, 400, { error: 'Parol 4 ta raqamdan iborat bo’lmasin.' });
+      const salt = crypto.randomBytes(16).toString('hex');
+      await store.set('kabpass/' + st.id, { salt, hash: kabHash(nw, salt), at: stamp() });
+      await writeAudit(null, 'Kabinet: parol o’zgartirildi', (st.lastName || '') + ' ' + (st.firstName || ''), '');
+      return send(res, 200, { ok: true });
+    }
+
     /* ---- Onlayn kurs (A1): ketma-ket ochiladigan darslar ---- */
     if (sub === 'course' && req.method === 'GET') {
       const sid = String(url.searchParams.get('studentId') || mine[0] || '');
@@ -1591,8 +1728,8 @@ async function handleApi(req, res, url) {
       if (op === 'upload') {
         const body = await readBody(req, BODY_MAX_FILE);
         const type = String(body.type || '').toLowerCase();
-        if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(type)) {
-          return send(res, 400, { error: 'Faqat rasm (JPG, PNG) yoki PDF yuklang.' });
+        if (!/^image\/(jpeg|png|webp)$|^application\/pdf$|^audio\/(webm|mp4|mpeg|ogg|wav)(;.*)?$/.test(type)) {
+          return send(res, 400, { error: 'Faqat rasm (JPG, PNG), PDF yoki ovoz yozuvi yuklang.' });
         }
         const r = await files.save(store, {
           name: body.name, type, dataBase64: body.data,
@@ -2150,12 +2287,32 @@ async function handleApi(req, res, url) {
         const st = await store.get('students/' + r.studentId);
         r.name = st ? ((st.lastName || '') + ' ' + (st.firstName || '')).trim() : r.studentId;
         r.groups = (scope[r.studentId] || []).map(g => ({ id: g.id, name: g.name, code: g.code || '' }));
+        for (const pd of r.pending) {
+          pd.files = [];
+          for (const fid of pd.fileIds || []) {
+            const m = await files.meta(store, fid);
+            if (m) pd.files.push({ id: m.id, name: m.name, type: m.type });
+          }
+        }
       }
       rows.sort((a, b) => (b.pending.length - a.pending.length) || a.name.localeCompare(b.name));
       return send(res, 200, {
         rows,
         lessons: A.Course.LESSONS.map(l => ({ id: l.id, n: l.n, title: l.title, unit: l.unit }))
       });
+    }
+    if (route === 'course/files' && req.method === 'GET') {
+      const scope = await scopeStudentIds();
+      const names = {};
+      for (const sid of Object.keys(scope)) {
+        const st = await store.get('students/' + sid);
+        names[sid] = st ? ((st.lastName || '') + ' ' + (st.firstName || '')).trim() : sid;
+      }
+      const list = (await store.list('files/')).map(r => r.data)
+        .filter(f => f && f.byKind === 'oquvchi' && names[String(f.by)])
+        .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 300)
+        .map(f => ({ id: f.id, name: f.name, type: f.type, at: f.at, purpose: f.purpose, note: f.note || '', studentId: f.by, studentName: names[String(f.by)] }));
+      return send(res, 200, { files: list });
     }
     if ((route === 'course/review' || route === 'course/move') && req.method === 'POST') {
       if (!canAct) return nope();
@@ -3001,6 +3158,12 @@ const server = http.createServer(async (req, res) => {
         'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
         'X-Content-Type-Options': 'nosniff', ETag: etag
       }, Buffer.from(page, 'utf8'));
+    }
+    /* Alohida manzil: /kabinet (va /kurs) — o'quvchi kabineti sahifasi */
+    if (req.method === 'GET' && /^\/(kabinet|kurs|cabinet)\/?$/.test(url.pathname)) {
+      const to = url.pathname.indexOf('kurs') >= 0 ? '/#kurs' : '/#kabinet';
+      res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' });
+      return res.end();
     }
     if (req.method === 'GET' && url.pathname === '/robots.txt') {
       return send(res, 200, seo.robots(req.headers.host || 'localhost'),

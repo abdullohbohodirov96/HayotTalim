@@ -618,7 +618,10 @@ sinalmagan** — ishlatishni boshlashdan oldin telefoningizda bir marta tekshiri
 
 ## Onlayn kurs (A1) va o'quvchi kabineti
 
-- O'quvchi `#kabinet` da 4 xonali kodi bilan kiradi va to'liq sahifali kabinetni ko'radi: joriy dars, taraqqiyot, darslar xaritasi, guruh/Zoom, to'lov, davomat, savol-javob.
+- O'quvchi kabineti alohida sahifa: `/kabinet`. Login — telefon raqami yoki shaxsiy kod, parol — boshlang'ichda shaxsiy kod (keyin «Profil»da o'zi parol qo'yadi; parol xeshi `kabpass/` da, hech kimga o'qilmaydi).
+- Bo'limlar: Asosiy · Darslarim · Uy vazifalarim · Dars jadvali · To'lovlarim · Fayllarim (rasm/PDF yuborish) · Savol-javob · Profil. Telefonda pastki menyu.
+- Har dars ikki qism: «Darsda» (so'zlar, qissa, qoida, mashq, test) va «Uyda» (uy vazifasi). Qissani tinglash (gap-gap belgilanadi, sekin rejim) va o'quvchi o'zi o'qiganda talaffuzni tekshirish (Chrome nutq tanish, ar-SA).
+- Uy vazifasida qissa tepada qotib turadi; mashqlar: ovoz chiqarib o'qish (yozib olinadi, ustoz eshitadi), savollar, bo'sh joyni yozish, arabchaga tarjima, yozma ish, daftar rasmi. Ekrandagi arab klaviaturasi bor. Yozma mashqlarni server o'zi baholaydi.
 - Darslar (`#kurs`): so'zlar (harakatli rasmlar, talaffuz) → matn → qoida → mashq → so'z testi (≥80%) → uy vazifasi (javoblar, yozma ish, rasm/PDF yuklash).
 - Keyingi dars oldingi darsning testi va vazifasi topshirilgach o'zi ochiladi. Ustoz/admin ERP → «Onlayn kurs» bo'limida vazifani tekshiradi (baho, izoh yoki «qayta topshirsin») va o'quvchini istalgan darsga o'tkaza oladi. Natija o'quvchiga botda boradi.
 - Sinov: `node tests/course-test.js 3300`.
