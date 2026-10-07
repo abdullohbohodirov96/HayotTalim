@@ -1203,6 +1203,13 @@
   async function localPublic() {
     try { if (restPromise) await restPromise; } catch (e) { }
     var s = D.settings || {};
+    /* Eski brauzer nusxasida yo'q bo'lsa — standart manzillar */
+    var df = (A.Seed && A.Seed.defaults) || {};
+    s = Object.assign({}, s, {
+      instagram: s.instagram || df.instagram || '',
+      tgChannel: s.tgChannel || df.tgChannel || '',
+      phone: (!s.phone || s.phone === '+998 50 999 97 33') ? (df.phone || s.phone || '') : s.phone
+    });
     function all(c) { try { return D.all(c) || []; } catch (e) { return []; } }
     function lines(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
     return {
