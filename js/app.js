@@ -3077,7 +3077,9 @@
     var btn = document.getElementById('theme-toggle');
     var saved = null;
     try { saved = localStorage.getItem('albyana_theme'); } catch (e) { }
+    /* Standart — oq (yorug') panel; "Tizim bo'yicha" faqat o'zi tanlansa */
     if (saved) document.documentElement.setAttribute('data-theme', saved);
+    else if (saved === null) document.documentElement.setAttribute('data-theme', 'light');
     if (btn) btn.addEventListener('click', toggleTheme);
   }
 

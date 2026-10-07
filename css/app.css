@@ -3562,3 +3562,188 @@ body.kb-open .cr-pin .cr-story{max-height:16vh}
 .cr-tr-res{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .cr-tr-res:empty{display:none}
 .cr-mp4{width:100%;border-radius:20px;background:#000;aspect-ratio:16/9}
+
+/* =====================================================================
+   PREMIUM MAVZU — ichkarida toza oq panel, tashqarida boy zumrad yashil.
+   Zumrad + tilla: yon panel, kirish oynasi va sayt boshi to'q yashil,
+   orqasida xatam naqshi va yumshoq nur. Ish maydoni — oq, aniq, tinch.
+   ===================================================================== */
+:root{
+  --em-950:#021a14; --em-900:#032a20; --em-800:#05402f; --em-700:#065f46; --em-600:#047857; --em-500:#059669;
+  --au-500:#c9a24c; --au-400:#e2c272; --au-200:#f3e3b5; --au-soft:#faf3df;
+  --px-khatam:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22132%22%20height%3D%22132%22%20viewBox%3D%220%200%20132%20132%22%3E%3Cpath%20d%3D%22M66.00%2026.00L72.34%2050.69L94.28%2037.72L81.31%2059.66L106.00%2066.00L81.31%2072.34L94.28%2094.28L72.34%2081.31L66.00%20106.00L59.66%2081.31L37.72%2094.28L50.69%2072.34L26.00%2066.00L50.69%2059.66L37.72%2037.72L59.66%2050.69ZM0.00%20-40.00L6.34%20-15.31L28.28%20-28.28L15.31%20-6.34L40.00%200.00L15.31%206.34L28.28%2028.28L6.34%2015.31L0.00%2040.00L-6.34%2015.31L-28.28%2028.28L-15.31%206.34L-40.00%200.00L-15.31%20-6.34L-28.28%20-28.28L-6.34%20-15.31ZM132.00%20-40.00L138.34%20-15.31L160.28%20-28.28L147.31%20-6.34L172.00%200.00L147.31%206.34L160.28%2028.28L138.34%2015.31L132.00%2040.00L125.66%2015.31L103.72%2028.28L116.69%206.34L92.00%200.00L116.69%20-6.34L103.72%20-28.28L125.66%20-15.31ZM0.00%2092.00L6.34%20116.69L28.28%20103.72L15.31%20125.66L40.00%20132.00L15.31%20138.34L28.28%20160.28L6.34%20147.31L0.00%20172.00L-6.34%20147.31L-28.28%20160.28L-15.31%20138.34L-40.00%20132.00L-15.31%20125.66L-28.28%20103.72L-6.34%20116.69ZM132.00%2092.00L138.34%20116.69L160.28%20103.72L147.31%20125.66L172.00%20132.00L147.31%20138.34L160.28%20160.28L138.34%20147.31L132.00%20172.00L125.66%20147.31L103.72%20160.28L116.69%20138.34L92.00%20132.00L116.69%20125.66L103.72%20103.72L125.66%20116.69ZM72.47%2050.39L81.61%2059.53L81.61%2072.47L72.47%2081.61L59.53%2081.61L50.39%2072.47L50.39%2059.53L59.53%2050.39ZM5.71%2052.22L13.78%2060.29L13.78%2071.71L5.71%2079.78L-5.71%2079.78L-13.78%2071.71L-13.78%2060.29L-5.71%2052.22ZM137.71%2052.22L145.78%2060.29L145.78%2071.71L137.71%2079.78L126.29%2079.78L118.22%2071.71L118.22%2060.29L126.29%2052.22ZM71.71%20-13.78L79.78%20-5.71L79.78%205.71L71.71%2013.78L60.29%2013.78L52.22%205.71L52.22%20-5.71L60.29%20-13.78ZM71.71%20118.22L79.78%20126.29L79.78%20137.71L71.71%20145.78L60.29%20145.78L52.22%20137.71L52.22%20126.29L60.29%20118.22Z%22%20fill%3D%22none%22%20stroke%3D%22%23d8ae43%22%20stroke-width%3D%221.1%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  --brand:#05704f; --brand-deep:#043f2e; --brand-light:#045c41; --brand-soft:#e7f5ef;
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f6f8f7; --line:#e6ebe9; --line-strong:#d4ddd9;
+  --ink:#0d1a15; --ink-2:#33433d; --muted:#6a7a73;
+  --ok:#0f7a4c; --ok-soft:#e5f5ed;
+  --side-bg:#032a20; --side-ink:#f3f8f5; --side-ink-2:rgba(226,240,233,.74);
+  --side-hover:rgba(255,255,255,.07); --side-line:rgba(226,194,114,.16);
+  --side-active-bg:#ffffff; --side-active-ink:#043f2e;
+  --shadow:0 1px 2px rgba(13,26,21,.04), 0 8px 24px -16px rgba(5,64,47,.22);
+  --shadow-lg:0 24px 60px -24px rgba(3,42,32,.45);
+  --r:11px; --r-lg:18px;
+}
+body{background:var(--bg)}
+
+/* ---------- Yon panel: boy zumrad, tilla naqsh ---------- */
+.sidebar{position:sticky;isolation:isolate;overflow:hidden;
+  background:
+    radial-gradient(120% 45% at 0% 0%, rgba(16,185,129,.24), transparent 62%),
+    radial-gradient(110% 40% at 100% 100%, rgba(201,162,76,.20), transparent 62%),
+    linear-gradient(180deg,#05402f 0%,#032a20 55%,#021a14 100%);
+  box-shadow:inset -1px 0 0 rgba(226,194,114,.22)}
+.sidebar::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background-image:var(--px-khatam);background-size:120px 120px;opacity:.085;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 45%,#000 100%);
+          mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 45%,#000 100%)}
+.sidebar::after{content:'';position:absolute;left:-60px;bottom:-60px;width:240px;height:240px;z-index:-1;
+  border-radius:50%;border:1px solid rgba(226,194,114,.16);box-shadow:0 0 0 22px rgba(226,194,114,.04),0 0 0 44px rgba(226,194,114,.03);
+  pointer-events:none}
+.sidebar .head{padding:20px 16px 16px;border-bottom:1px solid var(--side-line)}
+.sidebar .head .logo-sm{width:38px;height:38px;border-radius:12px;
+  box-shadow:0 0 0 1px rgba(226,194,114,.55),0 8px 18px -8px rgba(0,0,0,.6)}
+.sidebar .head b{font-size:16.5px;color:#fff}
+.sidebar .head span{color:var(--au-400);opacity:.9;font-weight:600;font-size:10.5px;letter-spacing:.14em}
+.nav{padding:12px 10px;gap:3px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.nav button{position:relative;padding:10px 12px;border-radius:11px;font-weight:600;font-size:13.5px;
+  transition:background .15s,color .15s,transform .15s}
+.nav button:hover{background:rgba(255,255,255,.08);color:#fff;transform:translateX(2px)}
+.nav button[aria-current="page"]{background:linear-gradient(180deg,#ffffff,#f3f8f5);color:var(--em-800);
+  box-shadow:0 10px 22px -12px rgba(0,0,0,.65),inset 0 -1px 0 rgba(5,64,47,.08);transform:none}
+.nav button[aria-current="page"]::before{content:'';position:absolute;left:-10px;top:9px;bottom:9px;width:4px;
+  border-radius:0 4px 4px 0;background:linear-gradient(180deg,var(--au-400),var(--au-500))}
+.nav button[aria-current="page"] .ico{color:var(--em-600)}
+.nav .group-label{color:var(--au-400);opacity:.75;font-weight:700}
+.sidebar .foot{border-top:1px solid var(--side-line);padding:12px;background:rgba(0,0,0,.14)}
+.sidebar .foot .avatar{background:linear-gradient(150deg,var(--au-400),var(--au-500)) !important;color:#2a1f05 !important;font-weight:800}
+.sidebar .foot .who b{color:#fff}
+.sidebar .foot .who span{color:var(--au-200);opacity:.8}
+
+/* ---------- Ish maydoni: oq va toza ---------- */
+.main{background:#fff}
+.topbar{background:rgba(255,255,255,.88);backdrop-filter:saturate(1.4) blur(12px);
+  border-bottom:1px solid var(--line);padding:12px 24px}
+.topbar .search input{background:var(--surface-2);border-color:transparent;border-radius:12px;padding:10px 14px 10px 38px;
+  transition:border-color .15s,box-shadow .15s,background .15s}
+.topbar .search input:focus{outline:none;background:#fff;border-color:var(--em-500);box-shadow:0 0 0 4px rgba(5,150,105,.12)}
+.topbar .search svg{left:12px;top:11px}
+.view{padding:26px 28px 40px}
+.page-head h1{font-size:24px;letter-spacing:-.02em}
+.page-head p{font-size:13.5px}
+
+.card{border-color:var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.card>.card-head{padding:16px 18px}
+.card>.card-head h2{font-size:15.5px}
+.card>.card-body{padding:18px}
+
+.tiles{gap:14px}
+.tile{position:relative;overflow:hidden;border-radius:var(--r-lg);padding:16px 18px;gap:7px;
+  transition:border-color .15s,transform .15s,box-shadow .15s}
+.tile::before{content:'';position:absolute;left:0;top:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--em-500),var(--au-400));opacity:0;transition:opacity .2s}
+.tile:hover{border-color:color-mix(in srgb,var(--em-500) 45%,var(--line));transform:translateY(-2px);
+  box-shadow:0 18px 36px -22px rgba(5,64,47,.35)}
+.tile:hover::before{opacity:1}
+.tile .lbl{font-size:12.5px;color:var(--muted)}
+.tile .val{font-size:28px;letter-spacing:-.02em}
+.tile.money .val{color:var(--em-600)}
+
+.btn{border-radius:11px;transition:background .15s,border-color .15s,box-shadow .15s,transform .08s}
+.btn:hover{border-color:color-mix(in srgb,var(--em-500) 35%,var(--line-strong))}
+.btn.primary{background:linear-gradient(180deg,#078160,#05603f);border-color:#05603f;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 8px 18px -10px rgba(5,96,63,.75)}
+.btn.primary:hover{background:linear-gradient(180deg,#08906b,#056947);border-color:#056947}
+.btn.ghost:hover{border-color:transparent}
+.btn.sm{border-radius:9px}
+
+.field input,.field select,.field textarea{border-radius:11px;transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--em-500);box-shadow:0 0 0 4px rgba(5,150,105,.12)}
+
+table.tbl th{background:#f7f9f8;color:#5d6d66}
+table.tbl tbody tr:hover{background:#f4faf7}
+.pill.ok{background:var(--ok-soft)}
+
+@media (max-width:900px){
+  .view{padding:18px 16px 92px}
+  .topbar{padding:10px 16px}
+  .tabbar{background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+    box-shadow:0 -10px 30px -20px rgba(5,64,47,.35)}
+  .tabbar button[aria-current="page"]{color:var(--em-700)}
+  .tabbar button[aria-current="page"] .ico{background:var(--brand-soft);border-radius:999px;padding:3px 14px;width:48px;height:28px;box-sizing:border-box}
+}
+
+/* ---------- Kirish oynasi: to'q zumrad, tilla naqsh, nur ---------- */
+.login-screen{
+  background:
+    radial-gradient(60% 55% at 12% 8%, rgba(16,185,129,.30), transparent 62%),
+    radial-gradient(50% 50% at 92% 92%, rgba(201,162,76,.26), transparent 62%),
+    radial-gradient(120% 90% at 50% 50%, #05402f 0%, #032a20 55%, #01130e 100%)}
+.login-screen .login-art .khatam{display:block;color:var(--au-400);opacity:.075}
+.login-art::before,.login-art::after{content:'';position:absolute;border-radius:50%;pointer-events:none}
+.login-art::before{width:520px;height:520px;left:50%;top:50%;transform:translate(-50%,-50%);
+  border:1px solid rgba(226,194,114,.20);box-shadow:0 0 0 46px rgba(226,194,114,.035),0 0 0 92px rgba(226,194,114,.025),0 0 0 138px rgba(226,194,114,.018)}
+.login-art::after{width:46vw;height:46vw;right:-14vw;top:-16vw;filter:blur(40px);
+  background:radial-gradient(circle,rgba(16,185,129,.28),transparent 68%);animation:stDrift2 24s ease-in-out infinite}
+.login-ar{color:var(--au-400);opacity:.10}
+.login-screen .login{box-shadow:0 0 0 1px rgba(226,194,114,.45),0 0 0 8px rgba(226,194,114,.06),0 50px 90px -40px rgba(0,0,0,.95)}
+.login-screen .login .btn.primary{background:linear-gradient(180deg,#078160,#044d36);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 16px 34px -18px rgba(3,42,32,.95)}
+.login-screen .login .btn.primary:hover{background:linear-gradient(180deg,#08906b,#05603f)}
+.login-screen .field input:focus{border-color:var(--au-500);box-shadow:0 0 0 4px rgba(201,162,76,.20)}
+@media (prefers-reduced-motion:reduce){ .login-art::after{animation:none} }
+@media (max-width:560px){ .login-art::before{width:340px;height:340px} }
+
+/* ---------- Ochiq sayt: boshida boy zumrad band ---------- */
+.site{--st-paper:#f7faf8}
+.site-top{background:rgba(3,42,32,.94);backdrop-filter:saturate(1.3) blur(14px);
+  border-bottom:1px solid rgba(226,194,114,.18)}
+.site-top.stuck{border-bottom-color:rgba(226,194,114,.25);box-shadow:0 14px 34px -22px rgba(0,0,0,.8)}
+.site-brand b{color:#fff}
+.site-brand span{color:var(--au-200);opacity:.85}
+.site-brand .logo{box-shadow:0 0 0 1px rgba(226,194,114,.6),0 8px 18px -8px rgba(0,0,0,.6)}
+.site-nav .btn.ghost{color:rgba(240,248,244,.86)}
+.site-nav .btn.ghost:hover{background:rgba(255,255,255,.08);color:#fff}
+.site-nav .btn:not(.ghost):not(.primary){background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22);color:#fff}
+.site-nav .btn:not(.ghost):not(.primary):hover{background:rgba(255,255,255,.12)}
+.site-top .site-nav .btn.primary{background:linear-gradient(180deg,var(--au-400),var(--au-500));border-color:transparent;color:#241a03;
+  box-shadow:0 10px 24px -12px rgba(201,162,76,.9)}
+.site .site-phone{background:transparent;border-color:rgba(226,194,114,.45);color:#fff}
+.site .site-phone:hover{border-color:var(--au-400);color:var(--au-200)}
+.site .site-phone .ico{color:var(--au-400)}
+
+.site-hero{position:relative;isolation:isolate;padding:64px 0 108px;color:#fff}
+.site-hero::before{display:block;content:'';position:absolute;z-index:-2;inset:0 -100vmax;width:auto;height:auto;border-radius:0;opacity:1;background-color:transparent;pointer-events:none;
+  background:
+    var(--px-khatam) 0 0/132px 132px,
+    radial-gradient(55% 80% at 10% 0%, rgba(16,185,129,.30), transparent 62%),
+    radial-gradient(45% 70% at 92% 100%, rgba(201,162,76,.24), transparent 62%),
+    linear-gradient(170deg,#05402f 0%,#032a20 60%,#021a14 100%);
+  background-blend-mode:soft-light,normal,normal,normal;
+  border-bottom:1px solid rgba(226,194,114,.25)}
+.site-hero::after{display:block;content:'';position:absolute;z-index:-1;pointer-events:none;
+  width:min(620px,70vw);height:min(620px,70vw);right:-8%;top:50%;transform:translateY(-50%);border-radius:50%;
+  border:1px solid rgba(226,194,114,.18);
+  box-shadow:0 0 0 40px rgba(226,194,114,.03),0 0 0 80px rgba(226,194,114,.02),inset 0 0 120px rgba(16,185,129,.18)}
+.site-hero h1{color:#fff}
+.site-hero h1 .gold{color:var(--au-400)}
+.hero-eyebrow{color:var(--au-200);background:rgba(226,194,114,.10);border-color:rgba(226,194,114,.38)}
+.hero-eyebrow::before{background:var(--au-400);box-shadow:0 0 10px var(--au-400)}
+.hero-type{color:var(--au-400);text-shadow:0 0 28px rgba(201,162,76,.35)}
+.hero-type-cur{background:var(--au-400)}
+.hero-lead{color:rgba(232,243,238,.84)}
+.site .btn.gold{background:linear-gradient(180deg,#ecd08a,var(--au-500));border-color:rgba(255,255,255,.2);color:#231903;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 18px 38px -18px rgba(201,162,76,.95)}
+.site .btn.gold:hover{background:linear-gradient(180deg,#f3dca0,#d4ae58)}
+.hero-cta .btn.on-dark{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.28);color:#fff}
+.hero-cta .btn.on-dark:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.45)}
+.site .hero-tel{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.24);color:#fff}
+.site .hero-hours,.site .hero-proof .proof-text{color:rgba(232,243,238,.75)}
+.zm{box-shadow:0 0 0 1px rgba(226,194,114,.35),0 50px 90px -40px rgba(0,0,0,.85)}
+.zm-top{background:#021a14}
+.zm-chip{box-shadow:0 0 0 1px rgba(226,194,114,.35),0 18px 36px -18px rgba(0,0,0,.6)}
+.stat-band{position:relative;z-index:2;margin-top:-70px !important;
+  box-shadow:0 0 0 1px var(--st-line),0 30px 60px -30px rgba(3,42,32,.45) !important}
+@media (max-width:900px){
+  .site-hero{padding:34px 0 96px}
+  .site-hero::after{width:90vw;height:90vw;right:-40vw;top:30%}
+}
