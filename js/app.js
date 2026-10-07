@@ -511,7 +511,8 @@
       try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { }
     }
 
-    /* 4 xonali shaxsiy kod bilan kirish.
+    /* 5 xonali shaxsiy kod bilan kirish (eski 4 xonali kodlar ham
+       ishlaydi — ular uchun “Kirish” tugmasi bosiladi).
        Kod yozilgandan keyin 30 kunlik sessiya beriladi — shu qurilmada
        qayta yozish shart emas. Umumiy kompyuterda “Chiqish” tugmasi bor. */
     function showForm() {

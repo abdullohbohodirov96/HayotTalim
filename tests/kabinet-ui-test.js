@@ -62,7 +62,7 @@ const ID = n => R + '_' + n;
   const got = await fetch('http://localhost:' + PORT + '/api/doc?path=' + encodeURIComponent('students/' + ID('s')),
     { headers: { Cookie: dir } }).then(r => r.json());
   const code = String(((got || {}).data || {}).code || '');
-  ok('O’quvchiga kod berildi: ' + code, /^\d{4}$/.test(code), code);
+  ok('O’quvchiga kod berildi: ' + code, /^\d{5}$/.test(code), code);
 
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 860 }, isMobile: true, hasTouch: true });
@@ -95,7 +95,7 @@ const ID = n => R + '_' + n;
   const myCode = await fetch('http://localhost:' + PORT + '/api/doc?path=' +
     encodeURIComponent('students/' + ID('s')), { headers: { Cookie: dir } })
     .then(r => r.json()).then(j => String(j.data.code));
-  ok('O’quvchida kod bor: ' + myCode, /^\d{4}$/.test(myCode));
+  ok('O’quvchida kod bor: ' + myCode, /^\d{4,5}$/.test(myCode));
   await page.fill('#kab-login', myCode);
   await page.fill('#kab-pass', myCode);
   await page.click('#kab-go');
