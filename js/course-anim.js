@@ -148,16 +148,20 @@
       '<circle class="ca-drop" cx="96" cy="48" r="2.5" fill="#5ab4d6"/><circle class="ca-drop d2" cx="96" cy="48" r="2.5" fill="#5ab4d6"/><circle class="ca-drop d3" cx="96" cy="48" r="2.5" fill="#5ab4d6"/>' +
       '<rect x="56" y="84" width="48" height="24" fill="' + GS + '"/>';
   };
-  L.mosque = function () {
-    return ground() + '<rect x="40" y="62" width="70" height="46" fill="' + WHITE + '" stroke="' + GREY + '"/>' +
-      '<path d="M48 64q27-40 54 0z" fill="' + G2 + '"/><rect x="118" y="28" width="12" height="80" fill="' + WHITE + '" stroke="' + GREY + '"/>' +
-      '<path d="M116 30l8-12l8 12z" fill="' + G2 + '"/><path d="M68 108v-20q7-10 14 0v20z" fill="' + G1 + '"/>' +
-      '<g class="ca-pulse"><path d="M75 18a8 8 0 1 0 6 13a6 6 0 1 1-6-13z" fill="#f2c94c"/></g>';
+  /* Do'kon: soyabonli peshtaxta, vitrina */
+  L.shop = function () {
+    return ground() + '<rect x="34" y="50" width="92" height="58" fill="' + WHITE + '" stroke="' + GREY + '"/>' +
+      '<path d="M30 50h100l-6-18h-88z" fill="' + G2 + '"/><path d="M42 50v-18M58 50v-18M74 50v-18M90 50v-18M106 50v-18M122 50v-18" stroke="' + G3 + '" stroke-width="3"/>' +
+      '<rect x="44" y="62" width="34" height="26" fill="#dff1f9" stroke="' + G1 + '" stroke-width="2"/>' +
+      '<rect x="88" y="66" width="24" height="42" fill="' + WOOD + '"/><circle cx="106" cy="88" r="2" fill="#f2c94c"/>' +
+      '<g class="ca-pulse"><rect x="50" y="70" width="8" height="12" rx="2" fill="#f2c94c"/><rect x="62" y="74" width="10" height="8" rx="2" fill="' + G3 + '"/></g>';
   };
-  L.prayerRoom = function () {
-    return ground() + '<path d="M54 20h52v60q-26 -30 -52 0z" fill="' + GS + '" stroke="' + G2 + '" stroke-width="2"/>' +
-      '<path d="M58 106l10-34h24l10 34z" fill="' + G2 + '"/><path class="ca-shimmer" d="M68 98h24M70 90h20M72 82h16" stroke="' + G3 + '" stroke-width="2"/>' +
-      '<ellipse class="ca-lamp" cx="80" cy="50" rx="24" ry="16" fill="#fff7c2"/>';
+  /* Ayvon (balkon): panjara, gul */
+  L.balcony = function () {
+    return ground() + '<rect x="36" y="16" width="88" height="62" fill="' + WHITE + '" stroke="' + GREY + '"/>' +
+      '<rect x="62" y="26" width="36" height="52" fill="#dff1f9" stroke="' + G1 + '" stroke-width="2"/>' +
+      '<rect x="28" y="78" width="104" height="6" fill="' + G1 + '"/><path d="M34 84v22M48 84v22M62 84v22M76 84v22M90 84v22M104 84v22M118 84v22M128 84v22" stroke="' + G1 + '" stroke-width="3"/>' +
+      '<g class="ca-sway" style="transform-origin:44px 78px"><circle cx="44" cy="66" r="8" fill="#e98fa6"/><path d="M44 74v4" stroke="' + G2 + '" stroke-width="3"/></g>';
   };
   L.coat = function () {
     return '<path d="M80 10v8" stroke="' + INK + '" stroke-width="2"/><g class="ca-swing" style="transform-origin:80px 18px">' +
@@ -193,18 +197,19 @@
       '<g class="ca-page" style="transform-origin:0 12px"><path d="M0 0h22v24h-22z" fill="' + GS + '" stroke="' + G1 + '"/></g>' +
       '<path class="ca-shimmer" d="M-18 6h14M-18 12h14M-18 18h10" stroke="' + G2 + '" stroke-width="2"/></g>';
   };
-  L.wudu = function () {
-    return ground() + '<path d="M96 26h24v8" stroke="' + INK + '" stroke-width="5" fill="none" stroke-linecap="round"/>' +
-      '<circle class="ca-drop" cx="120" cy="40" r="2.5" fill="#5ab4d6"/><circle class="ca-drop d2" cx="120" cy="40" r="2.5" fill="#5ab4d6"/><circle class="ca-drop d3" cx="120" cy="40" r="2.5" fill="#5ab4d6"/>' +
-      '<rect x="104" y="74" width="34" height="8" rx="4" fill="' + WHITE + '" stroke="' + GREY + '"/>' +
-      at(76, 1, man({}), '') + '<g class="ca-rub"><circle cx="110" cy="64" r="5" fill="' + SK + '"/><circle cx="118" cy="66" r="5" fill="' + SK + '"/></g>';
+  /* Uyg'ondi: quyosh chiqdi, odam qo'lini cho'zadi */
+  L.wakeUp = function () {
+    return ground() + '<g class="ca-pulse"><circle cx="124" cy="34" r="14" fill="#f2c94c"/></g>' +
+      '<path d="M124 12v-6M146 34h6M140 18l4-4M108 18l-4-4" stroke="#f2c94c" stroke-width="3" stroke-linecap="round"/>' +
+      '<rect x="20" y="86" width="60" height="16" rx="4" fill="' + GS + '" stroke="' + G2 + '"/>' +
+      '<g class="ca-bob">' + at(84, 1, man({}), '') + '</g>';
   };
-  L.pray = function () {
-    return ground() + '<path d="M44 108l8-22h56l8 22z" fill="' + G2 + '"/><path d="M60 96h40" stroke="' + G3 + '" stroke-width="2"/>' +
-      '<g transform="translate(80 108)"><g class="ca-legs-only">' + legsStand(INK) + '</g>' +
-      '<g class="ca-bow" style="transform-origin:0 -24px">' +
-      '<rect x="-11" y="-54" width="22" height="32" rx="7" fill="' + WHITE + '"/>' + arms(WHITE) +
-      '<circle cx="0" cy="-64" r="9" fill="' + SK + '"/><path d="M-9 -68a9 6 0 0 1 18 0z" fill="#fff"/></g></g>';
+  /* Yedi: stol, likopcha */
+  L.eat = function () {
+    return ground() + chair(56) + at(62, 1, man({}), '') +
+      '<rect x="80" y="72" width="60" height="6" fill="' + WOOD + '"/><path d="M86 78v30M134 78v30" stroke="' + WOOD + '" stroke-width="4"/>' +
+      '<ellipse cx="108" cy="70" rx="16" ry="4" fill="' + WHITE + '" stroke="' + GREY + '"/>' +
+      '<g class="ca-bob"><circle cx="104" cy="66" r="4" fill="#e98f4a"/><circle cx="112" cy="66" r="4" fill="' + G3 + '"/></g>';
   };
   L.wear = function () {
     return ground() + '<path d="M28 20v6" stroke="' + INK + '" stroke-width="2"/>' + at(96, 1, man({ shirt: G3 }), '') +
@@ -320,7 +325,7 @@
   L.neighbor = function () { return neighbors(P.father()); };
   L.neighborF = function () { return neighbors(P.mother()); };
   L.near = function () {
-    return ground() + house(48, 0.9) + '<g transform="translate(30 0)">' + L.mosque().replace(ground(), '').replace(/<g class="ca-pulse">[\s\S]*?<\/g>/, '') + '</g>' +
+    return ground() + house(48, 0.9) + '<g transform="translate(30 0)">' + L.shop().replace(ground(), '').replace(/<g class="ca-pulse">[\s\S]*?<\/g>/, '') + '</g>' +
       '<path class="ca-dash" d="M70 100h22" stroke="' + G2 + '" stroke-width="3" stroke-dasharray="4 3"/>';
   };
   L.far = function () {

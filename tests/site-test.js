@@ -299,18 +299,17 @@ async function api(p, opts = {}) {
      Darajalar serverdan keladi (server/levels.js), narx esa markazning
      kurs kartochkasidan.                                               */
   await page.waitForSelector('.lvl', { timeout: 15000 });
-  await page.waitForSelector('.price-card', { timeout: 15000 });
   const txt2 = await page.evaluate(() => document.body.innerText);
   eq('Oltita daraja kartasi', await page.evaluate(() => document.querySelectorAll('.lvl').length), 6);
   ok('Daraja kodlari ko’rinadi',
     /A1/.test(txt2) && /C2/.test(txt2), txt2.slice(0, 500));
   ok('Daraja izohi ko’rinadi', /Harflar, salomlashish/.test(txt2), txt2.slice(0, 900));
-  ok('Bitta narx kartasi bor',
-    (await page.evaluate(() => document.querySelectorAll('.price-card').length)) === 1);
-  ok('Kurs nomi ko’rinadi', /boshlang/i.test(txt2), txt2.slice(0, 400));
-  ok('Narx ko’rsatilgan', /450 000/.test(txt2), txt2.slice(0, 900));
-  ok('Narx daraja bilan o’zgarmasligi yozilgan',
-    /A1 ham, C2 ham bir xil/.test(txt2), txt2.slice(0, 1200));
+  /* Markaz so'radi: saytda narx ko'rsatilmaydi */
+  ok('Saytda narx kartasi yo’q',
+    (await page.evaluate(() => document.querySelectorAll('.price-card, #narx').length)) === 0);
+  ok('Saytda narx (so’m) yozilmagan', !/450 000|so’m \/ oy/.test(txt2), txt2.slice(0, 900));
+  ok('Alohida guruhlar yozilgan', /ayollar, erkaklar va bolalar/i.test(txt2));
+  ok('Diniy iboralar yo’q', !/Qur[’'‘]on|namoz|tajvid|sura/i.test(txt2));
   ok('Telefon va manzil bor', /200 70 07/.test(txt) && /Chilonzor/.test(txt));
   ok('Parol maydoni yo’q', !(await page.evaluate(() => !!document.getElementById('login-pass'))));
 
@@ -489,8 +488,6 @@ async function api(p, opts = {}) {
   const tchs = pub2.json.teachers || [];
   ok('Ustozlar ro’yxati bor', tchs.length >= 1, String(tchs.length));
   ok('Ustoz bor', tchs.some(t => /Ustoz/.test(t.name)), JSON.stringify(tchs.map(t => t.name)));
-  ok('Ayol ustoz guruhi belgilangan', tchs.some(t => t.audience === 'ayollar'));
-  ok('Faqat ayollar markazi: erkak ustoz yo’q', tchs.filter(t => t.audience === 'erkaklar').length === 0);
   ok('Ustoz ma’lumotida telefon/oylik yo’q',
     !tchs.some(t => t.phone || t.salaryAmount || t.payType), JSON.stringify(tchs[0] || {}));
   ok('Dars uzunligi berilgan', (pub2.json.lessonMinutes || 0) === 90, String(pub2.json.lessonMinutes));
@@ -538,7 +535,7 @@ async function api(p, opts = {}) {
   ok('Ustoz ismlari bor', /Ustoz/.test(tv.text));
   /* Markaz rahbari so'radi: "Misrlik" emas, ARAB ustoz; kartada
      erkak/ayol guruhi yozilmaydi.                                      */
-  ok('Kartada "Ayol ustoz" yozuvi bor', /Ayol ustoz/i.test(tv.text), tv.text.slice(0, 400));
+  ok('Kartada "Ayol ustoz" yozuvi yo’q', !/Ayol ustoz/i.test(tv.text), tv.text.slice(0, 400));
   ok('Kartada erkak/ayol guruhi yozilmaydi',
     !/guruhlari/i.test(tv.text.split('Dars vaqtlari')[0] || ''), tv.text.slice(0, 500));
   ok('Dars vaqtlari chiqdi', tv.slots >= 6, String(tv.slots));

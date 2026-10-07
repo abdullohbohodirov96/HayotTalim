@@ -953,6 +953,12 @@
     wrap.appendChild(box);
 
     var SES = null, QS = [], LVLS = [], pos = 0, picked = {};
+    /* Serversiz namoyishda (Vercel, artefakt) test brauzerda baholanadi —
+       js/levels-local.js faqat namoyish nusxasiga qo'shiladi.            */
+    function testApi(m, p, b) {
+      if (D.mode !== 'server' && A.LevelsLocal) return A.LevelsLocal.api(m, p, b);
+      return D.api(m, p, b);
+    }
     /* Vaqt chegarasi: serverdan `limitSec` keladi. Sanoq faqat ko'rsatish
        uchun — haqiqiy chegarani server tekshiradi (sessiya muddati). */
     var endAt = 0, tick = null, timeUp = false;
@@ -1028,7 +1034,7 @@
       UI.clear(body);
       body.appendChild(h('p', { class: 'small muted' }, T().loading));
       try {
-        var d = await D.api('POST', 'api/test/start', { lang: LANG });
+        var d = await testApi('POST', 'api/test/start', { lang: LANG });
         SES = d.id; QS = d.questions || []; LVLS = d.levels || [];
         LANG = TEST_T[d.lang] ? d.lang : LANG;
         paintHead();
@@ -1110,7 +1116,7 @@
         btn.disabled = true; btn.textContent = T().calc; err.hidden = true;
         var ans = Object.keys(picked).map(function (id) { return { id: id, choice: picked[id] }; });
         try {
-          var r = await D.api('POST', 'api/test/submit', {
+          var r = await testApi('POST', 'api/test/submit', {
             sessionId: SES, answers: ans,
             name: nameI.value, phone: phoneI.value
           });
@@ -1410,9 +1416,9 @@
      keyingisi yoziladi. "Harakatni kamaytirish" yoqilgan bo'lsa yozilmaydi —
      iboralar shunchaki navbat bilan almashadi.                            */
   var TAGLINES = [
-    'Qur’onni tushunib o’qing',
+    'Arab tilini noldan o’rganing',
     'Noldan boshlab — 1 yilda',
-    'Ayol ustoz bilan jonli Zoom darslar',
+    'Ayollar, erkaklar va bolalar — alohida guruhlar',
     'Uydan chiqmasdan, butun O’zbekiston bo’ylab'
   ];
   var typeTimer = null;
@@ -1587,7 +1593,6 @@
       ]),
       h('nav', { class: 'site-nav' }, [
         navBtn('Darajalar', 'bosqichlar'),
-        navBtn('Narx', 'narx'),
         navBtn('Ustozlar', 'ustozlar'),
         h('a', { class: 'site-phone', id: 'site-call', href: '#ariza' },
           [UI.icon('phone'), h('span', { id: 'site-call-text' }, 'Bog’lanish')]),
@@ -1613,7 +1618,7 @@
     var hero = h('section', { class: 'site-hero' }, [
       heroBadge,
       h('div', { class: 'hero-text' }, [
-        h('span', { class: 'hero-eyebrow' }, 'Ayollar uchun onlayn arab tili'),
+        h('span', { class: 'hero-eyebrow' }, 'Onlayn arab tili kurslari'),
         h('h1', {}, [h('span', { class: 'gold', id: 'site-name-hero' }, name)]),
         h('div', { class: 'hero-type' }, [
           h('span', { class: 'hero-type-txt', id: 'hero-type-txt' }, ''),
@@ -1621,8 +1626,8 @@
         ]),
         h('div', { class: 'hero-rule', 'aria-hidden': 'true' }),
         h('p', { class: 'hero-lead', id: 'site-about' },
-          'Noldan boshlab 1 yilda: Qur’onni tushunib o’qiysiz va arabcha gapirasiz. ' +
-          'Ayol ustoz bilan jonli Zoom darslar, har bir dars yozuvi — butun O’zbekiston bo’ylab, uydan chiqmasdan.'),
+          'Noldan boshlab 1 yilda: arabcha matnni ravon o’qiysiz, tushunasiz va erkin gapirasiz. ' +
+          'Ayollar, erkaklar va bolalar uchun alohida guruhlarda jonli Zoom darslar, har bir dars yozuvi — butun O’zbekiston bo’ylab, uydan chiqmasdan.'),
         h('div', { class: 'hero-cta' }, [
           h('button', {
             class: 'btn gold xl', type: 'button', id: 'hero-free-btn',
@@ -1678,7 +1683,7 @@
           h('div', { class: 'zm-bar' }, [h('i'), h('i'), h('i', { class: 'end' })])
         ]),
         h('div', { class: 'zm-chip c1' }, [UI.icon('play'), 'Har dars yozib olinadi']),
-        h('div', { class: 'zm-chip c2' }, [UI.icon('users'), 'Faqat ayollar guruhi'])
+        h('div', { class: 'zm-chip c2' }, [UI.icon('users'), 'Ayollar · erkaklar · bolalar — alohida'])
       ])
     ]);
 
@@ -1697,7 +1702,7 @@
       h('p', { class: 'sec-note' }, 'Har bir bosqichda nimani o’rganishingiz oldindan ma’lum. Sakrab o’tish yo’q.'),
       h('div', { class: 'rm-line' }, [
         stepCard('1', '1-oy', 'Harflar va o’qish', 'Arab alifbosi, harakatlar, so’zlarni bo’g’inlab o’qish.'),
-        stepCard('2', '3-oy', 'Qur’onni ravon o’qish', 'Tajvid asoslari, Fotiha va qisqa suralarni xatosiz o’qish.'),
+        stepCard('2', '3-oy', 'Ravon o’qish', 'To’g’ri talaffuz, harakatlar va matnlarni xatosiz, ravon o’qish.'),
         stepCard('3', '6-oy', 'Ma’noni tushunish', 'Asosiy grammatika va 1000 ta ko’p uchraydigan so’z.'),
         stepCard('4', '12-oy', 'Arabcha gaplashish', 'Kundalik suhbat, matn o’qib tushunish, A2–B1 daraja.')
       ])
@@ -1715,7 +1720,7 @@
       h('h2', {}, 'Boshlash uchun 3 qadam'),
       h('div', { class: 'how-grid' }, [
         howCard('play', '01', 'Bepul darsga yoziling', 'Telegram bot orqali 1 daqiqada. Jonli ochiq darsda usulimizni ko’rasiz.'),
-        howCard('users', '02', 'Guruhga qo’shiling', 'Haftada 3 marta Zoom’da jonli dars. Guruhda 10 kishigacha, faqat ayollar.'),
+        howCard('users', '02', 'Guruhga qo’shiling', 'Haftada 3 marta Zoom’da jonli dars. Guruhda 10 kishigacha — ayollar, erkaklar va bolalar alohida.'),
         howCard('check', '03', 'Har kuni o’sing', 'Dars yozuvlari, uy vazifasi va ustoz izohlari — hammasi kabinetingizda.')
       ])
     ]);
@@ -1785,13 +1790,13 @@
         ]),
         h('div', { class: 'why-text' }, [
           h('div', { class: 'sec-eyebrow' }, 'Nega biz'),
-          h('h2', {}, 'Uydan chiqmasdan, ayol ustoz bilan'),
+          h('h2', {}, 'Uydan chiqmasdan, tajribali ustoz bilan'),
           h('p', { class: 'sec-note' },
             'Darslar jonli: ustozni ko’rasiz, savol berasiz, xatoingiz o’sha zahoti ' +
             'tuzatiladi. Dars qoldirsangiz — yozuvi Telegram guruhda turadi. ' +
-            'Noldan boshlab bir yilda Qur’onni tushunib o’qish va arabcha suhbatga yetasiz.'),
+            'Noldan boshlab bir yilda arabcha matnni tushunib o’qish va erkin suhbatga yetasiz.'),
           h('ul', { class: 'why-list' }, [
-            whyRow('Faqat ayollar guruhi va ayol ustoz'),
+            whyRow('Ayollar, erkaklar va bolalar uchun alohida guruhlar'),
             whyRow('Haftada 3 marta jonli Zoom dars, har biri 80 daqiqa'),
             whyRow('Har bir dars yozib olinadi — qoldirsangiz ham ortda qolmaysiz'),
             whyRow('Kichik guruh: 10 kishigacha, har biriga vaqt yetadi'),
@@ -1816,7 +1821,7 @@
         h('div', { class: 'sec-eyebrow center' }, 'O’quv dasturi'),
         h('h2', {}, 'Bitta dastur — olti daraja'),
         h('p', { class: 'sec-note center' },
-          'Guruhlar faqat daraja bilan farq qiladi, narx esa hammasida bir xil. ' +
+          'Guruhlar daraja bo’yicha tuziladi: ayollar, erkaklar va bolalar alohida o’qiydi. ' +
           'Qaysi darajadan boshlashni bepul test bir necha daqiqada aniqlaydi.')
       ]),
       lvlGrid
@@ -1835,7 +1840,7 @@
           h('h2', {}, 'Darsni kim olib boradi')
         ]),
         h('p', { class: 'sec-note' },
-          'Darslarni tajribali ayol ustoz olib boradi. Noldan boshlovchilar bilan ' +
+          'Darslarni tajribali ustozlar olib boradi. Noldan boshlovchilar bilan ' +
           'ishlashni biladi: har bir harf va qoidani sabr bilan, tushunarli qilib o’rgatadi.')
       ]),
       teachBox
@@ -1998,7 +2003,6 @@
         h('div', { class: 'foot-col' }, [
           h('b', {}, 'Bo’limlar'),
           h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('bosqichlar'); } }, 'Darajalar'),
-          h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('narx'); } }, 'Narx'),
           h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('ustozlar'); } }, 'Ustozlar'),
           h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('vaqt'); } }, 'Dars vaqtlari'),
           h('button', {
@@ -2049,8 +2053,8 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, promoBand, statsBand, roadmap, feats, howSec, priceSec, teachers,
-        levelsSec, timetable, revBand, apply, faq, ctaBand, foot]));
+      [hero, promoBand, statsBand, revBand, roadmap, feats, howSec, teachers,
+        levelsSec, timetable, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak
        emas — u ko'zdan yo'qolgandan keyin chiqadi.                     */
@@ -2183,11 +2187,6 @@
         var cd = h('span', { class: 'promo-cd', id: 'promo-cd' });
         kids.push(h('div', { class: 'promo-offer' }, [
           h('span', { class: 'sec-eyebrow' }, p.open ? 'Zapusk chegirmasi' : 'Chegirma yopildi'),
-          h('div', { class: 'promo-price' }, [
-            h('b', {}, A.som(p.price) + ' so’m'),
-            p.regular ? h('s', { class: 'muted' }, A.som(p.regular) + ' so’m') : null,
-            h('span', { class: 'muted small' }, ' — birinchi oy')
-          ]),
           p.seats ? h('div', { class: 'promo-seats' }, [
             h('div', { class: 'promo-bar' }, h('i', { style: 'width:' + Math.min(100, Math.round((p.used || 0) * 100 / p.seats)) + '%' })),
             h('span', { class: 'small' }, (p.used || 0) + '/' + p.seats + ' joy band' + (left != null && p.open ? ' · ' + left + ' ta qoldi' : ''))
@@ -2720,7 +2719,9 @@
     return {
       erkaklar: 'Erkaklar guruhlari',
       ayollar: 'Ayollar guruhlari',
-      ikkalasi: 'Erkak va ayol guruhlari'
+      bolalar: 'Bolalar guruhlari',
+      ikkalasi: 'Erkak va ayol guruhlari',
+      hammasi: 'Ayollar, erkaklar va bolalar guruhlari'
     }[a] || '';
   };
 

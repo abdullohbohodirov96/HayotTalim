@@ -18,9 +18,9 @@
     dueDay: 5,
     /* Saytda harf-harf yozilib turadigan iboralar (har qatorda bittasi).
        Markaz Sozlamalardan o'zgartiradi. */
-    taglines: 'Qur’onni tushunib o’qing\n' +
+    taglines: 'Arab tilini noldan o’rganing\n' +
       'Noldan boshlab — 1 yilda\n' +
-      'Ayol ustoz bilan jonli Zoom darslar\n' +
+      'Ayollar, erkaklar va bolalar — alohida guruhlar\n' +
       'Uydan chiqmasdan, butun O’zbekiston bo’ylab',
     /* Darslar orasidagi tanaffus — jadval shunga qarab tuziladi */
     breakMinutes: 30,
@@ -81,7 +81,7 @@
     var courses = [
       /* Markazda YO'NALISH BITTA, narx ham bitta — daraja bilan
          o'zgarmaydi. Guruhlar faqat daraja bilan farq qiladi.          */
-      { id: 'crs_ar1', name: 'Arab tili — noldan 1 yilda', description: 'Ayollar uchun onlayn: Qur’onni tushunib o’qish va arabcha suhbat', monthlyFee: 350000, lessonMinutes: 80, active: true, order: 1, demo: true }
+      { id: 'crs_ar1', name: 'Arab tili — noldan 1 yilda', description: 'Onlayn: arabcha matnni tushunib o’qish va erkin suhbat. Ayollar, erkaklar va bolalar alohida guruhlarda', monthlyFee: 600000, lessonMinutes: 80, active: true, order: 1, demo: true }
     ];
     for (i = 0; i < courses.length; i++) await D.save('courses', courses[i]);
 

@@ -416,7 +416,7 @@ async function ensureSeed() {
     ];
     for (const t of seedT) {
       await store.set('teachers/' + t.id, Object.assign({
-        tag: 'Ayol ustoz', country: '', levels: '', bio: '', years: 0,
+        tag: 'Tajribali ustoz', country: '', levels: '', bio: '', years: 0,
         active: true, createdAt: stamp()
       }, t));
     }

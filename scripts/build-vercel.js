@@ -23,6 +23,10 @@ fs.writeFileSync(corePath, core);
 let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 if (!/src="js\/core\.js"/.test(html)) throw new Error('index.html da js/core.js topilmadi — avval node build.js');
 html = html.replace('<script src="js/core.js"></script>', '<script>window.MARKAZ_DEMO = true;</script>\n<script src="js/core.js"></script>');
+/* Daraja testi serversiz ham ishlashi uchun (faqat namoyishda) */
+if (!/src="js\/app\.js"/.test(html)) throw new Error('index.html da js/app.js topilmadi');
+html = html.replace('<script src="js/app.js"></script>', '<script src="js/levels-local.js"></script>\n<script src="js/app.js"></script>');
+require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build-levels-local.js'), path.join(out, 'js/levels-local.js')], { stdio: 'inherit' });
 fs.writeFileSync(path.join(out, 'index.html'), html);
 /* sw.js: o'zini o'chiradigan bo'sh ishchi (keshda eski versiya qolmasin) */
 fs.writeFileSync(path.join(out, 'sw.js'), "self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.registration.unregister()));\n");

@@ -36,9 +36,9 @@ const SITE_NAME = process.env.APP_NAME || 'Arab tili markazi';
    ikki xil signal ko'radi.                                          */
 const ALT_NAMES = String(process.env.APP_ALT_NAMES || '').split(',').map(s => s.trim()).filter(Boolean);
 /* Sarlavha: qidiruv so'zi oldinda, markaz nomi oxirida (~60 belgi). */
-const SITE_TITLE = 'Onlayn arab tili kurslari ayollar uchun | ' + SITE_NAME;
+const SITE_TITLE = 'Onlayn arab tili kurslari | ' + SITE_NAME;
 /* Tavsif: ixcham (~155 belgi) — Google kesib tashlamaydi. */
-const SITE_DESC = "Ayollar uchun onlayn arab tili kurslari: noldan 1 yilda, ayol ustoz bilan jonli Zoom darslar, dars yozuvlari. Butun O'zbekiston bo'ylab. Bepul ochiq dars.";
+const SITE_DESC = "Onlayn arab tili kurslari: noldan 1 yilda, ayollar, erkaklar va bolalar uchun alohida guruhlar, jonli Zoom darslar va dars yozuvlari. Butun O'zbekiston bo'ylab. Bepul ochiq dars.";
 
 /* Google Analytics 4. Bo'sh qoldirilsa (GA_ID='') teg umuman
    qo'yilmaydi — mahalliy ishlaganda yoki sinovda statistika
@@ -254,7 +254,7 @@ const LD = {
     {
       '@type': 'Course',
       name: 'Arab tili kurslari — A1 dan C2 gacha',
-      description: 'Noldan boshlab 1 yilda: Qur‘onni tushunib o‘qish va arabcha suhbat. Jonli onlayn darslar.',
+      description: 'Noldan boshlab 1 yilda: arabcha matnni tushunib o‘qish va erkin suhbat. Jonli onlayn darslar.',
       inLanguage: 'uz',
       teaches: 'Arab tili',
       about: { '@type': 'Language', name: 'Arab tili', alternateName: 'اللغة العربية' },

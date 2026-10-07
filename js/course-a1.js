@@ -57,7 +57,7 @@
         lines: [
           { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'السَّلَامُ عَلَيْكُمْ يَا زَيْنَبُ.', uz: 'Assalomu alaykum, Zaynab.' },
           { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'وَعَلَيْكُمُ السَّلَامُ. انْظُرِي، هَذِهِ صُورَةُ أُسْرَتِي.', uz: 'Va alaykum assalom. Qara, bu oilamning surati.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'مَا شَاءَ اللهُ! مَنْ هَذَا؟', uz: 'Mashaalloh! Bu kim?' },
+          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'رَائِعٌ! مَنْ هَذَا؟', uz: 'Ajoyib! Bu kim?' },
           { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'هَذَا أَبِي، وَهَذَا جَدِّي.', uz: 'Bu otam, bu esa bobom.' },
           { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'وَمَنْ هَذِهِ؟', uz: 'Bu (ayol) kim?' },
           { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'هَذِهِ أُمِّي، وَهَذِهِ جَدَّتِي.', uz: 'Bu onam, bu esa buvim.' },
@@ -175,8 +175,8 @@
       words: [
         w('غُرْفَةٌ', 'gurfatun', 'xona', 'room'),
         w('حَمَّامٌ', 'hammaamun', 'hammom, yuvinish xonasi', 'bathroom'),
-        w('مَسْجِدٌ', 'masjidun', 'masjid', 'mosque'),
-        w('مُصَلًّى', 'musallan', 'namozxona', 'prayerRoom'),
+        w('مَتْجَرٌ', 'matjarun', 'do’kon', 'shop'),
+        w('شُرْفَةٌ', 'shurfatun', 'ayvon, balkon', 'balcony'),
         w('مِعْطَفٌ', 'mi‘tafun', 'palto', 'coat'),
         w('نَظَّارَةٌ', 'nazzaaratun', 'ko’zoynak', 'glasses'),
         w('شَجَرَةٌ', 'shajaratun', 'daraxt', 'tree'),
@@ -191,9 +191,9 @@
           { who: 'الْأَبُ', whoUz: 'Ota', ar: 'وَأَيْنَ الْمِعْطَفُ؟', uz: 'Palto-chi, qayerda?' },
           { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'الْمِعْطَفُ هُنَا.', uz: 'Palto shu yerda.' },
           { who: 'الْأَبُ', whoUz: 'Ota', ar: 'شُكْرًا. وَأَيْنَ يُوسُفُ؟', uz: 'Rahmat. Yusuf qayerda?' },
-          { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'يُوسُفُ فِي الْمَسْجِدِ.', uz: 'Yusuf masjidda.' },
+          { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'يُوسُفُ فِي الْمَتْجَرِ.', uz: 'Yusuf do’konda.' },
           { who: 'الْأَبُ', whoUz: 'Ota', ar: 'وَأَيْنَ فَاطِمَةُ؟', uz: 'Fotima-chi?' },
-          { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'فَاطِمَةُ فِي الْمُصَلَّى.', uz: 'Fotima namozxonada.' }
+          { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'فَاطِمَةُ فِي الشُّرْفَةِ.', uz: 'Fotima ayvonda.' }
         ]
       },
       grammar: {
@@ -209,14 +209,14 @@
           },
           {
             rule: 'فِي dan keyingi so’z oxiri kasra (ـِ) bilan o’qiladi.',
-            ex: [{ ar: 'فِي الْمَسْجِدِ', uz: 'masjidda' }, { ar: 'فِي الْحَمَّامِ', uz: 'yuvinish xonasida' }]
+            ex: [{ ar: 'فِي الْمَتْجَرِ', uz: 'do’konda' }, { ar: 'فِي الْحَمَّامِ', uz: 'yuvinish xonasida' }]
           }
         ]
       },
       practice: [
-        { type: 'choice', q: 'Ko’zoynak qayerda edi?', options: ['فِي الْغُرْفَةِ', 'فِي الْمَسْجِدِ', 'هُنَا'], answer: 0 },
+        { type: 'choice', q: 'Ko’zoynak qayerda edi?', options: ['فِي الْغُرْفَةِ', 'فِي الْمَتْجَرِ', 'هُنَا'], answer: 0 },
         { type: 'choice', q: '«Qayerda?» so’zi:', options: ['مَنْ؟', 'أَيْنَ؟', 'هَلْ؟'], answer: 1 },
-        { type: 'choice', q: 'To’g’ri yozilishini tanlang: «masjidda»', options: ['فِي مَسْجِدٌ', 'فِي الْمَسْجِدِ', 'فِي الْمَسْجِدُ'], answer: 1 },
+        { type: 'choice', q: 'To’g’ri yozilishini tanlang: «do’konda»', options: ['فِي مَتْجَرٌ', 'فِي الْمَتْجَرِ', 'فِي الْمَتْجَرُ'], answer: 1 },
         { type: 'choice', q: 'هُنَا so’zining ma’nosi:', options: ['u yerda', 'shu yerda', 'qayerda'], answer: 1 },
         { type: 'order', uz: 'Palto qayerda?', words: ['أَيْنَ', 'الْمِعْطَفُ؟'] }
       ],
@@ -224,8 +224,8 @@
         auto: [
           { q: '«xona»:', options: ['غُرْفَةٌ', 'شَجَرَةٌ', 'صُورَةٌ'], answer: 0 },
           { q: '«xonada»:', options: ['فِي الْغُرْفَةِ', 'فِي غُرْفَةٌ', 'الْغُرْفَةُ'], answer: 0 },
-          { q: 'Dialogda Yusuf qayerda?', options: ['فِي الْحَمَّامِ', 'فِي الْمَسْجِدِ', 'فِي الْغُرْفَةِ'], answer: 1 },
-          { q: '«ko’zoynak»:', options: ['مِعْطَفٌ', 'نَظَّارَةٌ', 'مُصَلًّى'], answer: 1 },
+          { q: 'Dialogda Yusuf qayerda?', options: ['فِي الْحَمَّامِ', 'فِي الْمَتْجَرِ', 'فِي الْغُرْفَةِ'], answer: 1 },
+          { q: '«ko’zoynak»:', options: ['مِعْطَفٌ', 'نَظَّارَةٌ', 'شُرْفَةٌ'], answer: 1 },
           { q: 'أَيْنَ ___ ؟ — «Palto qayerda?»', options: ['الْمِعْطَفُ', 'الْمِعْطَفِ', 'مِعْطَفًا'], answer: 0 }
         ],
         write: [
@@ -238,8 +238,8 @@
       title: 'Yusufning tongi', titleAr: 'صَبَاحُ يُوسُفَ',
       goal: 'O’tgan zamon fe’llari bilan kun tartibini aytib berish.',
       words: [
-        w('تَوَضَّأَ', 'tavaddo’a', 'tahorat oldi', 'wudu'),
-        w('صَلَّى', 'solla', 'namoz o’qidi', 'pray'),
+        w('اِسْتَيْقَظَ', 'istayqaza', 'uyg’ondi', 'wakeUp'),
+        w('أَكَلَ', 'akala', 'yedi, ovqatlandi', 'eat'),
         w('جَلَسَ', 'jalasa', 'o’tirdi', 'sit'),
         w('قَرَأَ', 'qoro’a', 'o’qidi', 'read'),
         w('لَبِسَ', 'labisa', 'kiydi', 'wear'),
@@ -251,9 +251,9 @@
         title: 'Yusufning tongi (matn)',
         scene: 'Matnni o’qing va har bir gapni tinglang.',
         lines: [
-          { who: '١', whoUz: '1', ar: 'تَوَضَّأَ يُوسُفُ.', uz: 'Yusuf tahorat oldi.' },
-          { who: '٢', whoUz: '2', ar: 'ثُمَّ صَلَّى الْفَجْرَ فِي الْمَسْجِدِ.', uz: 'Keyin bomdodni masjidda o’qidi.' },
-          { who: '٣', whoUz: '3', ar: 'جَلَسَ فِي الْغُرْفَةِ وَقَرَأَ الْقُرْآنَ.', uz: 'Xonada o’tirdi va Qur’on o’qidi.' },
+          { who: '١', whoUz: '1', ar: 'اِسْتَيْقَظَ يُوسُفُ.', uz: 'Yusuf uyg’ondi.' },
+          { who: '٢', whoUz: '2', ar: 'ثُمَّ أَكَلَ الْفُطُورَ فِي الْمَطْبَخِ.', uz: 'Keyin oshxonada nonushta qildi.' },
+          { who: '٣', whoUz: '3', ar: 'جَلَسَ فِي الْغُرْفَةِ وَقَرَأَ الْجَرِيدَةَ.', uz: 'Xonada o’tirdi va gazeta o’qidi.' },
           { who: '٤', whoUz: '4', ar: 'لَبِسَ يُوسُفُ الْمِعْطَفَ.', uz: 'Yusuf paltoni kiydi.' },
           { who: '٥', whoUz: '5', ar: 'أَخَذَ الْكِتَابَ مِنَ الْمَكْتَبِ.', uz: 'Kitobni stoldan oldi.' },
           { who: '٦', whoUz: '6', ar: 'وَأَعْطَى أُخْتَهُ صُورَةً جَمِيلَةً.', uz: 'Va singlisiga chiroyli surat berdi.' }
@@ -272,27 +272,27 @@
           },
           {
             rule: 'ثُمَّ — «keyin», وَ — «va». Ular gaplarni bog’laydi.',
-            ex: [{ ar: 'تَوَضَّأَ ثُمَّ صَلَّى', uz: 'tahorat oldi, keyin namoz o’qidi' }]
+            ex: [{ ar: 'اِسْتَيْقَظَ ثُمَّ أَكَلَ', uz: 'uyg’ondi, keyin ovqatlandi' }]
           }
         ]
       },
       practice: [
-        { type: 'choice', q: 'Yusuf masjidda nima qildi?', options: ['صَلَّى', 'لَبِسَ', 'خَلَعَ'], answer: 0 },
+        { type: 'choice', q: 'Yusuf oshxonada nima qildi?', options: ['أَكَلَ', 'لَبِسَ', 'خَلَعَ'], answer: 0 },
         { type: 'choice', q: 'فَاطِمَةُ ___ — «Fotima o’tirdi»', options: ['جَلَسَ', 'جَلَسَتْ'], answer: 1 },
         { type: 'choice', q: 'لَبِسَ ning teskarisi:', options: ['أَخَذَ', 'خَلَعَ', 'قَرَأَ'], answer: 1 },
         { type: 'choice', q: 'ثُمَّ so’zining ma’nosi:', options: ['va', 'keyin', 'lekin'], answer: 1 },
-        { type: 'order', uz: 'Yusuf Qur’on o’qidi.', words: ['قَرَأَ', 'يُوسُفُ', 'الْقُرْآنَ'] }
+        { type: 'order', uz: 'Yusuf gazeta o’qidi.', words: ['قَرَأَ', 'يُوسُفُ', 'الْجَرِيدَةَ'] }
       ],
       homework: {
         auto: [
-          { q: '«tahorat oldi»:', options: ['تَوَضَّأَ', 'صَلَّى', 'جَلَسَ'], answer: 0 },
+          { q: '«uyg’ondi»:', options: ['اِسْتَيْقَظَ', 'أَكَلَ', 'جَلَسَ'], answer: 0 },
           { q: '«berdi»:', options: ['أَخَذَ', 'أَعْطَى', 'لَبِسَ'], answer: 1 },
           { q: 'مَرْيَمُ ___ الْكِتَابَ — «Maryam kitobni o’qidi»', options: ['قَرَأَ', 'قَرَأَتْ'], answer: 1 },
           { q: 'Matnda Yusuf nimani kiydi?', options: ['الْمِعْطَفَ', 'النَّظَّارَةَ', 'الْكِتَابَ'], answer: 0 },
           { q: '«oldi»:', options: ['خَلَعَ', 'أَخَذَ', 'أَعْطَى'], answer: 1 }
         ],
         write: [
-          { prompt: 'Bugungi tongingizni 4 ta fe’l bilan yozing.', hint: 'Masalan: تَوَضَّأْتُ… yoki u haqida: تَوَضَّأَتْ أُمِّي ثُمَّ صَلَّتْ.' }
+          { prompt: 'Bugungi tongingizni 4 ta fe’l bilan yozing.', hint: 'Masalan: اِسْتَيْقَظْتُ… yoki u haqida: اِسْتَيْقَظَتْ أُمِّي ثُمَّ أَكَلَتْ.' }
         ]
       }
     },
@@ -321,7 +321,7 @@
           { who: 'سَارَةُ', whoUz: 'Sora', ar: 'هَلِ الشَّقَّةُ كَبِيرَةٌ؟', uz: 'Kvartira kattami?' },
           { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'لَا، هِيَ صَغِيرَةٌ. فِيهَا صَالَةٌ وَمَطْبَخٌ وَغُرْفَةُ نَوْمٍ.', uz: 'Yo’q, u kichik. Unda zal, oshxona va yotoqxona bor.' },
           { who: 'سَارَةُ', whoUz: 'Sora', ar: 'أَنَا أَسْكُنُ فِي بَيْتٍ، وَفِي الْبَيْتِ حَدِيقَةٌ.', uz: 'Men uyda yashayman, uyda bog’ bor.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'مَا شَاءَ اللهُ! الْحَدِيقَةُ جَمِيلَةٌ.', uz: 'Mashaalloh! Bog’ chiroyli.' }
+          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'رَائِعٌ! الْحَدِيقَةُ جَمِيلَةٌ.', uz: 'Ajoyib! Bog’ chiroyli.' }
         ]
       },
       grammar: {
@@ -350,7 +350,7 @@
           { q: 'حَدِيقَةٌ ___ — «chiroyli bog’»', options: ['جَمِيلٌ', 'جَمِيلَةٌ'], answer: 1 },
           { q: 'الشَّقَّةُ ___ صَالَةٌ', options: ['فِيهِ', 'فِيهَا'], answer: 1 },
           { q: '«yotoqxona»:', options: ['غُرْفَةُ النَّوْمِ', 'الْمَطْبَخُ', 'الْحَمَّامُ'], answer: 0 },
-          { q: 'Soraning uyida nima bor?', options: ['حَدِيقَةٌ', 'مِصْعَدٌ', 'مَسْجِدٌ'], answer: 0 }
+          { q: 'Soraning uyida nima bor?', options: ['حَدِيقَةٌ', 'مِصْعَدٌ', 'مَتْجَرٌ'], answer: 0 }
         ],
         write: [
           { prompt: 'Uyingizni 3–4 gap bilan tasvirlang.', hint: 'Masalan: أَسْكُنُ فِي بَيْتٍ. فِي الْبَيْتِ مَطْبَخٌ كَبِيرٌ.' }
@@ -368,7 +368,7 @@
         w('خِزَانَةٌ', 'xizaanatun', 'shkaf', 'wardrobe'),
         w('ثَلَّاجَةٌ', 'sallaajatun', 'muzlatgich', 'fridge'),
         w('مِرْآةٌ', 'mir’aatun', 'ko’zgu', 'mirror'),
-        w('سَجَّادَةٌ', 'sajjaadatun', 'gilam, joynamoz', 'carpet'),
+        w('سَجَّادَةٌ', 'sajjaadatun', 'gilam', 'carpet'),
         w('أَرِيكَةٌ', 'ariikatun', 'divan', 'sofa')
       ],
       dialog: {
@@ -379,7 +379,7 @@
           { who: 'الْبِنْتُ', whoUz: 'Qiz', ar: 'فِي غُرْفَتِي يَا أُمِّي، أَمَامَ الْمَكْتَبِ.', uz: 'Xonamga, onajon, stol oldiga.' },
           { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'وَالْمِرْآةُ؟', uz: 'Ko’zgu-chi?' },
           { who: 'الْبِنْتُ', whoUz: 'Qiz', ar: 'الْمِرْآةُ فِي الْحَمَّامِ.', uz: 'Ko’zgu yuvinish xonasida.' },
-          { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'عِنْدَكِ سَرِيرٌ جَدِيدٌ، مَا شَاءَ اللهُ!', uz: 'Senda yangi karavot bor, mashaalloh!' },
+          { who: 'الْأُمُّ', whoUz: 'Ona', ar: 'عِنْدَكِ سَرِيرٌ جَدِيدٌ، رَائِعٌ!', uz: 'Senda yangi karavot bor, ajoyib!' },
           { who: 'الْبِنْتُ', whoUz: 'Qiz', ar: 'نَعَمْ، وَعِنْدِي خِزَانَةٌ كَبِيرَةٌ أَيْضًا.', uz: 'Ha, menda katta shkaf ham bor.' }
         ]
       },
@@ -437,9 +437,9 @@
           { who: 'سَارَةُ', whoUz: 'Sora', ar: 'فِي أَيِّ طَابِقٍ تَسْكُنِينَ؟', uz: 'Nechanchi qavatda yashaysiz?' },
           { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'أَسْكُنُ فِي الطَّابِقِ الثَّالِثِ.', uz: 'Uchinchi qavatda yashayman.' },
           { who: 'سَارَةُ', whoUz: 'Sora', ar: 'الْمِصْعَدُ هُنَا، جَنْبَ الدَّرَجِ.', uz: 'Lift shu yerda, zinapoya yonida.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'شُكْرًا. هَلِ الْمَسْجِدُ بَعِيدٌ؟', uz: 'Rahmat. Masjid uzoqmi?' },
+          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'شُكْرًا. هَلِ الْمَتْجَرُ بَعِيدٌ؟', uz: 'Rahmat. Do’kon uzoqmi?' },
           { who: 'سَارَةُ', whoUz: 'Sora', ar: 'لَا، هُوَ قَرِيبٌ، فِي هَذَا الشَّارِعِ.', uz: 'Yo’q, u yaqin, shu ko’chada.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'الْحَمْدُ لِلّهِ. أَنْتِ جَارَةٌ طَيِّبَةٌ!', uz: 'Alhamdulillah. Siz yaxshi qo’shnisiz!' }
+          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'شُكْرًا جَزِيلًا. أَنْتِ جَارَةٌ طَيِّبَةٌ!', uz: 'Katta rahmat. Siz yaxshi qo’shnisiz!' }
         ]
       },
       grammar: {
@@ -451,16 +451,16 @@
           },
           {
             rule: 'قَرِيبٌ مِنْ — «…ga yaqin», بَعِيدٌ عَنْ — «…dan uzoq».',
-            ex: [{ ar: 'الْبَيْتُ قَرِيبٌ مِنَ الْمَسْجِدِ', uz: 'Uy masjidga yaqin' }, { ar: 'الشَّارِعُ بَعِيدٌ عَنِ الْبَيْتِ', uz: 'Ko’cha uydan uzoq' }]
+            ex: [{ ar: 'الْبَيْتُ قَرِيبٌ مِنَ الْمَتْجَرِ', uz: 'Uy do’konga yaqin' }, { ar: 'الشَّارِعُ بَعِيدٌ عَنِ الْبَيْتِ', uz: 'Ko’cha uydan uzoq' }]
           }
         ]
       },
       practice: [
         { type: 'choice', q: 'Maryam nechanchi qavatda yashaydi?', options: ['الْأَوَّلِ', 'الثَّانِي', 'الثَّالِثِ'], answer: 2 },
-        { type: 'choice', q: 'Masjid qanday?', options: ['بَعِيدٌ', 'قَرِيبٌ'], answer: 1 },
+        { type: 'choice', q: 'Do’kon qanday?', options: ['بَعِيدٌ', 'قَرِيبٌ'], answer: 1 },
         { type: 'choice', q: '«uydan uzoq»', options: ['بَعِيدٌ عَنِ الْبَيْتِ', 'قَرِيبٌ مِنَ الْبَيْتِ'], answer: 0 },
         { type: 'choice', q: 'مِصْعَدٌ — bu:', options: ['zinapoya', 'lift', 'qavat'], answer: 1 },
-        { type: 'order', uz: 'Masjid yaqin.', words: ['الْمَسْجِدُ', 'قَرِيبٌ'] }
+        { type: 'order', uz: 'Do’kon yaqin.', words: ['الْمَتْجَرُ', 'قَرِيبٌ'] }
       ],
       homework: {
         auto: [
@@ -468,10 +468,10 @@
           { q: '«zinapoya»:', options: ['دَرَجٌ', 'مِصْعَدٌ', 'شَارِعٌ'], answer: 0 },
           { q: '«qo’shni (ayol)»:', options: ['جَارٌ', 'جَارَةٌ'], answer: 1 },
           { q: 'قَرِيبٌ ning teskarisi:', options: ['كَبِيرٌ', 'بَعِيدٌ', 'جَمِيلٌ'], answer: 1 },
-          { q: 'Lift qayerda?', options: ['جَنْبَ الدَّرَجِ', 'فِي الشَّارِعِ', 'فِي الْمَسْجِدِ'], answer: 0 }
+          { q: 'Lift qayerda?', options: ['جَنْبَ الدَّرَجِ', 'فِي الشَّارِعِ', 'فِي الْمَتْجَرِ'], answer: 0 }
         ],
         write: [
-          { prompt: 'Uyingiz qayerda: qavat, nima yaqin, nima uzoq — 3 gap.', hint: 'Masalan: أَسْكُنُ فِي الطَّابِقِ الْأَوَّلِ. الْمَسْجِدُ قَرِيبٌ.' }
+          { prompt: 'Uyingiz qayerda: qavat, nima yaqin, nima uzoq — 3 gap.', hint: 'Masalan: أَسْكُنُ فِي الطَّابِقِ الْأَوَّلِ. الْمَتْجَرُ قَرِيبٌ.' }
         ]
       }
     },
@@ -517,7 +517,7 @@
       practice: [
         { type: 'choice', q: 'مَرْيَمُ ___ الطَّعَامَ — «pishirdi»', options: ['طَبَخَ', 'طَبَخَتْ'], answer: 1 },
         { type: 'choice', q: 'فَتَحَ ning teskarisi:', options: ['أَغْلَقَ', 'دَخَلَ', 'نَامَ'], answer: 0 },
-        { type: 'choice', q: 'Maryam qayerga chiqdi?', options: ['إِلَى الْحَدِيقَةِ', 'إِلَى الْمَسْجِدِ', 'إِلَى الشَّارِعِ'], answer: 0 },
+        { type: 'choice', q: 'Maryam qayerga chiqdi?', options: ['إِلَى الْحَدِيقَةِ', 'إِلَى الْمَتْجَرِ', 'إِلَى الشَّارِعِ'], answer: 0 },
         { type: 'choice', q: 'دَخَلَ ning teskarisi:', options: ['خَرَجَ', 'سَكَنَ', 'غَسَلَ'], answer: 0 },
         { type: 'order', uz: 'Maryam eshikni yopdi.', words: ['أَغْلَقَتْ', 'مَرْيَمُ', 'الْبَابَ'] }
       ],
