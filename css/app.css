@@ -3747,3 +3747,9 @@ table.tbl tbody tr:hover{background:#f4faf7}
   .site-hero{padding:34px 0 96px}
   .site-hero::after{width:90vw;height:90vw;right:-40vw;top:30%}
 }
+
+/* Tepadagi asosiy chaqiruv: "Tekin darsga yozilish" */
+.site-top .site-nav .btn.nav-free{background:linear-gradient(180deg,var(--au-400),var(--au-500));border-color:transparent;color:#241a03;
+  font-weight:700;box-shadow:0 10px 24px -12px rgba(201,162,76,.9)}
+.site-top .site-nav .btn.nav-free:hover{filter:brightness(1.06)}
+@media (max-width:900px){.site-top .site-nav .btn.nav-free{display:none}}

@@ -1008,7 +1008,7 @@ async function api(p, opts = {}) {
     ok(w + ' px: tasmadagi tugmalar ≥ 48px',
       bar && bar.telH >= 48 && bar.goH >= 48, JSON.stringify(bar));
     ok(w + ' px: tasma ekran pastiga yopishgan', bar && bar.bottom <= 1, String(bar && bar.bottom));
-    ok(w + ' px: yozuv "Darsga yozilish"', bar && /Darsga yozilish/.test(bar.goText), bar && bar.goText);
+    ok(w + ' px: yozuv "Tekin darsga yozilish"', bar && /Tekin darsga yozilish/.test(bar.goText), bar && bar.goText);
 
     /* Tasma sahifaning oxirini yopib qo'ymaydi */
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

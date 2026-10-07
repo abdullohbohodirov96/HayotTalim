@@ -1198,8 +1198,44 @@
      administratorlarga (ichki suhbat + Telegram bot) xabar boradi. */
   var PUBLIC = null;
 
+  /* Serversiz (demo) nusxa: saytdagi ochiq ma'lumot brauzerdagi
+     Sozlamalardan olinadi — admin o'zgartirsa, sayt ham o'zgaradi.     */
+  async function localPublic() {
+    try { if (restPromise) await restPromise; } catch (e) { }
+    var s = D.settings || {};
+    function all(c) { try { return D.all(c) || []; } catch (e) { return []; } }
+    function lines(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+    return {
+      centerName: s.centerName || 'Hayot Ta’lim',
+      phone: String(s.phone || ''), address: String(s.address || ''),
+      workStart: String(s.workStart || ''), workEnd: String(s.workEnd || ''),
+      about: String(s.about || ''),
+      instagram: String(s.instagram || ''), tgChannel: String(s.tgChannel || ''),
+      tgQabul: String(s.tgQabul || ''), tgQabulLabel: String(s.tgQabulLabel || ''),
+      youtube: String(s.youtube || ''),
+      lessonMinutes: Number(s.lessonMinutes) || 90,
+      breakMinutes: s.breakMinutes == null ? 30 : Number(s.breakMinutes) || 0,
+      taglines: lines(s.taglines).slice(0, 8),
+      heroBadge: String(s.heroBadge || ''), heroProof: String(s.heroProof || ''),
+      stats: lines(s.stats).map(function (r) { var p = r.split('|'); return { v: String(p[0] || '').trim(), t: String(p[1] || '').trim() }; }).filter(function (x) { return x.v; }).slice(0, 4),
+      courses: all('courses').filter(function (c) { return c.active !== false; }).map(function (c) { return { id: c.id, name: c.name, fee: null, note: '' }; }),
+      teachers: all('teachers').filter(function (t) { return t.active !== false; }).slice(0, 24).map(function (t) {
+        return { id: t.id, name: t.name || '', tag: t.tag || '', bio: t.bio || '', levels: t.levels || '', audience: t.audience || '', country: t.country || '', years: Number(t.years) || 0 };
+      }),
+      reviews: all('reviews').filter(function (x) { return x.status === 'ochiq'; }).slice(0, 24).map(function (x) {
+        return { name: x.name || '', text: x.text || '', rating: Number(x.rating) || 5, about: x.about || '', date: String(x.createdAt || '').slice(0, 10) };
+      }),
+      levels: A.LevelsLocal && A.LevelsLocal.levelList ? A.LevelsLocal.levelList('uz').map(function (l) { return { code: l.code, name: l.name, about: l.about }; }) : []
+    };
+  }
+
   async function publicInfo() {
     if (PUBLIC) return PUBLIC;
+    if (D.mode !== 'server') {
+      try { PUBLIC = await localPublic(); } catch (e) { console.warn(e); PUBLIC = {}; }
+      A._pub = PUBLIC;
+      return PUBLIC;
+    }
     try {
       var r = await fetch('api/public', { credentials: 'same-origin' });
       PUBLIC = r.ok ? await r.json() : {};
@@ -1616,6 +1652,10 @@
         h('a', { class: 'site-phone', id: 'site-call', href: '#ariza' },
           [UI.icon('phone'), h('span', { id: 'site-call-text' }, 'Bog’lanish')]),
         h('button', {
+          class: 'btn sm gold nav-free', type: 'button',
+          onclick: function () { goFreeLesson(); }
+        }, 'Tekin darsga yozilish'),
+        h('button', {
           class: 'btn sm ghost', type: 'button',
           onclick: function () { location.hash = 'test'; renderTest(); }
         }, [UI.icon('task'), 'Daraja testi']),
@@ -1651,7 +1691,7 @@
           h('button', {
             class: 'btn gold xl', type: 'button', id: 'hero-free-btn',
             onclick: function () { goFreeLesson(); }
-          }, [h('span', {}, 'Bepul darsga yozilish'), goIcon()]),
+          }, [h('span', {}, 'Tekin darsga yozilish'), goIcon()]),
           h('button', {
             class: 'btn on-dark lg', type: 'button',
             onclick: function () { location.hash = 'test'; renderTest(); }
@@ -1738,7 +1778,7 @@
       h('div', { class: 'sec-eyebrow' }, 'Qanday ishlaydi'),
       h('h2', {}, 'Boshlash uchun 3 qadam'),
       h('div', { class: 'how-grid' }, [
-        howCard('play', '01', 'Bepul darsga yoziling', 'Telegram bot orqali 1 daqiqada. Jonli ochiq darsda usulimizni ko’rasiz.'),
+        howCard('play', '01', 'Tekin darsga yoziling', 'Telegram bot orqali 1 daqiqada. Jonli ochiq darsda usulimizni ko’rasiz.'),
         howCard('users', '02', 'Guruhga qo’shiling', 'Haftada 3 marta Zoom’da jonli dars. Guruhda 10 kishigacha — ayollar, erkaklar va bolalar alohida.'),
         howCard('check', '03', 'Har kuni o’sing', 'Dars yozuvlari, uy vazifasi va ustoz izohlari — hammasi kabinetingizda.')
       ])
@@ -1933,7 +1973,7 @@
     var err = h('div', { class: 'err-msg', hidden: true });
     var okBox = h('div', { class: 'lead-ok', hidden: true });
     var btn = h('button', { class: 'btn gold block lg', type: 'submit' },
-      ['Bepul sinov darsiga yozilish', goIcon()]);
+      ['Tekin darsga yozilish', goIcon()]);
 
     var form = h('form', {
       class: 'lead-form', onsubmit: function (e) { e.preventDefault(); sendLead(); }
@@ -1951,12 +1991,12 @@
     var apply = h('section', { class: 'site-sec reveal', id: 'ariza' }, [
       h('div', { class: 'apply-wrap' }, [
         h('div', { class: 'apply-left' }, [
-          h('span', { class: 'hero-eyebrow' }, 'Bepul ochiq dars'),
+          h('span', { class: 'hero-eyebrow' }, 'Tekin dars'),
           h('h2', {}, 'Bir dars qatnashib ko’ring — keyin qaror qilasiz'),
           h('p', {}, 'Raqamingizni qoldiring yoki Telegram botimiz orqali yoziling: ' +
-            'bepul dars havolasini va eslatmani yuboramiz.'),
+            'tekin dars havolasini va eslatmani yuboramiz.'),
           h('div', { class: 'ben-list' }, [
-            benefit('play', 'Jonli bepul dars — darsning o’zida natija ko’rasiz'),
+            benefit('play', 'Jonli tekin dars — darsning o’zida natija ko’rasiz'),
             benefit('check', 'Dars oxirida kursga qabul va chegirma'),
             benefit('layers', 'Mos guruh va qulay vaqt taklifi')
           ]),
@@ -2000,13 +2040,13 @@
     var ctaBand = h('section', { class: 'cta-band reveal' }, [
       h('div', { class: 'cta-ico' }, UI.icon('calendar')),
       h('div', { class: 'cta-text' }, [
-        h('b', {}, 'Bepul sinov darsiga yozilish'),
+        h('b', {}, 'Birinchi dars — tekin'),
         h('span', {}, 'Guruhni, ustozni va dars uslubini o’zingiz ko’rasiz — keyin qaror qilasiz.')
       ]),
       h('button', {
         class: 'btn gold lg', type: 'button',
         onclick: function () { scrollTo('ariza'); if (fName.input) fName.input.focus(); }
-      }, ['Ariza qoldirish', goIcon()])
+      }, ['Tekin darsga yozilish', goIcon()])
     ]);
 
     /* ---------- Pastki qism ---------- */
@@ -2066,7 +2106,7 @@
       h('button', {
         class: 'btn gold cta-bar-go', type: 'button',
         onclick: function () { scrollTo('ariza'); }
-      }, [h('span', {}, 'Darsga yozilish'), goIcon()])
+      }, [h('span', {}, 'Tekin darsga yozilish'), goIcon()])
     ]);
 
     wrap.appendChild(siteBackdrop());
@@ -2196,8 +2236,8 @@
       var kids = [];
       if (fl && (fl.title || fl.date)) {
         kids.push(h('div', { class: 'promo-free' }, [
-          h('span', { class: 'sec-eyebrow' }, 'Bepul ochiq dars'),
-          h('b', {}, fl.title || 'Bepul dars'),
+          h('span', { class: 'sec-eyebrow' }, 'Tekin dars'),
+          h('b', {}, fl.title || 'Tekin dars'),
           fl.date ? h('span', { class: 'muted' }, A.dateLabel(fl.date) + (fl.time ? ', soat ' + fl.time : '')) : null
         ]));
       }
@@ -2226,7 +2266,7 @@
         }
       }
       kids.push(h('button', { class: 'btn gold lg', type: 'button', onclick: function () { goFreeLesson(); } },
-        ['Bepul darsga yozilish', goIcon()]));
+        ['Tekin darsga yozilish', goIcon()]));
       box.appendChild(h('div', { class: 'promo-in' }, kids));
     }
 
@@ -2547,7 +2587,7 @@
               scrollTo('ariza');
               if (fName.input) fName.input.focus();
             }
-          }, ['Guruhga yozilish', goIcon()])
+          }, ['Tekin darsga yozilish', goIcon()])
         ]),
         lines.length
           ? h('ul', { class: 'price-list' }, lines.map(function (x) {

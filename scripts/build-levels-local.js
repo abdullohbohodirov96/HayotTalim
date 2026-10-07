@@ -53,7 +53,7 @@ ${lv}
     }
     throw new Error('Noma’lum so‘rov');
   }
-  (global.A = global.A || {}).LevelsLocal = { api: api };
+  (global.A = global.A || {}).LevelsLocal = { api: api, levelList: function (lg) { return levels.levelList(lg || 'uz'); } };
 })(typeof window !== 'undefined' ? window : globalThis);
 `;
 fs.mkdirSync(path.dirname(out), { recursive: true });
