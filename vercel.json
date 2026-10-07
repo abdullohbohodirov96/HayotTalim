@@ -1,0 +1,19 @@
+{
+  "buildCommand": "node build.js && node scripts/build-vercel.js",
+  "installCommand": "echo skip",
+  "outputDirectory": "vercel-dist",
+  "framework": null,
+  "cleanUrls": false,
+  "redirects": [
+    {
+      "source": "/kabinet",
+      "destination": "/#kabinet",
+      "permanent": false
+    },
+    {
+      "source": "/kurs",
+      "destination": "/#kurs",
+      "permanent": false
+    }
+  ]
+}
