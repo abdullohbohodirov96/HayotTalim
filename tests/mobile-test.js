@@ -39,7 +39,7 @@ function section(t) { out.push('\n' + t); }
 
   for (const w of [360, 390, 430]) {
     section(w + 'px ekran');
-    const { ctx, page } = await openAs(w, 800, 'admin', '1234');
+    const { ctx, page } = await openAs(w, 800, 'admin', 'hayottalim.123');
 
     ok('Bosh sahifa chetga chiqmadi (' + (await overflow(page)) + 'px)', (await overflow(page)) === 0);
 
@@ -112,7 +112,7 @@ function section(t) { out.push('\n' + t); }
   /* ---------- Orqaga tugmasi va yangilashda holat ---------- */
   section('Orqaga tugmasi va sahifa yangilanishi');
   {
-    const { ctx, page } = await openAs(390, 800, 'admin', '1234');
+    const { ctx, page } = await openAs(390, 800, 'admin', 'hayottalim.123');
     await page.evaluate(() => window.A.App.go('students'));
     await page.waitForTimeout(500);
     await page.evaluate(() => window.A.App.go('groups'));
@@ -128,7 +128,7 @@ function section(t) { out.push('\n' + t); }
     await page.waitForTimeout(500);
     if (await page.locator('#login-user').count()) {
       await page.fill('#login-user', 'admin');
-      await page.fill('#login-pass', '1234');
+      await page.fill('#login-pass', 'hayottalim.123');
       await page.click('button[type=submit]');
       await page.waitForSelector('#app:not([hidden])');
       await page.waitForTimeout(900);
@@ -141,7 +141,7 @@ function section(t) { out.push('\n' + t); }
   /* ---------- Telefonda joyni tejash va barmoqqa mos o'lchamlar ---------- */
   section('Telefonda tepa panel va menyu');
   {
-    const { ctx, page } = await openAs(390, 800, 'admin', '1234');
+    const { ctx, page } = await openAs(390, 800, 'admin', 'hayottalim.123');
     const topRow = await page.evaluate(() => ({
       lang: getComputedStyle(document.getElementById('lang-pick')).display,
       theme: getComputedStyle(document.getElementById('theme-toggle')).display,
@@ -226,7 +226,7 @@ function section(t) { out.push('\n' + t); }
     await page.goto(FILE);
     await page.waitForSelector('#login-user', { timeout: 20000 });
     await page.fill('#login-user', 'admin');
-    await page.fill('#login-pass', '1234');
+    await page.fill('#login-pass', 'hayottalim.123');
     await page.click('button[type=submit]');
     await page.waitForSelector('#app:not([hidden])', { timeout: 20000 });
     await page.waitForTimeout(900);
@@ -285,7 +285,7 @@ function section(t) { out.push('\n' + t); }
   /* ---------- O'qituvchi pastki menyusi ---------- */
   section('O’qituvchi pastki menyusi');
   {
-    const { ctx, page } = await openAs(390, 800, 'ustoz', '1234');
+    const { ctx, page } = await openAs(390, 800, 'ustoz', 'hayottalim.123');
     const tabs = await page.locator('#tabbar button').allInnerTexts();
     ok('O’qituvchida ham 5 ta element', tabs.length === 5, tabs.join(' | '));
     ok('Darslar va davomat bor', /Darslarim|Jadval/.test(tabs.join(' ')) && /Davomat/.test(tabs.join(' ')), tabs.join(' | '));

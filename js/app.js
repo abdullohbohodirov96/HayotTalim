@@ -289,11 +289,7 @@
     var fLogin = UI.field({ label: 'Login', id: 'login-user', required: true, autocomplete: 'username' });
     var fPass = UI.field({ label: 'Parol', id: 'login-pass', type: 'password', required: true, autocomplete: 'current-password' });
     var err = h('div', { class: 'err-msg', hidden: true });
-    var hint = D.all('users').some(function (u) { return u.login === 'admin' && u.isDefault; })
-      ? h('div', { class: 'banner info', style: 'margin:0' }, h('div', {}, [
-        h('b', {}, 'Birinchi kirish: '), 'login ', h('b', {}, 'admin'), ', parol ', h('b', {}, '1234'), '. Sozlamalar bo’limida parolni albatta o’zgartiring.'
-      ]))
-      : null;
+    var hint = null;   /* parol sahifada ko'rsatilmaydi */
 
     var btn = h('button', { class: 'btn primary block lg', type: 'submit' }, 'Kirish');
     var formEl = h('form', { class: 'login', onsubmit: onSubmit }, [
@@ -423,12 +419,29 @@
     wrap.appendChild(box);
     refreshCenterName();
     /* Demo (serversiz) rejim: namunaviy o'quvchi kabineti brauzerdagi ma'lumotdan */
-    if (D.mode !== 'server') { info.hidden = true; showInfo(localKab()); return; }
+    if (D.mode !== 'server') {
+      info.hidden = true;
+      var sid = null; try { sid = sessionStorage.getItem('kab_local'); } catch (e) { }
+      var sst = sid ? D.one('students', sid) : null;
+      if (sst && sst.status === 'faol') { showInfo(localKab(sst)); return; }
+      showForm(); return;
+    }
     start();
 
-    function localKab() {
-      var st = D.all('students').filter(function (s) { return s.status === 'faol'; })[0] ||
-        { id: 'demo', firstName: 'O’quvchi', lastName: 'Demo', code: '0000' };
+    /* Serversiz rejim: login — shaxsiy kod yoki telefon, parol — shaxsiy kod
+       (yoki o'quvchi o'zi qo'ygan parol). */
+    function localFind(l, p) {
+      var digits = String(l).replace(/\D/g, '');
+      var st = D.all('students').filter(function (s) {
+        if (s.status !== 'faol') return false;
+        var ph = String(s.phone || '').replace(/\D/g, '');
+        return String(s.code) === String(l).trim() || (digits.length >= 9 && ph.slice(-9) === digits.slice(-9));
+      })[0];
+      if (!st) return null;
+      var own = null; try { own = localStorage.getItem('kabpass_' + st.id); } catch (e) { }
+      return (p === String(st.code) || (own && p === own)) ? st : null;
+    }
+    function localKab(st) {
       var names = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'];
       var groups = D.all('memberships').filter(function (m) { return m.studentId === st.id && m.status !== 'chiqdi'; })
         .map(function (m) {
@@ -530,6 +543,12 @@
         var l = String(login.value || '').trim(), p = String(pass.value || '');
         if (!l || !p) { err.hidden = false; err.textContent = 'Login va parolni yozing.'; return; }
         btn.disabled = true; btn.textContent = 'Tekshirilmoqda…'; err.hidden = true;
+        if (D.mode !== 'server') {
+          var lst = localFind(l, p);
+          if (!lst) { btn.disabled = false; btn.textContent = 'Kirish'; pass.value = ''; err.hidden = false; err.textContent = 'Login yoki parol noto’g’ri.'; return; }
+          try { sessionStorage.setItem('kab_local', lst.id); } catch (e) { }
+          showInfo(localKab(lst)); return;
+        }
         try {
           var d = await D.api('POST', 'api/kabinet', { login: l, password: p });
           D.kabCsrf = d.csrf || '';
@@ -546,7 +565,7 @@
         form,
         h('div', { class: 'kab-hint' }, [
           h('b', {}, 'Birinchi marta kiryapsizmi? '),
-          'Parol — administrator bergan 4 xonali shaxsiy kodingiz. Kirgach, «Profil» bo’limida o’zingiz yangi parol qo’ying.'
+          'Login va parolni markaz administratoridan oling. Kirgach, «Profil» bo’limida o’zingiz yangi parol qo’yishingiz mumkin.'
         ]),
         h('p', { class: 'small muted' }, 'Kodni bilmasangiz markaz administratoridan so’rang. Telegram botdagi «Kabinet (veb)» tugmasi ham kabinetni ochadi.')
       ]));
@@ -564,7 +583,7 @@
         h('button', {
           class: 'btn sm', type: 'button',
           onclick: async function () {
-            if (D.mode !== 'server') { location.hash = ''; renderLanding(); return; }
+            if (D.mode !== 'server') { try { sessionStorage.removeItem('kab_local'); } catch (e) { } err.hidden = true; portalOn(false); showForm(); return; }
             try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
             err.hidden = true;
             portalOn(false);
@@ -602,7 +621,7 @@
         openCourse: function () { location.hash = 'kurs'; openCourse(); },
         runQuiz: runQuiz,
         logout: async function () {
-          if (D.mode !== 'server') { location.hash = ''; renderLanding(); return; }
+          if (D.mode !== 'server') { try { sessionStorage.removeItem('kab_local'); } catch (e) { } err.hidden = true; portalOn(false); showForm(); return; }
           try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
           err.hidden = true;
           try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { }

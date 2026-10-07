@@ -467,13 +467,13 @@ async function ensureSeed() {
     // SEED_DIRECTOR_PASSWORD berilmasa — birinchi kirish uchun oddiy parol (1234).
     // Bu vaqtinchalik: ilova kirgandan keyin uni almashtirishni so'raydi.
     const envPass = process.env.SEED_DIRECTOR_PASSWORD || '';
-    const pass = envPass || '1234';
+    const pass = envPass || 'hayottalim.123';
     await store.set('users/usr_admin', Object.assign({
       id: 'usr_admin', login, name: 'Direktor', role: 'direktor', staffId: null,
       active: true, isDefault: !envPass, createdAt: stamp()
     }, makePassword(pass)));
     console.log('  Direktor hisobi yaratildi: ' + login +
-      (envPass ? '' : ' (parol: 1234 — kirgandan keyin almashtiring!)'));
+      (envPass ? '' : ' (parol: hayottalim.123 — kirgandan keyin almashtiring!)'));
   }
 }
 
@@ -2316,7 +2316,7 @@ async function handleApi(req, res, url) {
     // eski hash bo'lsa — jim yangilaymiz
     if (u.algo !== 'pbkdf2') {
       Object.assign(u, makePassword(pass));
-      u.isDefault = u.isDefault === true && pass === '1234';
+      u.isDefault = u.isDefault === true && pass === 'hayottalim.123';
       await store.set('users/' + u.id, u);
     }
     const token = newToken();

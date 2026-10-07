@@ -116,7 +116,15 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       top.on('pageerror', e => errors.push(e.message));
       top.on('console', m => { if (m.type() === 'error' && !/TUNNEL|fonts|favicon|404|sw\.js|ServiceWorker/.test(m.text())) errors.push(m.text()); });
       ok('Namoyish ochiq saytdan boshlanadi', /O’quvchi kabineti/.test(await page.evaluate(() => document.body.innerText)) && !(await page.$('#login-user')));
-      const tLogin = await timed(page, 'sayt→kabinet', () => page.click('text=O’quvchi kabineti'), '.sp-ring', 2500);
+      await page.click('text=O’quvchi kabineti');
+      await page.waitForSelector('#kab-login', { timeout: 8000 });
+      ok('Kabinet login va parol so’raydi (darhol kirmaydi)', !(await page.$('.sp-ring')));
+      await page.fill('#kab-login', '1111'); await page.fill('#kab-pass', '1111'); await page.click('#kab-go');
+      await page.waitForTimeout(400);
+      ok('Noto’g’ri parol bilan kirmaydi', !(await page.$('.sp-ring')));
+      const dcode = await page.evaluate(() => String(A.Data.all('students').filter(s => s.status === 'faol')[0].code));
+      await page.fill('#kab-login', dcode); await page.fill('#kab-pass', dcode);
+      const tLogin = await timed(page, 'kirish', () => page.click('#kab-go'), '.sp-ring', 2500);
       ok('Kabinet ochildi ' + tLogin + ' ms', true);
     } else {
     section('1. Kirish (/kabinet)');

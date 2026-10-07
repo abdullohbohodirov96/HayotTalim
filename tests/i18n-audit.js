@@ -19,7 +19,7 @@ const FILE = 'file://' + path.join(__dirname, '..', 'index.html');
   await page.evaluate(l => window.A.I18N.set(l), LANG.toLowerCase());
   await page.waitForTimeout(400);
   await page.fill('#login-user', 'admin');
-  await page.fill('#login-pass', '1234');
+  await page.fill('#login-pass', 'hayottalim.123');
   await page.click('button[type=submit]');
   await page.waitForSelector('#app:not([hidden])', { timeout: 20000 });
   await page.waitForTimeout(900);

@@ -6,6 +6,7 @@
   async function mkHash(login, pass, salt) {
     return await A.sha256(String(login).toLowerCase() + '::' + pass + '::' + salt);
   }
+  var DEMO_PASS = 'hayottalim.123';
   function salt() { return Math.random().toString(36).slice(2, 10); }
 
   var DEFAULT_SETTINGS = {
@@ -54,9 +55,16 @@
       var s = salt();
       await D.save('users', {
         id: 'usr_admin', login: 'admin', name: 'Direktor',
-        role: 'direktor', staffId: null, salt: s, hash: await mkHash('admin', '1234', s),
-        active: true, isDefault: true, createdAt: A.nowStamp()
+        role: 'direktor', staffId: null, salt: s, hash: await mkHash('admin', DEMO_PASS, s),
+        active: true, isDefault: false, createdAt: A.nowStamp()
       });
+    } else {
+      /* Eski namoyish ma'lumotida standart parol (1234) qolgan bo'lsa — yangisiga */
+      var ua = D.one('users', 'usr_admin');
+      if (ua && ua.isDefault) {
+        ua.salt = salt(); ua.hash = await mkHash('admin', DEMO_PASS, ua.salt); ua.isDefault = false;
+        await D.save('users', ua);
+      }
     }
     if (D.all('students').length === 0 && D.all('groups').length === 0) {
       await demo();
@@ -105,10 +113,10 @@
     for (i = 0; i < users.length; i++) {
       var s = salt();
       users[i].salt = s;
-      users[i].hash = await mkHash(users[i].login, '1234', s);
+      users[i].hash = await mkHash(users[i].login, DEMO_PASS, s);
       users[i].active = true;
       users[i].demo = true;
-      users[i].isDefault = true;
+      users[i].isDefault = false;
       users[i].createdAt = A.nowStamp();
       await D.save('users', users[i]);
     }
