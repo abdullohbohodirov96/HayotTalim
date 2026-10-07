@@ -386,12 +386,12 @@ async function ensureSeed() {
   }
   if (!settings) {
     await store.set('meta/settings', {
-      centerName: process.env.APP_NAME || 'Arab tili markazi',
+      centerName: process.env.APP_NAME || 'Hayot Ta’lim',
       address: '', phone: '', workStart: '08:00', workEnd: '22:00', lessonMinutes: 80, dueDay: 5,
       expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
       bot: {
         username: process.env.TELEGRAM_BOT_USERNAME || '',
-        welcome: 'Assalomu alaykum! ' + (process.env.APP_NAME || 'Arab tili markazi') + ' botiga xush kelibsiz.',
+        welcome: 'Assalomu alaykum! ' + (process.env.APP_NAME || 'Hayot Ta’lim') + ' botiga xush kelibsiz.',
         notifyAttendance: true, notifyPayment: true, notifyDebt: true, autoApprove: false
       },
       createdAt: stamp()
@@ -1963,7 +1963,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === 'public' && req.method === 'GET') {
-    const out = { centerName: process.env.APP_NAME || 'Arab tili markazi' };
+    const out = { centerName: process.env.APP_NAME || 'Hayot Ta’lim' };
     try {
       const s = (await store.get('meta/settings')) || {};
       if (s.centerName) out.centerName = String(s.centerName);
@@ -3341,7 +3341,7 @@ const server = http.createServer(async (req, res) => {
     if (added) console.log('  O’quvchi kodlari berildi: ' + added + ' ta');
   } catch (e) { console.error('  Kod berishda xato: ' + e.message); }
   server.listen(PORT, () => {
-    console.log('\n  ' + (process.env.APP_NAME || 'Arab tili markazi') + ' ERP ishga tushdi: http://localhost:' + PORT);
+    console.log('\n  ' + (process.env.APP_NAME || 'Hayot Ta’lim') + ' ERP ishga tushdi: http://localhost:' + PORT);
     console.log('  Ombor: ' + store.kind + (store.file ? ' (' + store.file + ')' : ''));
   });
   // Kunlik avtomatik zaxira; xato bo'lsa direktorga xabar qoldiriladi

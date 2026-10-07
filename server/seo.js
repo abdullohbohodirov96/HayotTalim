@@ -21,7 +21,7 @@ const DEFAULT_INSTAGRAM = '';
 
 /* Saytning Google dagi nomi. Sozlamadagi nom bo'sh bo'lsa shu ishlatiladi;
    barcha joyda (title, og:site_name, WebSite schema) BITTA nom turadi.   */
-const SITE_NAME = process.env.APP_NAME || 'Arab tili markazi';
+const SITE_NAME = process.env.APP_NAME || 'Hayot Ta’lim';
 
 /* "AlBayan", "Al Bayan", "البيان" deb qidirilganda ham shu sayt
    tanilsin. Bular haqiqiy yozilish variantlari — uydirma nom emas.     */

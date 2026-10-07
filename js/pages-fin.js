@@ -497,7 +497,7 @@
     var s = D.one('students', pay.studentId);
     var set = D.settings || {};
     var lines = [];
-    lines.push((set.centerName || 'Arab tili markazi'));
+    lines.push((set.centerName || 'Hayot Ta’lim'));
     if (set.address) lines.push(set.address);
     if (set.phone) lines.push('Tel: ' + set.phone);
     lines.push('--------------------------------');

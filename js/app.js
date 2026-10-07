@@ -260,7 +260,7 @@
   /* Markaz nomi: avval serverdagi nom, bo'lmasa brauzerdagi nusxa, oxirida standart.
      Eski nusxa qolib ketmasin uchun server nomi kelganda yangilanadi. */
   function centerNameNow() {
-    return (D.settings && D.settings.centerName) || 'Arab tili markazi';
+    return (D.settings && D.settings.centerName) || 'Hayot Ta’lim';
   }
   async function refreshCenterName() {
     try {
@@ -1416,8 +1416,8 @@
      keyingisi yoziladi. "Harakatni kamaytirish" yoqilgan bo'lsa yozilmaydi —
      iboralar shunchaki navbat bilan almashadi.                            */
   var TAGLINES = [
-    'Arab tilini noldan o’rganing',
-    'Noldan boshlab — 1 yilda',
+    'Tilni yodlatmaymiz — gapirtiramiz!',
+    'Online va offline darslar',
     'Ayollar, erkaklar va bolalar — alohida guruhlar',
     'Uydan chiqmasdan, butun O’zbekiston bo’ylab'
   ];
@@ -1588,7 +1588,7 @@
         h('img', { class: 'logo', src: LOGO, alt: '' }),
         h('div', {}, [
           h('b', { id: 'site-name' }, name),
-          h('span', {}, 'Onlayn arab tili markazi')
+          h('span', {}, 'Xorijiy tillar markazi')
         ])
       ]),
       h('nav', { class: 'site-nav' }, [
@@ -1618,7 +1618,7 @@
     var hero = h('section', { class: 'site-hero' }, [
       heroBadge,
       h('div', { class: 'hero-text' }, [
-        h('span', { class: 'hero-eyebrow' }, 'Onlayn arab tili kurslari'),
+        h('span', { class: 'hero-eyebrow' }, 'Xorijiy tillar markazi'),
         h('h1', {}, [h('span', { class: 'gold', id: 'site-name-hero' }, name)]),
         h('div', { class: 'hero-type' }, [
           h('span', { class: 'hero-type-txt', id: 'hero-type-txt' }, ''),
@@ -1626,8 +1626,8 @@
         ]),
         h('div', { class: 'hero-rule', 'aria-hidden': 'true' }),
         h('p', { class: 'hero-lead', id: 'site-about' },
-          'Noldan boshlab 1 yilda: arabcha matnni ravon o’qiysiz, tushunasiz va erkin gapirasiz. ' +
-          'Ayollar, erkaklar va bolalar uchun alohida guruhlarda jonli Zoom darslar, har bir dars yozuvi — butun O’zbekiston bo’ylab, uydan chiqmasdan.'),
+          'Birinchi darsdanoq jonli muloqot: xorijiy tilda ravon o’qiysiz, tushunasiz va erkin gapirasiz. ' +
+          'Online va offline darslar, ayollar, erkaklar va bolalar uchun alohida guruhlar, har bir dars yozuvi — aniq reja va aniq natija.'),
         h('div', { class: 'hero-cta' }, [
           h('button', {
             class: 'btn gold xl', type: 'button', id: 'hero-free-btn',
@@ -2939,7 +2939,7 @@
     document.getElementById('me-role').textContent = A.ROLES[user.role] || user.role;
     document.getElementById('me-avatar').textContent =
       (user.name || '?').trim().split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toUpperCase();
-    document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'Arab tili markazi';
+    document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'Hayot Ta’lim';
     var mp = document.getElementById('mode-pill');
     if (D.mode === 'local') { mp.hidden = false; mp.textContent = 'Faqat shu brauzerda'; }
     // sahifa yangilanganda oxirgi ochilgan bo'limga qaytamiz

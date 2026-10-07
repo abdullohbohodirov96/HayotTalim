@@ -1,6 +1,6 @@
 {
-  "name": "Arab tili markazi",
-  "short_name": "Arab markazi",
+  "name": "Hayot Ta’lim",
+  "short_name": "Hayot Ta’lim",
   "description": "Onlayn arab tili markazi boshqaruv tizimi",
   "lang": "uz",
   "dir": "ltr",
@@ -9,7 +9,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#f3f5fa",
-  "theme_color": "#0f4a40",
+  "theme_color": "#0B4A2E",
   "icons": [
     { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

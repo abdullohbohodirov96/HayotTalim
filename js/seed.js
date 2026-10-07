@@ -9,19 +9,19 @@
   function salt() { return Math.random().toString(36).slice(2, 10); }
 
   var DEFAULT_SETTINGS = {
-    centerName: 'Arab tili markazi',
+    centerName: 'Hayot Ta’lim',
     address: '',
-    phone: '',
+    phone: '+998 50 999 97 33',
     workStart: '08:00',
     workEnd: '22:00',
     lessonMinutes: 80,
     dueDay: 5,
     /* Saytda harf-harf yozilib turadigan iboralar (har qatorda bittasi).
        Markaz Sozlamalardan o'zgartiradi. */
-    taglines: 'Arab tilini noldan o’rganing\n' +
-      'Noldan boshlab — 1 yilda\n' +
-      'Ayollar, erkaklar va bolalar — alohida guruhlar\n' +
-      'Uydan chiqmasdan, butun O’zbekiston bo’ylab',
+    taglines: 'Tilni yodlatmaymiz — gapirtiramiz!\n' +
+      'Online va offline darslar\n' +
+      'Birinchi darsdan jonli muloqot\n' +
+      'Har bir til — yangi eshik',
     /* Darslar orasidagi tanaffus — jadval shunga qarab tuziladi */
     breakMinutes: 30,
     expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],

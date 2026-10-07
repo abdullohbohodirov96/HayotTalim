@@ -28,9 +28,9 @@ const body = src.replace(/^[\s\S]*?(?=<div id="boot")/, function (top) {
    SITE_URL — saytning asosiy manzili. O'z domeningiz bo'lsa, uni shu yerga
    yozing (yoki SITE_URL muhit o'zgaruvchisida bering): havolalar, canonical
    va sitemap shunga qarab tuziladi.                                        */
-const SITE_URL = (process.env.SITE_URL || 'https://arab-markaz.onrender.com')
+const SITE_URL = (process.env.SITE_URL || 'https://hayottalim.uz')
   .replace(/\/+$/, '');
-const SITE_NAME = process.env.APP_NAME || 'Arab tili markazi';
+const SITE_NAME = process.env.APP_NAME || 'Hayot Ta’lim';
 /* Nom variantlari — server/seo.js dagi ro'yxat bilan BIR XIL bo'lishi
    kerak, aks holda Google statik HTML va serverdan kelgan HTML da
    ikki xil signal ko'radi.                                          */
@@ -179,7 +179,7 @@ const head = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">${GA_TAG}
 <title>${SITE_TITLE}</title>
 <meta name="description" content="${SITE_DESC}">
-<meta name="theme-color" content="#0f5c4d">
+<meta name="theme-color" content="#0B4A2E">
 <link rel="canonical" href="${SITE_URL}/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 
@@ -189,7 +189,7 @@ const head = `<!doctype html>
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/icon-16.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-180.png">
-<meta name="msapplication-TileColor" content="#0f5c4d">
+<meta name="msapplication-TileColor" content="#0B4A2E">
 <meta name="msapplication-TileImage" content="/assets/icon-192.png">
 
 <!-- Havola ulashilganda chiqadigan kartochka (Telegram, Facebook, WhatsApp) -->
