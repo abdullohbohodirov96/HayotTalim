@@ -833,6 +833,14 @@
               }
               c(); UI.toast('Saqlandi.', 'ok');
               App.go('student', { id: student.id, tab: 'guruhlar' });
+              /* Yangi o'quvchi qarzdor bo'lib qolmaydi: to'lovni shu yerda
+                 qabul qilish mumkin (pul hisobga, ortig'i balansga yoziladi).
+                 Hozir to'lamasa — "Bekor qilish", to'lov kuni kelguncha
+                 "to'lov kutilmoqda" holatida turadi. */
+              if (isNew && App.can('payment.create')) {
+                var due = A.Q.openInvoices(student.id).reduce(function (t, i) { return t + i.remaining; }, 0);
+                if (due > 0) A.paymentForm(student.id, App, { amount: due });
+              }
             });
           }
         }

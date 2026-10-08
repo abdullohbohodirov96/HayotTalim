@@ -655,7 +655,7 @@
               (k.groups || []).map(function (g) { return g.name; }).join(', ') || 'Guruhga yozilmagan'),
             h('div', { class: 'kab-line' }, [
               h('span', {}, 'To’lov'),
-              h('b', {}, fin.debt > 0 ? A.somFull(fin.debt) + ' qarz' : 'Qarz yo’q')
+              h('b', {}, fin.overdue > 0 ? A.somFull(fin.overdue) + ' qarz' : (fin.debt > 0 ? A.somFull(fin.debt) + ' · to’lov kuni ' + (fin.next && fin.next.dueDate ? A.dateLabel(fin.next.dueDate) : '') : 'Qarz yo’q'))
             ]),
             h('div', { class: 'kab-line' }, [
               h('span', {}, 'Davomat'),

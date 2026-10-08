@@ -181,11 +181,28 @@
         s.overdue += A.invoiceOverdueAmount(inv, paid, A.today());
         s.months.push(inv.month);
       });
+      /* Qarzdor — faqat TO'LOV KUNI O'TIB KETGAN, to'lanmagan summa bo'lsa.
+         Yangi qo'shilgan yoki to'lov kuni hali kelmagan o'quvchi qarzdor
+         emas — u "to'lov kutilmoqda" holatida turadi. */
       return Object.keys(byStudent).map(function (k) { return byStudent[k]; })
         .filter(function (x) {
           var st = D.one('students', x.studentId);
-          return st && st.status !== 'arxiv';
+          return st && st.status !== 'arxiv' && x.overdue > 0;
         });
+    },
+    /** To'lov kuni hali kelmagan (yoki bugun) ochiq hisoblar — qarz emas */
+    pendingPayers: function () {
+      var paid = A.paidByInvoice(A.Fin.allPayments()), today = A.today(), by = {};
+      A.Fin.allInvoices().forEach(function (inv) {
+        var rem = A.invoiceRemaining(inv, paid);
+        if (rem <= 0 || A.invoiceOverdueAmount(inv, paid, today) > 0) return;
+        var st = D.one('students', inv.studentId);
+        if (!st || st.status === 'arxiv') return;
+        var r = by[inv.studentId] || (by[inv.studentId] = { studentId: inv.studentId, amount: 0, dueDate: inv.dueDate });
+        r.amount += rem;
+        if (inv.dueDate && (!r.dueDate || inv.dueDate < r.dueDate)) r.dueDate = inv.dueDate;
+      });
+      return Object.keys(by).map(function (k) { return by[k]; });
     }
   };
   A.Q = Q;
@@ -199,7 +216,8 @@
   A.statusPill = statusPill;
 
   function balancePill(b, overdue) {
-    if (b.debt > 0) return UI.pill((overdue > 0 ? 'Muddati o’tgan ' : 'Qarz ') + A.som(b.debt), overdue > 0 ? 'bad' : 'warn');
+    if (overdue > 0) return UI.pill('Qarz ' + A.som(overdue), 'bad');
+    if (b.debt > 0) return UI.pill('To’lov kutilmoqda ' + A.som(b.debt), 'info');
     if (b.advance > 0) return UI.pill('Avans ' + A.som(b.advance), 'info');
     return UI.pill('Qarzsiz', 'ok');
   }
@@ -350,7 +368,8 @@
         onClick: function () { App.go('leads', { due: true }); }
       }));
       tiles.appendChild(UI.tile({
-        label: 'To’lov kutilayotganlar', value: debtors.length, hint: A.som(debtors.reduce(function (s, d) { return s + d.debt; }, 0)) + ' so’m',
+        label: 'To’lov kutilayotganlar', value: debtors.length + Q.pendingPayers().length,
+        hint: A.som(debtors.reduce(function (s, d) { return s + d.debt; }, 0) + Q.pendingPayers().reduce(function (s, d) { return s + d.amount; }, 0)) + ' so’m',
         cls: debtors.some(function (d) { return d.overdue > 0; }) ? 'alert' : '',
         onClick: function () { App.go('finance', { tab: 'debts' }); }
       }));
@@ -1008,14 +1027,20 @@
     var next = nextLessonOf(s.id);
     var phone = s.phone || s.parentPhone || '';
 
-    var money = bal.debt > 0
+    var nextDue = (Q.openInvoices(s.id)[0] || {}).dueDate;
+    var money = over > 0
       ? h('div', { class: 'q-money bad' }, [
-          h('span', {}, over > 0 ? 'Muddati o’tgan qarz' : 'Qarz'),
+          h('span', {}, 'Qarz (to’lov kuni o’tgan)'),
+          h('b', {}, A.som(over) + ' so’m')
+        ])
+      : bal.debt > 0
+      ? h('div', { class: 'q-money' }, [
+          h('span', {}, 'To’lov kutilmoqda' + (nextDue ? ' · ' + A.dateLabel(nextDue) : '')),
           h('b', {}, A.som(bal.debt) + ' so’m')
         ])
       : (bal.advance > 0
-        ? h('div', { class: 'q-money ok' }, [h('span', {}, 'Avans'), h('b', {}, A.som(bal.advance) + ' so’m')])
-        : h('div', { class: 'q-money ok' }, [h('span', {}, 'Qarz'), h('b', {}, 'Yo’q')]));
+        ? h('div', { class: 'q-money ok' }, [h('span', {}, 'Balansda'), h('b', {}, '+' + A.som(bal.advance) + ' so’m')])
+        : h('div', { class: 'q-money ok' }, [h('span', {}, 'Balans'), h('b', {}, 'Qarz yo’q')]));
 
     var lines = h('div', { class: 'q-lines' }, [
       h('div', {}, [
@@ -1237,8 +1262,9 @@
       tiles.appendChild(UI.tile({ label: 'Hisoblangan', value: A.som(bal.charged), hint: 'so’m' }));
       tiles.appendChild(UI.tile({ label: 'To’langan', value: A.som(bal.received), hint: 'so’m', cls: 'money' }));
       tiles.appendChild(UI.tile({
-        label: bal.advance > 0 ? 'Avans' : 'Qarz', value: A.som(bal.advance > 0 ? bal.advance : bal.debt),
-        hint: over > 0 ? 'Muddati o’tgan: ' + A.som(over) : 'so’m', cls: bal.debt > 0 && over > 0 ? 'alert' : ''
+        label: bal.advance > 0 ? 'Balansda' : (over > 0 ? 'Qarz' : (bal.debt > 0 ? 'To’lov kutilmoqda' : 'Qarz')),
+        value: A.som(bal.advance > 0 ? bal.advance : (over > 0 ? over : bal.debt)),
+        hint: over > 0 ? 'to’lov kuni o’tgan' : 'so’m', cls: over > 0 ? 'alert' : ''
       }));
     }
     view.appendChild(tiles);

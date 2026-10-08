@@ -310,7 +310,7 @@
       var tHw = tile('task', 'Vazifalar', '…', 'vazifalar');
       var tNext = tile('calendar', 'Keyingi dars', nx ? whenLabel(nx).split(' · ')[0] : '—', 'jadval', nx ? (nx.g.startTime || '') : 'jadval yo’q');
       var tPay = fin.debt > 0
-        ? tile('wallet', 'To’lov', som(fin.debt), 'tolov', 'qarz' + (fin.next && fin.next.dueDate ? ' · ' + dateLabel(fin.next.dueDate) + ' gacha' : ''), 'bad')
+        ? tile('wallet', 'To’lov', som(fin.debt), 'tolov', (fin.overdue > 0 ? 'qarz' : 'to’lov kuni') + (fin.next && fin.next.dueDate ? ' · ' + dateLabel(fin.next.dueDate) + (fin.overdue > 0 ? ' edi' : ' gacha') : ''), fin.overdue > 0 ? 'bad' : '')
         : tile('wallet', 'To’lov', 'Qarz yo’q', 'tolov', fin.next && fin.next.dueDate ? 'keyingi: ' + dateLabel(fin.next.dueDate) : '', 'ok');
       [tLessons, tHw, tNext, tPay].forEach(function (t) { tiles.appendChild(t.node); });
 
@@ -325,8 +325,8 @@
 
       colR.appendChild(card('To’lov', [
         fin.debt > 0
-          ? h('div', { class: 'kab-money bad' }, [h('span', {}, 'Qarz'), h('b', {}, A.somFull ? A.somFull(fin.debt) : som(fin.debt))])
-          : h('div', { class: 'kab-money ok' }, [h('span', {}, 'To’lov'), h('b', {}, fin.advance > 0 ? 'Avans ' + som(fin.advance) : 'Qarz yo’q')]),
+          ? h('div', { class: 'kab-money' + (fin.overdue > 0 ? ' bad' : '') }, [h('span', {}, fin.overdue > 0 ? 'Qarz' : 'To’lanishi kerak'), h('b', {}, A.somFull ? A.somFull(fin.debt) : som(fin.debt))])
+          : h('div', { class: 'kab-money ok' }, [h('span', {}, 'To’lov'), h('b', {}, fin.advance > 0 ? 'Balansda +' + som(fin.advance) : 'Qarz yo’q')]),
         fin.next ? h('div', { class: 'kab-line' }, [h('span', {}, fin.next.upcoming ? 'Keyingi hisob' : 'Keyingi to’lov'),
           h('b', {}, (fin.next.upcoming ? '' : som(fin.next.amount) + ' · ') + dateLabel(fin.next.dueDate) + ' gacha')]) : null,
         h('button', { class: 'btn sm', style: 'margin-top:6px', onclick: function () { go('tolov'); } }, 'Batafsil va to’lash')
@@ -783,14 +783,14 @@
 
     /* ---------- 5. To'lovlarim ---------- */
     function vPay(el) {
-      el.appendChild(h('section', { class: 'sp-paybig ' + (fin.debt > 0 ? 'bad' : 'ok') }, [
+      el.appendChild(h('section', { class: 'sp-paybig ' + (fin.overdue > 0 ? 'bad' : 'ok') }, [
         h('div', {}, [
           h('span', { class: 'sp-eyebrow' }, fin.debt > 0 ? 'To’lanishi kerak' : 'Holat'),
           h('h2', {}, fin.debt > 0 ? som(fin.debt) : 'Qarzingiz yo’q ✓'),
           fin.next ? h('p', {}, (fin.next.upcoming ? 'Keyingi hisob: ' : 'Muddat: ') + dateLabel(fin.next.dueDate) + ' gacha') : null,
           fin.overdue > 0 ? h('p', { class: 'sp-od' }, 'Muddati o’tgan: ' + som(fin.overdue)) : null
         ]),
-        fin.advance > 0 ? h('div', { class: 'sp-adv' }, [h('small', {}, 'Avans'), h('b', {}, som(fin.advance))]) : null
+        fin.advance > 0 ? h('div', { class: 'sp-adv' }, [h('small', {}, 'Balansda'), h('b', {}, '+' + som(fin.advance))]) : null
       ]));
       var how = h('div', {}, loading());
       var inv = h('div', {}, loading());

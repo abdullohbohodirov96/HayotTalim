@@ -16,7 +16,7 @@
   }
 
   /* ================= TO'LOV QABUL QILISH ================= */
-  A.paymentForm = function (studentId, App) {
+  A.paymentForm = function (studentId, App, opts) {
     App.guard('payment.create');
     var payId = A.uid('pay'); // takroriy bosishda bir xil id — ikkinchi yozuv yaratilmaydi
     var students = A.sortBy(D.all('students').filter(function (s) { return s.status !== 'arxiv'; }),
@@ -40,7 +40,7 @@
     fillOptions();
     search.input.addEventListener('input', function () { fillOptions(); refresh(); });
 
-    var fAmount = UI.field({ label: 'Summa (so’m)', type: 'number', required: true, value: '' });
+    var fAmount = UI.field({ label: 'Summa (so’m)', type: 'number', required: true, value: (opts && opts.amount) || '' });
     var fDate = UI.field({ label: 'Sana', type: 'date', required: true, value: A.today() });
     var fMethod = UI.field({ label: 'To’lov usuli', type: 'select', options: METHODS });
     var fNote = UI.field({ label: 'Izoh', full: true });
@@ -66,7 +66,7 @@
       auto.allocations.forEach(function (a) { autoMap[a.invoiceId] = a.amount; });
 
       var head = h('div', { class: 'rowflex', style: 'margin-bottom:8px' }, [
-        UI.pill('Qarz: ' + A.som(bal.debt) + ' so’m', bal.debt > 0 ? 'warn' : 'ok'),
+        UI.pill((bal.debt > 0 ? 'To’lanishi kerak: ' : 'Qarz: ') + A.som(bal.debt) + ' so’m', bal.debt > 0 ? 'warn' : 'ok'),
         bal.advance > 0 ? UI.pill('Avans: ' + A.som(bal.advance) + ' so’m', 'info') : null
       ]);
       allocBox.appendChild(head);
@@ -131,9 +131,9 @@
       var amount = A.parseSom(fAmount.input.value);
       var open = Q.openInvoices(sid);
       var line = [];
-      if (bal.debt > 0) line.push(UI.pill('Qarz: ' + A.som(bal.debt) + ' so’m', 'warn'));
+      if (bal.debt > 0) line.push(UI.pill('To’lanishi kerak: ' + A.som(bal.debt) + ' so’m', 'warn'));
       else line.push(UI.pill('Qarzi yo’q', 'ok'));
-      if (bal.advance > 0) line.push(UI.pill('Avans: ' + A.som(bal.advance) + ' so’m', 'info'));
+      if (bal.advance > 0) line.push(UI.pill('Balansda: ' + A.som(bal.advance) + ' so’m', 'info'));
       line.forEach(function (x) { hint.appendChild(x); });
 
       if (amount > 0) {
@@ -174,8 +174,8 @@
           h('div', { class: 'small muted' }, [
             chosen.phone || chosen.parentPhone || '',
             (chosen.phone || chosen.parentPhone) && chosenBal.debt > 0 ? ' · ' : '',
-            chosenBal.debt > 0 ? h('span', { style: 'color:var(--bad);font-weight:700' },
-              'Qarz: ' + A.som(chosenBal.debt) + ' so’m') : null
+            chosenBal.debt > 0 ? h('span', { style: 'font-weight:700' },
+              'To’lanishi kerak: ' + A.som(chosenBal.debt) + ' so’m') : null
           ])
         ]),
         h('button', {
@@ -722,10 +722,11 @@
     var debtors = A.sortBy(Q.debtors(), 'overdue', 'desc');
     var total = debtors.reduce(function (s, d) { return s + d.debt; }, 0);
     var overdue = debtors.reduce(function (s, d) { return s + d.overdue; }, 0);
+    var pending = Q.pendingPayers();
     view.appendChild(h('div', { class: 'tiles' }, [
-      UI.tile({ label: 'Jami qarzdorlik', value: A.som(total), hint: 'so’m' }),
-      UI.tile({ label: 'Muddati o’tgan', value: A.som(overdue), hint: 'so’m', cls: overdue > 0 ? 'alert' : '' }),
-      UI.tile({ label: 'Qarzdor o’quvchilar', value: debtors.length })
+      UI.tile({ label: 'Jami qarzdorlik', value: A.som(overdue), hint: 'to’lov kuni o’tgan, so’m', cls: overdue > 0 ? 'alert' : '' }),
+      UI.tile({ label: 'Qarzdor o’quvchilar', value: debtors.length }),
+      UI.tile({ label: 'To’lov kutilmoqda', value: pending.length, hint: A.som(pending.reduce(function (s, d) { return s + d.amount; }, 0)) + ' so’m — to’lov kuni hali kelmagan' })
     ]));
     view.appendChild(UI.card(null, debtors.length ? UI.table([
       { label: 'O’quvchi', render: function (d) { return h('b', {}, Q.studentName(d.studentId)); } },
