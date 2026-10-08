@@ -3968,3 +3968,14 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .lead-ok-go{width:100%;justify-content:center;margin-top:4px}
 .lead-ok-redirect{font-size:13px;color:var(--st-mut)}
 .lead-ok-count{display:inline-block;min-width:1.4em;font-weight:800;color:var(--st-n6,#134a40)}
+
+/* Yuqori menyu: tugmalar bir-biriga yopishib qolmasin.
+   Oddiy havolalar (Darajalar, Ustozlar) orasi kichik, tugmalar orasi kengroq;
+   joy yetmasa avval telefon, keyin "Daraja testi" yashiriladi. */
+.site-top .site-nav{gap:10px}
+.site-top .site-nav .btn.ghost + .btn.ghost{margin-inline-start:-4px}
+@media (max-width:1320px){ .site-top .site-phone{display:none} }
+@media (max-width:1180px) and (min-width:1001px){
+  .site-top .site-nav{gap:8px}
+  .site-top .site-nav .btn.sm.ghost{padding:7px 9px}
+}

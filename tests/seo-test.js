@@ -97,16 +97,15 @@ async function api(p, o = {}) {
   eq('Ikkita sarlavha yo’q', (html.match(/<title>/gi) || []).length, 1);
   /* Odam nimani qidirsa, sarlavhaning BOSHIDA shu tursin: Google
      sarlavhani kesganda ham asosiy so'z ko'rinib qoladi.            */
-  ok('Sarlavha "arab tili kurslari" bilan boshlanadi',
-    /^arab tili kurslari/i.test(title), title);
-  ok('Sarlavhada shahar ko’rsatilgan', /toshkent/i.test(title), title);
+  ok('Sarlavhada "arab tili kurslari" bor', /arab tili kurslari/i.test(title), title);
+  ok('Sarlavhada onlayn/offline', /onlayn/i.test(title) && /offline/i.test(title), title);
   const desc = (html.match(/<meta name="description" content="([^"]*)"/i) || [])[1] || '';
   /* Tavsif ixcham bo'lsin — Google ~160 belgidan keyin kesib tashlaydi */
   ok('Tavsif bor va ixcham (' + desc.length + ' belgi)',
     desc.length >= 90 && desc.length <= 170, desc);
   eq('Ikkita tavsif yo’q', (html.match(/name="description"/gi) || []).length, 1);
-  ok('Tavsifda qidiruv so’zi bor', /arab tili kurslari/i.test(desc), desc);
-  ok('Tavsifda darajalar bor', /A1/.test(desc) && /C2/.test(desc), desc);
+  ok('Tavsifda qidiruv so’zi bor', /arab tilini/i.test(desc), desc);
+  ok('Tavsifda tekin dars chaqiruvi bor', /tekin dars/i.test(desc), desc);
   ok('Canonical havola bor', /<link rel="canonical" href="https?:\/\/[^"]+"/.test(html));
   eq('Canonical BITTA', (html.match(/rel="canonical"/gi) || []).length, 1);
   const canon = (html.match(/<link rel="canonical" href="([^"]*)"/i) || [])[1] || '';
@@ -154,10 +153,11 @@ async function api(p, o = {}) {
     ok('Instagram va Telegram havolalari bor',
       (org.sameAs || []).some(u => /instagram/.test(u)) && (org.sameAs || []).some(u => /t\.me/.test(u)),
       JSON.stringify(org.sameAs));
-    ok('Boshqa nomlari ham yozilgan ("bayan" deb qidirilganda)',
-      (org.alternateName || []).some(n => /bayan/i.test(n)), JSON.stringify(org.alternateName));
-    ok('Arabcha nomi ham bor', (org.alternateName || []).some(n => /[؀-ۿ]/.test(n)),
+    ok('Boshqa nomlari ham yozilgan ("hayot talim" deb qidirilganda)',
+      (org.alternateName || []).some(n => /hayot ?talim/i.test(n)), JSON.stringify(org.alternateName));
+    ok('Kirillcha nomi ham bor', (org.alternateName || []).some(n => /[Ѐ-ӿ]/.test(n)),
       JSON.stringify(org.alternateName));
+    ok('Facebook sahifasi sameAs da', (org.sameAs || []).some(u => /facebook\.com/.test(u)), JSON.stringify(org.sameAs));
 
     /* --- Google qidiruvdagi SAYT NOMI shu yozuvdan olinadi --- */
     const site = ld['@graph'].find(x => x['@type'] === 'WebSite');

@@ -1770,6 +1770,7 @@
         }
       },
       { name: 'instagram', label: 'Instagram', value: s.instagram, placeholder: '@markaz yoki havola' },
+      { name: 'facebook', label: 'Facebook sahifa', value: s.facebook == null ? 'https://www.facebook.com/profile.php?id=61595261428849' : s.facebook, placeholder: 'https://www.facebook.com/...' },
       { name: 'youtube', label: 'YouTube', value: s.youtube, placeholder: '@kanal yoki havola' },
       {
         /* Ochiq Telegram manzillari. Bot nomidan alohida: o'quvchi

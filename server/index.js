@@ -2125,6 +2125,7 @@ async function handleApi(req, res, url) {
         .split('\n').map(x => x.trim()).filter(Boolean).slice(0, 8)
         .map(x => x.slice(0, 90));
       out.youtube = String(s.youtube || '');
+      out.facebook = String(s.facebook == null ? SITE.FACEBOOK : s.facebook);
       /* Hero yonidagi kichik yozuv (masalan "Al-Azhar standarti").
          Markaz o'zi yozadi — biz hech qanday da'vo o'ylab topmaymiz.     */
       out.heroBadge = String(s.heroBadge || '').slice(0, 40);

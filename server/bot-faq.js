@@ -109,6 +109,7 @@ const TOPICS = [
     keys: ['telefon', 'nomer', 'raqam', 'aloqa', 'boglan', 'admin', 'administrator', 'menejer', 'qongiroq', 'zvonit', 'kontakt', 'instagram', 'kanal'],
     answer: c => '📞 Telefon: ' + c.phone + '\n🌐 Sayt: ' + c.site +
       (c.instagram ? '\n📷 Instagram: ' + c.instagram : '') +
+      (c.facebook ? '\n📘 Facebook: ' + c.facebook : '') +
       (c.channel ? '\n📢 Telegram kanal: ' + c.channel : '')
   },
   {
@@ -172,6 +173,7 @@ function context(settings) {
     phone: String(s.phone || SITE.PHONE),
     address: String(s.address || ''),
     instagram: String(s.instagram == null ? SITE.LINKS[0].url : s.instagram),
+    facebook: String(s.facebook == null ? SITE.FACEBOOK : s.facebook),
     channel: String(s.tgChannel == null ? SITE.LINKS[1].url : s.tgChannel),
     workStart: String(s.workStart || ''), workEnd: String(s.workEnd || ''),
     lessonMinutes: Number(s.lessonMinutes) || 80,

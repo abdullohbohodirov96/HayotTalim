@@ -18,8 +18,10 @@ const NAME = process.env.APP_NAME || 'Hayot Ta’lim';
 const PHONE = process.env.SITE_PHONE || '+998 50 999 97 33';
 const LINKS = [
   { label: 'Instagram — hayottalim.uz', url: 'https://www.instagram.com/hayottalim.uz/' },
-  { label: 'Telegram kanal — Hayot_talim', url: 'https://t.me/Hayot_talim' }
+  { label: 'Telegram kanal — Hayot_talim', url: 'https://t.me/Hayot_talim' },
+  { label: 'Facebook — HayotTalim.uz', url: 'https://www.facebook.com/profile.php?id=61595261428849' }
 ];
+const FACEBOOK = 'https://www.facebook.com/profile.php?id=61595261428849';
 
 /* Saytda harf-harf yoziladigan shiorlar (Sozlamada o'zgartiriladi) */
 const TAGLINES = 'Tilni yodlatmaymiz — gapirtiramiz!\nOnline va offline darslar\nBirinchi darsdan jonli muloqot\nHar bir til — yangi eshik';
@@ -94,4 +96,4 @@ function faqLd() {
   };
 }
 
-module.exports = { NAME, PHONE, LINKS, TAGLINES, ALT_NAMES, TITLE, DESC, FAQ, seoText, faqLd };
+module.exports = { NAME, PHONE, LINKS, FACEBOOK, TAGLINES, ALT_NAMES, TITLE, DESC, FAQ, seoText, faqLd };

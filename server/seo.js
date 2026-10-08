@@ -134,7 +134,9 @@ function render(html, settings, host) {
 
   /* Havolalar: Instagram va Telegram kanallari (bo'sh bo'lsa tushmaydi) */
   const links = [social, telegram(s.tgChannel == null ? CONTENT.LINKS[1].url : s.tgChannel), telegram(s.tgQabul),
-    telegram(s.tgQabul2), telegram(s.telegram)].filter(Boolean);
+    telegram(s.tgQabul2), telegram(s.telegram),
+    /^https:\/\/(www\.)?facebook\.com\//i.test(String(s.facebook == null ? CONTENT.FACEBOOK : s.facebook))
+      ? String(s.facebook == null ? CONTENT.FACEBOOK : s.facebook) : ''].filter(Boolean);
   const seen = {};
   const sameAs = links.filter(u => (seen[u] ? false : (seen[u] = true)));
 
@@ -213,7 +215,7 @@ function render(html, settings, host) {
      tizimlari va JavaScriptsiz brauzerlar uni baribir o'qiydi.       */
   const linkList = [];
   if (social) linkList.push({ label: 'Instagram sahifasi', url: social });
-  sameAs.filter(u => u !== social).forEach(u => linkList.push({ label: 'Telegram', url: u }));
+  sameAs.filter(u => u !== social).forEach(u => linkList.push({ label: /facebook\.com/.test(u) ? 'Facebook' : 'Telegram', url: u }));
   const intro = CONTENT.seoText({ name, phone, address, links: linkList }) + '\n';
 
   return html

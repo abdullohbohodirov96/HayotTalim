@@ -876,7 +876,7 @@ async function api(p, opts = {}) {
         telegram: 'AlBayan_cairobot',
         tgQabul: '@Albayan_qabul1', tgQabulLabel: 'Taxtapul filiali',
         tgQabul2: '@albayantinchlik', tgQabulLabel2: 'Tinchlik filiali',
-        youtube: ''
+        youtube: '', facebook: ''
       })
     }
   });
@@ -942,7 +942,7 @@ async function api(p, opts = {}) {
     /* Telegram bot manzili bot sozlamasidan olinadi — uni ham bo'shatamiz */
     body: {
       data: Object.assign({}, socSt, {
-        tgChannel: '@albayanuz', instagram: '', tgQabul: '', tgQabul2: '', youtube: '',
+        tgChannel: '@albayanuz', instagram: '', tgQabul: '', tgQabul2: '', youtube: '', facebook: '',
         bot: Object.assign({}, socSt.bot || {}, { username: '' })
       })
     }

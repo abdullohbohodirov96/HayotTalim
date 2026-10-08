@@ -1244,6 +1244,7 @@
       instagram: String(s.instagram || ''), tgChannel: String(s.tgChannel || ''),
       tgQabul: String(s.tgQabul || ''), tgQabulLabel: String(s.tgQabulLabel || ''),
       youtube: String(s.youtube || ''),
+      facebook: String(s.facebook == null ? (df.facebook || '') : s.facebook),
       lessonMinutes: Number(s.lessonMinutes) || 90,
       breakMinutes: s.breakMinutes == null ? 30 : Number(s.breakMinutes) || 0,
       taglines: lines(s.taglines).slice(0, 8),
@@ -2501,6 +2502,9 @@
       if (d.tgQabul2) {
         out.push({ logo: 'tg', name: 'Qabul', sub: d.tgQabulLabel2 || '', url: tgUrl(d.tgQabul2) });
       }
+      if (d.facebook && /^https:\/\/(www\.|m\.)?facebook\.com\//i.test(String(d.facebook).trim())) {
+        out.push({ logo: 'fb', name: 'Facebook', sub: '', url: String(d.facebook).trim() });
+      }
       if (d.youtube) {
         out.push({ logo: 'yt', name: 'YouTube', sub: '', url: ytUrl(d.youtube) });
       }
@@ -2519,7 +2523,7 @@
       }, [
         lg
           ? h('img', { class: 'soc-logo', src: lg.src, alt: '', width: '32', height: '32', loading: 'lazy' })
-          : h('span', { class: 'soc-ico' }, UI.icon('play')),
+          : h('span', { class: 'soc-ico' }, UI.icon(l.logo === 'fb' ? 'users' : 'play')),
         h('span', { class: 'soc-txt' }, [
           h('b', {}, l.name),
           l.sub ? h('span', {}, l.sub) : null
