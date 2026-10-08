@@ -3477,8 +3477,56 @@ function pageCsp(hashes) {
   ].join('; ');
 }
 
-const server = http.createServer(async (req, res) => {
+/* ---- Toshqin (flood) himoyasi: bitta IP dan juda ko'p so'rov ----
+   Bitta manzil daqiqasiga FLOOD_MAX dan ortiq so'rov yuborsa, u
+   FLOOD_BLOCK_MIN daqiqaga to'xtatiladi (429). Oddiy foydalanuvchi —
+   hatto bitta Wi-Fi/mobil operator IP si ortida o'nlab odam bo'lsa ham —
+   bu chegaraga yetmaydi. Production'da yoqiq; lokal sinovda FLOOD_MAX
+   berilsagina ishlaydi. Xotira to'lib ketmasligi uchun jadval cheklangan. */
+const FLOOD_MAX = Number(process.env.FLOOD_MAX != null ? process.env.FLOOD_MAX : (IS_PROD ? 900 : 0));
+const FLOOD_WIN = 60 * 1000;
+const FLOOD_BLOCK = Number(process.env.FLOOD_BLOCK_MIN || 5) * 60 * 1000;
+const floodMap = new Map();
+let floodBlockedLog = 0;
+function floodCheck(req) {
+  if (!FLOOD_MAX) return true;
+  const ip = clientIp(req);
+  /* Production'da ichki (proksi) manzil chiqsa — haqiqiy IP aniqlanmagan:
+     hammani bitta deb to'xtatib qo'ymaslik uchun cheklanmaydi. */
+  if (IS_PROD && /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd)/.test(ip)) return true;
+  const now = Date.now();
+  let r = floodMap.get(ip);
+  if (r && r.blockedUntil && now < r.blockedUntil) return false;
+  if (!r || now - r.start > FLOOD_WIN) {
+    if (floodMap.size > 50000) floodMap.clear();
+    r = { start: now, n: 0, blockedUntil: 0 };
+    floodMap.set(ip, r);
+  }
+  r.n++;
+  if (r.n > FLOOD_MAX) {
+    r.blockedUntil = now + FLOOD_BLOCK;
+    if (now - floodBlockedLog > 60000) { floodBlockedLog = now; console.warn('  Toshqin: IP to’xtatildi ' + ip); }
+    return false;
+  }
+  return true;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, r] of floodMap) {
+    if (now - r.start > FLOOD_WIN && !(r.blockedUntil > now)) floodMap.delete(ip);
+  }
+}, FLOOD_WIN).unref();
+
+const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (req, res) => {
   securityHeaders(res);
+  /* Render sog'liq tekshiruvi hech qachon to'xtatilmaydi */
+  if (!(req.url === '/api/health' || req.url.indexOf('/api/health?') === 0) && !floodCheck(req)) {
+    try {
+      res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': String(Math.ceil(FLOOD_BLOCK / 1000)), 'Cache-Control': 'no-store' });
+      res.end('Juda ko’p so’rov. Birozdan keyin qayta urinib ko’ring.');
+    } catch (x) { }
+    return;
+  }
   let url;
   try {
     url = new URL(req.url, 'http://' + safeHost(req.headers.host));
@@ -3549,6 +3597,13 @@ const server = http.createServer(async (req, res) => {
     const added = await kabinet.ensureAllCodes(store);
     if (added) console.log('  O’quvchi kodlari berildi: ' + added + ' ta');
   } catch (e) { console.error('  Kod berishda xato: ' + e.message); }
+  /* Sekin ulanish hujumi (slowloris): sarlavhani juda sekin yuborib
+     ulanishlarni band qilish. Sarlavha 20 soniyada, butun so'rov
+     2 daqiqada kelmasa — ulanish yopiladi.                          */
+  server.headersTimeout = 20 * 1000;
+  server.requestTimeout = 120 * 1000;
+  server.keepAliveTimeout = 65 * 1000;
+  server.maxHeadersCount = 100;
   server.listen(PORT, () => {
     console.log('\n  ' + (process.env.APP_NAME || 'Hayot Ta’lim') + ' ERP ishga tushdi: http://localhost:' + PORT);
     console.log('  Ombor: ' + store.kind + (store.file ? ' (' + store.file + ')' : ''));
