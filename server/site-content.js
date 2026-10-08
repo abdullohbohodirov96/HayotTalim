@@ -21,6 +21,9 @@ const LINKS = [
   { label: 'Telegram kanal — Hayot_talim', url: 'https://t.me/Hayot_talim' }
 ];
 
+/* Saytda harf-harf yoziladigan shiorlar (Sozlamada o'zgartiriladi) */
+const TAGLINES = 'Tilni yodlatmaymiz — gapirtiramiz!\nOnline va offline darslar\nBirinchi darsdan jonli muloqot\nHar bir til — yangi eshik';
+
 /* Odamlar nomni turlicha yozadi — hammasi shu saytga olib kelsin */
 const ALT_NAMES = (process.env.APP_ALT_NAMES
   ? String(process.env.APP_ALT_NAMES).split(',')
@@ -91,4 +94,4 @@ function faqLd() {
   };
 }
 
-module.exports = { NAME, PHONE, LINKS, ALT_NAMES, TITLE, DESC, FAQ, seoText, faqLd };
+module.exports = { NAME, PHONE, LINKS, TAGLINES, ALT_NAMES, TITLE, DESC, FAQ, seoText, faqLd };

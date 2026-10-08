@@ -383,12 +383,24 @@ async function ensureSeed() {
     if (!settings.workEnd || settings.workEnd === '20:00') { settings.workEnd = '22:00'; touched = true; }
     if (!settings.workStart) { settings.workStart = '08:00'; touched = true; }
     if (!settings.lessonMinutes) { settings.lessonMinutes = 90; touched = true; }
+    /* Bir martalik: sayt uchun markazning standart aloqalari va shiorlari.
+       Faqat BO'SH maydonlar to'ldiriladi; keyin admin o'zgartirsa yoki
+       o'chirsa — shu holicha qoladi (siteDefaults belgisi).            */
+    if (!settings.siteDefaults) {
+      if (!settings.phone || settings.phone === '+998 55 999 97 33') settings.phone = SITE.PHONE;
+      if (!settings.instagram) settings.instagram = SITE.LINKS[0].url;
+      if (!settings.tgChannel) settings.tgChannel = SITE.LINKS[1].url;
+      if (!settings.taglines) settings.taglines = SITE.TAGLINES;
+      settings.siteDefaults = 1;
+      touched = true;
+    }
     if (touched) await store.set('meta/settings', settings);
   }
   if (!settings) {
     await store.set('meta/settings', {
       centerName: process.env.APP_NAME || 'Hayot Ta’lim',
-      address: '', phone: '', workStart: '08:00', workEnd: '22:00', lessonMinutes: 80, dueDay: 5,
+      address: '', phone: SITE.PHONE, workStart: '08:00', workEnd: '22:00', lessonMinutes: 80, dueDay: 5,
+      instagram: SITE.LINKS[0].url, tgChannel: SITE.LINKS[1].url, taglines: SITE.TAGLINES, siteDefaults: 1,
       expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
       bot: {
         username: process.env.TELEGRAM_BOT_USERNAME || '',
@@ -408,20 +420,14 @@ async function ensureSeed() {
     console.log('  Sotuv voronkalari yaratildi (Asosiy, Target reklama, Instagram)');
   }
 
-  /* Saytdagi ustozlar. Rasm keyin ERP orqali qo'yiladi — bu yerda
-     faqat ism va o'rni turadi, shuning uchun sayt bo'sh ko'rinmaydi. */
-  const teachers = await store.list('teachers/');
-  if (!teachers.length) {
-    const seedT = [
-      { id: 'tch_ustoz1', name: 'Ustoz', audience: 'ayollar', order: 1 }
-    ];
-    for (const t of seedT) {
-      await store.set('teachers/' + t.id, Object.assign({
-        tag: 'Tajribali ustoz', country: '', levels: '', bio: '', years: 0,
-        active: true, createdAt: stamp()
-      }, t));
-    }
-    console.log('  Sayt uchun ustoz profillari yaratildi (' + seedT.length + ' ta)');
+  /* Saytdagi ustozlar ERP da qo'shiladi (Sayt → Ustozlar). Namuna ustoz
+     YARATILMAYDI: ro'yxat bo'sh bo'lsa saytda "tekin darsda ustoz bilan
+     tanishing" taklifi chiqadi. Ilgari yaratilgan, hech o'zgartirilmagan
+     "Ustoz" namunasi saytdan yashiriladi.                              */
+  const sample = await store.get('teachers/tch_ustoz1');
+  if (sample && sample.name === 'Ustoz' && !sample.bio && sample.active !== false && !sample.sampleHidden && !(await store.get('photos/tch_ustoz1'))) {
+    sample.active = false; sample.sampleHidden = 1;
+    await store.set('teachers/tch_ustoz1', sample);
   }
 
   // Daraja aniqlash testi uchun savollar (A1…C2)

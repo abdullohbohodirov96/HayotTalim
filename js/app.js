@@ -1694,7 +1694,7 @@
       h('nav', { class: 'site-nav', id: 'site-nav' }, [
         navBtn('Darajalar', 'bosqichlar'),
         navBtn('Ustozlar', 'ustozlar'),
-        h('a', { class: 'site-phone', id: 'site-call', href: '#ariza' },
+        h('a', { class: 'site-phone', id: 'site-call', href: 'tel:+998509999733', onclick: function () { A.track('phone_click', { place: 'menu' }); } },
           [UI.icon('phone'), h('span', { id: 'site-call-text' }, 'Bog’lanish')]),
         h('button', {
           class: 'btn sm gold nav-free', type: 'button',
@@ -1774,7 +1774,7 @@
           h('span', { class: 'proof-text', id: 'hero-proof-text' }, '')
         ]),
         h('div', { class: 'hero-meta' }, [
-          h('a', { class: 'hero-tel', id: 'hero-tel', href: '#ariza' },
+          h('a', { class: 'hero-tel', id: 'hero-tel', href: 'tel:+998509999733' },
             [UI.icon('phone'), h('span', { id: 'hero-tel-text' }, '')]),
           h('span', { class: 'hero-hours', id: 'hero-hours', hidden: true })
         ])
@@ -2537,8 +2537,19 @@
       var big = document.getElementById('apply-soc');
       if (big) {
         UI.clear(big);
-        links.slice(0, 3).forEach(function (l) { big.appendChild(socBtn(l, true)); });
-        big.hidden = !links.length;
+        /* Bot uchun yuqorida alohida katta tugma bor — bu yerda takrorlanmaydi.
+           Birinchi bo'lib qo'ng'iroq tugmasi turadi. */
+        var phoneNow = String(d.phone || '').trim();
+        if (phoneNow) {
+          big.appendChild(h('a', {
+            class: 'soc-btn soc-tel big', href: 'tel:' + phoneNow.replace(/[^+0-9]/g, ''),
+            title: 'Qo’ng’iroq qilish', onclick: function () { A.track('phone_click', { place: 'ariza' }); }
+          }, [h('span', { class: 'soc-ico' }, UI.icon('phone')),
+            h('span', { class: 'soc-txt' }, [h('b', {}, phoneNow)])]));
+        }
+        links.filter(function (l) { return l.name !== 'Telegram bot'; }).slice(0, 3)
+          .forEach(function (l) { big.appendChild(socBtn(l, true)); });
+        big.hidden = !big.children.length;
       }
     }
     function tgUrl(v) {
