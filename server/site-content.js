@@ -15,7 +15,7 @@
 const NAME = process.env.APP_NAME || 'Hayot Ta’lim';
 
 /* Standart aloqa (statik sayt uchun; serverda Sozlamadagisi ishlatiladi) */
-const PHONE = process.env.SITE_PHONE || '+998 55 999 97 33';
+const PHONE = process.env.SITE_PHONE || '+998 50 999 97 33';
 const LINKS = [
   { label: 'Instagram — hayottalim.uz', url: 'https://www.instagram.com/hayottalim.uz/' },
   { label: 'Telegram kanal — Hayot_talim', url: 'https://t.me/Hayot_talim' }

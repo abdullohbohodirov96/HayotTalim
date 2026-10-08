@@ -1232,7 +1232,7 @@
     s = Object.assign({}, s, {
       instagram: s.instagram || df.instagram || '',
       tgChannel: s.tgChannel || df.tgChannel || '',
-      phone: (!s.phone || s.phone === '+998 50 999 97 33') ? (df.phone || s.phone || '') : s.phone
+      phone: (!s.phone || s.phone === '+998 55 999 97 33') ? (df.phone || s.phone || '') : s.phone
     });
     function all(c) { try { return D.all(c) || []; } catch (e) { return []; } }
     function lines(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
@@ -2320,7 +2320,7 @@
     function contactButtons(onlyTg) {
       var pub = A._pub || {};
       var df = (A.Seed && A.Seed.defaults) || {};
-      var phone = String(pub.phone || df.phone || '+998 55 999 97 33');
+      var phone = String(pub.phone || df.phone || '+998 50 999 97 33');
       var tg = String(pub.tgQabul || pub.tgChannel || df.tgChannel || 'https://t.me/Hayot_talim');
       if (!/^https?:/.test(tg)) tg = 'https://t.me/' + tg.replace(/^@/, '');
       var row = h('div', { class: 'lead-alt' }, []);

@@ -21,6 +21,7 @@ const lms = require('./lms');
 const quiz = require('./quiz');
 const progress = require('./progress');
 const seo = require('./seo');
+const SITE = require('./site-content');
 const parents = require('./parents');
 const course = require('./course');
 
@@ -1857,7 +1858,7 @@ async function handleApi(req, res, url) {
       if (!rec) return send(res, 404, { error: 'Fayl topilmadi.' });
       const allowed = await fileVisibleToStudents(rec, mine);
       if (!allowed) return send(res, 403, { error: 'Bu fayl sizga tegishli emas.' });
-      const buf = files.readBody(rec);
+      const buf = await files.readBody(store, rec);
       if (!buf) return send(res, 404, { error: 'Fayl topilmadi.' });
       res.writeHead(200, {
         'Content-Type': rec.type,
@@ -1946,7 +1947,7 @@ async function handleApi(req, res, url) {
     const doc = /^[a-z0-9-]{2,20}$/.test(lid) ? await store.get('lessonvideo/' + lid) : null;
     if (url.searchParams.get('info')) return send(res, 200, { has: !!(doc && doc.fileId), name: doc ? doc.name : '', at: doc ? doc.at : null });
     const rec = doc ? await files.meta(store, doc.fileId) : null;
-    const buf = rec ? files.readBody(rec) : null;
+    const buf = rec ? await files.readBody(store, rec) : null;
     if (!buf) return send(res, 404, { error: 'Video yo’q.' });
     const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
     if (range) {
@@ -1962,7 +1963,7 @@ async function handleApi(req, res, url) {
   }
   if (route === 'qissa-audio' && req.method === 'GET' && url.searchParams.get('f')) {
     const rec = await files.meta(store, String(url.searchParams.get('f')));
-    const buf = rec && rec.purpose === 'qissa-audio' ? files.readBody(rec) : null;
+    const buf = rec && rec.purpose === 'qissa-audio' ? await files.readBody(store, rec) : null;
     if (!buf) return send(res, 404, { error: 'Ovoz yo’q.' });
     res.writeHead(200, { 'Content-Type': rec.type, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=604800', 'X-Content-Type-Options': 'nosniff' });
     return res.end(buf);
@@ -1979,7 +1980,7 @@ async function handleApi(req, res, url) {
     }
     const fid = i != null ? (doc.lines || {})[String(Number(i))] : (doc.words || {})[String(Number(w))];
     const rec = fid ? await files.meta(store, fid) : null;
-    const buf = rec ? files.readBody(rec) : null;
+    const buf = rec ? await files.readBody(store, rec) : null;
     if (!buf) return send(res, 404, { error: 'Ovoz yo’q.' });
     res.writeHead(200, { 'Content-Type': rec.type, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
     return res.end(buf);
@@ -1990,13 +1991,14 @@ async function handleApi(req, res, url) {
     try {
       const s = (await store.get('meta/settings')) || {};
       if (s.centerName) out.centerName = String(s.centerName);
-      out.phone = String(s.phone || '');
+      /* Sozlamada hali yozilmagan bo'lsa — markazning standart aloqalari */
+      out.phone = String(s.phone == null ? SITE.PHONE : s.phone);
       out.address = String(s.address || seo.DEFAULT_ADDRESS);
       out.workStart = String(s.workStart || '');
       out.workEnd = String(s.workEnd || '');
       out.about = String(s.about || '');
       out.telegram = String((s.bot && s.bot.username) || '');
-      out.instagram = String(s.instagram || '');
+      out.instagram = String(s.instagram == null ? SITE.LINKS[0].url : s.instagram);
       // Kurslar: faqat nomi va (ruxsat berilgan bo'lsa) oylik narxi
       /* Tartibni MARKAZ belgilaydi: `order` kichik bo'lgani birinchi
          turadi. Saytda asosiy narx shu birinchi kursdan olinadi.       */
@@ -2007,7 +2009,8 @@ async function handleApi(req, res, url) {
           String(a.name || '').localeCompare(String(b.name || '')));
       out.courses = courses.slice(0, 12).map(c => ({
         id: c.id, name: c.name,
-        fee: (c.publicPrice === false || s.publicPrices === false) ? null : Math.round(c.monthlyFee || 0),
+        /* Markaz qoidasi: narx saytda KO'RSATILMAYDI */
+        fee: null,
         /* Izoh bosqich kartasidagi ro'yxat uchun ishlatiladi:
            nuqtali vergul yoki yangi qator bilan ajratiladi.            */
         note: String(c.note || '').slice(0, 400)
@@ -2059,7 +2062,7 @@ async function handleApi(req, res, url) {
           about: String(x.about || '').slice(0, 40),
           date: String(x.createdAt || '').slice(0, 10)
         }));
-      out.tgChannel = String(s.tgChannel || '').slice(0, 60);
+      out.tgChannel = String(s.tgChannel == null ? SITE.LINKS[1].url : s.tgChannel).slice(0, 60);
       out.tgQabul = String(s.tgQabul || '').slice(0, 60);
       out.tgQabulLabel = String(s.tgQabulLabel || '').slice(0, 60);
       /* Ikkinchi qabul manzili (ikkinchi filial) */
@@ -2597,7 +2600,7 @@ async function handleApi(req, res, url) {
     if (!A.can(user, 'group.view') && !A.can(user, 'student.view')) return nope();
     const rec = await files.meta(store, String(url.searchParams.get('id') || ''));
     if (!rec) return send(res, 404, { error: 'Fayl topilmadi.' });
-    const buf = files.readBody(rec);
+    const buf = await files.readBody(store, rec);
     if (!buf) return send(res, 404, { error: 'Fayl topilmadi.' });
     res.writeHead(200, {
       'Content-Type': rec.type,

@@ -18,6 +18,20 @@ const DIR = process.env.FILES_DIR || path.join(DATA_DIR, 'files');
 const COL = 'files/';
 const MAX_BYTES = Number(process.env.FILE_MAX_BYTES || 10 * 1024 * 1024);   // 10 MB
 
+/* Doimiy disk yo'q joyda (masalan Render'ning bepul tarifi + Neon/PostgreSQL)
+   disk har qayta ishga tushganda tozalanadi. Shunday paytda fayl mazmuni
+   bazaga ham yoziladi (`filebody/<id>`), o'qishda disk bo'lmasa bazadan
+   olinadi. Yoqilishi: FILES_STORE=db, yoki DATABASE_URL bor va FILES_DIR
+   (doimiy disk) berilmagan bo'lsa — avtomatik. FILES_STORE=disk — o'chiq. */
+const BODY = 'filebody/';
+const DB_BODY_MAX = Number(process.env.FILE_DB_MAX_BYTES || 12 * 1024 * 1024);
+function dbMode() {
+  const m = String(process.env.FILES_STORE || '').toLowerCase();
+  if (m === 'db') return true;
+  if (m === 'disk') return false;
+  return !!process.env.DATABASE_URL && !process.env.FILES_DIR;
+}
+
 /* Ruxsat etilgan turlar. Bajariladigan fayl (html, js, svg) YO'Q:
    ular brauzerda kod sifatida ishlashi mumkin edi.                     */
 const TYPES = {
@@ -78,6 +92,9 @@ async function save(store, opts) {
   ensureDir();
   const id = 'f' + crypto.randomBytes(8).toString('hex');
   fs.writeFileSync(diskPath(id, ext), buf);
+  if (dbMode() && buf.length <= DB_BODY_MAX) {
+    await store.set(BODY + id, { id, b64: buf.toString('base64') });
+  }
 
   const rec = {
     id,
@@ -101,13 +118,20 @@ async function meta(store, id) {
   return store.get(COL + String(id));
 }
 
-/** Fayl mazmuni. Yozuv bo'lmasa yoki disk fayli yo'q bo'lsa null. */
-function readBody(rec) {
+/** Fayl mazmuni: avval diskdan, bo'lmasa bazadan (va diskka qaytadan
+    yoziladi — keyingi so'rov tez bo'ladi). Topilmasa null. */
+async function readBody(store, rec) {
   if (!rec || !rec.id || !rec.ext) return null;
   const p = diskPath(rec.id, rec.ext);
   try {
-    if (!fs.existsSync(p)) return null;
-    return fs.readFileSync(p);
+    if (fs.existsSync(p)) return fs.readFileSync(p);
+  } catch (e) { }
+  try {
+    const doc = store && await store.get(BODY + rec.id);
+    if (!doc || !doc.b64) return null;
+    const buf = Buffer.from(doc.b64, 'base64');
+    try { ensureDir(); fs.writeFileSync(p, buf); } catch (e) { }
+    return buf;
   } catch (e) { return null; }
 }
 
@@ -116,7 +140,7 @@ async function remove(store, id) {
   const rec = await meta(store, id);
   if (!rec) return false;
   try { fs.unlinkSync(diskPath(rec.id, rec.ext)); } catch (e) { }
-  if (store.del) await store.del(COL + rec.id);
+  if (store.del) { await store.del(COL + rec.id); try { await store.del(BODY + rec.id); } catch (e) { } }
   return true;
 }
 
@@ -142,4 +166,4 @@ async function sweep(store) {
   return n;
 }
 
-module.exports = { save, meta, readBody, remove, forRef, sweep, safeName, TYPES, MAX_BYTES, DIR, COL };
+module.exports = { dbMode, save, meta, readBody, remove, forRef, sweep, safeName, TYPES, MAX_BYTES, DIR, COL };

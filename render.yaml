@@ -1,23 +1,47 @@
-# Render.com — NAMOYISH (demo) versiyasi: bepul "Static Site".
-# Baza kerak emas: barcha ma'lumotlar (o'quvchilar, guruhlar, to'lovlar,
-# darslar) namuna sifatida brauzerda yaratiladi.
-# Haqiqiy serverli versiya sozlamasi: render-server.yaml
+# Render.com — Hayot Ta'lim: TO'LIQ server (sayt + ERP + kabinet + Telegram bot).
+# Baza: Neon (PostgreSQL) — DATABASE_URL orqali. Doimiy disk shart emas:
+# yuklangan fayllar ham bazada saqlanadi (server/files.js, FILES_STORE=db).
+#
+# Render panelidagi sozlamalar shu fayl bilan bir xil bo'lishi kerak:
+#   Build Command:  npm install && node build.js
+#   Start Command:  node server/index.js
+#   Health Check:   /api/health
 services:
   - type: web
-    name: hayot-talim-demo
-    runtime: static
-    buildCommand: node build.js && node scripts/build-vercel.js
-    staticPublishPath: vercel-dist
+    name: HayotTalim
+    runtime: node
+    plan: free             # Starter'ga o'tilsa — server uxlab qolmaydi
+    region: frankfurt
+    buildCommand: npm install && node build.js
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Google Analytics — "Hayot Ta'lim — hayottalim.uz" resursi
+      - key: NODE_ENV
+        value: production
+      - key: APP_NAME
+        value: Hayot Ta’lim
+      - key: FILES_STORE
+        value: db
+      - key: SESSION_MAX_AGE_DAYS
+        value: "7"
+      - key: SEED_DIRECTOR_LOGIN
+        value: admin
+      - key: SITE_URL
+        value: https://hayottalim.uz
+      - key: PUBLIC_URL
+        value: https://hayottalim.uz
       - key: GA_MEASUREMENT_ID
         value: G-HQWL42X43Y
-    routes:
-      - type: redirect
-        source: /kabinet
-        destination: /#kabinet
-      - type: redirect
-        source: /kurs
-        destination: /#kurs
+      # Maxfiy qiymatlar — Render panelida o'zingiz kiritasiz:
+      - key: DATABASE_URL          # Neon: postgresql://...?sslmode=require
+        sync: false
+      - key: SEED_DIRECTOR_PASSWORD
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: ELEVENLABS_API_KEY    # ixtiyoriy
+        sync: false

@@ -117,9 +117,9 @@ function hours(a, b) {
 function render(html, settings, host) {
   const s = settings || {};
   const name = String(s.centerName || SITE_NAME).slice(0, 90);
-  const phone = String(s.phone || DEFAULT_PHONE).slice(0, 40);
+  const phone = String(s.phone == null ? CONTENT.PHONE : (s.phone || DEFAULT_PHONE)).slice(0, 40);
   const address = String(s.address || DEFAULT_ADDRESS).slice(0, 200);
-  const social = instagram(s.instagram);
+  const social = instagram(s.instagram == null ? CONTENT.LINKS[0].url : s.instagram);
   const url = origin(host) + '/';
 
   /* Sarlavha: odam nimani qidirsa, shu oldinda tursin — "arab tili
@@ -133,7 +133,7 @@ function render(html, settings, host) {
   const description = name === SITE_NAME ? CONTENT.DESC : CONTENT.DESC.split(CONTENT.NAME).join(name);
 
   /* Havolalar: Instagram va Telegram kanallari (bo'sh bo'lsa tushmaydi) */
-  const links = [social, telegram(s.tgChannel), telegram(s.tgQabul),
+  const links = [social, telegram(s.tgChannel == null ? CONTENT.LINKS[1].url : s.tgChannel), telegram(s.tgQabul),
     telegram(s.tgQabul2), telegram(s.telegram)].filter(Boolean);
   const seen = {};
   const sameAs = links.filter(u => (seen[u] ? false : (seen[u] = true)));

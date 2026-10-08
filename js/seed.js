@@ -12,7 +12,7 @@
   var DEFAULT_SETTINGS = {
     centerName: 'Hayot Ta’lim',
     address: '',
-    phone: '+998 55 999 97 33',
+    phone: '+998 50 999 97 33',
     instagram: 'https://www.instagram.com/hayottalim.uz/',
     tgChannel: 'https://t.me/Hayot_talim',
     workStart: '08:00',
@@ -48,7 +48,7 @@
     else {
       /* Eski namoyish sozlamasi: yangi telefon va Instagram */
       var cs = D.settings, ch = false;
-      if (!cs.phone || cs.phone === '+998 50 999 97 33') { cs.phone = DEFAULT_SETTINGS.phone; ch = true; }
+      if (!cs.phone || cs.phone === '+998 55 999 97 33') { cs.phone = DEFAULT_SETTINGS.phone; ch = true; }
       if (!cs.instagram) { cs.instagram = DEFAULT_SETTINGS.instagram; ch = true; }
       if (!cs.tgChannel) { cs.tgChannel = DEFAULT_SETTINGS.tgChannel; ch = true; }
       if (ch) await D.saveSettings(A.clone(cs));
