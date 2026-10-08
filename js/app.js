@@ -1139,8 +1139,9 @@
         onsubmit: function (e) { e.preventDefault(); send(); }
       }, [
         auto ? h('p', { class: 'test-timeup' }, T().timeUp) : h('p', {}, T().done),
-        h('p', { class: 'small muted' }, T().hint),
-        nameI, phoneI, btn
+        /* Serversiz nusxada ism/telefon saqlanadigan joy yo'q — so'ralmaydi */
+        D.mode === 'server' ? h('p', { class: 'small muted' }, T().hint) : null,
+        D.mode === 'server' ? nameI : null, D.mode === 'server' ? phoneI : null, btn
       ]));
       /* Vaqt tugagan bo'lsa kutib turmaymiz — server muhlati ham
          tugab qolmasin. Ism/telefonsiz ham natija chiqadi. */
@@ -1194,7 +1195,15 @@
         h('div', { class: 'test-nav' }, [
           h('button', {
             class: 'btn primary', type: 'button',
-            onclick: function () { location.hash = ''; renderLanding(); setTimeout(function () { scrollTo('ariza'); }, 60); }
+            onclick: function () {
+              /* Ariza formasiga: aniqlangan daraja oldindan tanlangan bo'ladi */
+              location.hash = ''; renderLanding();
+              setTimeout(function () {
+                if (A._pickLevel && r.level) A._pickLevel(String(r.level), info.name || '');
+                var f = document.getElementById('ariza');
+                if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 80);
+            }
           }, T().apply),
           h('button', {
             class: 'btn sm', type: 'button',
@@ -1732,7 +1741,7 @@
     var hero = h('section', { class: 'site-hero' }, [
       heroBadge,
       h('div', { class: 'hero-text' }, [
-        h('span', { class: 'hero-eyebrow' }, 'Xorijiy tillar markazi'),
+        h('span', { class: 'hero-eyebrow' }, 'Arab tili kurslari · onlayn va offline'),
         h('h1', {}, [h('span', { class: 'gold', id: 'site-name-hero' }, name)]),
         h('div', { class: 'hero-type' }, [
           h('span', { class: 'hero-type-txt', id: 'hero-type-txt' }, ''),
@@ -1879,7 +1888,8 @@
       var src = A.siteSrc();
       return 'https://t.me/' + botUser + '?start=dars' + (src ? '_' + src : '');
     }
-    function goFreeLesson() {
+    function goFreeLesson(place) {
+      A.track('free_lesson_click', { place: typeof place === 'string' ? place : 'site' });
       var l = botLink();
       if (l) { window.open(l, '_blank', 'noopener'); return; }
       scrollTo('ariza'); if (fName.input) fName.input.focus();
@@ -2010,6 +2020,7 @@
       h('label', {}, 'Hozirgi arab tili darajangiz'), lvlPill, lvlBox
     ]);
     function clearPill() { lvlPill.hidden = true; UI.clear(lvlPill); }
+    A._pickLevel = function (code, label) { pickLevel(code, label); };
     function pickLevel(code, label) {
       lvlPick = code;
       Array.prototype.forEach.call(lvlBox.children, function (x) { x.classList.remove('on'); });
@@ -2238,6 +2249,7 @@
       var go = h('button', {
         class: 'btn gold promo-go', type: 'button',
         onclick: function () {
+          A.track('promo_click', {});
           close(true);
           scrollTo('ariza');
           setTimeout(function () { if (fName.input) try { fName.input.focus({ preventScroll: true }); } catch (e) { } }, 600);
@@ -2304,6 +2316,26 @@
         if (box && box.parentNode) box.parentNode.removeChild(box);
       };
     }
+    /* Qo'ng'iroq va Telegram tugmalari (serversiz holat uchun) */
+    function contactButtons(onlyTg) {
+      var pub = A._pub || {};
+      var df = (A.Seed && A.Seed.defaults) || {};
+      var phone = String(pub.phone || df.phone || '+998 55 999 97 33');
+      var tg = String(pub.tgQabul || pub.tgChannel || df.tgChannel || 'https://t.me/Hayot_talim');
+      if (!/^https?:/.test(tg)) tg = 'https://t.me/' + tg.replace(/^@/, '');
+      var row = h('div', { class: 'lead-alt' }, []);
+      if (!onlyTg) {
+        row.appendChild(h('a', {
+          class: 'btn gold', href: 'tel:' + phone.replace(/[^+0-9]/g, ''),
+          onclick: function () { A.track('phone_click', { place: 'form' }); }
+        }, [UI.icon('phone'), h('span', {}, phone)]));
+      }
+      row.appendChild(h('a', {
+        class: 'btn', href: tg, target: '_blank', rel: 'noopener',
+        onclick: function () { A.track('telegram_click', { place: 'form' }); }
+      }, [h('span', {}, 'Telegram’da yozish')]));
+      return row;
+    }
     function show(id) { var el = document.getElementById(id); if (el) el.hidden = false; }
     function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
 
@@ -2359,7 +2391,7 @@
       paintPrice(d.courses || []);
       paintTeachers(d.teachers || []);
       paintSlots(d.workStart || '08:00', d.workEnd || '22:00', d.lessonMinutes || 90, d.breakMinutes, d.lessonTimes);
-      paintFaq(d.faq || []);
+      paintFaq((d.faq && d.faq.length) ? d.faq : (global.SITE_FAQ || []));
       paintReviews(d.reviews || []);
       setLeadCourse(d.courses || []);
       paintTimePick(d.workStart || '08:00', d.workEnd || '22:00', d.lessonMinutes || 90, d.breakMinutes, d.lessonTimes);
@@ -2640,11 +2672,18 @@
               rErr.hidden = true;
               if (nm.length < 2) { rErr.hidden = false; rErr.textContent = 'Ismingizni yozing.'; return; }
               if (tx.length < 10) { rErr.hidden = false; rErr.textContent = 'Izohni biroz to’liqroq yozing.'; return; }
+              if (D.mode !== 'server') {
+                rErr.hidden = false; UI.clear(rErr);
+                rErr.appendChild(h('span', {}, 'Izohlar hozircha Telegram orqali qabul qilinadi — izohingizni nusxalab yuboring: '));
+                rErr.appendChild(contactButtons(true));
+                return;
+              }
               UI.busy(btn, async function () {
                 try {
                   await D.api('POST', 'api/review', {
                     name: nm, text: tx, rating: pick, about: rAbout.input.value.trim()
                   });
+                  A.track('review_sent', { rating: pick });
                   close();
                   UI.toast('Rahmat! Izohingiz markazga yuborildi.', 'ok');
                 } catch (ex) {
@@ -2787,7 +2826,16 @@
          beriladi (ko'pi bilan 5 ta). Tor ekranda CSS o'zi buzib tashlaydi. */
       teachBox.style.setProperty('--cols', String(Math.min(5, Math.max(1, list.length))));
       if (!list.length) {
-        teachBox.appendChild(h('p', { class: 'muted' }, 'Ustozlar ro’yxati tez orada.'));
+        /* Ro'yxat hali to'ldirilmagan — "tez orada" o'rniga foydali taklif */
+        teachBox.style.setProperty('--cols', '1');
+        teachBox.appendChild(h('div', { class: 'tch-empty' }, [
+          h('b', {}, 'Ustoz bilan tekin darsda tanishing'),
+          h('p', {}, 'Birinchi dars — tekin. Ustozning dars uslubini o’zingiz ko’rasiz, savollaringizga javob olasiz va keyin qaror qilasiz.'),
+          h('button', {
+            class: 'btn gold', type: 'button',
+            onclick: function () { goFreeLesson('ustozlar'); }
+          }, [h('span', {}, 'Tekin darsga yozilish'), goIcon()])
+        ]));
         return;
       }
       list.forEach(function (t) {
@@ -2825,6 +2873,20 @@
       var phone = fPhone.input.value.trim();
       if (name2.length < 2) { err.hidden = false; err.textContent = 'Ismingizni yozing.'; return; }
       if (A.phoneDigits(phone).length < 9) { err.hidden = false; err.textContent = 'Telefon raqamni to’liq yozing.'; return; }
+      /* Serversiz (namoyish) nusxada ariza saqlanadigan joy yo'q — xato
+         o'rniga odamni to'g'ridan-to'g'ri qo'ng'iroq / Telegram'ga olib
+         boramiz, ariza yo'qolib ketmasin.                               */
+      if (D.mode !== 'server') {
+        A.track('generate_lead', { method: 'fallback' });
+        form.hidden = true; okBox.hidden = false; UI.clear(okBox);
+        okBox.appendChild(h('div', { class: 'lead-ok-in' }, [
+          h('div', { class: 'ok-ico' }, UI.icon('phone')),
+          h('b', {}, name2 + ', yozilishni yakunlang'),
+          h('p', {}, 'Tekin darsga joy band qilish uchun bizga qo’ng’iroq qiling yoki Telegram’da yozing — administrator darhol javob beradi.'),
+          contactButtons()
+        ]));
+        return;
+      }
       UI.busy(btn, async function () {
         try {
           var r = await D.api('POST', 'api/lead', {
@@ -2836,6 +2898,7 @@
             src: A.siteSrc(),
             note: ''
           });
+          A.track('generate_lead', { method: 'form', level: lvlPick || '' });
           form.hidden = true;
           okBox.hidden = false;
           UI.clear(okBox);
@@ -2865,6 +2928,12 @@
   /* Reklama belgisi: saytga ?src=reels1 yoki utm_campaign bilan kelinsa,
      shu belgi arizaga va bot havolasiga qo'shiladi — qaysi reklama
      ishlaganini Murojaatlar hisobotida ko'rasiz.                        */
+  /* Google Analytics hodisasi (teg yo'q bo'lsa — jim o'tadi).
+     Shaxsiy ma'lumot (ism, telefon) HECH QACHON yuborilmaydi. */
+  A.track = function (name, params) {
+    try { if (typeof global.gtag === 'function') global.gtag('event', name, params || {}); } catch (e) { }
+  };
+
   A.siteSrc = function () {
     var v = '';
     try {
@@ -3338,6 +3407,8 @@
         await A.Fin.migrate();
         await A.Seed.bootstrap();
       } else {
+        /* Eski brauzer ma'lumotidagi admin paroli — joriy parolga (bir marta) */
+        try { if (A.Seed && A.Seed.fixAdmin) await A.Seed.fixAdmin(); } catch (e) { console.warn(e); }
         // kirish darhol ko'rsatiladi, qolgani fonda yuklanadi
         restPromise = (async function () {
           await D.initRest();

@@ -30,4 +30,14 @@ require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'b
 fs.writeFileSync(path.join(out, 'index.html'), html);
 /* sw.js: o'zini o'chiradigan bo'sh ishchi (keshda eski versiya qolmasin) */
 fs.writeFileSync(path.join(out, 'sw.js'), "self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.registration.unregister()));\n");
+/* Qidiruv tizimlari: robots.txt, sitemap.xml va tasdiqlash fayllari.
+   Serverli versiyada bular serverda tuziladi (server/seo.js) — bu yerda
+   aynan o'sha funksiyalar statik saytga fayl qilib yoziladi.           */
+if (!process.env.SITE_URL) process.env.SITE_URL = 'https://hayottalim.uz';
+const seo = require(path.join(root, 'server/seo.js'));
+const host = new URL(process.env.SITE_URL).host;
+fs.writeFileSync(path.join(out, 'robots.txt'), seo.robots(host));
+fs.writeFileSync(path.join(out, 'sitemap.xml'), seo.sitemap(host));
+fs.readdirSync(root).filter(f => /^(google[0-9a-f]{8,32}|yandex_[0-9a-f]{8,32})\.html$/i.test(f))
+  .forEach(f => fs.copyFileSync(path.join(root, f), path.join(out, f)));
 console.log('vercel-dist tayyor:', fs.readdirSync(out).join(', '));

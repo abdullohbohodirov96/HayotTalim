@@ -30,15 +30,16 @@ const body = src.replace(/^[\s\S]*?(?=<div id="boot")/, function (top) {
    va sitemap shunga qarab tuziladi.                                        */
 const SITE_URL = (process.env.SITE_URL || 'https://hayottalim.uz')
   .replace(/\/+$/, '');
-const SITE_NAME = process.env.APP_NAME || 'Hayot Ta’lim';
+const CONTENT = require('./server/site-content');
+const SITE_NAME = CONTENT.NAME;
 /* Nom variantlari — server/seo.js dagi ro'yxat bilan BIR XIL bo'lishi
    kerak, aks holda Google statik HTML va serverdan kelgan HTML da
    ikki xil signal ko'radi.                                          */
-const ALT_NAMES = String(process.env.APP_ALT_NAMES || '').split(',').map(s => s.trim()).filter(Boolean);
+const ALT_NAMES = CONTENT.ALT_NAMES;
 /* Sarlavha: qidiruv so'zi oldinda, markaz nomi oxirida (~60 belgi). */
-const SITE_TITLE = 'Onlayn arab tili kurslari | ' + SITE_NAME;
+const SITE_TITLE = CONTENT.TITLE;
 /* Tavsif: ixcham (~155 belgi) — Google kesib tashlamaydi. */
-const SITE_DESC = "Onlayn arab tili kurslari: noldan 1 yilda, ayollar, erkaklar va bolalar uchun alohida guruhlar, jonli Zoom darslar va dars yozuvlari. Butun O'zbekiston bo'ylab. Bepul ochiq dars.";
+const SITE_DESC = CONTENT.DESC;
 
 /* Google Analytics 4. Bo'sh qoldirilsa (GA_ID='') teg umuman
    qo'yilmaydi — mahalliy ishlaganda yoki sinovda statistika
@@ -238,8 +239,9 @@ const LD = {
       description: SITE_DESC,
       address: { '@type': 'PostalAddress', addressLocality: 'Toshkent', addressCountry: 'UZ' },
       areaServed: { '@type': 'Country', name: 'O‘zbekiston' },
+      telephone: CONTENT.PHONE,
       knowsLanguage: ['ar', 'uz', 'ru'],
-      sameAs: []
+      sameAs: CONTENT.LINKS.map(l => l.url)
     },
     {
       /* Google qidiruvdagi SAYT NOMI aynan shu yozuvdan olinadi */
@@ -265,13 +267,20 @@ const LD = {
         courseWorkload: 'PT4H30M',
         location: { '@type': 'VirtualLocation', url: SITE_URL + '/' }
       }
-    }
+    },
+    CONTENT.faqLd()
   ]
 };
 const ldTag = '<script type="application/ld+json">' +
   JSON.stringify(LD).replace(/</g, '\\u003c') + '</script>\n';
 
-const html = head + ldTag + body.trimStart() + '\n</body>\n</html>\n';
+/* Savol-javob ilovaga ham beriladi (sozlamada bo'sh bo'lsa shu chiqadi) */
+const faqTag = '<script>window.SITE_FAQ = ' + JSON.stringify(CONTENT.FAQ).replace(/</g, '\\u003c') + ';</script>\n';
+/* JavaScriptsiz robotlar uchun matn — brauzerda ko'rinmaydi */
+const seoIntro = CONTENT.seoText({ name: SITE_NAME, phone: CONTENT.PHONE, links: CONTENT.LINKS });
+const bodyOut = body.trimStart().replace('<div id="auth" hidden>', seoIntro + '\n<div id="auth" hidden>');
+if (bodyOut.indexOf('id="seo-prerender"') < 0) throw new Error('index.html: seo matni qo‘yilmadi (#auth topilmadi)');
+const html = head + ldTag + faqTag + bodyOut + '\n</body>\n</html>\n';
 fs.writeFileSync(path.join(__dirname, 'index.html'), html);
 
 console.log('index.html yangilandi (' + headTags.length + ' ta head tegi ko’chirildi).');

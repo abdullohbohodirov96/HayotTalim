@@ -3936,3 +3936,14 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
   #auth.site .site-top .site-nav .btn.primary{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22);
     color:#fff;box-shadow:none}
 }
+
+/* Serversiz holatda ariza o'rniga: qo'ng'iroq va Telegram tugmalari */
+.lead-alt{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.lead-alt .btn{min-height:46px;justify-content:center}
+.err-msg .lead-alt{margin-top:8px}
+/* Ustozlar ro'yxati bo'sh bo'lganda — taklif kartasi */
+.tch-empty{grid-column:1 / -1;border:1px solid var(--st-line,#dfe7e3);border-radius:20px;padding:22px;
+  background:#fff;display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:640px}
+.tch-empty b{font-family:var(--st-serif,inherit);font-size:19px;color:var(--st-ink,#10241f)}
+.tch-empty p{margin:0 0 6px;color:var(--st-mut,#6c7d78);line-height:1.6}
+@media (max-width:560px){ .tch-empty{padding:18px} .tch-empty .btn{width:100%;justify-content:center} }

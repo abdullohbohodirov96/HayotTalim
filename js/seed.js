@@ -66,19 +66,28 @@
       await D.save('users', {
         id: 'usr_admin', login: 'admin', name: 'Direktor',
         role: 'direktor', staffId: null, salt: s, hash: await mkHash('admin', DEMO_PASS, s),
-        active: true, isDefault: false, createdAt: A.nowStamp()
+        active: true, isDefault: false, passVer: PASS_VER, createdAt: A.nowStamp()
       });
     } else {
-      /* Eski namoyish ma'lumotida standart parol (1234) qolgan bo'lsa — yangisiga */
-      var ua = D.one('users', 'usr_admin');
-      if (ua && ua.isDefault) {
-        ua.salt = salt(); ua.hash = await mkHash('admin', DEMO_PASS, ua.salt); ua.isDefault = false;
-        await D.save('users', ua);
-      }
+      await fixAdmin();
     }
     if (D.all('students').length === 0 && D.all('groups').length === 0) {
       await demo();
     }
+  }
+
+  /* Brauzerda ESKI namoyish ma'lumoti qolgan bo'lsa (avvalgi parol bilan),
+     admin paroli bir marta joriy parolga keltiriladi. Shundan keyin
+     direktor parolni o'zi o'zgartirsa — u saqlanib qoladi (passVer).
+     Faqat serversiz nusxa uchun: serverda parol bazada, bunga tegilmaydi. */
+  var PASS_VER = 2;
+  async function fixAdmin() {
+    if (D.mode === 'server') return;
+    var ua = D.one('users', 'usr_admin');
+    if (!ua || (ua.passVer === PASS_VER && !ua.isDefault)) return;
+    ua.salt = salt(); ua.hash = await mkHash('admin', DEMO_PASS, ua.salt);
+    ua.isDefault = false; ua.passVer = PASS_VER; ua.active = true;
+    await D.save('users', ua);
   }
 
   /* ---------------- Demo ---------------- */
@@ -308,6 +317,7 @@
   }
 
   global.A.Seed = {
+    fixAdmin: fixAdmin,
     defaults: DEFAULT_SETTINGS,
     bootstrap: bootstrap, demo: demo, clearDemo: clearDemo,
     DEFAULT_SETTINGS: DEFAULT_SETTINGS, mkHash: mkHash, salt: salt, randKey: randKey

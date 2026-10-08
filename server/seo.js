@@ -21,11 +21,12 @@ const DEFAULT_INSTAGRAM = '';
 
 /* Saytning Google dagi nomi. Sozlamadagi nom bo'sh bo'lsa shu ishlatiladi;
    barcha joyda (title, og:site_name, WebSite schema) BITTA nom turadi.   */
-const SITE_NAME = process.env.APP_NAME || 'Hayot Ta’lim';
+const CONTENT = require('./site-content');
+const SITE_NAME = CONTENT.NAME;
 
 /* "AlBayan", "Al Bayan", "البيان" deb qidirilganda ham shu sayt
    tanilsin. Bular haqiqiy yozilish variantlari — uydirma nom emas.     */
-const ALT_NAMES = String(process.env.APP_ALT_NAMES || '').split(',').map(s => s.trim()).filter(Boolean);
+const ALT_NAMES = CONTENT.ALT_NAMES;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({
@@ -124,12 +125,12 @@ function render(html, settings, host) {
   /* Sarlavha: odam nimani qidirsa, shu oldinda tursin — "arab tili
      kurslari Toshkentda". Markaz nomi oxirida. 60 belgidan oshmaydi,
      shuning uchun Google uni kesib tashlamaydi.                      */
-  const title = 'Onlayn arab tili kurslari | ' + name;
+  const title = name === SITE_NAME ? CONTENT.TITLE : name + ' — arab tili kurslari, onlayn va offline';
 
   /* Tavsif: ixcham (~155 belgi), faqat haqiqiy ma'lumot. Manzil va
      telefon bu yerda takrorlanmaydi — ular tuzilgan ma'lumotda va
      sahifaning o'zida turadi, tavsif esa qisqa qolsin.               */
-  const description = "Onlayn arab tili kurslari: noldan 1 yilda, ayollar, erkaklar va bolalar uchun alohida guruhlar, jonli Zoom darslar va dars yozuvlari. Butun O'zbekiston bo'ylab. Bepul ochiq dars.";
+  const description = name === SITE_NAME ? CONTENT.DESC : CONTENT.DESC.split(CONTENT.NAME).join(name);
 
   /* Havolalar: Instagram va Telegram kanallari (bo'sh bo'lsa tushmaydi) */
   const links = [social, telegram(s.tgChannel), telegram(s.tgQabul),
@@ -179,7 +180,8 @@ function render(html, settings, host) {
         inLanguage: 'uz', teaches: 'Arab tili',
         about: { '@type': 'Language', name: 'Arab tili', alternateName: 'اللغة العربية' },
         provider: { '@id': url + '#markaz' }
-      }
+      },
+      CONTENT.faqLd()
     ]
   }).replace(/</g, '\\u003c');
 
@@ -209,14 +211,10 @@ function render(html, settings, host) {
      deb ko'rardi. <noscript> ichida bo'lgani uchun endi brauzerda
      umuman chizilmaydi, lekin HTML ichida qolgani uchun qidiruv
      tizimlari va JavaScriptsiz brauzerlar uni baribir o'qiydi.       */
-  const intro = '<noscript><main id="seo-prerender" style="max-width:860px;margin:24px auto;padding:28px;font:16px/1.6 system-ui,sans-serif;color:#0f4a40;background:white;border-radius:18px">' +
-    '<h1>' + escapeHtml(name) + ' — onlayn arab tili kurslari</h1>' +
-    '<p>Arab tilini noldan boshlab 1 yilda o‘rganing: tajribali ustozlar bilan jonli Zoom ' +
-    'darslar, har bir dars yozuvi, ayollar, erkaklar va bolalar uchun alohida kichik guruhlar. Butun O‘zbekiston bo‘ylab onlayn. ' +
-    'Bepul ochiq dars va daraja aniqlash testi saytda.</p>' +
-    '<p><strong>Manzil:</strong> ' + escapeHtml(address) + '</p>' +
-    '<p><strong>Telefon:</strong> <a href="tel:' + escapeHtml(phone.replace(/[^+0-9]/g, '')) + '">' + escapeHtml(phone) + '</a></p>' +
-    '<p><a href="' + escapeHtml(social) + '">Instagram sahifasi</a></p></main></noscript>\n';
+  const linkList = [];
+  if (social) linkList.push({ label: 'Instagram sahifasi', url: social });
+  sameAs.filter(u => u !== social).forEach(u => linkList.push({ label: 'Telegram', url: u }));
+  const intro = CONTENT.seoText({ name, phone, address, links: linkList }) + '\n';
 
   return html
     .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + escapeHtml(title) + '</title>')
@@ -227,6 +225,8 @@ function render(html, settings, host) {
     .replace(/<meta name="twitter:[^"]*"[^>]*>\n?/gi, '')
     .replace(/<meta name="robots"[^>]*>\n?/i, '')
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/i, '')
+    /* build.js qo'ygan standart matn — sozlamadagisi bilan almashtiriladi */
+    .replace(/<noscript><main id="seo-prerender"[\s\S]*?<\/main><\/noscript>\n?/i, '')
     .replace('</head>', head + '</head>')
     .replace('<div id="auth" hidden>', intro + '<div id="auth" hidden>');
 }
