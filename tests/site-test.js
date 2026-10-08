@@ -484,6 +484,13 @@ async function api(p, opts = {}) {
 
   /* ================= 4. Ustozlar ================= */
   section('4. Ustozlar bo’limi');
+  // namunaviy ustoz yashirilgan — sinov o'z ustozlarini yaratadi (kamida 2 ta)
+  for (const [id, ord] of [[R + '_t1', 90], [R + '_t2', 91]]) {
+    await api('/api/doc?path=' + encodeURIComponent('teachers/' + id), {
+      method: 'PUT', cookie: dir,
+      body: { data: { id, name: 'Ustoz Sinov ' + id, tag: 'Misrlik ustoz', audience: 'erkaklar', active: true, order: ord } }
+    });
+  }
   const pub2 = await api('/api/public');
   const tchs = pub2.json.teachers || [];
   ok('Ustozlar ro’yxati bor', tchs.length >= 1, String(tchs.length));
@@ -495,10 +502,6 @@ async function api(p, opts = {}) {
   section('   Ustoz rasmi');
   // har safar yangi profil — sinov qayta-qayta ishlaydi
   const tId = R + '_t1';
-  await api('/api/doc?path=' + encodeURIComponent('teachers/' + tId), {
-    method: 'PUT', cookie: dir,
-    body: { data: { id: tId, name: 'Ustoz Sinov ' + R, tag: 'Misrlik ustoz', audience: 'erkaklar', active: true, order: 90 } }
-  });
   eq('Rasm yo’q — 404', (await api('/api/photo?id=' + tId)).status, 404);
   // 1x1 px JPEG
   const PX = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////' +

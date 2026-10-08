@@ -378,6 +378,9 @@ async function flushQueue(now) {
  */
 async function notifyStaff(text) {
   if (!store) return { queued: 0, off: true };
+  /* Xabar Telegramga HTML rejimida ketadi. Ichida foydalanuvchi yozgan
+     matn (ism, savol, izoh) bo'ladi — u HTML sifatida o'qilmasin. */
+  text = esc(String(text == null ? '' : text));
   const s = (await store.get('meta/settings')) || {};
   const raw = (s.bot && (s.bot.staffChats || s.bot.adminChatId)) || '';
   const ids = (Array.isArray(raw) ? raw : String(raw).split(/[,\s]+/))

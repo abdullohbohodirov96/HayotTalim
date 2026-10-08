@@ -289,7 +289,7 @@
     var defUser = D.all('users').some(function (u) { return u.isDefault; });
     if (defUser && user.role === 'direktor') {
       view.appendChild(h('div', { class: 'banner warn' }, [
-        h('div', {}, [h('b', {}, 'Xavfsizlik. '), 'Standart parollar (1234) hali o’zgartirilmagan. Sozlamalar → Foydalanuvchilar bo’limida yangi parol qo’ying.']),
+        h('div', {}, [h('b', {}, 'Xavfsizlik. '), 'Kuchsiz parol ishlatilyapti (qisqa, oddiy yoki hammaga ma’lum). Sozlamalar → Foydalanuvchilar bo’limida kamida 10 belgili, harf va raqamli yangi parol qo’ying.']),
         h('button', { class: 'btn sm', onclick: function () { App.go('settings', { tab: 'users' }); } }, 'Ochish')
       ]));
     }

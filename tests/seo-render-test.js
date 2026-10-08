@@ -20,10 +20,10 @@ assert.match(rendered, /https:\/\/t\.me\/albayantinchlik/);
 /* Yaroqsiz Telegram nomi tushmaydi */
 assert.doesNotMatch(seo.render(html, { tgChannel: 'javascript:alert(1)' }, 'example.uz'), /javascript:/);
 
-assert.match(rendered, /<h1>Al Bayan Cairo — ayollar uchun onlayn arab tili<\/h1>/);
+assert.match(rendered, /<h1>Al Bayan Cairo — arab tili kurslari<\/h1>/);
 /* Sarlavha: qidiruv so'zi oldinda, nom oxirida; 65 belgidan oshmaydi */
 const t1 = (rendered.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
-assert.match(t1, /^Onlayn arab tili kurslari ayollar uchun \| Al Bayan Cairo$/);
+assert.match(t1, /^Al Bayan Cairo — arab tili kurslari, onlayn va offline$/);
 assert.ok(t1.length <= 65, 'sarlavha juda uzun: ' + t1.length);
 /* Tavsif ixcham va faqat bitta */
 const d1 = (rendered.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';

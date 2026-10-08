@@ -1346,7 +1346,7 @@
           type: 'password', required: !linked, value: '',
           validate: function (v) {
             if (!v && linked) return null;
-            return String(v || '').length < 4 ? 'Parol kamida 4 belgidan iborat bo’lsin.' : null;
+            return String(v || '').length < 8 ? 'Parol kamida 8 belgidan iborat bo’lsin.' : null;
           }
         },
         {
@@ -1901,7 +1901,7 @@
         { label: 'Xodim', render: function (u) { return u.staffId ? Q.staffName(u.staffId) : '—'; } },
         {
           label: 'Parol', render: function (u) {
-            return u.isDefault ? UI.pill('Standart (1234)', 'bad') : UI.pill('O’zgartirilgan', 'ok');
+            return u.isDefault ? UI.pill('Kuchsiz parol', 'bad') : UI.pill('O’zgartirilgan', 'ok');
           }
         },
         { label: 'Holat', render: function (u) { return u.active === false ? UI.pill('O’chirilgan', 'mute') : UI.pill('Faol', 'ok'); } },
@@ -2640,7 +2640,7 @@
             if (!f.validate()) return;
             var v = f.values();
             if (isNew && !v.password) { UI.toast('Parol kiriting.', 'bad'); return; }
-            if (v.password && v.password.length < 4) { UI.toast('Parol kamida 4 belgidan iborat bo’lsin.', 'bad'); return; }
+            if (v.password && v.password.length < 8) { UI.toast('Parol kamida 8 belgidan iborat bo’lsin.', 'bad'); return; }
             if (v.role === 'oqituvchi' && !v.staffId) { UI.toast('O’qituvchi uchun xodimni tanlang.', 'bad'); return; }
             UI.busy(btn, async function () {
               var rec = Object.assign({}, u, {

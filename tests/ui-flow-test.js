@@ -354,6 +354,9 @@ async function typeIn(page, sel, val) {
   await dpage.fill('#login-pass', PASS);
   await dpage.click('button[type=submit]');
   await dpage.waitForSelector('#app:not([hidden])', { timeout: 20000 });
+  // yangi o'rnatishda namunaviy ustoz yo'q — sinov bitta ustoz qo'shadi
+  await dpage.evaluate(() => window.A.Data.save('teachers',
+    { id: 'tch_uiflow', name: 'Ustoz UI', tag: 'Sinov', audience: 'ayollar', active: true, order: 5 }));
   await dpage.evaluate(() => window.A.App.go('staff'));
   await dpage.waitForSelector('.tch-admin-item', { timeout: 15000 }).catch(() => { });
   const tAdmin = await dpage.evaluate(() => ({

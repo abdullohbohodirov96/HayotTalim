@@ -260,7 +260,8 @@ function hasNumber(text, n) {
   const pub = await api('/api/public');
   const mine = ((pub.json || {}).courses || []).find(x => x.id === ID('c'));
   ok('Kurs /api/public da bor', !!mine, JSON.stringify((pub.json || {}).courses || []).slice(0, 200));
-  eq('Saytdagi narx yangilandi', mine && mine.fee, 880000);
+  // narx saytda HECH QACHON ko'rsatilmaydi (markaz qoidasi)
+  eq('Saytda narx chiqmaydi', mine && mine.fee, null);
 
   /* ================= 3. O'QUVCHI ================= */
   section('3. O’quvchi ma’lumotini tahrirlash');

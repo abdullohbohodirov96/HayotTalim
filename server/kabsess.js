@@ -12,6 +12,8 @@
      — muddati bor va bekor qilinishi mumkin (bog'lanish uzilganda ham);
      — har bir sessiyada CSRF siri bor: o'zgartiruvchi so'rovlar uni talab qiladi. */
 'use strict';
+/* Production'da cookie faqat HTTPS orqali yuboriladi */
+const SECURE = (process.env.NODE_ENV === 'production' || process.env.RENDER) ? '; Secure' : '';
 const crypto = require('crypto');
 
 const COL = 'kabsess/';
@@ -97,11 +99,11 @@ async function revokeForStudent(store, studentId, opts) {
 /** Cookie sarlavhasi */
 function cookieHeader(value, maxAgeSec) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return COOKIE + '=' + value + '; HttpOnly; SameSite=Lax; Path=/; Max-Age=' +
+  return COOKIE + '=' + value + '; HttpOnly; SameSite=Lax; Path=/' + SECURE + '; Max-Age=' +
     Math.floor(maxAgeSec) + secure;
 }
 function clearHeader() {
-  return COOKIE + '=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0';
+  return COOKIE + '=; HttpOnly; SameSite=Lax; Path=/' + SECURE + '; Max-Age=0';
 }
 
 /** Muddati o'tgan va bekor qilingan sessiyalarni o'chirish (baza o'smasin).

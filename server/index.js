@@ -48,6 +48,19 @@ const PBKDF2_ITER = 150000;
 function pbkdf2(pass, salt, iter) {
   return crypto.pbkdf2Sync(String(pass), String(salt), iter || PBKDF2_ITER, 32, 'sha256').toString('hex');
 }
+/* Kuchsiz parollar: 10 belgidan qisqa, mashhur, loginning o'zi yoki
+   ochiq kodda (repozitoriyda) uchraydigan namuna parollar. */
+const WEAK_PASSWORDS = ['hayottalim.123', 'hayottalim123', 'albyana2026!', '1234', '12345', '123456', '12345678', '123456789',
+  '1234567890', 'password', 'admin', 'admin123', 'qwerty', 'parol', 'parol123', 'hayottalim', 'hayot123'];
+function isWeakPassword(pass, login) {
+  const p = String(pass || '');
+  if (p.length < 10) return true;
+  const l = p.toLowerCase();
+  if (WEAK_PASSWORDS.indexOf(l) >= 0) return true;
+  if (login && l.indexOf(String(login).toLowerCase()) >= 0) return true;
+  if (/^(.)\1+$/.test(p) || /^\d+$/.test(p)) return true;
+  return false;
+}
 function makePassword(pass) {
   const salt = crypto.randomBytes(16).toString('hex');
   return { algo: 'pbkdf2', iter: PBKDF2_ITER, salt, hash: pbkdf2(pass, salt, PBKDF2_ITER) };
@@ -166,7 +179,7 @@ function readBody(req, max) {
     req.on('end', () => {
       if (!size) return resolve({});
       const d = Buffer.concat(chunks).toString('utf8');
-      try { resolve(JSON.parse(d)); } catch (e) { reject(new Error('Noto’g’ri JSON')); }
+      try { resolve(JSON.parse(d)); } catch (e) { const x = new Error('Noto’g’ri JSON'); x.badJson = true; reject(x); }
     });
     req.on('error', reject);
   });
@@ -227,6 +240,8 @@ function loginGate(req, login) {
    Aks holda hujumchi har 4 ta xato urinishdan keyin o'zining to'g'ri
    hisobiga kirib, cheklovni nolga qaytarardi.                              */
 const ipTries = new Map();
+const acctLoginTries = new Map();
+const ACCT_SLOW_AT = Number(process.env.LOGIN_ACCT_SLOW_AT || 20);
 const IP_MAX = Number(process.env.LOGIN_IP_MAX || 30);          // 30 xato / oyna
 const IP_WINDOW_MS = Number(process.env.LOGIN_IP_WINDOW_MS || 30 * 60 * 1000);
 
@@ -287,6 +302,30 @@ function testFail(ip) {
   if (!rec || Date.now() - rec.first > TEST_WINDOW_MS) { testTries.set(ip, { n: 1, first: Date.now() }); return; }
   rec.n++;
   if (testTries.size > 5000) testTries.clear();
+}
+
+/* Hisob bo'yicha cheklov: hujumchi IP almashtirib bitta o'quvchining
+   parolini terib topa olmasin — bitta login uchun 15 daqiqada ko'pi
+   bilan KAB_ACCT_MAX ta xato (qaysi IP dan bo'lishidan qat'i nazar). */
+const kabAcctTries = new Map();
+const KAB_ACCT_MAX = Number(process.env.KABINET_ACCT_MAX || 10);
+function kabAcctKey(login) {
+  const d = String(login || '').replace(/\D/g, '');
+  return d.length >= 9 ? 'p' + d.slice(-9) : 'c' + d;
+}
+function kabAcctGate(login) {
+  const rec = kabAcctTries.get(kabAcctKey(login));
+  if (!rec) return { ok: true };
+  if (Date.now() - rec.first > KAB_LOCK_MS) { kabAcctTries.delete(kabAcctKey(login)); return { ok: true }; }
+  if (rec.n < KAB_ACCT_MAX) return { ok: true };
+  return { ok: false, wait: Math.max(1, Math.ceil((KAB_LOCK_MS - (Date.now() - rec.first)) / 60000)) };
+}
+function kabAcctFail(login) {
+  const k = kabAcctKey(login);
+  const rec = kabAcctTries.get(k);
+  if (!rec || Date.now() - rec.first > KAB_LOCK_MS) { kabAcctTries.set(k, { n: 1, first: Date.now() }); return; }
+  rec.n++;
+  if (kabAcctTries.size > 20000) kabAcctTries.clear();
 }
 
 function kabinetGate(ip) {
@@ -1464,8 +1503,13 @@ async function handleApi(req, res, url) {
        Login: telefon raqami yoki shaxsiy kod. Parol: o'quvchi o'zi qo'ygan parol,
        qo'ymagan bo'lsa — administrator bergan 4 xonali shaxsiy kod.            */
     if (body.login != null) {
+      const ag = kabAcctGate(body.login);
+      if (!ag.ok) {
+        return send(res, 429, { error: 'Bu hisobga juda ko’p urinish bo’ldi. ' + ag.wait + ' daqiqadan keyin qayta urinib ko’ring.' });
+      }
       const who = await kabLogin(String(body.login || ''), String(body.password || ''));
       if (!who) {
+        kabAcctFail(body.login);
         const f = kabinetFail(ip);
         if (f.notify) {
           await writeAudit(null, 'Kabinet: ko’p noto’g’ri parol', ip, f.n + ' ta urinish');
@@ -2333,6 +2377,13 @@ async function handleApi(req, res, url) {
     const pass = String(body.password || '');
     const gate = loginGate(req, login);
     const ipg = ipGate(req);
+    /* Hisob bo'yicha: ko'p IP dan terib topishga urinilsa (30 daqiqada 20+
+       xato) — shu login uchun 30 soniyada faqat bitta urinish. Haqiqiy
+       egasi baribir kira oladi, hujum esa amalda imkonsiz bo'ladi.    */
+    const ac = acctLoginTries.get(login);
+    if (ac && Date.now() - ac.first < IP_WINDOW_MS && ac.n >= ACCT_SLOW_AT && Date.now() - ac.last < 30000) {
+      return send(res, 429, { error: 'Juda ko’p urinish. 30 soniyadan keyin qayta urinib ko’ring.' });
+    }
     if (!gate.ok || !ipg.ok) {
       const wait = !gate.ok ? gate.wait : ipg.wait;
       return send(res, 429, { error: 'Juda ko’p urinish. ' + wait + ' daqiqadan keyin qayta urinib ko’ring.' });
@@ -2341,20 +2392,37 @@ async function handleApi(req, res, url) {
     const u = users.map(x => x.data).filter(x => String(x.login).toLowerCase() === login)[0];
     if (!u || u.active === false || !verifyPassword(u, pass)) {
       loginFail(req, login);
+      {
+        const r0 = acctLoginTries.get(login);
+        const rec = (!r0 || Date.now() - r0.first > IP_WINDOW_MS) ? { n: 0, first: Date.now(), last: 0 } : r0;
+        rec.n++; rec.last = Date.now();
+        acctLoginTries.set(login, rec);
+        if (acctLoginTries.size > 20000) acctLoginTries.clear();
+        if (rec.n === ACCT_SLOW_AT && u) {
+          writeAudit(null, 'Kirish: hisobga ko’p noto’g’ri parol', login, rec.n + ' ta').catch(() => { });
+          notifyDirectors('Diqqat: «' + login + '» hisobiga 30 daqiqada ' + rec.n + ' marta noto’g’ri parol kiritildi. Parolingiz kuchli ekaniga ishonch hosil qiling.').catch(() => { });
+        }
+      }
       await new Promise(r => setTimeout(r, 350));         // taxmin qilishni sekinlashtirish
       return send(res, 401, { error: 'Login yoki parol xato.' });
     }
     loginOk(req, login);
+    acctLoginTries.delete(login);
     // eski hash bo'lsa — jim yangilaymiz
     if (u.algo !== 'pbkdf2') {
       Object.assign(u, makePassword(pass));
-      u.isDefault = u.isDefault === true && pass === 'hayottalim.123';
       await store.set('users/' + u.id, u);
+    }
+    /* Kuchsiz parol (qisqa, mashhur yoki kodda ochiq yozilgan) — direktor
+       panelida ogohlantirish chiqadi va almashtirish so'raladi. */
+    {
+      const weak = isWeakPassword(pass, login);
+      if (!!u.isDefault !== weak) { u.isDefault = weak; await store.set('users/' + u.id, u); }
     }
     const token = newToken();
     sessions.set(token, { userId: u.id, at: Date.now() });
     return send(res, 200, { user: safeUser(u) }, {
-      'Set-Cookie': 'alb_session=' + token + '; HttpOnly; SameSite=Lax; Path=/; Max-Age=' +
+      'Set-Cookie': 'alb_session=' + token + '; HttpOnly; SameSite=Lax; Path=/' + (IS_PROD ? '; Secure' : '') + '; Max-Age=' +
         Math.floor(SESSION_MS / 1000) + (process.env.NODE_ENV === 'production' ? '; Secure' : '')
     });
   }
@@ -2362,7 +2430,7 @@ async function handleApi(req, res, url) {
   if (route === 'logout' && req.method === 'POST') {
     const token = parseCookies(req).alb_session;
     if (token) sessions.delete(token);
-    return send(res, 200, { ok: true }, { 'Set-Cookie': 'alb_session=; HttpOnly; Path=/; Max-Age=0' });
+    return send(res, 200, { ok: true }, { 'Set-Cookie': 'alb_session=; HttpOnly; SameSite=Lax; Path=/' + (IS_PROD ? '; Secure' : '') + '; Max-Age=0' });
   }
 
   const user = await currentUser(req);
@@ -3220,9 +3288,9 @@ async function handleApi(req, res, url) {
         delete body.data.hash; delete body.data.salt; delete body.data.iter; delete body.data.algo;
         const pass = String(body.password || '');
         if (pass) {
-          if (pass.length < 4) return send(res, 400, { error: 'Parol kamida 4 belgidan iborat bo’lsin.' });
+          if (pass.length < 8) return send(res, 400, { error: 'Parol kamida 8 belgidan iborat bo’lsin (tavsiya: 10+ belgi, harf va raqam).' });
           Object.assign(body.data, makePassword(pass));
-          body.data.isDefault = false;
+          body.data.isDefault = isWeakPassword(pass, body.data.login);
         } else if (old) {
           body.data.salt = old.salt; body.data.hash = old.hash;
           body.data.iter = old.iter; body.data.algo = old.algo;
@@ -3369,7 +3437,48 @@ function safeHost(raw) {
 
    Yechim: Host avval tozalanadi. Yaroqsiz bo'lsa — 400, server esa
    ishlashda davom etadi.                                            */
+/* ---- Xavfsizlik sarlavhalari: HAR bir javobga ----
+   — X-Frame-Options / frame-ancestors: sayt boshqa saytga iframe bilan
+     joylanmaydi (clickjacking: admin kirish sahifasini yashirin bostirish);
+   — HSTS: brauzer saytni faqat HTTPS orqali ochadi (production'da);
+   — Referrer-Policy: boshqa saytlarga to'liq manzil (#student?id=…) ketmaydi;
+   — Permissions-Policy: kamera/joylashuv yopiq, mikrofon faqat o'zimizga
+     (talaffuz mashqi uchun).                                              */
+const IS_PROD = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+function securityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), payment=(), usb=(), microphone=(self)');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  if (IS_PROD) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+}
+/* Bosh sahifa uchun CSP: skriptlar faqat o'z saytimizdan, ruxsat etilgan
+   ikki manbadan (Google Analytics, cdnjs) va xeshi aynan mos keladigan
+   ichki skriptlardan. Boshqa har qanday kiritilgan
+   skript (XSS) brauzerda ishlamaydi.                                      */
+function pageCsp(hashes) {
+  return [
+    "default-src 'self'",
+    "script-src 'self' " + hashes.join(' ') + " https://www.googletagmanager.com https://cdnjs.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob:",
+    "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
+    "frame-src 'none'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'"
+  ].join('; ');
+}
+
 const server = http.createServer(async (req, res) => {
+  securityHeaders(res);
   let url;
   try {
     url = new URL(req.url, 'http://' + safeHost(req.headers.host));
@@ -3383,6 +3492,14 @@ const server = http.createServer(async (req, res) => {
       const html = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
       const settings = (await store.get('meta/settings')) || {};
       const page = seo.render(html, settings, req.headers.host || 'localhost');
+      /* Ichki skriptlar xeshi — sahifa mazmunidan, shuning uchun 304 javobi
+         bilan ham mos keladi (nonce har so'rovda o'zgarardi). */
+      const hashes = [];
+      page.replace(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi, function (m, body) {
+        hashes.push("'sha256-" + crypto.createHash('sha256').update(body, 'utf8').digest('base64') + "'");
+        return m;
+      });
+      res.setHeader('Content-Security-Policy', pageCsp(hashes));
       /* Sahifa sozlamaga qarab o'zgaradi, shuning uchun ETag uning
          MAZMUNIDAN hisoblanadi: o'zgarmagan bo'lsa brauzer qayta
          yuklab o'tirmaydi, o'zgarsa darrov yangisini oladi.          */
@@ -3415,8 +3532,14 @@ const server = http.createServer(async (req, res) => {
     if (e && e.tooBig) {
       try { return send(res, 413, { error: 'So’rov juda katta.' }); } catch (x) { return; }
     }
+    if (e && e.badJson) {
+      try { return send(res, 400, { error: 'So’rov noto’g’ri.' }); } catch (x) { return; }
+    }
     console.error(e);
-    try { send(res, 500, { error: e.message || 'Server xatosi' }); } catch (x) { /* ulanish yopilgan */ }
+    /* Texnik xato matni (baza manzili, SQL, fayl yo'li) mijozga chiqmaydi */
+    const msg = String((e && e.message) || '');
+    const technical = !msg || msg.length > 200 || /postgres|ECONN|ENOENT|EACCES|SQL|relation|syntax|\bat\s|\/|\\|Cannot read|undefined|null|TypeError|ReferenceError/i.test(msg);
+    try { send(res, 500, { error: technical ? 'Server xatosi. Birozdan keyin urinib ko’ring.' : msg }); } catch (x) { /* ulanish yopilgan */ }
   }
 });
 
