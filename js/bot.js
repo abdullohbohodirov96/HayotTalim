@@ -487,20 +487,21 @@
         var onF = UI.field({ label: 'Holat', type: 'select', value: conf.on ? '1' : '0',
           options: [{ value: '1', label: 'Yoqilgan — har kuni avtomatik' }, { value: '0', label: 'O’chirilgan' }] });
         var chF = UI.field({ label: 'Kanal (bot kanalda administrator bo’lishi kerak)', value: conf.channel || '@Hayot_talim', placeholder: '@Hayot_talim' });
+        var stF = UI.field({ label: 'Boshlanish sanasi', type: 'date', value: conf.start || '' });
         vbox.appendChild(h('div', { class: 'tiles' }, [
           UI.tile({ label: 'Jami savollar', value: items.length }),
           UI.tile({ label: 'Navbatda', value: waiting.length, hint: Math.floor(waiting.length / Math.max(1, (conf.slots || []).length)) + ' kunlik' }),
           UI.tile({ label: 'Yuborish vaqtlari', value: (conf.slots || []).join(' · ') || '—', hint: 'Toshkent vaqti' }),
-          UI.tile({ label: 'Kanal', value: conf.channel || '—' })
+          UI.tile({ label: 'Kanal', value: conf.channel || '—', hint: conf.start ? conf.start + ' dan boshlab' : '' })
         ]));
         vbox.appendChild(UI.card('Sozlama', [
           h('p', { class: 'small muted' }, 'Bot har kuni belgilangan vaqtlarda kanalga bittadan Telegram «Quiz» (viktorina) so’rovnomasi yuboradi. ' +
             'Savollar tugasa — eng eski yuborilganlaridan qayta boshlaydi.'),
-          onF.wrap, chF.wrap,
+          onF.wrap, chF.wrap, stF.wrap,
           h('div', { class: 'rowflex', style: 'gap:8px;flex-wrap:wrap' }, [
             h('button', { class: 'btn primary', type: 'button', onclick: function (e) {
               UI.busy(e.currentTarget, async function () {
-                try { await D.api('POST', 'api/kanal-quiz/config', { on: onF.input.value === '1', channel: chF.input.value }); UI.toast('Saqlandi.', 'ok'); App.render(); }
+                try { await D.api('POST', 'api/kanal-quiz/config', { on: onF.input.value === '1', channel: chF.input.value, start: stF.input.value }); UI.toast('Saqlandi.', 'ok'); App.render(); }
                 catch (ex) { UI.toast(ex.message || 'Saqlanmadi.', 'bad'); }
               });
             } }, 'Saqlash'),

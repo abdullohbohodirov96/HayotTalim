@@ -2895,7 +2895,8 @@ async function handleApi(req, res, url) {
       const s0 = (await store.get('meta/settings')) || {};
       s0.bot = Object.assign({}, s0.bot || {}, {
         quizOn: body.on !== false,
-        quizChannel: String(body.channel || '').trim().slice(0, 64)
+        quizChannel: String(body.channel || '').trim().slice(0, 64),
+        quizStart: /^\d{4}-\d{2}-\d{2}$/.test(String(body.start || '')) ? String(body.start) : ((s0.bot || {}).quizStart || '')
       });
       await store.set('meta/settings', s0);
       return send(res, 200, { ok: true, conf: await Q.conf() });

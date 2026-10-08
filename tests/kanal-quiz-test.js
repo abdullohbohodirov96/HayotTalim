@@ -20,11 +20,14 @@ const at = (date, hm) => Date.parse(date + 'T' + hm + ':00Z') - 5 * 3600 * 1000;
   const store = createStore();
   const B = bot._test({ store, stamp, A, send: async () => ({}), tg: fakeTg });
   await store.set('meta/settings', { bot: {} });
+  ok('Standart boshlanish: 10-oktabr', (await B.quizConf()).start === '2026-10-10');
+  ok('10-oktabrdan oldin yuborilmaydi', (await B.quizTick(at('2026-10-09', '09:05'))).sent === 0);
+  await store.set('meta/settings', { bot: { quizStart: '2026-10-01' } });
   /* Bank tekshiruvi */
   const bad = BANK.filter(q => !(q.question.length <= 300 && q.options.length >= 2 && q.options.length <= 10 &&
     q.options.every(o => o.length <= 100) && q.correct >= 0 && q.correct < q.options.length && (q.explain || '').length <= 200));
   ok('Bankdagi barcha savollar Telegram cheklovlariga mos', !bad.length, bad.map(q => q.id).join(','));
-  ok('1-hafta: 21 ta savol', BANK.filter(q => /^w1/.test(q.id)).length === 21);
+  ok('4 hafta: har haftada 21 ta savol', [1, 2, 3, 4].every(w => BANK.filter(q => q.id.indexOf('w' + w + 'd') === 0).length === 21));
   ok('Diniy so‘z yo‘q', !BANK.some(q => /namoz|masjid|alloh|qur.?on|ibodat|ramazon|hadis|duo/i.test(JSON.stringify(q))));
   const n = await B.ensureQuizBank();
   ok('Savollar bazaga qo‘shildi', n === BANK.length, n);
@@ -49,10 +52,10 @@ const at = (date, hm) => Date.parse(date + 'T' + hm + ':00Z') - 5 * 3600 * 1000;
   r = await B.quizTick(at('2026-10-10', '20:10'));
   ok('Ertasi kuni 20:00 da 1 ta (09 va 14 allaqachon o‘tib ketgan)', r.sent === 1, JSON.stringify(r));
   /* O'chirish */
-  await store.set('meta/settings', { bot: { quizOn: false } });
+  await store.set('meta/settings', { bot: { quizOn: false, quizStart: '2026-10-01' } });
   r = await B.quizTick(at('2026-10-11', '09:01'));
   ok('O‘chirilgan bo‘lsa yuborilmaydi', r.sent === 0);
-  await store.set('meta/settings', { bot: { quizOn: true, quizChannel: '@boshqa_kanal' } });
+  await store.set('meta/settings', { bot: { quizOn: true, quizChannel: '@boshqa_kanal', quizStart: '2026-10-01' } });
   r = await B.quizTick(at('2026-10-11', '09:01'));
   ok('Kanal sozlamadan olinadi', calls[calls.length - 1].params.chat_id === '@boshqa_kanal');
   /* Qo'shish */

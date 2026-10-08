@@ -1101,6 +1101,8 @@ async function quizConf() {
   return {
     on: b.quizOn !== false,
     channel: String(b.quizChannel || process.env.QUIZ_CHANNEL || '@Hayot_talim').trim(),
+    /* Shu sanadan (Toshkent vaqti) boshlab yuboriladi */
+    start: /^\d{4}-\d{2}-\d{2}$/.test(String(b.quizStart || '')) ? b.quizStart : (process.env.QUIZ_START || '2026-10-10'),
     slots: QUIZ_SLOTS
   };
 }
@@ -1160,6 +1162,7 @@ async function quizTick(nowMs) {
   const conf = await quizConf();
   if (!conf.on || !conf.channel) return { sent: 0 };
   const now = tashkentNow(nowMs);
+  if (conf.start && now.date < conf.start) return { sent: 0, waiting: conf.start };
   let sent = 0;
   for (const slot of conf.slots) {
     const sm = Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5));
