@@ -17,6 +17,7 @@ const API = 'https://api.telegram.org/bot' + TOKEN + '/';
 let store, stamp, A;
 let recordPayment = null;      // index.js beradi: karta to'lovini yozish
 const paybot = require('./paybot');
+const faq = require('./bot-faq');
 let offset = 0;
 let running = false;
 let timers = [];
@@ -720,6 +721,63 @@ async function sendToGroup(group, text) {
    qaysi reklama nechta odam olib kelgani Murojaatlar hisobotida ko'rinadi. */
 const REG_BTN = 'Bepul darsga yozilish';
 const REG_PHONE_BTN = '📱 Raqamni yuborish';
+const FAQ_BTN = '❓ Savollar';
+const ADMIN_BTN = '📞 Administrator';
+const STUDENT_BTN = '🎓 Men o’quvchiman';
+const CANCEL_BTN = 'Bekor qilish';
+const GUEST_MENU = [[{ text: REG_BTN }], [{ text: FAQ_BTN }, { text: ADMIN_BTN }], [{ text: STUDENT_BTN }]];
+
+/* Mehmon (hali o'quvchi emas) savoli: avval bilim bazasidan javob, topilmasa
+   administratorga yetkazish uchun raqam so'raladi va murojaat ochiladi.     */
+async function guestQuestion(chatId, text, from, st) {
+  const s = await settings();
+  const ctx = faq.context(s);
+  const byNum = faq.faqByNumber(text);
+  if (byNum) { await sendMessage(chatId, byNum, GUEST_MENU); return; }
+  const a = faq.answer(text, ctx);
+  if (a) {
+    await sendMessage(chatId, a.text + '\n\nYana savolingiz bo’lsa, yozavering 🙂', GUEST_MENU);
+    return;
+  }
+  const q = String(text || '').replace(/[<>]/g, '').trim().slice(0, 500);
+  if (q.length < 3) { await sendMessage(chatId, 'Savolingizni yozing yoki pastdagi tugmalardan tanlang.', GUEST_MENU); return; }
+  /* Ro'yxatdan o'tgan bo'lsa — raqami bor: darhol murojaatga yoziladi */
+  if (st.leadId) {
+    await saveGuestQuestion(chatId, st, from, q, null);
+    await sendMessage(chatId, 'Savolingizni administratorga yetkazdim ✅ Tez orada javob beradi.', GUEST_MENU);
+    return;
+  }
+  st.step = 'ask_phone'; st.q = q;
+  await setState(chatId, st);
+  await sendMessage(chatId, 'Bu savolga administratorimiz aniq javob beradi.\n' +
+    'Javob berishi uchun <b>telefon raqamingizni</b> yuboring — pastdagi tugmani bosing yoki raqamni yozing.',
+    [[{ text: REG_PHONE_BTN, request_contact: true }], [{ text: CANCEL_BTN }]]);
+}
+async function saveGuestQuestion(chatId, st, from, q, phone) {
+  let lead = st.leadId ? await store.get('leads/' + st.leadId) : null;
+  const name = String((from && (from.first_name || '')) + ' ' + ((from && from.last_name) || '')).trim().slice(0, 60) || 'Telegram';
+  if (lead) {
+    lead = Object.assign({}, lead, { note: (lead.note ? lead.note + '\n' : '') + 'Botdan savol: ' + q, nextContact: A.today() });
+  } else {
+    const funnels = await listCol('funnels');
+    const funnel = funnels.filter(f => f.isDefault)[0] || funnels[0];
+    const stages = funnel ? A.funnelStages(funnel) : [];
+    lead = {
+      id: 'led_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      funnelId: funnel ? funnel.id : '', name, phone: phone || '',
+      courseId: '', source: 'Bot', src: 'savol', region: '', district: '',
+      ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
+      note: 'Botdan savol: ' + q, nextContact: A.today(),
+      chatId: String(chatId), tgUser: String((from && from.username) || '').slice(0, 40),
+      createdAt: stamp(), viaBot: true
+    };
+  }
+  await store.set('leads/' + lead.id, lead);
+  st.leadId = lead.id;
+  notifyStaff('Botga savol keldi\nIsm: ' + lead.name + (lead.phone ? '\nTelefon: ' + lead.phone : '') +
+    (lead.tgUser ? '\nTelegram: @' + lead.tgUser : '') + '\nSavol: ' + q).catch(() => { });
+  return lead;
+}
 
 function regSrc(payload) {
   return String(payload || '').replace(/^dars_?/i, '').replace(/^r_/i, '')
@@ -842,6 +900,13 @@ async function handleRegistration(chatId, text, contact, from, st) {
     return true;
   }
   if (st.step === 'registered' && text !== '/start') {
+    const hit = text ? faq.answer(text, faq.context(await settings())) : null;
+    /* Salomlashsa — ro'yxatda ekanini eslatamiz; boshqa savolga javob beramiz */
+    if (text && text !== REG_BTN && text.charAt(0) !== '/' && !(hit && hit.id === 'salom') &&
+        [FAQ_BTN, ADMIN_BTN, STUDENT_BTN].indexOf(text) < 0) {
+      await guestQuestion(chatId, text, from, st); return true;
+    }
+    if ([FAQ_BTN, ADMIN_BTN, STUDENT_BTN].indexOf(text) >= 0) return false;
     const s = await settings();
     await sendMessage(chatId, 'Siz bepul darsga yozilgansiz ✅\n\n' + freeLessonText(s) +
       '\n\nSavolingiz bo’lsa, administrator tez orada siz bilan bog’lanadi.');
@@ -904,18 +969,54 @@ async function onMessage(msg) {
           '</b> sifatida ulangansiz.')), MENU);
       return;
     }
-    st = { chatId: String(chatId), step: 'code', codeTries: 0 };
+    st = { chatId: String(chatId), step: 'code', codeTries: 0, leadId: st.leadId || undefined };
     await setState(chatId, st);
     await sendMessage(chatId,
-      conf.welcome + '\n\n<b>Shaxsiy kodingizni</b> yozing — 5 ta raqam, masalan: <code>40771</code>\n' +
-      'Kodni markaz administratoridan olasiz.\n\n' +
-      'Kodingiz bo’lmasa, <b>ismim</b> deb yozing.\n\n' +
-      'Hali o’quvchi emasmisiz? Pastdagi «' + REG_BTN + '» tugmasini bosing.',
-      [[{ text: REG_BTN }]]);
+      conf.welcome + '\n\nMen ' + esc((await settings()).centerName || 'Hayot Ta’lim') + ' yordamchisiman 🤖 ' +
+      'Kurslar, darslar vaqti, tekin dars va daraja testi haqidagi <b>savolingizni yozing</b> — darhol javob beraman.\n\n' +
+      '🎁 Birinchi dars tekin — «' + REG_BTN + '» tugmasini bosing.\n' +
+      '🎓 Markaz o’quvchisi bo’lsangiz — «' + STUDENT_BTN + '» (administrator bergan havola orqali ulanasiz).',
+      GUEST_MENU);
     return;
   }
 
   if (!student) {
+    if (text === FAQ_BTN) return sendMessage(chatId, faq.faqListText(), GUEST_MENU);
+    if (text === ADMIN_BTN) {
+      const c = faq.context(await settings());
+      return sendMessage(chatId, '📞 Administrator: ' + c.phone + '\n🌐 ' + c.site +
+        '\n\nSavolingizni shu yerga yozsangiz ham bo’ladi — administratorga yetkazaman.', GUEST_MENU);
+    }
+    if (text === STUDENT_BTN) {
+      st.step = 'code'; st.codeTries = 0; st.studentMode = true;
+      await setState(chatId, st);
+      return sendMessage(chatId, 'Administrator bergan <b>bir martalik havolani</b> bosing — hisobingiz shu suhbatga bog’lanadi.\n' +
+        'Havolangiz bo’lmasa, <b>ismim</b> deb yozing — administrator tasdiqlaydi.', GUEST_MENU);
+    }
+    if (st.step === 'ask_phone') {
+      if (text === CANCEL_BTN) { st.step = 'code'; delete st.q; await setState(chatId, st); return sendMessage(chatId, 'Bekor qilindi.', GUEST_MENU); }
+      let phone = '';
+      const contact = msg.contact;
+      if (contact && contact.phone_number && (!contact.user_id || !msg.from || String(contact.user_id) === String(msg.from.id))) {
+        phone = A.normPhone(String(contact.phone_number));
+      } else if (A.phoneDigits(text).length >= 9) phone = A.normPhone(text);
+      if (!phone) {
+        return sendMessage(chatId, 'Raqamni +998 90 123 45 67 ko’rinishida yozing yoki tugmani bosing.',
+          [[{ text: REG_PHONE_BTN, request_contact: true }], [{ text: CANCEL_BTN }]]);
+      }
+      const q = st.q || '';
+      st.step = 'code'; delete st.q;
+      await saveGuestQuestion(chatId, st, msg.from || {}, q, phone);
+      await setState(chatId, st);
+      return sendMessage(chatId, 'Rahmat! Savolingiz administratorga yuborildi ✅ Tez orada shu raqamga javob beradi.', GUEST_MENU);
+    }
+    /* Kod, havola, "ismim" yoki o'quvchini ulash qadamlari — eski yo'l */
+    const linkish = link_looksLikeToken(text) || /^\s*\d{4,5}\s*$/.test(text) || /^ismim/i.test(text.trim());
+    if (/^(name|group|waiting)$/.test(String(st.step || '')) || linkish) {
+      if (!/^(code|name|group|waiting)$/.test(String(st.step || ''))) { st.step = 'code'; st.codeTries = st.codeTries || 0; }
+      return handleLinkFlow(chatId, text, msg.from || {}, st);
+    }
+    if (text && text.charAt(0) !== '/') return guestQuestion(chatId, text, msg.from || {}, st);
     if (st.step === 'start') {
       st.step = 'code'; st.codeTries = 0;
       await setState(chatId, st);
@@ -970,7 +1071,129 @@ async function onMessage(msg) {
     return sendMessage(chatId, 'Xabaringizni yozing — u markaz administratoriga yetkaziladi.');
   }
 
-  return sendMessage(chatId, 'Quyidagi tugmalardan birini tanlang.', MENU);
+  /* O'quvchining erkin savoli — bilim bazasidan javob */
+  if (text && text.charAt(0) !== '/') {
+    const a = faq.answer(text, faq.context(await settings())) ;
+    if (a && a.id !== 'salom') return sendMessage(chatId, a.text, MENU);
+  }
+  return sendMessage(chatId, 'Quyidagi tugmalardan birini tanlang. Savolingiz bo’lsa — «Markazga yozish» tugmasini bosing.', MENU);
+}
+
+/* ---------------- Kanal viktorinasi ----------------
+   Har kuni 3 marta (Toshkent vaqti bilan) kanalga Telegram «Quiz» so'rovnomasi
+   yuboriladi. Savollar bazada: tgquiz/<id> (javobi bilan — mijozga berilmaydi).
+   Har bir vaqt uchun tgquizlog/<sana>-<soat> yoziladi — bir slot ikki marta
+   ketmaydi (server qayta ishga tushsa ham). Server uxlab qolgan bo'lsa,
+   o'tib ketgan slot 3 soat ichida uyg'onganda yuboriladi, undan kech — o'tkaziladi. */
+const QUIZ_BANK = require('./quiz-bank');
+const QUIZ_SLOTS = (process.env.QUIZ_SLOTS || '09:00,14:00,20:00').split(',').map(x => x.trim()).filter(x => /^\d{2}:\d{2}$/.test(x));
+const QUIZ_LATE_MIN = 180;
+let quizTg = null;                       // sinovda soxta Telegram
+function quizApi(method, params) { return quizTg ? quizTg(method, params) : tg(method, params); }
+
+function tashkentNow(ms) {
+  const d = new Date((ms || Date.now()) + 5 * 3600 * 1000);       // UTC+5, yozgi vaqt yo'q
+  const iso = d.toISOString();
+  return { date: iso.slice(0, 10), hm: iso.slice(11, 16), mins: d.getUTCHours() * 60 + d.getUTCMinutes() };
+}
+async function quizConf() {
+  const b = ((await settings()).bot) || {};
+  return {
+    on: b.quizOn !== false,
+    channel: String(b.quizChannel || process.env.QUIZ_CHANNEL || '@Hayot_talim').trim(),
+    slots: QUIZ_SLOTS
+  };
+}
+function cleanQuiz(q, order) {
+  const opts = (Array.isArray(q.options) ? q.options : []).map(o => String(o).trim()).filter(Boolean).slice(0, 10);
+  const correct = Number(q.correct);
+  if (!q.id || !/^[A-Za-z0-9_\-]{2,40}$/.test(String(q.id))) return null;
+  if (!q.question || String(q.question).length > 300) return null;
+  if (opts.length < 2 || opts.some(o => o.length > 100)) return null;
+  if (!(correct >= 0 && correct < opts.length)) return null;
+  return {
+    id: String(q.id), kind: String(q.kind || '').slice(0, 30), question: String(q.question).trim(),
+    options: opts, correct, explain: String(q.explain || '').slice(0, 200), order: Number(order) || 0
+  };
+}
+/** Fayldagi savollarni bazaga qo'shadi (borini o'zgartirmaydi) */
+async function ensureQuizBank() {
+  let added = 0;
+  for (let i = 0; i < QUIZ_BANK.length; i++) {
+    const q = cleanQuiz(QUIZ_BANK[i], 1000 + i);
+    if (!q) continue;
+    if (await store.get('tgquiz/' + q.id)) continue;
+    await store.set('tgquiz/' + q.id, Object.assign(q, { createdAt: stamp() }));
+    added++;
+  }
+  return added;
+}
+async function quizList() {
+  return (await store.list('tgquiz/')).map(r => r.data).filter(Boolean)
+    .sort((a, b) => (a.order - b.order) || String(a.id).localeCompare(String(b.id)));
+}
+/** Navbatdagi savol: hali yuborilmagani; hammasi ketgan bo'lsa — eng uzoq vaqt oldin ketgani */
+async function nextQuiz() {
+  const all = await quizList();
+  if (!all.length) return null;
+  const fresh = all.filter(q => !q.sentAt);
+  if (fresh.length) return fresh[0];
+  return all.slice().sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)))[0];
+}
+async function sendQuiz(q, channel) {
+  const res = await quizApi('sendPoll', {
+    chat_id: channel,
+    question: q.question,
+    options: q.options.map(t => ({ text: t })),
+    type: 'quiz',
+    correct_option_id: q.correct,
+    explanation: q.explain || undefined,
+    is_anonymous: true
+  });
+  q.sentAt = stamp(); q.sentCount = (q.sentCount || 0) + 1;
+  q.messageId = res && res.message_id ? res.message_id : null;
+  await store.set('tgquiz/' + q.id, q);
+  return res;
+}
+/** Har 5 daqiqada: vaqti kelgan slot bo'lsa — bitta savol yuboradi */
+async function quizTick(nowMs) {
+  const conf = await quizConf();
+  if (!conf.on || !conf.channel) return { sent: 0 };
+  const now = tashkentNow(nowMs);
+  let sent = 0;
+  for (const slot of conf.slots) {
+    const sm = Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5));
+    if (now.mins < sm || now.mins - sm > QUIZ_LATE_MIN) continue;
+    const key = 'tgquizlog/' + now.date + '-' + slot.replace(':', '');
+    if (await store.get(key)) continue;
+    const q = await nextQuiz();
+    if (!q) return { sent };
+    await store.set(key, { date: now.date, slot, quizId: q.id, at: stamp(), status: 'yuborilmoqda' });
+    try {
+      await sendQuiz(q, conf.channel);
+      await store.set(key, { date: now.date, slot, quizId: q.id, at: stamp(), status: 'yuborildi' });
+      sent++;
+    } catch (e) {
+      await store.set(key, { date: now.date, slot, quizId: q.id, at: stamp(), status: 'xato', error: String(e.message || e).slice(0, 200) });
+      console.error('kanal viktorina:', e.message);
+    }
+  }
+  return { sent };
+}
+/** Administrator yangi savollar qo'shadi (JSON ro'yxat) */
+async function addQuizzes(items) {
+  const all = await quizList();
+  let order = all.reduce((m, q) => Math.max(m, q.order || 0), 1000) + 1;
+  const ok = [], bad = [];
+  for (const it of (Array.isArray(items) ? items : []).slice(0, 200)) {
+    const q = cleanQuiz(it, order);
+    if (!q) { bad.push(it && it.id ? String(it.id) : '?'); continue; }
+    const old = await store.get('tgquiz/' + q.id);
+    if (old && old.sentAt) { bad.push(q.id + ' (allaqachon yuborilgan)'); continue; }
+    await store.set('tgquiz/' + q.id, Object.assign(q, { createdAt: stamp() }));
+    ok.push(q.id); order++;
+  }
+  return { added: ok.length, ok, bad };
 }
 
 /* ---------------- Karta orqali to'lov ---------------- */
@@ -1159,6 +1382,13 @@ function startReminders() {
   }, 30 * 60 * 1000);
   if (t.unref) t.unref();
   timers.push(t);
+  /* Kanal viktorinasi: savollar bazaga, keyin har 5 daqiqada vaqt tekshiriladi */
+  ensureQuizBank().then(n => { if (n) console.log('  Kanal viktorinasi: ' + n + ' ta savol qo’shildi.'); })
+    .catch(e => console.error('viktorina bank:', e.message));
+  const tq = setInterval(() => { quizTick().catch(e => console.error('viktorina:', e.message)); }, 5 * 60 * 1000);
+  if (tq.unref) tq.unref();
+  timers.push(tq);
+  setTimeout(() => { quizTick().catch(() => { }); }, 20 * 1000);
   /* Kirim va da'volarni har 2 daqiqada solishtirish (kechikkan «To'ladim» uchun) */
   const t2 = setInterval(() => { paybot.reconcile(payCtx()).catch(e => console.error('paybot:', e.message)); }, 2 * 60 * 1000);
   if (t2.unref) t2.unref();
@@ -1195,6 +1425,7 @@ function _test(ctx) {
   store = ctx.store; stamp = ctx.stamp; A = ctx.A;
   if (ctx.recordPayment) recordPayment = ctx.recordPayment;
   if (ctx.send) setTransport(ctx.send);
+  if (ctx.tg) quizTg = ctx.tg;
   return {
     onMessage, flushQueue, enqueue, remindDebtors, notifyApproved,
     makeCode, normCode, studentByCode, botConf, getState, setState,
@@ -1203,6 +1434,7 @@ function _test(ctx) {
     startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, codesInTitle,
     wake, remindStudy, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
+    ensureQuizBank, quizTick, nextQuiz, quizList, addQuizzes, tashkentNow, quizConf,
     /** Sinovda navbatchini qo'lda ishga tushirish/to'xtatish */
     startQueue: function (opts) { running = true; queueLoop(opts); },
     stopQueue: function () { running = false; wake(); }
@@ -1219,4 +1451,20 @@ async function confirmClaimManual(claim, tx) {
   return confirmClaim(claim, tx);
 }
 
-module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, init, _test };
+/** Administrator uchun: viktorina boshqaruvi */
+const quiz = {
+  list: quizList, add: addQuizzes, conf: quizConf, ensure: ensureQuizBank, slots: QUIZ_SLOTS,
+  async sendNext() {
+    if (!TOKEN && !quizTg) throw new Error('Bot tokeni yo’q.');
+    const conf = await quizConf();
+    const q = await nextQuiz();
+    if (!q) throw new Error('Savollar yo’q.');
+    await sendQuiz(q, conf.channel);
+    return q;
+  },
+  async logs() {
+    return (await store.list('tgquizlog/')).map(r => r.data).filter(Boolean)
+      .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
+  }
+};
+module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, init, _test, quiz };

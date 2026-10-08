@@ -3947,3 +3947,24 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .tch-empty b{font-family:var(--st-serif,inherit);font-size:19px;color:var(--st-ink,#10241f)}
 .tch-empty p{margin:0 0 6px;color:var(--st-mut,#6c7d78);line-height:1.6}
 @media (max-width:560px){ .tch-empty{padding:18px} .tch-empty .btn{width:100%;justify-content:center} }
+/* Kabinet login/parol oynasi */
+.kab-creds{display:flex;flex-direction:column;gap:10px}
+.kab-cred{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.kab-cred b{font-size:22px;letter-spacing:.12em}
+.kab-creds .row-actions{display:flex;flex-wrap:wrap;gap:8px}
+/* "Tekin dars" tasmasi yoqilganda raqamlar kartasi uning ustiga chiqib
+   ketmasin: hero'ga yopishish (manfiy oraliq) tasmaning o'ziga o'tadi. */
+.site-wrap .promo-band:not([hidden]){position:relative;z-index:2;margin-top:-70px}
+.site-wrap .promo-band:not([hidden]) + .stat-band{margin-top:18px !important}
+/* Ariza qabul qilingach: markazda, kanalga obuna taklifi bilan */
+.lead-ok:not([hidden]){display:flex;align-items:center;justify-content:center;min-height:100%;padding:12px 0}
+.lead-ok-in{max-width:420px;margin:0 auto}
+.lead-ok-in b{font-size:20px}
+.lead-ok-tg{display:flex;gap:12px;align-items:center;text-align:start;margin-top:8px;padding:14px 16px;border-radius:16px;
+  background:color-mix(in srgb,#229ED9 8%,#fff);border:1px solid color-mix(in srgb,#229ED9 30%,transparent)}
+.lead-ok-tg img{flex:none;width:44px;height:44px;border-radius:50%}
+.lead-ok-tg b{font-size:15px;display:block;margin-bottom:2px}
+.lead-ok-tg p{font-size:13px}
+.lead-ok-go{width:100%;justify-content:center;margin-top:4px}
+.lead-ok-redirect{font-size:13px;color:var(--st-mut)}
+.lead-ok-count{display:inline-block;min-width:1.4em;font-weight:800;color:var(--st-n6,#134a40)}

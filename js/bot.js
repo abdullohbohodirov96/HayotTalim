@@ -234,6 +234,7 @@
     if (App.can('bot.broadcast')) tabs.push({ id: 'xabar', label: 'Xabar yuborish' });
     tabs.push({ id: 'oquvchilar', label: 'Ulangan o’quvchilar' });
     if (App.can('payment.create') && D.mode === 'server') tabs.push({ id: 'karta', label: 'Karta to’lovlari' });
+    if (App.can('bot.manage') && D.mode === 'server') tabs.push({ id: 'viktorina', label: 'Kanal viktorinasi' });
     if (App.can('bot.manage')) tabs.push({ id: 'sozlama', label: 'Sozlamalar' });
     view.appendChild(UI.tabs(tabs, tab, function (id) { App.go('bot', { tab: id }); }));
 
@@ -470,6 +471,74 @@
         }
       ], linked, { onRow: function (s) { App.go('student', { id: s.id }); } })
         : UI.empty({ title: 'Ulangan o’quvchi yo’q', text: 'O’quvchilar botga /start bosishi kerak.' }), null, null, true));
+    }
+
+    if (tab === 'viktorina') {
+      App.guard('bot.manage');
+      var vbox = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
+      view.appendChild(vbox);
+      (async function () {
+        var r;
+        try { r = await D.api('GET', 'api/kanal-quiz'); }
+        catch (e) { UI.clear(vbox); vbox.appendChild(h('div', { class: 'err-msg' }, e.message || 'Yuklanmadi.')); return; }
+        UI.clear(vbox);
+        var items = r.items || [], conf = r.conf || {};
+        var waiting = items.filter(function (q) { return !q.sentAt; });
+        var onF = UI.field({ label: 'Holat', type: 'select', value: conf.on ? '1' : '0',
+          options: [{ value: '1', label: 'Yoqilgan — har kuni avtomatik' }, { value: '0', label: 'O’chirilgan' }] });
+        var chF = UI.field({ label: 'Kanal (bot kanalda administrator bo’lishi kerak)', value: conf.channel || '@Hayot_talim', placeholder: '@Hayot_talim' });
+        vbox.appendChild(h('div', { class: 'tiles' }, [
+          UI.tile({ label: 'Jami savollar', value: items.length }),
+          UI.tile({ label: 'Navbatda', value: waiting.length, hint: Math.floor(waiting.length / Math.max(1, (conf.slots || []).length)) + ' kunlik' }),
+          UI.tile({ label: 'Yuborish vaqtlari', value: (conf.slots || []).join(' · ') || '—', hint: 'Toshkent vaqti' }),
+          UI.tile({ label: 'Kanal', value: conf.channel || '—' })
+        ]));
+        vbox.appendChild(UI.card('Sozlama', [
+          h('p', { class: 'small muted' }, 'Bot har kuni belgilangan vaqtlarda kanalga bittadan Telegram «Quiz» (viktorina) so’rovnomasi yuboradi. ' +
+            'Savollar tugasa — eng eski yuborilganlaridan qayta boshlaydi.'),
+          onF.wrap, chF.wrap,
+          h('div', { class: 'rowflex', style: 'gap:8px;flex-wrap:wrap' }, [
+            h('button', { class: 'btn primary', type: 'button', onclick: function (e) {
+              UI.busy(e.currentTarget, async function () {
+                try { await D.api('POST', 'api/kanal-quiz/config', { on: onF.input.value === '1', channel: chF.input.value }); UI.toast('Saqlandi.', 'ok'); App.render(); }
+                catch (ex) { UI.toast(ex.message || 'Saqlanmadi.', 'bad'); }
+              });
+            } }, 'Saqlash'),
+            h('button', { class: 'btn', type: 'button', onclick: function (e) {
+              UI.confirm('Hozir yuborish', 'Navbatdagi savol hozir kanalga yuboriladi. Davom etamizmi?', 'Ha, yuborilsin').then(function (yes) {
+                if (!yes) return;
+                UI.busy(e.currentTarget, async function () {
+                  try { var x = await D.api('POST', 'api/kanal-quiz/send', {}); UI.toast('Yuborildi: ' + x.id, 'ok'); App.render(); }
+                  catch (ex) { UI.toast(ex.message || 'Yuborilmadi.', 'bad'); }
+                });
+              });
+            } }, 'Navbatdagisini hozir yuborish')
+          ])
+        ], null, null, true));
+        var ta = h('textarea', { rows: 6, placeholder: '[{"id":"w2d1s1","kind":"Lug‘at","question":"…","options":["…","…"],"correct":0,"explain":"…"}]', style: 'width:100%;font-family:monospace;font-size:12px' });
+        vbox.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('Savollarni qo’shish (har hafta)', [
+          h('p', { class: 'small muted' }, 'Yangi haftaning savollarini JSON ko’rinishida qo’ying: id, question, options (2–10), correct (0 dan), explain.'),
+          ta,
+          h('button', { class: 'btn primary', type: 'button', style: 'margin-top:8px', onclick: function (e) {
+            var list;
+            try { list = JSON.parse(ta.value); } catch (ex) { UI.toast('JSON xato: ' + ex.message, 'bad'); return; }
+            UI.busy(e.currentTarget, async function () {
+              try { var x = await D.api('POST', 'api/kanal-quiz/add', { items: list });
+                UI.toast(x.added + ' ta qo’shildi' + (x.bad.length ? ', xato: ' + x.bad.join(', ') : ''), x.bad.length ? 'warn' : 'ok'); App.render(); }
+              catch (ex) { UI.toast(ex.message || 'Qo’shilmadi.', 'bad'); }
+            });
+          } }, 'Qo’shish')
+        ], null, null, true)));
+        vbox.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('Savollar', UI.table([
+          { label: '#', render: function (q, i) { return h('span', { class: 'mono small' }, q.id); } },
+          { label: 'Turi', render: function (q) { return UI.pill(q.kind || '—', 'info'); } },
+          { label: 'Savol', render: function (q) {
+            return h('div', {}, [h('b', { dir: 'auto' }, q.question),
+              h('div', { class: 'small muted', dir: 'auto' }, q.options.map(function (o, i) { return (i === q.correct ? '✅ ' : '▫️ ') + o; }).join('   '))]);
+          } },
+          { label: 'Holat', render: function (q) { return q.sentAt ? UI.pill('Yuborilgan ' + q.sentAt, 'ok') : UI.pill('Navbatda', 'warn'); } }
+        ], items), null, null, true)));
+      })();
     }
 
     if (tab === 'sozlama') {

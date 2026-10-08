@@ -73,8 +73,28 @@ const last = id => sent.filter(m => m.chatId === String(id)).slice(-1)[0] || {};
 
   /* Oddiy /start: kod so'raydi va ro'yxat tugmasini ko'rsatadi */
   await B.onMessage({ chat: { id: 777, type: 'private' }, from: { id: 777 }, text: '/start' });
-  ok('Oddiy /start — kod va ro’yxat tugmasi', /kod/i.test(last(777).text) &&
+  ok('Oddiy /start — savol taklifi va ro’yxat tugmasi', /savolingizni yozing/i.test(last(777).text) &&
     JSON.stringify(last(777).keyboard || '').indexOf('Bepul darsga') >= 0);
+  /* Savollarga javob */
+  const ask = t => B.onMessage({ chat: { id: 888, type: 'private' }, from: { id: 888, first_name: 'Dilnoza', username: 'dil' }, text: t });
+  await ask('/start');
+  await ask('Narxi qancha?');
+  ok('Narx savoli: administrator aytadi, narx yozilmaydi', /administrator/i.test(last(888).text) && !/\d{3}\s?\d{3}\s?so/i.test(last(888).text), last(888).text);
+  await ask('Darslar qachon bo‘ladi?');
+  ok('Vaqt savoli: haftada 3 marta', /haftada 3 marta/.test(last(888).text), last(888).text);
+  await ask('Когда занятия онлайн?');
+  ok('Kirillcha savol ham tushuniladi', /Zoom|haftada/.test(last(888).text), last(888).text);
+  await ask('❓ Savollar');
+  ok('Savollar ro‘yxati', /Ko‘p so‘raladigan/.test(last(888).text));
+  await ask('3');
+  ok('Raqam bilan savol tanlash', /haftada 3 marta/i.test(last(888).text), last(888).text);
+  const before = (await store.list('leads/')).length;
+  await ask('Sizlarda yotoqxona bormi?');
+  ok('Bilmagan savolda raqam so‘raydi', /telefon raqamingizni/i.test(last(888).text), last(888).text);
+  await B.onMessage({ chat: { id: 888, type: 'private' }, from: { id: 888, first_name: 'Dilnoza', username: 'dil' }, text: '', contact: { phone_number: '998935554433', user_id: 888 } });
+  const ld = (await store.list('leads/')).map(x => x.data).filter(l => /yotoqxona/.test(l.note || ''))[0];
+  ok('Savol murojaatga yozildi (raqam bilan)', !!ld && A.phoneDigits(ld.phone) === '935554433' && (await store.list('leads/')).length === before + 1, JSON.stringify(ld));
+  ok('Javob: administratorga yuborildi', /administratorga yuborildi/.test(last(888).text));
   await B.onMessage({ chat: { id: 777, type: 'private' }, from: { id: 777 }, text: 'Bepul darsga yozilish' });
   ok('Tugma ro’yxatni boshlaydi', /Ismingiz/.test(last(777).text));
   ok('Belgi tozalanadi', B.regSrc('dars_reels<script>') === 'reelsscript');

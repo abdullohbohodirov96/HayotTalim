@@ -1890,9 +1890,10 @@
     }
     function goFreeLesson(place) {
       A.track('free_lesson_click', { place: typeof place === 'string' ? place : 'site' });
-      var l = botLink();
-      if (l) { window.open(l, '_blank', 'noopener'); return; }
-      scrollTo('ariza'); if (fName.input) fName.input.focus();
+      /* "Tekin darsga yozilish" doim saytdagi ariza formasiga olib boradi
+         (kanal yoki botga emas). Bot uchun formada alohida tugma bor. */
+      scrollTo('ariza');
+      setTimeout(function () { try { if (fName.input) fName.input.focus({ preventScroll: true }); } catch (e) { } }, 500);
     }
 
     /* ---------- Nega biz: chapda naqshli panel, o'ngda ro'yxat ---------- */
@@ -2913,20 +2914,42 @@
           form.hidden = true;
           okBox.hidden = false;
           UI.clear(okBox);
+          /* Rahmat → kanalga obuna taklifi → 6 soniyadan keyin kanalga o'tish */
+          var pub = A._pub || {};
+          var df = (A.Seed && A.Seed.defaults) || {};
+          var chRaw = String(pub.tgChannel || df.tgChannel || 'https://t.me/Hayot_talim');
+          var chUrl = /^https?:/.test(chRaw) ? chRaw : 'https://t.me/' + chRaw.replace(/^@/, '');
+          var left = 6, timer = null;
+          var cnt = h('span', { class: 'lead-ok-count' }, String(left));
+          var note = h('p', { class: 'lead-ok-redirect' }, [cnt, ' soniyadan keyin kanalga o’tasiz…']);
+          function goCh() { if (timer) { clearInterval(timer); timer = null; } A.track('telegram_click', { place: 'lead_ok' }); location.href = chUrl; }
           okBox.appendChild(h('div', { class: 'lead-ok-in' }, [
             h('div', { class: 'ok-ico' }, UI.icon('check')),
-            h('b', {}, r && r.duplicate ? 'Arizangiz allaqachon qabul qilingan' : 'Arizangiz qabul qilindi!'),
-            h('p', {}, 'Administratorimiz tez orada shu raqamga qo’ng’iroq qiladi.'),
+            h('b', {}, (r && r.duplicate) ? 'Arizangiz allaqachon qabul qilingan' : 'Rahmat, ' + name2.split(' ')[0] + '! Arizangiz qabul qilindi'),
+            h('p', {}, 'Administratorimiz yaqin orada siz bilan bog’lanadi.'),
+            h('div', { class: 'lead-ok-tg' }, [
+              h('img', { src: 'assets/logo-telegram.png', alt: '', width: '44', height: '44' }),
+              h('div', {}, [
+                h('b', {}, 'Telegram kanalimizga obuna bo’ling'),
+                h('p', {}, 'Tekin dars havolasi, foydali mashqlar va har kungi viktorinalar shu yerda.')
+              ])
+            ]),
+            h('a', { class: 'btn gold lg lead-ok-go', href: chUrl, onclick: function (e) { e.preventDefault(); goCh(); } },
+              ['Kanalga obuna bo’lish', goIcon()]),
+            note,
             h('button', {
-              class: 'btn sm', type: 'button', onclick: function () {
-                form.hidden = false; okBox.hidden = true;
-                fName.input.value = ''; fPhone.input.value = '';
-                lvlPick = '';
-                clearPill();
-                Array.prototype.forEach.call(lvlBox.children, function (x) { x.classList.remove('on'); });
+              class: 'btn sm ghost', type: 'button', onclick: function () {
+                if (timer) { clearInterval(timer); timer = null; }
+                note.hidden = true;
               }
-            }, 'Yana ariza qoldirish')
+            }, 'Saytda qolish')
           ]));
+          /* Avtomatik sinov brauzerida (navigator.webdriver) sahifadan chiqib ketmaymiz */
+          if (!navigator.webdriver) timer = setInterval(function () {
+            left--; cnt.textContent = String(left);
+            if (left <= 0) goCh();
+          }, 1000);
+          try { okBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { }
         } catch (ex) {
           err.hidden = false;
           err.textContent = ex.message || 'Yuborilmadi. Birozdan keyin urinib ko’ring.';

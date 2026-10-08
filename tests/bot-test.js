@@ -57,7 +57,7 @@ function lastTo(chatId) {
   /* ---------- 1. Kodsiz odam avtomatik ulanmaydi ---------- */
   section('1. Ism bo’yicha avtomatik ulash YO’Q');
   await msg(100, '/start');
-  ok('Bot kod so’radi', /kod/i.test(lastTo(100)), lastTo(100));
+  ok('Bot salomlashdi va savol/o‘quvchi yo‘lini ko‘rsatdi', /savolingizni yozing/i.test(lastTo(100)) && /o’quvchi/i.test(lastTo(100)), lastTo(100));
   await msg(100, 'ismim');
   await msg(100, 'Ali Valiyev');
   await msg(100, 'B020');

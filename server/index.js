@@ -2876,6 +2876,59 @@ async function handleApi(req, res, url) {
     });
   }
 
+  /* ---- Telegram kanal viktorinasi (bot.manage) ---- */
+  if (route.indexOf('kanal-quiz') === 0) {
+    if (!A.can(user, 'bot.manage')) return send(res, 403, { error: 'Sizda bu amal uchun ruxsat yo’q.' });
+    const Q = require('./bot').quiz;
+    if (route === 'kanal-quiz' && req.method === 'GET') {
+      await Q.ensure();
+      return send(res, 200, { conf: await Q.conf(), items: await Q.list(), logs: await Q.logs() });
+    }
+    if (route === 'kanal-quiz/add' && req.method === 'POST') {
+      const body = await readBody(req, BODY_MAX_FILE);
+      const r = await Q.add(body.items);
+      await writeAudit(user, 'Kanal viktorinasi: savollar qo’shildi', String(r.added), '');
+      return send(res, 200, r);
+    }
+    if (route === 'kanal-quiz/config' && req.method === 'POST') {
+      const body = await readBody(req);
+      const s0 = (await store.get('meta/settings')) || {};
+      s0.bot = Object.assign({}, s0.bot || {}, {
+        quizOn: body.on !== false,
+        quizChannel: String(body.channel || '').trim().slice(0, 64)
+      });
+      await store.set('meta/settings', s0);
+      return send(res, 200, { ok: true, conf: await Q.conf() });
+    }
+    if (route === 'kanal-quiz/send' && req.method === 'POST') {
+      try {
+        const q = await Q.sendNext();
+        await writeAudit(user, 'Kanal viktorinasi: qo’lda yuborildi', q.id, '');
+        return send(res, 200, { ok: true, id: q.id });
+      } catch (e) { return send(res, 400, { error: e.message || 'Yuborilmadi.' }); }
+    }
+    return send(res, 404, { error: 'Topilmadi.' });
+  }
+
+  /* Veb-kabinet uchun login va parol. Login — shaxsiy kod (yoki telefon),
+     parol — 6 xonali tasodifiy son. Parol faqat SHU javobda bir marta
+     qaytadi; bazada faqat xeshi turadi. Qayta bosilsa — yangi parol.    */
+  if (route === 'student/kabpass' && req.method === 'POST') {
+    if (!A.can(user, 'student.edit')) return send(res, 403, { error: 'Sizda bu amal uchun ruxsat yo’q.' });
+    const body = await readBody(req);
+    const sid = String(body.studentId || '');
+    if (!/^[A-Za-z0-9_\-.]+$/.test(sid)) return send(res, 400, { error: 'O’quvchi noto’g’ri.' });
+    const st = await store.get('students/' + sid);
+    if (!st) return send(res, 404, { error: 'O’quvchi topilmadi.' });
+    if (!st.code) return send(res, 400, { error: 'O’quvchida shaxsiy kod yo’q — avval kartani saqlang.' });
+    const pw = String(crypto.randomInt(100000, 1000000));
+    const salt = crypto.randomBytes(16).toString('hex');
+    await store.set('kabpass/' + sid, { salt, hash: kabHash(pw, salt), at: stamp(), by: 'admin' });
+    await writeAudit(user, 'Kabinet paroli yaratildi', (st.lastName || '') + ' ' + (st.firstName || ''), '');
+    const base = String(process.env.PUBLIC_URL || process.env.SITE_URL || '').replace(/\/$/, '');
+    return send(res, 200, { ok: true, login: String(st.code), phone: String(st.phone || ''), password: pw, url: base ? base + '/#kabinet' : '' });
+  }
+
   if (route === 'student/unlink' && req.method === 'POST') {
     if (!A.can(user, 'student.edit')) return send(res, 403, { error: 'Sizda bu amal uchun ruxsat yo’q.' });
     const body = await readBody(req);
@@ -3393,6 +3446,19 @@ const server = http.createServer(async (req, res) => {
     require('./bot').start({ store, stamp, A, recordPayment: autoCardPayment });
   } else {
     console.log('  Telegram bot o’chirilgan (TELEGRAM_BOT_TOKEN berilmagan).\n');
+  }
+
+  /* Render'ning bepul tarifi 15 daqiqa so'rov bo'lmasa serverni uxlatadi —
+     unda bot, eslatmalar va kanal viktorinasi to'xtab qoladi. Server o'z
+     ochiq manziliga har 10 daqiqada murojaat qilib uyg'oq turadi.
+     O'chirish: KEEP_AWAKE=0. Faqat Render'da va PUBLIC_URL bo'lsa ishlaydi. */
+  const awakeUrl = String(process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+  if (process.env.RENDER && awakeUrl && process.env.KEEP_AWAKE !== '0') {
+    const ka = setInterval(() => {
+      fetch(awakeUrl + '/api/health', { headers: { 'User-Agent': 'hayot-keepalive' } }).catch(() => { });
+    }, 10 * 60 * 1000);
+    if (ka.unref) ka.unref();
+    console.log('  Uyg’oq turish: har 10 daqiqada ' + awakeUrl + '/api/health');
   }
 })();
 

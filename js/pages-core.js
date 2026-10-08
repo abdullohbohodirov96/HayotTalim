@@ -1060,6 +1060,45 @@
   }
 
 
+  /** Veb-kabinet uchun login va parol: server yangi parol yaratadi va
+      uni FAQAT shu oynada bir marta ko'rsatadi. Nusxalash va Telegram
+      orqali o'quvchiga yuborish tugmalari bor.                        */
+  A.kabCreds = function (s, opts) {
+    var box = h('div', {}, h('p', { class: 'muted small' }, 'Login va parol tayyorlanmoqda…'));
+    var m = UI.modal({
+      title: (opts && opts.isNew ? 'O’quvchi qo’shildi — ' : '') + 'Kabinetga kirish',
+      body: [box],
+      actions: [{ label: 'Yopish', cls: 'primary' }]
+    });
+    (async function () {
+      try {
+        var r = await D.api('POST', 'api/student/kabpass', { studentId: s.id });
+        var site = r.url || (location.origin + '/#kabinet');
+        var text = 'Hayot Ta’lim — shaxsiy kabinet\n' + site +
+          '\nLogin: ' + r.login + (r.phone ? ' (yoki telefon raqamingiz)' : '') +
+          '\nParol: ' + r.password + '\n\nParolni hech kimga bermang. Kabinetda o’zingiz o’zgartira olasiz.';
+        UI.clear(box);
+        box.appendChild(h('div', { class: 'kab-creds' }, [
+          h('div', { class: 'kab-cred' }, [h('span', { class: 'muted small' }, 'Login'), h('b', { class: 'mono' }, r.login)]),
+          h('div', { class: 'kab-cred' }, [h('span', { class: 'muted small' }, 'Parol'), h('b', { class: 'mono' }, r.password)]),
+          h('p', { class: 'small muted' }, 'Kirish manzili: ' + site + '. Login o’rniga telefon raqamini ham yozsa bo’ladi. ' +
+            'Parol faqat hozir ko’rinadi — nusxalab o’quvchiga yuboring. Unutilsa, shu tugma bilan yangisini yaratasiz.'),
+          h('div', { class: 'row-actions' }, [
+            h('button', { class: 'btn', type: 'button', onclick: function () { UI.copy(text); } }, [UI.icon('link'), 'Nusxalash']),
+            h('a', {
+              class: 'btn primary', target: '_blank', rel: 'noopener',
+              href: 'https://t.me/share/url?url=' + encodeURIComponent(site) + '&text=' + encodeURIComponent(text)
+            }, 'Telegram orqali yuborish')
+          ])
+        ]));
+      } catch (e) {
+        UI.clear(box);
+        box.appendChild(h('div', { class: 'err-msg' }, e.message || 'Parol yaratilmadi.'));
+      }
+    })();
+    return m;
+  };
+
   /** Shaxsiy kod oynasi: ko'rsatish, nusxalash, kabinet havolasi, yangilash */
   function codeCard(s, App) {
     var tg = s.telegram && s.telegram.id ? s.telegram : null;
@@ -1179,6 +1218,10 @@
           class: 'btn', title: 'Shaxsiy kod — bot va kabinet uchun',
           onclick: function () { codeCard(s, App); }
         }, [UI.icon('key'), h('span', { class: 'code-chip' }, String(s.code))]) : null,
+        (App.can('student.edit') && D.mode === 'server') ? h('button', {
+          class: 'btn', title: 'Veb-kabinet uchun login va yangi parol',
+          onclick: function () { A.kabCreds(s); }
+        }, [UI.icon('person'), 'Login / parol']) : null,
         // Asosiy amallar pastdagi tezkor kartada — bu yerda faqat tahrirlash
         App.can('student.edit') ? h('button', { class: 'btn', onclick: function () { A.studentForm(s, App); } },
           [UI.icon('edit'), 'Tahrirlash']) : null
@@ -1541,6 +1584,10 @@
               var gid = groupPick && groupPick.input.value;
               c();
               UI.toast('Saqlandi.', 'ok');
+              /* Yangi o'quvchi: kabinet uchun login va parol darhol beriladi */
+              if (isNew && D.mode === 'server') {
+                try { A.kabCreds(D.one('students', rec.id) || rec, { isNew: true }); } catch (e) { }
+              }
               if (gid) {
                 A.membershipForm(rec, { groupId: gid }, App);
               } else {
