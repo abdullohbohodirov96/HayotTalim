@@ -11,6 +11,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # Google Analytics — "Hayot Ta'lim — hayottalim.uz" resursi
+      - key: GA_MEASUREMENT_ID
+        value: G-HQWL42X43Y
     routes:
       - type: redirect
         source: /kabinet

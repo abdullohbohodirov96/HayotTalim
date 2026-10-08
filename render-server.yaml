@@ -56,9 +56,9 @@ services:
         value: https://hayottalim.uz
       - key: FILES_DIR
         value: /var/data/files
-      # Ixtiyoriy: Google Analytics (G-XXXXXXXXXX)
+      # Google Analytics — "Hayot Ta'lim — hayottalim.uz" resursi
       - key: GA_MEASUREMENT_ID
-        sync: false
+        value: G-HQWL42X43Y
       # Ixtiyoriy: kurs ovozlari uchun ElevenLabs (YANGI kalit, eski kalitni o'chiring)
       - key: ELEVENLABS_API_KEY
         sync: false
