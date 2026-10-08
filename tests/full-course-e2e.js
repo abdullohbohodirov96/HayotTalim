@@ -116,7 +116,9 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       top.on('pageerror', e => errors.push(e.message));
       top.on('console', m => { if (m.type() === 'error' && !/TUNNEL|fonts|favicon|404|sw\.js|ServiceWorker/.test(m.text())) errors.push(m.text()); });
       ok('Namoyish ochiq saytdan boshlanadi', /O’quvchi kabineti/.test(await page.evaluate(() => document.body.innerText)) && !(await page.$('#login-user')));
-      await page.click('text=O’quvchi kabineti');
+      /* Telefonda tepa menyu "gamburger" ortida — avval uni ochamiz */
+      if (await page.isVisible('.site-burger')) { await page.click('.site-burger'); await top.waitForTimeout(300); }
+      await page.click('.site-nav >> text=O’quvchi kabineti');
       await page.waitForSelector('#kab-login', { timeout: 8000 });
       ok('Kabinet login va parol so’raydi (darhol kirmaydi)', !(await page.$('.sp-ring')));
       await page.fill('#kab-login', '1111'); await page.fill('#kab-pass', '1111'); await page.click('#kab-go');

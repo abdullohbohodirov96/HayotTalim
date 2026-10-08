@@ -7,7 +7,7 @@
 # (kompyuterdan tekshirish, ma'lumot ko'chirish, sinov).
 services:
   - type: web
-    name: arab-markaz-erp
+    name: hayot-talim
     runtime: node
     plan: starter          # doimiy disk uchun eng kam tarif
     buildCommand: npm install && node build.js
@@ -48,6 +48,19 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_BOT_USERNAME
+        sync: false        # bot nomi @ belgisisiz, masalan: HayotTalimBot
+      # Saytning asosiy manzili: canonical, sitemap, og:url va bot havolalari
+      - key: SITE_URL
+        value: https://hayottalim.uz
+      - key: PUBLIC_URL
+        value: https://hayottalim.uz
+      - key: FILES_DIR
+        value: /var/data/files
+      # Ixtiyoriy: Google Analytics (G-XXXXXXXXXX)
+      - key: GA_MEASUREMENT_ID
+        sync: false
+      # Ixtiyoriy: kurs ovozlari uchun ElevenLabs (YANGI kalit, eski kalitni o'chiring)
+      - key: ELEVENLABS_API_KEY
         sync: false
     disk:
       name: markaz-data

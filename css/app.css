@@ -1748,7 +1748,8 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .test-opt{text-align:start;padding:11px 14px;border:1px solid var(--line);
   border-radius:var(--r-lg);background:var(--surface-2);color:var(--text);
   font:inherit;font-size:16px;line-height:1.5;cursor:pointer}
-.test-opt:hover{border-color:var(--accent);background:var(--surface)}
+@media (hover:hover){.test-opt:hover{border-color:var(--accent);background:var(--surface)}}
+.test-opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:700}
 .test-opt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .test-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .test-end{display:flex;flex-direction:column;gap:10px}
@@ -3753,3 +3754,185 @@ table.tbl tbody tr:hover{background:#f4faf7}
   font-weight:700;box-shadow:0 10px 24px -12px rgba(201,162,76,.9)}
 .site-top .site-nav .btn.nav-free:hover{filter:brightness(1.06)}
 @media (max-width:900px){.site-top .site-nav .btn.nav-free{display:none}}
+
+/* =====================================================================
+   "Maxsus chegirma" — 5 soniyadan keyin yon tomondan chiqadigan xabar
+   ===================================================================== */
+.promo{position:fixed;right:20px;bottom:24px;z-index:60;width:320px;max-width:calc(100vw - 24px);
+  padding:18px 18px 16px;border-radius:20px;color:#fff;
+  background:linear-gradient(155deg,var(--st-n6,#134a40),var(--st-n8,#0a2b25));
+  border:1px solid color-mix(in srgb,var(--st-gold-2,#d8ae43) 55%,transparent);
+  box-shadow:0 24px 60px -18px rgba(5,25,20,.65),0 0 0 4px color-mix(in srgb,var(--st-gold-2,#d8ae43) 14%,transparent);
+  transform:translateX(calc(100% + 40px));opacity:0;
+  transition:transform .55s cubic-bezier(.2,1.25,.35,1),opacity .35s ease}
+.promo.on{transform:none;opacity:1}
+.promo-x{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;
+  border:0;background:rgba(255,255,255,.12);color:#fff;font-size:20px;line-height:1;cursor:pointer}
+.promo-x:hover{background:rgba(255,255,255,.22)}
+.promo-tag{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--st-gold-3,#efd08a)}
+.promo-dot{width:8px;height:8px;border-radius:50%;background:#ff5a4e;
+  box-shadow:0 0 0 0 rgba(255,90,78,.7);animation:promoPulse 1.4s infinite}
+.promo-t{font-family:var(--st-serif,Georgia,serif);font-weight:700;font-size:22px;line-height:1.15;
+  margin:6px 0 4px;color:var(--st-gold-3,#efd08a)}
+.promo-p{margin:0 0 12px;font-size:13px;line-height:1.45;color:rgba(255,255,255,.86)}
+.promo-clock{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px}
+.promo-cell{display:flex;flex-direction:column;align-items:center;min-width:64px;padding:7px 8px 5px;
+  border-radius:12px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12)}
+.promo-n{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#fff}
+.promo-cell small{font-size:10px;opacity:.7;margin-top:3px}
+.promo-sep{font-size:24px;font-weight:800;color:var(--st-gold-2,#d8ae43);animation:promoBlink 1s steps(1) infinite}
+.promo.low .promo-n{color:#ffb4a8}
+.promo.over .promo-clock{opacity:.5}
+.promo .promo-go{width:100%;justify-content:center;padding:13px 16px;font-size:15px;font-weight:800;
+  border-radius:13px;animation:promoShake 2.2s ease-in-out infinite;transform-origin:50% 50%}
+.promo .promo-go:hover{animation-play-state:paused}
+@keyframes promoShake{
+  0%,52%,100%{transform:translateX(0) rotate(0)}
+  56%{transform:translateX(-6px) rotate(-2deg)}
+  60%{transform:translateX(6px) rotate(2deg)}
+  64%{transform:translateX(-5px) rotate(-1.5deg)}
+  68%{transform:translateX(5px) rotate(1.5deg)}
+  72%{transform:translateX(-3px) rotate(-1deg)}
+  76%{transform:translateX(3px) rotate(1deg)}
+  80%{transform:translateX(0) rotate(0) scale(1.04)}
+  86%{transform:scale(1)}
+}
+@keyframes promoPulse{0%{box-shadow:0 0 0 0 rgba(255,90,78,.7)}70%{box-shadow:0 0 0 9px rgba(255,90,78,0)}100%{box-shadow:0 0 0 0 rgba(255,90,78,0)}}
+@keyframes promoBlink{50%{opacity:.25}}
+@media (max-width:760px){
+  .promo{right:10px;left:auto;bottom:calc(78px + env(safe-area-inset-bottom,0px));width:290px;padding:14px 14px 12px;border-radius:16px}
+  .promo-t{font-size:19px}
+  .promo-p{font-size:12.5px;margin-bottom:10px}
+  .promo-cell{min-width:56px}
+  .promo-n{font-size:24px}
+  .promo .promo-go{padding:11px 14px;font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .promo{transition:opacity .2s}
+  .promo .promo-go{animation:promoShake 2.2s ease-in-out infinite}
+}
+
+/* =====================================================================
+   MOBIL / PLANSHET QATLAMI
+   Audit natijasi (320–1440px, Playwright):
+   - gorizontal siljish yo'q edi, lekin telefonda tepa panel 157px edi:
+     uch qator (logotip / 3 havola / 2 tugma) — ekranning 1/5 qismi;
+   - hero'da Zoom-maket matndan OLDIN turardi: birinchi ekranda sarlavha
+     va "Tekin darsga yozilish" ko'rinmasdi;
+   - hero matni (17.5px) va kartochkalar ichki oralig'i (24px) telefon
+     uchun katta, sahifa 9400px+ uzun edi;
+   - tepa tugmalar 38px, pastki havolalar 20px — barmoq uchun kichik.
+   Desktop (>900px) ko'rinishiga bu qatlam tegmaydi.
+   ===================================================================== */
+html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi, sticky buzilmaydi */
+.site img,.site svg,.site video{max-width:100%}
+.site h1,.site h2,.site h3,.site p,.site b{overflow-wrap:break-word}
+
+/* --- Gamburger tugmasi (desktopda yashirin) --- */
+.site-burger{display:none;flex:none;width:46px;height:46px;border-radius:13px;cursor:pointer;
+  align-items:center;justify-content:center;padding:0;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22);color:#fff}
+.site-burger:focus-visible{outline:2px solid var(--au-400,#e2c272);outline-offset:2px}
+.site-burger-i{position:relative;display:block;width:20px;height:14px}
+.site-burger-i i{position:absolute;left:0;right:0;height:2px;border-radius:2px;background:currentColor;
+  transition:transform .25s ease,opacity .2s ease,top .25s ease}
+.site-burger-i i:nth-child(1){top:0}
+.site-burger-i i:nth-child(2){top:6px}
+.site-burger-i i:nth-child(3){top:12px}
+.menu-open .site-burger-i i:nth-child(1){top:6px;transform:rotate(45deg)}
+.menu-open .site-burger-i i:nth-child(2){opacity:0}
+.menu-open .site-burger-i i:nth-child(3){top:6px;transform:rotate(-45deg)}
+
+@media (max-width:900px){
+  /* Tepa panel: bitta qator — logotip va menyu tugmasi */
+  #auth.site .site-top-in{position:relative;flex-wrap:nowrap;padding:10px 16px;gap:10px}
+  #auth.site .site-brand{flex:1 1 auto;min-width:0}
+  #auth.site .site-brand b,#auth.site .site-brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #auth.site .site-burger{display:inline-flex}
+  #auth.site .site-nav{display:none;position:absolute;top:100%;left:0;right:0;z-index:30;
+    flex-direction:column;align-items:stretch;gap:8px;width:auto;margin:0;
+    padding:12px 16px 18px;background:#03261d;
+    border-bottom:1px solid rgba(226,194,114,.25);box-shadow:0 24px 40px -20px rgba(0,0,0,.7);
+    max-height:calc(100vh - 70px);overflow-y:auto}
+  #auth.site .menu-open .site-nav{display:flex;animation:navDrop .22s ease}
+  #auth.site .site-nav .btn,#auth.site .site-nav .site-phone{flex:none;width:100%;min-height:48px;
+    justify-content:flex-start;padding:12px 14px;font-size:15.5px;border-radius:12px}
+  #auth.site .site-nav .btn.ghost::before{display:none}
+  #auth.site .site-nav .site-phone{display:inline-flex}
+  #auth.site .site-top .site-nav .btn.nav-free{display:inline-flex;justify-content:center;order:-1}
+  #auth.site .site-nav .btn.primary{justify-content:center}
+
+  /* Hero: avval matn va tugmalar, keyin maket */
+  #auth.site .site-hero{grid-template-areas:'text' 'art';row-gap:28px}
+  #auth.site .hero-art{order:0}
+  #auth.site .zm{max-width:520px;margin:0 auto}
+}
+@keyframes navDrop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+@media (max-width:560px){
+  #auth.site .site-top-in{padding:9px 14px}
+  #auth.site .site-brand .logo{width:40px;height:40px;border-radius:12px}
+  #auth.site .site-brand b{font-size:16px}
+  #auth.site .site-brand span{font-size:11px}
+  #auth.site .site-wrap{padding:0 16px calc(96px + env(safe-area-inset-bottom,0px))}
+
+  /* Hero matni: o'qiladigan, lekin ekranni to'ldirib yubormaydigan */
+  #auth.site .site-hero{padding:26px 0 88px;row-gap:24px}
+  #auth.site .site-hero h1{font-size:clamp(30px,9.4vw,40px);margin-bottom:10px}
+  #auth.site .hero-type{font-size:clamp(18px,5.4vw,23px);min-height:2.6em;margin:0 0 12px}
+  #auth.site .hero-lead{font-size:15px;line-height:1.6;margin-bottom:20px}
+  #auth.site .hero-eyebrow{font-size:10.5px}
+  #auth.site .hero-cta{flex-direction:column;gap:10px;margin-bottom:18px}
+  #auth.site .hero-cta .btn{width:100%;justify-content:center}
+  #auth.site .hero-cta .btn.xl{padding:15px 18px;font-size:16px;min-height:54px}
+  #auth.site .hero-cta .btn.lg{padding:13px 18px;font-size:15px;min-height:50px}
+  #auth.site .hero-meta{gap:10px 14px;margin-top:6px}
+  #auth.site .hero-tel{min-height:46px}
+  #auth.site .zm{border-radius:18px}
+  #auth.site .zm-chip{display:none}
+
+  /* Bo'limlar va kartochkalar: ixchamroq oraliq */
+  #auth.site .site-sec{padding:34px 0 4px}
+  #auth.site .site-sec h2{font-size:clamp(22px,6.6vw,27px);line-height:1.2}
+  #auth.site .sec-note{font-size:14.5px}
+  #auth.site .sec-mid{margin-bottom:20px}
+  #auth.site .how-grid{gap:12px;margin-top:18px}
+  #auth.site .how-card{padding:18px;border-radius:18px}
+  #auth.site .how-top{margin-bottom:12px}
+  #auth.site .how-n{font-size:30px}
+  #auth.site .how-card b{font-size:17px}
+  #auth.site .why-list{gap:10px;margin:16px 0 18px}
+  #auth.site .why-list li{padding:13px 14px;border-radius:14px;font-size:14px}
+  #auth.site .lvl{padding:18px;gap:7px}
+  #auth.site .lvl-grid{gap:12px}
+
+  /* Pastki qism: havolalar barmoq bilan bosiladigan bo'lsin */
+  #auth.site .foot-link{display:inline-flex;align-items:center;min-height:40px}
+  #auth.site .foot-cols{gap:18px}
+}
+@media (max-width:360px){
+  #auth.site .site-brand span{display:none}
+  #auth.site .hero-meta .hero-hours{flex-basis:100%}
+}
+@media (prefers-reduced-motion:reduce){ #auth.site .menu-open .site-nav{animation:none} }
+/* Sensorli ekranlarda kichik tugmalar ham kamida 44px */
+@media (pointer:coarse){
+  #auth.site .btn.sm{min-height:44px}
+  #auth.site .foot-link{display:inline-flex;align-items:center;min-height:40px}
+}
+/* Raqamlar kartasi: tor telefonda 2 ustun siqilib qolardi ("3 marta" ikki qatorga) */
+@media (max-width:420px){
+  #auth.site .stat-band .hero-stats{grid-template-columns:1fr;gap:12px}
+  #auth.site .stat-band .hero-stat b{font-size:21px;white-space:nowrap}
+}
+/* Pastki qism: telefonda havola ustunlari yonma-yon, logotip bloki to'liq kenglikda */
+@media (min-width:340px) and (max-width:560px){
+  #auth.site .foot-cols{grid-template-columns:1fr 1fr;gap:18px 16px}
+  #auth.site .foot-cols > :first-child{grid-column:1 / -1}
+}
+@media (max-width:900px){
+  /* Menyuda bitta asosiy (tilla) tugma qolsin: "Kirish" xodimlar uchun — oddiy ko'rinishda */
+  #auth.site .site-top .site-nav .btn.primary{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22);
+    color:#fff;box-shadow:none}
+}

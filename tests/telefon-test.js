@@ -256,7 +256,7 @@ async function api(p, o = {}) {
     if (!(await page.locator('.test-opt').count())) break;
     await page.locator('.test-opt').first().tap();
     answered++;
-    await page.waitForTimeout(120);
+    await page.waitForTimeout(650);
   }
   eq('20 ta savolga javob berildi', answered, 20);
   await page.waitForSelector('.test-end', { timeout: 15000 });

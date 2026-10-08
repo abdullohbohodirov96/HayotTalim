@@ -368,6 +368,8 @@
       kabinet va darslarda fon ishlari sekinlashtirmasin. */
   function leaveSite() {
     if (A._ctaOff) { A._ctaOff(); A._ctaOff = null; }
+    if (A._promoOff) { A._promoOff(); A._promoOff = null; }
+    if (A._menuOff) { A._menuOff(); A._menuOff = null; }
     if (A._scrollFxOff) { A._scrollFxOff(); A._scrollFxOff = null; }
     if (A._typeRO) { try { A._typeRO.disconnect(); } catch (e) { } A._typeRO = null; }
     if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
@@ -1082,10 +1084,22 @@
       var bar = h('div', { class: 'test-bar' },
         h('span', { style: 'width:' + Math.round(pos / QS.length * 100) + '%' }));
 
+      /* Telefonda bir bosish ikki savolga tushib ketmasin: savol chiqqandan
+         keyin qisqa vaqt bosish qabul qilinmaydi, tanlangan javob bir
+         lahza yashil bo'lib ko'rinadi, keyin keyingi savol ochiladi.      */
+      var shownAt = Date.now(), locked = false, myPos = pos;
       var opts = h('div', { class: 'test-opts' }, q.options.map(function (o, i) {
         return h('button', {
-          class: 'test-opt', type: 'button', dir: 'auto',
-          onclick: function () { picked[q.id] = i; pos++; step(); }
+          class: 'test-opt' + (picked[q.id] === i ? ' on' : ''), type: 'button', dir: 'auto',
+          onclick: function (e) {
+            if (locked || Date.now() - shownAt < 350) return;
+            locked = true;
+            picked[q.id] = i;
+            var me = e.currentTarget;
+            Array.prototype.forEach.call(opts.children, function (b) { b.classList.toggle('on', b === me); });
+            if (me.blur) me.blur();
+            setTimeout(function () { if (pos === myPos) { pos++; step(); } }, 220);
+          }
         }, o);
       }));
 
@@ -1640,9 +1654,22 @@
     var navBtn = function (label, id) {
       return h('button', {
         class: 'btn sm ghost', type: 'button',
-        onclick: function () { scrollTo(id); }
+        onclick: function () { closeMenu(); scrollTo(id); }
       }, label);
     };
+    /* Telefon va planshetda (≤900px) menyu "gamburger" tugmasi ortiga
+       yashirinadi: tepada faqat logotip va tugma qoladi.               */
+    var burger = h('button', {
+      class: 'site-burger', type: 'button', 'aria-label': 'Menyu',
+      'aria-expanded': 'false', 'aria-controls': 'site-nav',
+      onclick: function (e) { e.stopPropagation(); setMenu(!topIn.classList.contains('menu-open')); }
+    }, [h('span', { class: 'site-burger-i', 'aria-hidden': 'true' }, [h('i'), h('i'), h('i')])]);
+    function setMenu(on) {
+      topIn.classList.toggle('menu-open', !!on);
+      burger.setAttribute('aria-expanded', on ? 'true' : 'false');
+      burger.setAttribute('aria-label', on ? 'Menyuni yopish' : 'Menyu');
+    }
+    function closeMenu() { if (topIn.classList.contains('menu-open')) setMenu(false); }
     var topIn = h('div', { class: 'site-top-in' }, [
       h('button', {
         class: 'site-brand', type: 'button',
@@ -1654,14 +1681,15 @@
           h('span', {}, 'Xorijiy tillar markazi')
         ])
       ]),
-      h('nav', { class: 'site-nav' }, [
+      burger,
+      h('nav', { class: 'site-nav', id: 'site-nav' }, [
         navBtn('Darajalar', 'bosqichlar'),
         navBtn('Ustozlar', 'ustozlar'),
         h('a', { class: 'site-phone', id: 'site-call', href: '#ariza' },
           [UI.icon('phone'), h('span', { id: 'site-call-text' }, 'Bog’lanish')]),
         h('button', {
           class: 'btn sm gold nav-free', type: 'button',
-          onclick: function () { goFreeLesson(); }
+          onclick: function () { closeMenu(); goFreeLesson(); }
         }, 'Tekin darsga yozilish'),
         h('button', {
           class: 'btn sm ghost', type: 'button',
@@ -1678,6 +1706,25 @@
       ])
     ]);
     var top = h('header', { class: 'site-top' }, topIn);
+    /* Menyu tashqarisiga bosilsa, Esc yoki havola bosilsa — yopiladi */
+    topIn.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('.site-phone')) closeMenu();
+    });
+    (function () {
+      function outside(e) { if (!topIn.contains(e.target)) closeMenu(); }
+      function esc(e) { if (e.key === 'Escape') closeMenu(); }
+      function wide() { if (window.innerWidth > 900) closeMenu(); }
+      document.addEventListener('click', outside);
+      document.addEventListener('keydown', esc);
+      window.addEventListener('resize', wide, { passive: true });
+      var prev = A._menuOff;
+      if (prev) prev();
+      A._menuOff = function () {
+        document.removeEventListener('click', outside);
+        document.removeEventListener('keydown', esc);
+        window.removeEventListener('resize', wide);
+      };
+    })();
 
     /* ---------- Hero ---------- */
     var statsBox = h('div', { class: 'hero-stats', id: 'hero-stats' });
@@ -2162,12 +2209,100 @@
     })();
     A.I18N.apply(wrap);
     fillPublic();
+    sitePromo();
     siteMotion(top);
     siteTouch(wrap);
 
     function scrollTo(id) {
       var el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ---------- "Maxsus chegirma" xabari ----------
+       Saytga kirgandan 5 soniya keyin yon tomondan chiqadi, 3 daqiqalik
+       sanoq bilan. Sanoq sessionStorage'da saqlanadi — sahifa yangilansa
+       qaytadan 3:00 dan boshlanmaydi. Yopilsa yoki vaqt tugasa shu
+       seansda qayta chiqmaydi. Narx ko'rsatilmaydi.                    */
+    function sitePromo() {
+      if (A._promoOff) { A._promoOff(); A._promoOff = null; }
+      var SS = null;
+      try { SS = window.sessionStorage; } catch (e) { SS = null; }
+      function sget(k) { try { return SS ? SS.getItem(k) : null; } catch (e) { return null; } }
+      function sset(k, v) { try { if (SS) SS.setItem(k, v); } catch (e) { } }
+      if (sget('promo_done')) return;
+      var DUR = 3 * 60 * 1000;
+      var showTmr = null, tick = null, hideTmr = null, box = null;
+
+      var mm = h('b', { class: 'promo-n', dir: 'ltr' }, '03');
+      var ss = h('b', { class: 'promo-n', dir: 'ltr' }, '00');
+      var go = h('button', {
+        class: 'btn gold promo-go', type: 'button',
+        onclick: function () {
+          close(true);
+          scrollTo('ariza');
+          setTimeout(function () { if (fName.input) try { fName.input.focus({ preventScroll: true }); } catch (e) { } }, 600);
+        }
+      }, [h('span', {}, 'Ro‘yxatdan o‘tish'), goIcon()]);
+      var x = h('button', {
+        class: 'promo-x', type: 'button', 'aria-label': 'Yopish',
+        onclick: function () { close(true); }
+      }, '×');
+      box = h('div', { class: 'promo', role: 'dialog', 'aria-live': 'polite', 'aria-label': 'Maxsus chegirma' }, [
+        x,
+        h('div', { class: 'promo-tag' }, [h('span', { class: 'promo-dot' }), 'Yangi xabar']),
+        h('div', { class: 'promo-t' }, 'Maxsus chegirma!'),
+        h('p', { class: 'promo-p' }, 'Hozir ro‘yxatdan o‘tganlar uchun maxsus chegirma va tekin sinov darsi. Taklif tez orada tugaydi:'),
+        h('div', { class: 'promo-clock', role: 'timer' }, [
+          h('span', { class: 'promo-cell' }, [mm, h('small', {}, 'daqiqa')]),
+          h('span', { class: 'promo-sep' }, ':'),
+          h('span', { class: 'promo-cell' }, [ss, h('small', {}, 'soniya')])
+        ]),
+        go
+      ]);
+
+      function draw() {
+        var end = +sget('promo_end') || 0;
+        var left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+        var m = Math.floor(left / 60), sec = left % 60;
+        mm.textContent = (m < 10 ? '0' : '') + m;
+        ss.textContent = (sec < 10 ? '0' : '') + sec;
+        box.classList.toggle('low', left <= 30);
+        if (left <= 0) {
+          clearInterval(tick); tick = null;
+          box.classList.add('over');
+          hideTmr = setTimeout(function () { close(true); }, 2500);
+        }
+      }
+      function open() {
+        showTmr = null;
+        if (!document.body.contains(wrap) || wrap.className !== 'site') return;
+        var end = +sget('promo_end') || 0;
+        if (!end) { end = Date.now() + DUR; sset('promo_end', String(end)); }
+        if (end <= Date.now()) { sset('promo_done', '1'); return; }
+        wrap.appendChild(box);
+        draw();
+        tick = setInterval(draw, 1000);
+        /* Kirish animatsiyasi keyingi kadrda boshlanadi */
+        setTimeout(function () { box.classList.add('on'); }, 30);
+      }
+      function close(done) {
+        if (done) sset('promo_done', '1');
+        if (tick) { clearInterval(tick); tick = null; }
+        if (hideTmr) { clearTimeout(hideTmr); hideTmr = null; }
+        if (box && box.parentNode) {
+          box.classList.remove('on');
+          var b = box;
+          setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 450);
+        }
+      }
+      /* Sanoq allaqachon boshlangan bo'lsa (sahifa yangilangan) — tezroq chiqadi */
+      showTmr = setTimeout(open, sget('promo_end') ? 1200 : 5000);
+      A._promoOff = function () {
+        if (showTmr) { clearTimeout(showTmr); showTmr = null; }
+        if (tick) { clearInterval(tick); tick = null; }
+        if (hideTmr) { clearTimeout(hideTmr); hideTmr = null; }
+        if (box && box.parentNode) box.parentNode.removeChild(box);
+      };
     }
     function show(id) { var el = document.getElementById(id); if (el) el.hidden = false; }
     function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
@@ -3220,6 +3355,11 @@
       var whereL = String(location.hash || '').replace('#', '').split('?')[0];
       if (whereL === 'kurs') { openCourse(); return; }
       if (whereL === 'kabinet') { renderKabinet(); return; }
+      if (!(u && u.active !== false)) {
+        /* Kirmagan mehmon: ochiq sahifalar to'g'ridan-to'g'ri havola bilan ham ochilsin */
+        if (whereL === 'test' || whereL === 'daraja') { renderTest(); return; }
+        if (whereL === 'ustoz') { renderTeacherFromHash(); return; }
+      }
       /* Namoyish (demo) nusxasi: manzil bo'sh bo'lsa — ochiq sayt, xodimlar kirishi emas */
       if (!whereL && global.MARKAZ_DEMO && !(u && u.active !== false)) { renderLanding(); return; }
       if (u && u.active !== false) startSession(u);
