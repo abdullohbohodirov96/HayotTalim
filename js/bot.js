@@ -551,9 +551,10 @@
         },
         { name: 'welcome', label: 'Salomlashuv matni', type: 'textarea', value: conf.welcome, full: true },
         {
-          name: 'staffChats', label: 'Xabar keladigan Telegram chat raqami',
+          name: 'staffChats', label: 'Administrator Telegram chat raqami',
           value: conf.staffChats || '',
-          help: 'Saytdagi formadan kelgan murojaatlar shu suhbatga yuboriladi. ' +
+          help: 'Yangi arizalar shu suhbatga keladi. Shu chatda botga /start bosilsa — administrator menyusi chiqadi ' +
+            '(savolni kanalga darhol yuborish, savol qo’shish, viktorina holati, arizalar). ' +
             'Raqamni bilish uchun botga /id deb yozing. Bir nechta bo’lsa vergul bilan.'
         },
         {

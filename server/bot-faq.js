@@ -106,10 +106,17 @@ const TOPICS = [
   },
   {
     id: 'aloqa', weight: 1,
-    keys: ['telefon', 'nomer', 'raqam', 'aloqa', 'boglan', 'admin', 'administrator', 'menejer', 'qongiroq', 'zvonit', 'kontakt', 'instagram', 'kanal', 'sayt'],
+    keys: ['telefon', 'nomer', 'raqam', 'aloqa', 'boglan', 'admin', 'administrator', 'menejer', 'qongiroq', 'zvonit', 'kontakt', 'instagram', 'kanal'],
     answer: c => '📞 Telefon: ' + c.phone + '\n🌐 Sayt: ' + c.site +
       (c.instagram ? '\n📷 Instagram: ' + c.instagram : '') +
       (c.channel ? '\n📢 Telegram kanal: ' + c.channel : '')
+  },
+  {
+    id: 'sayt', weight: 2,
+    keys: ['sayt', 'web', 'veb', 'website', 'ssilka', 'silka', 'internet manzil'],
+    answer: c => '🌐 Saytimiz: ' + c.site + '\n\n' +
+      'Saytda:\n• tekin darsga yozilish\n• bepul daraja testi — ' + c.site + '/#test\n' +
+      '• ustozlar bilan tanishish\n• o‘quvchi kabineti — ' + c.site + '/#kabinet'
   },
   {
     id: 'chegirma', weight: 1.5,

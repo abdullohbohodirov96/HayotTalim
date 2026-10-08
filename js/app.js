@@ -3247,6 +3247,7 @@
     document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'Hayot Ta’lim';
     var mp = document.getElementById('mode-pill');
     if (D.mode === 'local') { mp.hidden = false; mp.textContent = 'Faqat shu brauzerda'; }
+    startLeadWatch();
     // sahifa yangilanganda oxirgi ochilgan bo'limga qaytamiz
     var saved = hashToRoute();
     if (saved && App.can((NAV.filter(function (n) { return n.id === saved.name; })[0] || { perm: 'nav.dashboard' }).perm)) {
@@ -3258,9 +3259,77 @@
     }
   }
 
+  /* ---------- Yangi arizalar — sahifani yangilamasdan darhol ----------
+     Saytdagi forma yoki botdan ariza tushsa, ERP ochiq turgan xodim uni
+     20 soniya ichida ko'radi: xabar chiqadi, murojaatlar sahifasi va bosh
+     sahifa o'zi yangilanadi. Forma to'ldirilayotgan bo'lsa yoki oyna
+     ochiq bo'lsa — sahifa qayta chizilmaydi (yozilgan narsa yo'qolmaydi). */
+  var leadWatch = { timer: null, sig: '', unseen: 0, baseTitle: '' };
+  function leadSig(items) {
+    return Object.keys(items).sort().map(function (id) {
+      var l = items[id] || {}; return id + ':' + (l.updatedAt || '') + ':' + (l.stage || '') + ':' + (l.note || '').length;
+    }).join('|');
+  }
+  function setLeadTitle() {
+    if (!leadWatch.baseTitle) leadWatch.baseTitle = document.title.replace(/^\(\d+\)\s*/, '');
+    document.title = (leadWatch.unseen ? '(' + leadWatch.unseen + ') ' : '') + leadWatch.baseTitle;
+  }
+  function busyEditing() {
+    if (document.querySelector('.modal-back')) return true;
+    if (UI.hasUnsaved && UI.hasUnsaved()) return true;
+    var a = document.activeElement;
+    return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest && a.closest('#view'));
+  }
+  async function checkLeads() {
+    if (!App.user || D.mode !== 'server' || document.hidden || !App.can('nav.leads')) return;
+    var r;
+    try { r = await D.api('GET', 'api/collection?name=leads'); } catch (e) { return; }
+    if (!App.user) return;
+    var items = (r && r.items) || {};
+    var sig = leadSig(items);
+    if (sig === leadWatch.sig) return;
+    var old = D.col.leads || {};
+    var fresh = Object.keys(items).filter(function (id) { return !old[id]; }).map(function (id) { return items[id]; });
+    D.col.leads = items;
+    leadWatch.sig = sig;
+    if (fresh.length) {
+      if (!(App.route && App.route.name === 'leads')) leadWatch.unseen += fresh.length;
+      setLeadTitle();
+      var first = fresh[0] || {};
+      var t = h('div', { class: 'toast ok', style: 'cursor:pointer', role: 'status',
+        onclick: function () { t.remove(); App.go('leads'); } },
+        '🔔 Yangi ariza: ' + (first.name || 'Ism yo’q') + (first.phone ? ' · ' + first.phone : '') +
+        (fresh.length > 1 ? ' (+' + (fresh.length - 1) + ' ta)' : '') + ' — ko’rish');
+      var box = document.getElementById('toasts');
+      if (box) {
+        box.appendChild(t);
+        setTimeout(function () { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 320); }, 9000);
+      }
+    }
+    var rn = App.route && App.route.name;
+    if ((rn === 'leads' || rn === 'dashboard') && !busyEditing()) {
+      var y = window.scrollY;
+      App.render();
+      window.scrollTo(0, y);
+    }
+  }
+  function startLeadWatch() {
+    clearInterval(leadWatch.timer);
+    leadWatch.sig = leadSig(D.col.leads || {});
+    leadWatch.unseen = 0;
+    if (D.mode !== 'server') return;
+    leadWatch.timer = setInterval(checkLeads, 20000);
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkLeads(); });
+  window.addEventListener('hashchange', function () {
+    if (App.route && App.route.name === 'leads' && leadWatch.unseen) { leadWatch.unseen = 0; setLeadTitle(); }
+  });
+  A.checkLeads = checkLeads;
+
   function logout() {
     try { sessionStorage.removeItem('albyana_session'); } catch (e) { }
     if (D.mode === 'server') { D.serverLogout(); }
+    clearInterval(leadWatch.timer); leadWatch.unseen = 0; setLeadTitle();
     App.user = null;
     document.getElementById('app').hidden = true;
     renderLogin(null);

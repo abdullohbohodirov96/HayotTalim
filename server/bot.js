@@ -376,15 +376,23 @@ async function flushQueue(now) {
  * Chat ID lar sozlamada: bot.staffChats — vergul bilan yoki ro'yxat ko'rinishida.
  * Bot o'chiq bo'lsa yoki ID berilmagan bo'lsa — hech narsa qilinmaydi.
  */
+/** Sozlamadagi administrator chatlari (bot.staffChats) */
+async function staffChatIds() {
+  const s = (await store.get('meta/settings')) || {};
+  const raw = (s.bot && (s.bot.staffChats || s.bot.adminChatId)) || '';
+  return (Array.isArray(raw) ? raw : String(raw).split(/[,\s]+/))
+    .map(x => String(x).trim()).filter(x => /^-?\d{3,20}$/.test(x));
+}
+async function isStaffChat(chatId) {
+  return (await staffChatIds()).indexOf(String(chatId)) >= 0;
+}
+
 async function notifyStaff(text) {
   if (!store) return { queued: 0, off: true };
   /* Xabar Telegramga HTML rejimida ketadi. Ichida foydalanuvchi yozgan
      matn (ism, savol, izoh) bo'ladi — u HTML sifatida o'qilmasin. */
   text = esc(String(text == null ? '' : text));
-  const s = (await store.get('meta/settings')) || {};
-  const raw = (s.bot && (s.bot.staffChats || s.bot.adminChatId)) || '';
-  const ids = (Array.isArray(raw) ? raw : String(raw).split(/[,\s]+/))
-    .map(x => String(x).trim()).filter(Boolean);
+  const ids = await staffChatIds();
   let queued = 0;
   for (const chatId of ids) {
     const r = await enqueue({
@@ -728,7 +736,8 @@ const FAQ_BTN = '❓ Savollar';
 const ADMIN_BTN = '📞 Administrator';
 const STUDENT_BTN = '🎓 Men o’quvchiman';
 const CANCEL_BTN = 'Bekor qilish';
-const GUEST_MENU = [[{ text: REG_BTN }], [{ text: FAQ_BTN }, { text: ADMIN_BTN }], [{ text: STUDENT_BTN }]];
+const SITE_BTN = '🌐 Sayt';
+const GUEST_MENU = [[{ text: REG_BTN }], [{ text: FAQ_BTN }, { text: ADMIN_BTN }], [{ text: SITE_BTN }, { text: STUDENT_BTN }]];
 
 /* Mehmon (hali o'quvchi emas) savoli: avval bilim bazasidan javob, topilmasa
    administratorga yetkazish uchun raqam so'raladi va murojaat ochiladi.     */
@@ -919,6 +928,211 @@ async function handleRegistration(chatId, text, contact, from, st) {
 }
 
 /* ---------------- Xabarlarni qayta ishlash ---------------- */
+/* ---------------- Administrator menyusi (botda) ----------------
+   Sozlamadagi xodimlar chatiga /start bosilganda shu menyu chiqadi:
+   viktorina savolini darhol kanalga yuborish, yangi savol qo'shish,
+   viktorina holati va oxirgi arizalar.                               */
+const ADM_SEND = '📤 Savolni hozir yuborish';
+const ADM_ADD = '➕ Savol qo‘shish';
+const ADM_STATUS = '📊 Viktorina holati';
+const ADM_LEADS = '📝 Yangi arizalar';
+const ADM_TOGGLE = '⏯ Viktorinani yoqish/o‘chirish';
+const ADM_CANCEL = '✖️ Bekor qilish';
+const ADM_NOW = '📤 Hozir kanalga';
+const ADM_QUEUE = '⏭ Navbatga (keyingi)';
+const ADM_SKIP = 'O‘tkazib yuborish';
+const ADMIN_MENU = [[{ text: ADM_SEND }, { text: ADM_ADD }], [{ text: ADM_STATUS }, { text: ADM_LEADS }], [{ text: ADM_TOGGLE }]];
+const ADM_CANCEL_KB = [[{ text: ADM_CANCEL }]];
+
+function siteBase() {
+  return String(process.env.PUBLIC_URL || process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || 'https://hayottalim.uz').replace(/\/$/, '');
+}
+function quizPreview(q) {
+  return '<b>' + esc(q.question) + '</b>\n' +
+    q.options.map((o, i) => (i === q.correct ? '✅ ' : '▫️ ') + esc(o)).join('\n') +
+    (q.explain ? '\n💡 ' + esc(q.explain) : '');
+}
+/* Bitta xabarda tayyor savol:
+     Savol matni?
+     - noto'g'ri variant
+     + to'g'ri variant
+     - noto'g'ri variant                                        */
+function parseQuickQuiz(text) {
+  const lines = String(text || '').split('\n').map(x => x.trim()).filter(Boolean);
+  if (lines.length < 3) return null;
+  const opts = [], marks = [];
+  for (const l of lines.slice(1)) {
+    const m = l.match(/^([+\-*•✅])\s*(.+)$/);
+    if (!m) return null;
+    opts.push(m[2].trim()); marks.push(m[1] === '+' || m[1] === '✅');
+  }
+  if (marks.filter(Boolean).length !== 1) return null;
+  return { question: lines[0], options: opts, correct: marks.indexOf(true) };
+}
+async function quizStatusText() {
+  const conf = await quizConf();
+  const all = await quizList();
+  const fresh = all.filter(q => !q.sentAt);
+  const nx = await nextQuiz();
+  const now = tashkentNow();
+  let nextSlot = '';
+  if (conf.on) {
+    if (conf.start && now.date < conf.start) nextSlot = conf.start + ', ' + conf.slots[0];
+    else {
+      const later = conf.slots.filter(sl => Number(sl.slice(0, 2)) * 60 + Number(sl.slice(3, 5)) > now.mins);
+      nextSlot = later.length ? 'bugun ' + later[0] : 'ertaga ' + conf.slots[0];
+    }
+  }
+  const logs = (await store.list('tgquizlog/')).map(r => r.data).filter(Boolean)
+    .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 3);
+  return '📊 <b>Kanal viktorinasi</b>\n' +
+    'Holat: ' + (conf.on ? '✅ yoqilgan' : '⏸ o‘chirilgan') + '\n' +
+    'Kanal: ' + esc(conf.channel) + '\n' +
+    'Vaqtlar (Toshkent): ' + conf.slots.join(', ') + '\n' +
+    'Boshlanish: ' + esc(conf.start) + '\n' +
+    (nextSlot ? 'Keyingi yuborish: ' + nextSlot + '\n' : '') +
+    'Savollar: ' + all.length + ' ta, hali yuborilmagan: <b>' + fresh.length + '</b> ta' +
+    (fresh.length ? ' (≈' + Math.floor(fresh.length / Math.max(1, conf.slots.length)) + ' kunga yetadi)' : '') + '\n' +
+    (nx ? '\nNavbatdagi savol:\n' + quizPreview(nx) + '\n' : '') +
+    (logs.length ? '\nOxirgilari:\n' + logs.map(l => '• ' + l.date + ' ' + l.slot + ' — ' + esc(l.status)).join('\n') : '');
+}
+async function leadsText() {
+  const leads = (await listCol('leads')).filter(Boolean)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 10);
+  if (!leads.length) return '📝 Hozircha ariza yo‘q.';
+  const today = A.today();
+  const nToday = (await listCol('leads')).filter(l => String(l.createdAt || '').slice(0, 10) === today).length;
+  return '📝 <b>Oxirgi arizalar</b> (bugun: ' + nToday + ' ta)\n\n' +
+    leads.map((l, i) => (i + 1) + '. <b>' + esc(l.name || '—') + '</b> — ' + esc(l.phone || 'raqamsiz') + '\n' +
+      '   ' + esc(String(l.createdAt || '').slice(0, 16)) + ' · ' + esc(l.source || l.src || 'sayt') +
+      (l.note ? '\n   ' + esc(String(l.note).split('\n').pop().slice(0, 80)) : '')).join('\n') +
+    '\n\nHammasi ERP da: ' + siteBase() + '/#leads';
+}
+async function adminAddQuiz(q, front) {
+  const all = await quizList();
+  const id = 'b' + Date.now().toString(36);
+  let order;
+  if (front) {
+    const fresh = all.filter(x => !x.sentAt);
+    order = (fresh.length ? Math.min.apply(null, fresh.map(x => x.order || 0)) : 1000) - 1;
+  } else {
+    order = all.reduce((m, x) => Math.max(m, x.order || 0), 1000) + 1;
+  }
+  const c = cleanQuiz(Object.assign({ id, kind: 'admin' }, q), order);
+  if (!c) throw new Error('Savol noto‘g‘ri: savol 300, variant 100 belgidan oshmasin, 2–10 ta variant bo‘lsin.');
+  c.createdAt = stamp(); c.byChat = 'bot';
+  await store.set('tgquiz/' + c.id, c);
+  return c;
+}
+async function adminMessage(chatId, text, st) {
+  const ad = st.adm || {};
+  const reset = async () => { delete st.adm; await setState(chatId, st); };
+
+  if (text === '/start' || text === '/admin' || text === '/menu') {
+    await reset();
+    await sendMessage(chatId, '👋 Assalomu alaykum! Bu <b>administrator menyusi</b>.\n\n' +
+      ADM_SEND + ' — navbatdagi savol darhol kanalga ketadi\n' +
+      ADM_ADD + ' — o‘zingiz savol yozasiz\n' +
+      ADM_STATUS + ' — nechta savol qolgani, keyingi vaqt\n' +
+      ADM_LEADS + ' — oxirgi arizalar\n\n' +
+      'Tez yo‘l: savolni bitta xabarda yozing —\n<code>Savol matni?\n- variant\n+ to‘g‘ri variant\n- variant</code>', ADMIN_MENU);
+    return true;
+  }
+  if (text === ADM_CANCEL) { await reset(); await sendMessage(chatId, 'Bekor qilindi.', ADMIN_MENU); return true; }
+
+  /* --- savol qo'shish bosqichlari --- */
+  if (ad.step === 'q') {
+    const quick = parseQuickQuiz(text);
+    if (quick) { st.adm = { step: 'confirm', q: quick }; await setState(chatId, st); await sendMessage(chatId, 'Tekshiring:\n\n' + quizPreview(Object.assign({ explain: '' }, quick)), [[{ text: ADM_NOW }, { text: ADM_QUEUE }], [{ text: ADM_CANCEL }]]); return true; }
+    const qt = String(text || '').trim();
+    if (qt.length < 3 || qt.length > 300) { await sendMessage(chatId, 'Savol 3–300 belgi bo‘lsin. Qayta yozing:', ADM_CANCEL_KB); return true; }
+    st.adm = { step: 'opts', q: { question: qt } }; await setState(chatId, st);
+    await sendMessage(chatId, 'Endi <b>javob variantlarini</b> yozing — har birini yangi qatordan (2–10 ta, har biri 100 belgigacha):', ADM_CANCEL_KB);
+    return true;
+  }
+  if (ad.step === 'opts') {
+    const opts = String(text || '').split('\n').map(x => x.replace(/^[\-*•+\d.)\s]+/, '').trim()).filter(Boolean);
+    if (opts.length < 2 || opts.length > 10 || opts.some(o => o.length > 100)) {
+      await sendMessage(chatId, '2 tadan 10 tagacha variant kerak, har biri yangi qatordan. Qayta yozing:', ADM_CANCEL_KB); return true;
+    }
+    ad.q.options = opts; ad.step = 'correct'; st.adm = ad; await setState(chatId, st);
+    await sendMessage(chatId, 'Qaysi biri <b>to‘g‘ri javob</b>?\n' + opts.map((o, i) => (i + 1) + ') ' + esc(o)).join('\n'),
+      [opts.map((o, i) => ({ text: String(i + 1) })), [{ text: ADM_CANCEL }]]);
+    return true;
+  }
+  if (ad.step === 'correct') {
+    const n = Number(String(text).trim());
+    if (!(n >= 1 && n <= ad.q.options.length)) { await sendMessage(chatId, '1 dan ' + ad.q.options.length + ' gacha raqam yuboring.'); return true; }
+    ad.q.correct = n - 1; ad.step = 'explain'; st.adm = ad; await setState(chatId, st);
+    await sendMessage(chatId, 'Izoh (javobdan keyin ko‘rinadi, 200 belgigacha) — yozing yoki o‘tkazib yuboring:', [[{ text: ADM_SKIP }], [{ text: ADM_CANCEL }]]);
+    return true;
+  }
+  if (ad.step === 'explain') {
+    ad.q.explain = text === ADM_SKIP ? '' : String(text || '').trim().slice(0, 200);
+    ad.step = 'confirm'; st.adm = ad; await setState(chatId, st);
+    await sendMessage(chatId, 'Tekshiring:\n\n' + quizPreview(ad.q), [[{ text: ADM_NOW }, { text: ADM_QUEUE }], [{ text: ADM_CANCEL }]]);
+    return true;
+  }
+  if (ad.step === 'confirm' && (text === ADM_NOW || text === ADM_QUEUE)) {
+    try {
+      const q = await adminAddQuiz(ad.q, true);
+      if (text === ADM_NOW) {
+        await sendQuiz(q, (await quizConf()).channel);
+        await sendMessage(chatId, '✅ Savol kanalga yuborildi.', ADMIN_MENU);
+      } else {
+        await sendMessage(chatId, '✅ Savol navbatga qo‘shildi — keyingi vaqtda birinchi bo‘lib ketadi.', ADMIN_MENU);
+      }
+    } catch (e) {
+      await sendMessage(chatId, '⚠️ ' + esc(e.message || e), ADMIN_MENU);
+    }
+    await reset();
+    return true;
+  }
+  if (ad.step === 'confirm') { await sendMessage(chatId, 'Tugmalardan birini tanlang.', [[{ text: ADM_NOW }, { text: ADM_QUEUE }], [{ text: ADM_CANCEL }]]); return true; }
+
+  /* --- menyu tugmalari --- */
+  if (text === ADM_ADD || text === '/savol') {
+    st.adm = { step: 'q' }; await setState(chatId, st);
+    await sendMessage(chatId, '<b>Savol matnini</b> yozing (300 belgigacha).\n\nYoki hammasini bitta xabarda:\n' +
+      '<code>Savol matni?\n- variant\n+ to‘g‘ri variant\n- variant</code>', ADM_CANCEL_KB);
+    return true;
+  }
+  if (text === ADM_SEND || text === '/yubor') {
+    try {
+      const conf = await quizConf();
+      const q = await nextQuiz();
+      if (!q) { await sendMessage(chatId, 'Savollar yo‘q. «' + ADM_ADD + '» bilan qo‘shing.', ADMIN_MENU); return true; }
+      await sendQuiz(q, conf.channel);
+      await sendMessage(chatId, '✅ Kanalga yuborildi (' + esc(conf.channel) + '):\n\n' + quizPreview(q), ADMIN_MENU);
+    } catch (e) {
+      await sendMessage(chatId, '⚠️ Yuborilmadi: ' + esc(e.message || e) + '\n\nBot kanalda administrator ekanini tekshiring.', ADMIN_MENU);
+    }
+    return true;
+  }
+  if (text === ADM_STATUS || text === '/holat') { await sendMessage(chatId, await quizStatusText(), ADMIN_MENU); return true; }
+  if (text === ADM_LEADS || text === '/arizalar') { await sendMessage(chatId, await leadsText(), ADMIN_MENU); return true; }
+  if (text === ADM_TOGGLE) {
+    const s = (await store.get('meta/settings')) || {};
+    s.bot = Object.assign({}, s.bot || {});
+    s.bot.quizOn = s.bot.quizOn === false;
+    await store.set('meta/settings', s);
+    await sendMessage(chatId, s.bot.quizOn ? '✅ Viktorina yoqildi — savollar vaqtida ketadi.' : '⏸ Viktorina to‘xtatildi. Qayta yoqish uchun shu tugmani bosing.', ADMIN_MENU);
+    return true;
+  }
+  /* Tez yo'l: menyusiz, bitta xabarda tayyor savol */
+  const quick = parseQuickQuiz(text);
+  if (quick) {
+    st.adm = { step: 'confirm', q: quick }; await setState(chatId, st);
+    await sendMessage(chatId, 'Tekshiring:\n\n' + quizPreview(Object.assign({ explain: '' }, quick)), [[{ text: ADM_NOW }, { text: ADM_QUEUE }], [{ text: ADM_CANCEL }]]);
+    return true;
+  }
+  if (text && text.charAt(0) !== '/') {
+    await sendMessage(chatId, 'Administrator menyusidan tanlang 👇', ADMIN_MENU);
+    return true;
+  }
+  return false;
+}
+
 async function onMessage(msg) {
   const chatId = msg.chat.id;
   const text = String(msg.text || '').trim();
@@ -940,6 +1154,13 @@ async function onMessage(msg) {
     return sendMessage(chatId, 'Shu suhbat raqami (chat ID):\n<code>' + chatId + '</code>\n\n' +
       'Sozlamalar → Telegram bot bo’limiga shu raqamni yozsangiz, saytdagi ' +
       'formadan kelgan murojaatlar shu yerga tushadi.');
+  }
+
+  /* Administrator chati (Sozlamalar → Telegram bot → xodimlar chat ID) —
+     alohida boshqaruv menyusi. Chat ID ni Telegram o'zi beradi, uni
+     soxtalashtirib bo'lmaydi. */
+  if (await isStaffChat(chatId)) {
+    if (await adminMessage(chatId, text, st)) return;
   }
 
   // /start <token> — administrator yuborgan bir martalik havola
@@ -985,6 +1206,10 @@ async function onMessage(msg) {
 
   if (!student) {
     if (text === FAQ_BTN) return sendMessage(chatId, faq.faqListText(), GUEST_MENU);
+    if (text === SITE_BTN) {
+      const a = faq.TOPICS.filter(t => t.id === 'sayt')[0];
+      return sendMessage(chatId, a.answer(faq.context(await settings())), GUEST_MENU);
+    }
     if (text === ADMIN_BTN) {
       const c = faq.context(await settings());
       return sendMessage(chatId, '📞 Administrator: ' + c.phone + '\n🌐 ' + c.site +
@@ -1003,6 +1228,13 @@ async function onMessage(msg) {
       if (contact && contact.phone_number && (!contact.user_id || !msg.from || String(contact.user_id) === String(msg.from.id))) {
         phone = A.normPhone(String(contact.phone_number));
       } else if (A.phoneDigits(text).length >= 9) phone = A.normPhone(text);
+      /* Raqam o'rniga boshqa savol yozsa (masalan «sayt bormi?») va unga
+         javob bo'lsa — raqam so'rashni to'xtatib, javob beramiz. */
+      if (!phone && text && faq.answer(text, faq.context(await settings()))) {
+        st.step = 'code'; delete st.q;
+        await setState(chatId, st);
+        return guestQuestion(chatId, text, msg.from || {}, st);
+      }
       if (!phone) {
         return sendMessage(chatId, 'Raqamni +998 90 123 45 67 ko’rinishida yozing yoki tugmani bosing.',
           [[{ text: REG_PHONE_BTN, request_contact: true }], [{ text: CANCEL_BTN }]]);

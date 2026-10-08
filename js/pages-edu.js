@@ -703,11 +703,9 @@
 
     var firstMonthBox = h('div', { class: 'field full' });
     var fmMode, fmAmount, fmNote, fmDue;
-    /** Standart to'lov muddati: sozlamadagi kun, lekin kirgan sanadan oldin bo'lmasin */
+    /** Birinchi to'lov — qo'shilgan kunning o'zida; keyin har oy shu kunda */
     function defaultDue(joined, ym) {
-      var due = A.dueDateFor(ym, (D.settings && D.settings.dueDay) || 5);
-      if (joined && joined > due) due = A.addDays(joined, 7);
-      return due;
+      return joined || A.dueDateFor(ym, (D.settings && D.settings.dueDay) || 5);
     }
 
     function refreshFirstMonth() {
@@ -727,9 +725,9 @@
 
       var fs = h('fieldset', {}, [
         h('legend', {}, 'Birinchi hisob (' + A.monthLabel(ym) + ')'),
-        h('p', { class: 'small muted', style: 'margin:0 0 8px' }, midMonth
-          ? 'O’quvchi oy o’rtasida qo’shilyapti (' + A.dateLabel(joined) + '). Summani va to’lov muddatini tekshiring.'
-          : 'Shu oy uchun hisob yaratiladi. Kerak bo’lsa to’lov muddatini o’zgartiring.')
+        h('p', { class: 'small muted', style: 'margin:0 0 8px' },
+          'To’lov kuni — qo’shilgan sana: har oy ' + Math.min(28, day) + '-sanada to’laydi ' +
+          '(' + A.dateLabel(joined) + ' dan boshlab bir oy uchun to’liq narx).')
       ]);
 
       var fields = [];

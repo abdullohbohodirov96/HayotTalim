@@ -1261,7 +1261,8 @@
       ['Telefon', s.phone ? UI.phoneLink(s.phone) : '—'],
       ['Ota-ona / vasiy', s.parentName || '—'],
       ['Ota-ona telefoni', s.parentPhone ? UI.phoneLink(s.parentPhone) : '—'],
-      ['Tug’ilgan sana', s.birthDate ? A.dateLabel(s.birthDate) : '—'],
+      ['Qo’shilgan sana', (s.joinDate || s.createdAt) ? A.dateLabel(String(s.joinDate || s.createdAt).slice(0, 10)) +
+        ' · har oy ' + Math.min(28, Number(String(s.joinDate || s.createdAt).slice(8, 10)) || 1) + '-sanada to’laydi' : '—'],
       ['Qo’shilgan', s.createdAt || '—'],
       ['Izoh', s.note || '—']].forEach(function (r) {
         dl.appendChild(h('dt', {}, r[0]));
@@ -1487,7 +1488,13 @@
         name: 'parentPhone', label: 'Ota-ona telefoni (ixtiyoriy)', value: draft.parentPhone, placeholder: '+998 90 123 45 67',
         validate: function (v) { return v && A.phoneDigits(v).length < 7 ? 'Raqam to’liq emas.' : null; }
       },
-      { name: 'birthDate', label: 'Tug’ilgan sana (ixtiyoriy)', type: 'date', value: draft.birthDate },
+      {
+        /* Qo'shilgan sana — to'lov kuni shundan olinadi: 20-sida qo'shilsa,
+           har oy 20-sida to'laydi. Guruhga yozishda shu sana ishlatiladi. */
+        name: 'joinDate', label: 'Qo’shilgan sana', type: 'date', required: true,
+        value: draft.joinDate || (draft.createdAt ? String(draft.createdAt).slice(0, 10) : A.today()),
+        help: 'Har oy shu kunda to’laydi (masalan 20-sida qo’shilsa — har oy 20-sida).'
+      },
       {
         name: 'region', label: 'Hudud (viloyat)', type: 'select', value: draft.region,
         options: [{ value: '', label: '— tanlanmagan —' }].concat(A.REGIONS.map(function (r) { return { value: r, label: r }; }))
@@ -1589,7 +1596,7 @@
                 try { A.kabCreds(D.one('students', rec.id) || rec, { isNew: true }); } catch (e) { }
               }
               if (gid) {
-                A.membershipForm(rec, { groupId: gid }, App);
+                A.membershipForm(rec, { groupId: gid, joinedAt: rec.joinDate }, App);
               } else {
                 App.go('student', { id: rec.id });
               }

@@ -170,7 +170,13 @@ async function summary(store, student) {
     .sort((a, b) => String(a.month).localeCompare(String(b.month)));
 
   const pad = n => (n < 10 ? '0' + n : '' + n);
-  function dueOf(ym) {
+  /* To'lov kuni — o'quvchining O'Z kuni (guruhga qo'shilgan sanasi,
+     masalan 20-sida qo'shilgan bo'lsa har oy 20-si). Hisobda muddat
+     yozilgan bo'lsa — o'sha. */
+  function dueOf(ym, inv) {
+    if (inv && /^\d{4}-\d{2}-\d{2}$/.test(String(inv.dueDate || ''))) return inv.dueDate;
+    const mem = (inv && mine.filter(m => m.id === inv.membershipId)[0]) || active[0];
+    if (mem && A.dueDateOf) return A.dueDateOf(mem, ym, settings);
     const p = String(ym).split('-');
     const last = new Date(Number(p[0]), Number(p[1]), 0).getDate();
     return ym + '-' + pad(Math.min(dueDay, last));
@@ -182,9 +188,9 @@ async function summary(store, student) {
       month: inv.month,
       monthLabel: A.monthLabel(inv.month),
       amount: A.invoiceRemaining(inv, paidMap),
-      dueDate: dueOf(inv.month),
+      dueDate: dueOf(inv.month, inv),
       group: (groupById[inv.groupId] || {}).name || '',
-      overdue: dueOf(inv.month) < today
+      overdue: dueOf(inv.month, inv) < today
     };
   } else {
     // qarz yo'q — keyingi hisob qachon chiqadi
