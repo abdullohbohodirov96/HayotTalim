@@ -1633,6 +1633,33 @@ function startReminders() {
   timers.push(t2);
 }
 
+/* Bot profili Telegramda: ko'rinadigan ism, /start dan oldingi tavsif va
+   qisqa tavsif markaz nomidan olinadi. Faqat FARQ bo'lsa yuboriladi
+   (Telegram bu so'rovlarni cheklaydi). Rasmni @BotFather orqali qo'yiladi. */
+function botProfileTexts(name) {
+  return {
+    name: String(name).slice(0, 64),
+    description: (name + ' — arab va xorijiy tillar markazi 🗣️\n\n' +
+      'Bu bot orqali:\n🎁 Tekin darsga yozilasiz\n❓ Savollaringizga darhol javob olasiz\n' +
+      '🎓 O‘quvchilar: to‘lov, davomat, dars jadvali va kabinet\n\nBoshlash uchun «Start» ni bosing 👇').slice(0, 512),
+    short: (name + ' — arab tilini gapirib o‘rganamiz. Tekin dars va savollar uchun bot.').slice(0, 120)
+  };
+}
+async function syncBotProfile() {
+  const s = (await store.get('meta/settings')) || {};
+  const t = botProfileTexts(String(s.centerName || process.env.APP_NAME || 'Sabo Academy'));
+  const curName = await tg('getMyName', {}).catch(() => null);
+  if (curName && curName.name !== t.name) await tg('setMyName', { name: t.name });
+  const curDesc = await tg('getMyDescription', {}).catch(() => null);
+  if (curDesc && curDesc.description !== t.description) await tg('setMyDescription', { description: t.description });
+  const curShort = await tg('getMyShortDescription', {}).catch(() => null);
+  if (curShort && curShort.short_description !== t.short) await tg('setMyShortDescription', { short_description: t.short });
+  await tg('setMyCommands', { commands: [
+    { command: 'start', description: 'Boshlash / asosiy menyu' },
+    { command: 'id', description: 'Chat raqamini bilish' }
+  ] }).catch(() => { });
+}
+
 function start(ctx) {
   store = ctx.store; stamp = ctx.stamp; A = ctx.A;
   if (ctx.recordPayment) recordPayment = ctx.recordPayment;
@@ -1653,6 +1680,7 @@ function start(ctx) {
         await store.set('meta/settings', s);
       }
     } catch (e) { console.error('bot nomi:', e.message); }
+    syncBotProfile().catch(e => console.error('bot profili:', e.message));
     poll();
     queueLoop();
   }).catch(e => {
@@ -1682,7 +1710,7 @@ function _test(ctx) {
     startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, codesInTitle,
     wake, remindStudy, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
-    ensureQuizBank, quizTick, nextQuiz, quizList, addQuizzes, tashkentNow, quizConf,
+    ensureQuizBank, quizTick, nextQuiz, quizList, addQuizzes, tashkentNow, quizConf, botProfileTexts,
     /** Sinovda navbatchini qo'lda ishga tushirish/to'xtatish */
     startQueue: function (opts) { running = true; queueLoop(opts); },
     stopQueue: function () { running = false; wake(); }
