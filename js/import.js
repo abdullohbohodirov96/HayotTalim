@@ -11,6 +11,8 @@
     phone: ['telefon', 'tel', 'telefon raqami', 'raqam', 'nomer', 'telefoni', 'телефон', 'тел', 'номер', 'phone', 'mobile', 'tel.', 'الهاتف', 'رقم الهاتف'],
     parentPhone: ['ota ona telefoni', 'ota onasi telefoni', 'otaona telefon', 'vasiy telefoni', 'ota ona tel', 'родитель телефон', 'телефон родителя', 'parent phone', 'هاتف ولي الأمر'],
     parentName: ['ota ona', 'ota onasi', 'vasiy', 'ota ona ismi', 'родитель', 'фио родителя', 'parent', 'guardian', 'ولي الأمر'],
+    joinDate: ['qoshilgan sana', 'qoshilgan', 'qoshilgan kuni', 'kelgan sana', 'kelgan kuni', 'kirgan sana', 'boshlagan sana', 'boshlagan', 'oqishni boshlagan', 'royxatga olingan', 'qabul qilingan', 'дата поступления', 'дата начала', 'дата зачисления', 'дата записи', 'start date', 'join date', 'joined', 'enrolled', 'تاريخ الانضمام'],
+    dueDay: ['tolov kuni', 'tolov sanasi', 'tolov muddati', 'oylik tolov kuni', 'har oy tolov', 'день оплаты', 'дата оплаты', 'срок оплаты', 'payment day', 'due day', 'pay day', 'يوم الدفع'],
     birthDate: ['tugilgan sana', 'tugilgan', 'tugilgan kuni', 'дата рождения', 'др', 'birth', 'birthday', 'date of birth', 'تاريخ الميلاد'],
     group: ['guruh', 'guruhi', 'guruhlar', 'guruh kodi', 'guruh nomi', 'группа', 'группы', 'group', 'groups', 'group code', 'المجموعة'],
     course: ['kurs', 'kursi', 'yonalish', 'курс', 'направление', 'course', 'الدورة'],
@@ -86,7 +88,7 @@
           } else {
             var wb = global.XLSX.read(new Uint8Array(fr.result), { type: 'array', cellDates: true });
             var sheet = wb.Sheets[wb.SheetNames[0]];
-            var rows = global.XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false, defval: '' });
+            var rows = global.XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false, defval: '', dateNF: 'yyyy-mm-dd' });
             resolve(rows);
           }
         } catch (e) { reject(new Error('Fayl formatini o’qib bo’lmadi: ' + e.message)); }
@@ -130,7 +132,7 @@
       else if (textCols.length === 1) map.fullName = textCols[0];
       if (phoneCols[0] != null) map.phone = phoneCols[0];
       if (phoneCols[1] != null) map.parentPhone = phoneCols[1];
-      if (dateCols[0] != null) map.birthDate = dateCols[0];
+      if (dateCols[0] != null) map.joinDate = dateCols[0];
       if (textCols.length >= 3) map.group = textCols[2];
       return { rows: rows, header: null, headerRow: -1, map: map, colCount: colCount };
     }
@@ -143,6 +145,10 @@
   function cellDate(v) {
     var s = String(v == null ? '' : v).trim();
     if (!s) return '';
+    /* Excel sana raqami (masalan 45940) */
+    if (/^\d{5}(\.\d+)?$/.test(s) && +s > 20000 && +s < 80000) {
+      return A.toISODate(new Date(Date.UTC(1899, 11, 30) + Math.floor(+s) * 864e5 + 12 * 3600e3));
+    }
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
     var m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})$/);
     if (m) {
@@ -163,6 +169,8 @@
       { id: 'phone', label: 'O’quvchi telefoni' },
       { id: 'parentName', label: 'Ota-ona ismi' },
       { id: 'parentPhone', label: 'Ota-ona telefoni' },
+      { id: 'joinDate', label: 'Qo’shilgan sana (to’lov kuni shundan)' },
+      { id: 'dueDay', label: 'To’lov kuni (oyning sanasi, ixtiyoriy)' },
       { id: 'birthDate', label: 'Tug’ilgan sana' },
       { id: 'code', label: 'Shaxsiy kod (5 raqam)' },
       { id: 'group', label: 'Guruh (kod yoki nom)' },
@@ -277,8 +285,27 @@
           rec.parentName = g('parentName');
           rec.parentPhone = A.normPhone(g('parentPhone')) || rec.phone;
           rec.birthDate = cellDate(g('birthDate'));
+          /* Qo'shilgan sana va to'lov kuni: "20", "20-sana", "har oy 20" yoki
+             to'liq sana (undan oyning kuni olinadi). 28 dan katta — 28. */
+          rec.joinDate = cellDate(g('joinDate'));
+          var dd = g('dueDay'), ddN = 0;
+          if (dd) {
+            var asDate = cellDate(dd);
+            ddN = asDate && /\d{4}-\d{2}-\d{2}/.test(asDate) && !/^\s*\d{1,2}\s*(-?\s*(sana|chi|kun|число))?\s*$/i.test(dd)
+              ? Number(asDate.slice(8, 10)) : Number((String(dd).match(/\d{1,2}/) || [0])[0]);
+          }
+          rec.dueDay = ddN >= 1 && ddN <= 31 ? Math.min(28, ddN) : 0;
+          if (!rec.joinDate && rec.dueDay) {
+            /* Faqat to'lov kuni berilgan — qo'shilgan sana: shu oyning o'sha kuni
+               (kelajakda bo'lsa — o'tgan oyning). */
+            var tdy = A.today(), cand = tdy.slice(0, 8) + A.pad(rec.dueDay);
+            if (cand > tdy) { var dt = new Date(tdy + 'T12:00:00'); dt.setMonth(dt.getMonth() - 1); cand = A.toISODate(dt).slice(0, 8) + A.pad(rec.dueDay); }
+            rec.joinDate = cand;
+          }
+          var pd = rec.dueDay || (rec.joinDate ? Math.min(28, Number(rec.joinDate.slice(8, 10)) || 0) : 0);
+          rec.payDay = pd ? 'har oy ' + pd + '-sana' : '';
           /* Tayyor shaxsiy kod — faylda bo'lsa o'shasi olinadi va o'zgarmaydi */
-          rec.code = String(g('code') || '').replace(/\D/g, '').slice(0, 4);
+          rec.code = String(g('code') || '').replace(/\D/g, '').slice(0, 5);
           rec.group = g('group');
           rec.note = g('note');
           if (!rec.lastName && !rec.firstName && !rec.phone) return;
@@ -309,7 +336,8 @@
       var cols = kind === 'students'
         ? [{ label: 'Familiya', key: 'lastName' }, { label: 'Ism', key: 'firstName' },
         { label: 'Telefon', key: 'phone' }, { label: 'Ota-ona', key: 'parentName' },
-        { label: 'Guruh', key: 'group' }]
+        { label: 'Guruh', key: 'group' }, { label: 'Qo’shilgan', key: 'joinDate' },
+        { label: 'To’lov kuni', key: 'payDay' }]
         : [{ label: 'Ism', key: 'name' }, { label: 'Telefon', key: 'phone' },
         { label: 'Kurs', key: 'course' }, { label: 'Manba', key: 'source' }];
       preview.appendChild(UI.table(cols, recs.slice(0, 5)));
@@ -417,6 +445,7 @@
             phone: r.phone || '', parentName: r.parentName || '',
             parentPhone: r.parentPhone || r.phone || '',
             birthDate: r.birthDate || '', status: 'faol',
+            joinDate: r.joinDate || A.today(),
             note: r.note || '', createdAt: A.nowStamp(), imported: true
           };
           /* Fayldagi tayyor shaxsiy kod — band bo'lmasa o'shasi olinadi.
@@ -457,7 +486,8 @@
             }
             await D.save('memberships', {
               id: A.uid('mem'), studentId: st.id, groupId: gid,
-              joinedAt: A.today(), leftAt: null, status: 'faol', discount: null, imported: true
+              joinedAt: r.joinDate || A.today(), leftAt: null, status: 'faol', discount: null, imported: true,
+              dueDay: r.dueDay || undefined
             });
             enrolled++;
           }
