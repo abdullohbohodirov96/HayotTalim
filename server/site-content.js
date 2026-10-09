@@ -12,14 +12,14 @@
    ayollar/erkaklar/bolalar alohida, online va offline).                */
 'use strict';
 
-const NAME = process.env.APP_NAME || 'Hayot Ta’lim';
+const NAME = process.env.APP_NAME || 'Sabo Academy';
 
 /* Standart aloqa (statik sayt uchun; serverda Sozlamadagisi ishlatiladi) */
 const PHONE = process.env.SITE_PHONE || '+998 50 999 97 33';
 const LINKS = [
-  { label: 'Instagram — hayottalim.uz', url: 'https://www.instagram.com/hayottalim.uz/' },
+  { label: 'Instagram — sabo.academy', url: 'https://www.instagram.com/sabo.academy/' },
   { label: 'Telegram kanal — Hayot_talim', url: 'https://t.me/Hayot_talim' },
-  { label: 'Facebook — HayotTalim.uz', url: 'https://www.facebook.com/profile.php?id=61595261428849' }
+  { label: 'Facebook — Sabo Academy', url: 'https://www.facebook.com/profile.php?id=61595261428849' }
 ];
 const FACEBOOK = 'https://www.facebook.com/profile.php?id=61595261428849';
 
@@ -29,7 +29,7 @@ const TAGLINES = 'Tilni yodlatmaymiz — gapirtiramiz!\nOnline va offline darsla
 /* Odamlar nomni turlicha yozadi — hammasi shu saytga olib kelsin */
 const ALT_NAMES = (process.env.APP_ALT_NAMES
   ? String(process.env.APP_ALT_NAMES).split(',')
-  : ['Hayot Talim', 'Hayot Ta\'lim', 'Hayot Ta’lim markazi', 'Hayottalim', 'Хаёт Таълим', 'Hayot Talim o‘quv markazi'])
+  : ['Sabo Academy', 'Sabo Akademiya', 'SaboAcademy', 'Sabo til markazi', 'Сабо Академия', 'Hayot Ta’lim', 'Hayot Talim', 'Hayottalim'])
   .map(s => s.trim()).filter(Boolean);
 
 /* ~60 belgi: brend oldinda (nom bo'yicha qidiruv), keyin asosiy so'z */

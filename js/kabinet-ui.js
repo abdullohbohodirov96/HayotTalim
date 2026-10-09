@@ -207,7 +207,7 @@
       UI.clear(side);
       side.appendChild(h('div', { class: 'sp-brand' }, [
         h('img', { src: A.LOGO || '', alt: '' }),
-        h('div', {}, [h('b', {}, opts.centerName || 'Hayot Ta’lim'), h('span', {}, 'O’quvchi kabineti')])
+        h('div', {}, [h('b', {}, opts.centerName || 'Sabo Academy'), h('span', {}, 'O’quvchi kabineti')])
       ]));
       side.appendChild(h('div', { class: 'sp-nav' }, NAV.map(function (n) {
         return h('button', {

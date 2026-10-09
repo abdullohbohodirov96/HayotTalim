@@ -260,7 +260,7 @@
   /* Markaz nomi: avval serverdagi nom, bo'lmasa brauzerdagi nusxa, oxirida standart.
      Eski nusxa qolib ketmasin uchun server nomi kelganda yangilanadi. */
   function centerNameNow() {
-    return (D.settings && D.settings.centerName) || 'Hayot Ta’lim';
+    return (D.settings && D.settings.centerName) || 'Sabo Academy';
   }
   async function refreshCenterName() {
     try {
@@ -1237,7 +1237,7 @@
     function all(c) { try { return D.all(c) || []; } catch (e) { return []; } }
     function lines(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
     return {
-      centerName: s.centerName || 'Hayot Ta’lim',
+      centerName: s.centerName || 'Sabo Academy',
       phone: String(s.phone || ''), address: String(s.address || ''),
       workStart: String(s.workStart || ''), workEnd: String(s.workEnd || ''),
       about: String(s.about || ''),
@@ -3248,7 +3248,7 @@
     document.getElementById('me-role').textContent = A.ROLES[user.role] || user.role;
     document.getElementById('me-avatar').textContent =
       (user.name || '?').trim().split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toUpperCase();
-    document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'Hayot Ta’lim';
+    document.getElementById('center-name').textContent = (D.settings && D.settings.centerName) || 'Sabo Academy';
     var mp = document.getElementById('mode-pill');
     if (D.mode === 'local') { mp.hidden = false; mp.textContent = 'Faqat shu brauzerda'; }
     startLeadWatch();

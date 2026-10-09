@@ -10,10 +10,10 @@
   function salt() { return Math.random().toString(36).slice(2, 10); }
 
   var DEFAULT_SETTINGS = {
-    centerName: 'Hayot Ta’lim',
+    centerName: 'Sabo Academy',
     address: '',
     phone: '+998 50 999 97 33',
-    instagram: 'https://www.instagram.com/hayottalim.uz/',
+    instagram: 'https://www.instagram.com/sabo.academy/',
     facebook: 'https://www.facebook.com/profile.php?id=61595261428849',
     tgChannel: 'https://t.me/Hayot_talim',
     workStart: '08:00',

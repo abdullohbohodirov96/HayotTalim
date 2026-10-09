@@ -433,17 +433,29 @@ async function ensureSeed() {
       settings.siteDefaults = 1;
       touched = true;
     }
+    /* Bir martalik: markaz nomi "Hayot Ta'lim" dan "Sabo Academy" ga o'tdi.
+       Faqat eski standart qiymatlar almashtiriladi; admin o'zi yozgan
+       boshqa nom yoki havola bo'lsa — tegilmaydi.                      */
+    if (!settings.rebrandSabo) {
+      if (!settings.centerName || /^hayot\s*ta[’'`]?lim$/i.test(String(settings.centerName).trim())) settings.centerName = SITE.NAME;
+      if (!settings.instagram || /instagram\.com\/hayottalim\.uz\/?$/i.test(String(settings.instagram))) settings.instagram = SITE.LINKS[0].url;
+      if (settings.bot && typeof settings.bot.welcome === 'string') {
+        settings.bot = Object.assign({}, settings.bot, { welcome: settings.bot.welcome.replace(/Hayot\s*Ta[’'`]?lim/gi, SITE.NAME) });
+      }
+      settings.rebrandSabo = 1;
+      touched = true;
+    }
     if (touched) await store.set('meta/settings', settings);
   }
   if (!settings) {
     await store.set('meta/settings', {
-      centerName: process.env.APP_NAME || 'Hayot Ta’lim',
+      centerName: process.env.APP_NAME || 'Sabo Academy',
       address: '', phone: SITE.PHONE, workStart: '08:00', workEnd: '22:00', lessonMinutes: 80, dueDay: 5,
       instagram: SITE.LINKS[0].url, tgChannel: SITE.LINKS[1].url, taglines: SITE.TAGLINES, siteDefaults: 1,
       expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
       bot: {
         username: process.env.TELEGRAM_BOT_USERNAME || '',
-        welcome: 'Assalomu alaykum! ' + (process.env.APP_NAME || 'Hayot Ta’lim') + ' botiga xush kelibsiz.',
+        welcome: 'Assalomu alaykum! ' + (process.env.APP_NAME || 'Sabo Academy') + ' botiga xush kelibsiz.',
         notifyAttendance: true, notifyPayment: true, notifyDebt: true, autoApprove: false
       },
       createdAt: stamp()
@@ -2037,7 +2049,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === 'public' && req.method === 'GET') {
-    const out = { centerName: process.env.APP_NAME || 'Hayot Ta’lim' };
+    const out = { centerName: process.env.APP_NAME || 'Sabo Academy' };
     try {
       const s = (await store.get('meta/settings')) || {};
       if (s.centerName) out.centerName = String(s.centerName);
@@ -3606,7 +3618,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   server.keepAliveTimeout = 65 * 1000;
   server.maxHeadersCount = 100;
   server.listen(PORT, () => {
-    console.log('\n  ' + (process.env.APP_NAME || 'Hayot Ta’lim') + ' ERP ishga tushdi: http://localhost:' + PORT);
+    console.log('\n  ' + (process.env.APP_NAME || 'Sabo Academy') + ' ERP ishga tushdi: http://localhost:' + PORT);
     console.log('  Ombor: ' + store.kind + (store.file ? ' (' + store.file + ')' : ''));
   });
   // Kunlik avtomatik zaxira; xato bo'lsa direktorga xabar qoldiriladi

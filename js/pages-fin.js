@@ -497,7 +497,7 @@
     var s = D.one('students', pay.studentId);
     var set = D.settings || {};
     var lines = [];
-    lines.push((set.centerName || 'Hayot Ta’lim'));
+    lines.push((set.centerName || 'Sabo Academy'));
     if (set.address) lines.push(set.address);
     if (set.phone) lines.push('Tel: ' + set.phone);
     lines.push('--------------------------------');

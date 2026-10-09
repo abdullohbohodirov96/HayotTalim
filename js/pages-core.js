@@ -1099,7 +1099,7 @@
       try {
         var r = await D.api('POST', 'api/student/kabpass', { studentId: s.id });
         var site = r.url || (location.origin + '/#kabinet');
-        var text = 'Hayot Ta’lim — shaxsiy kabinet\n' + site +
+        var text = ((D.settings && D.settings.centerName) || 'Sabo Academy') + ' — shaxsiy kabinet\n' + site +
           '\nLogin: ' + r.login + (r.phone ? ' (yoki telefon raqamingiz)' : '') +
           '\nParol: ' + r.password + '\n\nParolni hech kimga bermang. Kabinetda o’zingiz o’zgartira olasiz.';
         UI.clear(box);

@@ -1196,7 +1196,7 @@ async function onMessage(msg) {
     st = { chatId: String(chatId), step: 'code', codeTries: 0, leadId: st.leadId || undefined };
     await setState(chatId, st);
     await sendMessage(chatId,
-      conf.welcome + '\n\nMen ' + esc((await settings()).centerName || 'Hayot Ta’lim') + ' yordamchisiman 🤖 ' +
+      conf.welcome + '\n\nMen ' + esc((await settings()).centerName || 'Sabo Academy') + ' yordamchisiman 🤖 ' +
       'Kurslar, darslar vaqti, tekin dars va daraja testi haqidagi <b>savolingizni yozing</b> — darhol javob beraman.\n\n' +
       '🎁 Birinchi dars tekin — «' + REG_BTN + '» tugmasini bosing.\n' +
       '🎓 Markaz o’quvchisi bo’lsangiz — «' + STUDENT_BTN + '» (administrator bergan havola orqali ulanasiz).',

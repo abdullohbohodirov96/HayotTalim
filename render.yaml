@@ -1,4 +1,4 @@
-# Render.com — Hayot Ta'lim: TO'LIQ server (sayt + ERP + kabinet + Telegram bot).
+# Render.com — Sabo Academy: TO'LIQ server (sayt + ERP + kabinet + Telegram bot).
 # Baza: Neon (PostgreSQL) — DATABASE_URL orqali. Doimiy disk shart emas:
 # yuklangan fayllar ham bazada saqlanadi (server/files.js, FILES_STORE=db).
 #
@@ -21,7 +21,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: APP_NAME
-        value: Hayot Ta’lim
+        value: Sabo Academy
       - key: FILES_STORE
         value: db
       - key: SESSION_MAX_AGE_DAYS
