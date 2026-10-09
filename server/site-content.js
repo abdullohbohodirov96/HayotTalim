@@ -18,7 +18,7 @@ const NAME = process.env.APP_NAME || 'Sabo Academy';
 const PHONE = process.env.SITE_PHONE || '+998 50 999 97 33';
 const LINKS = [
   { label: 'Instagram — sabo.academy', url: 'https://www.instagram.com/sabo.academy/' },
-  { label: 'Telegram kanal — Hayot_talim', url: 'https://t.me/Hayot_talim' },
+  { label: 'Telegram kanal — SaboAcademy', url: 'https://t.me/SaboAcademy' },
   { label: 'Facebook — Sabo Academy', url: 'https://www.facebook.com/profile.php?id=61595261428849' }
 ];
 const FACEBOOK = 'https://www.facebook.com/profile.php?id=61595261428849';

@@ -40,7 +40,7 @@ const at = (date, hm) => Date.parse(date + 'T' + hm + ':00Z') - 5 * 3600 * 1000;
   ok('09:00 slotida 1 ta savol ketdi', r.sent === 1 && calls.length === 1, JSON.stringify(r));
   const c = calls[0];
   ok('Telegram Quiz: sendPoll, type=quiz, anonim', c.method === 'sendPoll' && c.params.type === 'quiz' && c.params.is_anonymous === true);
-  ok('Kanal: @Hayot_talim', c.params.chat_id === '@Hayot_talim');
+  ok('Kanal: @SaboAcademy', c.params.chat_id === '@SaboAcademy');
   ok('To‘g‘ri javob va izoh bor', c.params.correct_option_id === BANK[0].correct && !!c.params.explanation);
   ok('Birinchi savol — w1d1s1', c.params.question === BANK[0].question);
   r = await B.quizTick(at('2026-10-09', '09:07'));

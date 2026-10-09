@@ -2323,7 +2323,7 @@
       var pub = A._pub || {};
       var df = (A.Seed && A.Seed.defaults) || {};
       var phone = String(pub.phone || df.phone || '+998 50 999 97 33');
-      var tg = String(pub.tgQabul || pub.tgChannel || df.tgChannel || 'https://t.me/Hayot_talim');
+      var tg = String(pub.tgQabul || pub.tgChannel || df.tgChannel || 'https://t.me/SaboAcademy');
       if (!/^https?:/.test(tg)) tg = 'https://t.me/' + tg.replace(/^@/, '');
       var row = h('div', { class: 'lead-alt' }, []);
       if (!onlyTg) {
@@ -2921,7 +2921,7 @@
           /* Rahmat → kanalga obuna taklifi → 6 soniyadan keyin kanalga o'tish */
           var pub = A._pub || {};
           var df = (A.Seed && A.Seed.defaults) || {};
-          var chRaw = String(pub.tgChannel || df.tgChannel || 'https://t.me/Hayot_talim');
+          var chRaw = String(pub.tgChannel || df.tgChannel || 'https://t.me/SaboAcademy');
           var chUrl = /^https?:/.test(chRaw) ? chRaw : 'https://t.me/' + chRaw.replace(/^@/, '');
           var left = 6, timer = null;
           var cnt = h('span', { class: 'lead-ok-count' }, String(left));

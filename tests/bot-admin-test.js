@@ -83,7 +83,7 @@ const ADMIN = 555111, GUEST = 777222;
 
   console.log('\n5. Holat va yoqish/o‘chirish');
   r = await say(ADMIN, '📊 Viktorina holati');
-  ok('Holat: kanal, savollar soni, navbatdagi', /@Hayot_talim/.test(r.text) && /hali yuborilmagan/.test(r.text) && /Navbatdagi savol/.test(r.text), r.text.slice(0, 200));
+  ok('Holat: kanal, savollar soni, navbatdagi', /@SaboAcademy/.test(r.text) && /hali yuborilmagan/.test(r.text) && /Navbatdagi savol/.test(r.text), r.text.slice(0, 200));
   r = await say(ADMIN, '⏯ Viktorinani yoqish/o‘chirish');
   ok('O‘chirildi', /to‘xtatildi/.test(r.text) && (await B.quizConf()).on === false);
   ok('Boshqa sozlamalar saqlanib qoldi', ((await store.get('meta/settings')).bot || {}).staffChats === String(ADMIN));

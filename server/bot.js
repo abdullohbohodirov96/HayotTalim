@@ -1335,7 +1335,7 @@ async function quizConf() {
   const b = ((await settings()).bot) || {};
   return {
     on: b.quizOn !== false,
-    channel: String(b.quizChannel || process.env.QUIZ_CHANNEL || '@Hayot_talim').trim(),
+    channel: String(b.quizChannel || process.env.QUIZ_CHANNEL || '@SaboAcademy').trim(),
     /* Shu sanadan (Toshkent vaqti) boshlab yuboriladi */
     start: /^\d{4}-\d{2}-\d{2}$/.test(String(b.quizStart || '')) ? b.quizStart : (process.env.QUIZ_START || '2026-10-10'),
     slots: QUIZ_SLOTS
@@ -1641,8 +1641,18 @@ function start(ctx) {
   running = true;
   startReminders();
   if (ctx.send) return;                       // sinov rejimi: tashqi yuborish
-  tg('getMe').then(me => {
+  tg('getMe').then(async me => {
     console.log('  Telegram bot ishga tushdi: @' + me.username);
+    /* Saytdagi "botga yozish" havolalari doim HAQIQATAN ishlayotgan botga
+       olib borsin: token almashtirilsa, nom ham o'zi yangilanadi. */
+    try {
+      const s = (await store.get('meta/settings')) || {};
+      const cur = String((s.bot && s.bot.username) || '').replace(/^@/, '');
+      if (me.username && cur.toLowerCase() !== String(me.username).toLowerCase()) {
+        s.bot = Object.assign({}, s.bot || {}, { username: me.username });
+        await store.set('meta/settings', s);
+      }
+    } catch (e) { console.error('bot nomi:', e.message); }
     poll();
     queueLoop();
   }).catch(e => {

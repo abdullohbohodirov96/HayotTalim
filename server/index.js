@@ -445,6 +445,15 @@ async function ensureSeed() {
       settings.rebrandSabo = 1;
       touched = true;
     }
+    /* Telegram kanal ham yangi nomga: @Hayot_talim → @SaboAcademy */
+    if (!settings.rebrandSaboTg) {
+      if (!settings.tgChannel || /t\.me\/hayot_talim\/?$|^@?hayot_talim$/i.test(String(settings.tgChannel).trim())) settings.tgChannel = SITE.LINKS[1].url;
+      if (settings.bot && /^@?hayot_talim$/i.test(String(settings.bot.quizChannel || '').trim())) {
+        settings.bot = Object.assign({}, settings.bot, { quizChannel: '@SaboAcademy' });
+      }
+      settings.rebrandSaboTg = 1;
+      touched = true;
+    }
     if (touched) await store.set('meta/settings', settings);
   }
   if (!settings) {

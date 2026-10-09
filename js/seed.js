@@ -15,7 +15,7 @@
     phone: '+998 50 999 97 33',
     instagram: 'https://www.instagram.com/sabo.academy/',
     facebook: 'https://www.facebook.com/profile.php?id=61595261428849',
-    tgChannel: 'https://t.me/Hayot_talim',
+    tgChannel: 'https://t.me/SaboAcademy',
     workStart: '08:00',
     workEnd: '22:00',
     lessonMinutes: 80,
