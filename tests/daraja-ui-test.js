@@ -79,6 +79,12 @@ async function answer(p) {
     /* Natijadan ariza formasiga */
     await startTest(p);
     guard = 0; while ((await p.locator('.test-opt').count()) && guard++ < 40) { await p.click('.test-nav .btn.ghost'); await p.waitForTimeout(120); }
+    if (server) {
+      /* Telefonsiz natija ko'rsatilmaydi */
+      await p.click('.test-end button[type=submit]'); await p.waitForTimeout(600);
+      ok(vn + ': telefonsiz natija chiqmaydi', !(await p.$('.test-res')) && await p.isVisible('#test-phone'));
+      await p.fill('#test-phone', '+998 90 222 33 44');
+    }
     await p.click('.test-end button[type=submit]');
     await p.waitForSelector('.test-res', { timeout: 15000 });
     const lv = await p.textContent('.test-level b');

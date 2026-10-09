@@ -878,8 +878,8 @@
       pick: 'Test tilini tanlang', start: 'Testni boshlash',
       loading: 'Savollar yuklanmoqda…', back: 'Orqaga', skip: 'Bilmayman',
       home: 'Bosh sahifa', done: 'Savollar tugadi. Natijani ko’rish uchun tugmani bosing.',
-      hint: 'Ism va telefonni yozsangiz, markaz siz uchun mos guruhni taklif qiladi. Yozmasangiz ham natija ko’rinadi.',
-      name: 'Ismingiz (ixtiyoriy)', phone: 'Telefon (ixtiyoriy)',
+      hint: 'Natijani ko’rish uchun telefon raqamingizni yozing — markaz siz uchun mos guruhni taklif qiladi.',
+      name: 'Ismingiz', phone: 'Telefon raqamingiz *', needPhone: 'Telefon raqamini to’liq yozing, masalan +998 90 123 45 67',
       see: 'Natijani ko’rish', calc: 'Hisoblanmoqda…',
       your: 'Sizning darajangiz', total: 'Umumiy natija',
       note: 'Bu natija taxminiy. Aniq daraja ustoz bilan qisqa suhbatdan keyin belgilanadi.',
@@ -887,17 +887,17 @@
       errStart: 'Testni boshlab bo’lmadi.', errSend: 'Natijani olishda xato.',
       changeLang: 'Tilni almashtirish',
       rules: '20 ta savol · 10 daqiqa',
-      rulesNote: 'Vaqt tugaganda javoblaringiz o’zi yuboriladi.',
+      rulesNote: 'Vaqt tugaganda javoblaringiz saqlanadi.',
       time: 'Qolgan vaqt',
-      timeUp: 'Vaqt tugadi — belgilangan javoblaringiz yuborildi.'
+      timeUp: 'Vaqt tugadi! Javoblaringiz saqlandi — natijani ko’rish uchun raqamingizni yozing.'
     },
     ru: {
       title: 'Тест на определение уровня', sub: 'A1 · A2 · B1 · B2 · C1 · C2',
       pick: 'Выберите язык теста', start: 'Начать тест',
       loading: 'Загрузка вопросов…', back: 'Назад', skip: 'Не знаю',
       home: 'На главную', done: 'Вопросы закончились. Нажмите кнопку, чтобы увидеть результат.',
-      hint: 'Если укажете имя и телефон, центр предложит подходящую группу. Без них результат тоже виден.',
-      name: 'Ваше имя (необязательно)', phone: 'Телефон (необязательно)',
+      hint: 'Чтобы увидеть результат, укажите номер телефона — центр предложит подходящую группу.',
+      name: 'Ваше имя', phone: 'Ваш телефон *', needPhone: 'Укажите номер полностью, например +998 90 123 45 67',
       see: 'Посмотреть результат', calc: 'Подсчёт…',
       your: 'Ваш уровень', total: 'Общий результат',
       note: 'Результат приблизительный. Точный уровень определяется после короткой беседы с преподавателем.',
@@ -905,17 +905,17 @@
       errStart: 'Не удалось начать тест.', errSend: 'Ошибка при получении результата.',
       changeLang: 'Сменить язык',
       rules: '20 вопросов · 10 минут',
-      rulesNote: 'Когда время выйдет, ответы отправятся сами.',
+      rulesNote: 'Когда время выйдет, ответы сохранятся.',
       time: 'Осталось времени',
-      timeUp: 'Время вышло — отмеченные ответы отправлены.'
+      timeUp: 'Время вышло! Ответы сохранены — укажите номер, чтобы увидеть результат.'
     },
     ar: {
       title: 'اختبار تحديد المستوى', sub: 'A1 · A2 · B1 · B2 · C1 · C2',
       pick: 'اختر لغة الاختبار', start: 'ابدأ الاختبار',
       loading: 'جارٍ تحميل الأسئلة…', back: 'السابق', skip: 'لا أعرف',
       home: 'الصفحة الرئيسية', done: 'انتهت الأسئلة. اضغط الزر لعرض النتيجة.',
-      hint: 'إذا كتبت اسمك ورقمك اقترح عليك المركز المجموعة المناسبة. وتظهر النتيجة من دونهما أيضاً.',
-      name: 'الاسم (اختياري)', phone: 'الهاتف (اختياري)',
+      hint: 'لعرض النتيجة اكتب رقم هاتفك — وسيقترح عليك المركز المجموعة المناسبة.',
+      name: 'الاسم', phone: 'رقم الهاتف *', needPhone: 'اكتب الرقم كاملاً، مثلاً ‎+998 90 123 45 67',
       see: 'عرض النتيجة', calc: 'جارٍ الحساب…',
       your: 'مستواك', total: 'النتيجة الإجمالية',
       note: 'هذه النتيجة تقريبية. يُحدَّد المستوى بدقّة بعد حديث قصير مع الأستاذ.',
@@ -923,9 +923,9 @@
       errStart: 'تعذّر بدء الاختبار.', errSend: 'خطأ في جلب النتيجة.',
       changeLang: 'تغيير اللغة',
       rules: '٢٠ سؤالاً · ١٠ دقائق',
-      rulesNote: 'عند انتهاء الوقت تُرسَل إجاباتك تلقائياً.',
+      rulesNote: 'عند انتهاء الوقت تُحفَظ إجاباتك.',
       time: 'الوقت المتبقّي',
-      timeUp: 'انتهى الوقت — أُرسلت إجاباتك المحدَّدة.'
+      timeUp: 'انتهى الوقت! حُفظت إجاباتك — اكتب رقمك لعرض النتيجة.'
     }
   };
   var TEST_LANGS = [
@@ -1131,7 +1131,10 @@
       if (!auto) stopClock();
       UI.clear(body);
       var nameI = h('input', { id: 'test-name', type: 'text', placeholder: T().name, maxlength: '80' });
-      var phoneI = h('input', { id: 'test-phone', type: 'tel', placeholder: T().phone, maxlength: '30' });
+      var phoneI = h('input', { id: 'test-phone', type: 'tel', placeholder: T().phone, maxlength: '30',
+        inputmode: 'tel', autocomplete: 'tel', required: D.mode === 'server' ? 'required' : null });
+      var phoneErr = h('p', { class: 'small', style: 'color:var(--bad);margin:0', hidden: true }, T().needPhone);
+      phoneI.addEventListener('input', function () { phoneErr.hidden = true; });
       var btn = h('button', { class: 'btn primary', type: 'submit' }, T().see);
 
       body.appendChild(h('form', {
@@ -1141,13 +1144,20 @@
         auto ? h('p', { class: 'test-timeup' }, T().timeUp) : h('p', {}, T().done),
         /* Serversiz nusxada ism/telefon saqlanadigan joy yo'q — so'ralmaydi */
         D.mode === 'server' ? h('p', { class: 'small muted' }, T().hint) : null,
-        D.mode === 'server' ? nameI : null, D.mode === 'server' ? phoneI : null, btn
+        D.mode === 'server' ? nameI : null, D.mode === 'server' ? phoneI : null,
+        D.mode === 'server' ? phoneErr : null, btn
       ]));
-      /* Vaqt tugagan bo'lsa kutib turmaymiz — server muhlati ham
-         tugab qolmasin. Ism/telefonsiz ham natija chiqadi. */
-      if (auto) send();
+      /* Natija faqat telefon raqami yozilgandan keyin ko'rsatiladi (server
+         rejimida). Vaqt tugasa ham javoblar shu yerda saqlanib turadi —
+         server muhlati raqam yozish uchun yetarli (TEST_GRACE_MS). */
+      if (auto && D.mode !== 'server') send();
+      else if (D.mode === 'server') setTimeout(function () { try { phoneI.focus(); } catch (e) { } }, 200);
 
       async function send() {
+        if (D.mode === 'server' && A.phoneDigits(phoneI.value).length < 9) {
+          phoneErr.hidden = false; try { phoneI.focus(); } catch (e) { }
+          return;
+        }
         btn.disabled = true; btn.textContent = T().calc; err.hidden = true;
         var ans = Object.keys(picked).map(function (id) { return { id: id, choice: picked[id] }; });
         try {
@@ -2242,7 +2252,11 @@
       try { SS = window.sessionStorage; } catch (e) { SS = null; }
       function sget(k) { try { return SS ? SS.getItem(k) : null; } catch (e) { return null; } }
       function sset(k, v) { try { if (SS) SS.setItem(k, v); } catch (e) { } }
-      if (sget('promo_done')) return;
+      /* Yopilgan yoki tugagan bo'lsa — 30 daqiqadan keyin yana chiqadi
+         (eski "1" qiymati ham vaqt sifatida o'qiladi va eskirgan hisoblanadi). */
+      var doneAt = +sget('promo_done') || 0;
+      if (doneAt && Date.now() - doneAt < 30 * 60 * 1000) return;
+      if (doneAt) { try { SS.removeItem('promo_done'); SS.removeItem('promo_end'); } catch (e) { } }
       var DUR = 3 * 60 * 1000;
       var showTmr = null, tick = null, hideTmr = null, box = null;
 
@@ -2292,7 +2306,7 @@
         if (!document.body.contains(wrap) || wrap.className !== 'site') return;
         var end = +sget('promo_end') || 0;
         if (!end) { end = Date.now() + DUR; sset('promo_end', String(end)); }
-        if (end <= Date.now()) { sset('promo_done', '1'); return; }
+        if (end <= Date.now()) { sset('promo_done', String(Date.now())); return; }
         wrap.appendChild(box);
         draw();
         tick = setInterval(draw, 1000);
@@ -2300,7 +2314,7 @@
         setTimeout(function () { box.classList.add('on'); }, 30);
       }
       function close(done) {
-        if (done) sset('promo_done', '1');
+        if (done) sset('promo_done', String(Date.now()));
         if (tick) { clearInterval(tick); tick = null; }
         if (hideTmr) { clearTimeout(hideTmr); hideTmr = null; }
         if (box && box.parentNode) {

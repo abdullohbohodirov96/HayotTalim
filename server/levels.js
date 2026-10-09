@@ -56,7 +56,9 @@ const RESULT = 'placements/';   // natijalar
    o'zi yuboradi; kechikkan so'rov uchun bir daqiqa muhlat qoldiriladi
    (sekin internetda javob yo'qolib qolmasin).                          */
 const LIMIT_MS = Number(process.env.TEST_LIMIT_MS || 10 * 60 * 1000);
-const GRACE_MS = Number(process.env.TEST_GRACE_MS || 60 * 1000);
+/* Vaqt tugagach natijani ko'rish uchun telefon raqami so'raladi — yozib
+   olishga 15 daqiqa muhlat. */
+const GRACE_MS = Number(process.env.TEST_GRACE_MS || 15 * 60 * 1000);
 const TTL_MS = Number(process.env.TEST_TTL_MS || LIMIT_MS + GRACE_MS);
 
 const KINDS = {};
