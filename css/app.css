@@ -3979,3 +3979,17 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
   .site-top .site-nav{gap:8px}
   .site-top .site-nav .btn.sm.ghost{padding:7px 9px}
 }
+
+/* Ariza bloki: bot tugmasi va aloqa tugmalari — tekis setka, bir xil o'lcham */
+#apply-bot-btn{display:flex;width:100%;justify-content:center;margin:0 0 12px}
+.apply-soc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.apply-soc .soc-btn.big{display:flex;width:100%;min-height:56px;padding:10px 14px;gap:12px;border-radius:14px;justify-content:flex-start}
+.apply-soc .soc-btn.big .soc-logo,.apply-soc .soc-btn.big .soc-ico{width:34px;height:34px}
+.apply-soc .soc-btn.big .soc-ico .ico{width:17px;height:17px}
+.apply-soc .soc-btn.big .soc-txt b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis}
+.apply-soc .soc-btn.big:hover{transform:translateY(-2px)}
+.soc-btn.soc-fb .soc-ico{background:#1877F2}
+.soc-btn.soc-fb .soc-ico .ico{color:#fff}
+.soc-btn.soc-fb:hover{border-color:rgba(24,119,242,.6);background:rgba(24,119,242,.10)}
+.soc-btn.soc-tel .soc-ico{background:rgba(217,164,65,.18)}
+@media (max-width:480px){ .apply-soc{grid-template-columns:1fr} }
