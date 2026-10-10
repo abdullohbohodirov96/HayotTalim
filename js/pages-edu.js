@@ -741,7 +741,7 @@
       var fs = h('fieldset', {}, [
         h('legend', {}, 'Birinchi hisob (' + A.monthLabel(ym) + ')'),
         h('p', { class: 'small muted', style: 'margin:0 0 8px' },
-          'To’lov kuni — qo’shilgan sana: har oy ' + Math.min(28, day) + '-sanada to’laydi ' +
+          'To’lov kuni — qo’shilgan sana: har oy ' + day + '-sanada' + (day > 28 ? ' (qisqa oylarda — oyning oxirgi kuni)' : '') + ' to’laydi ' +
           '(' + A.dateLabel(joined) + ' dan boshlab bir oy uchun to’liq narx).')
       ]);
 

@@ -168,8 +168,11 @@ const A = globalThis.A;
   eq('Sana to’liq to’g’ri', A.dueDateOf(mB, YM, { dueDay: 5 }), YM + '-17');
   /* Qo'lda yozilgan kun ustun turadi */
   eq('Qo’lda yozilgan kun ustun', A.dueDayOf({ joinedAt: PREV + '-17', dueDay: 10 }, { dueDay: 5 }), 10);
-  /* 29, 30, 31 da qo'shilgan o'quvchi fevralda ham sanaga ega bo'lsin */
-  eq('31-sida qo’shilgan — 28 ga tushadi', A.dueDayOf({ joinedAt: '2026-01-31' }, {}), 28);
+  /* 29, 30, 31 da qo'shilgan o'quvchi: kuni saqlanadi, qisqa oyda — oyning oxirgi kuni */
+  eq('31-sida qo’shilgan — kuni 31', A.dueDayOf({ joinedAt: '2026-01-31' }, {}), 31);
+  eq('…fevralda muddat oyning oxirgi kuni', A.dueDateOf({ joinedAt: '2026-01-31' }, '2026-02', {}), '2026-02-28');
+  eq('…aprelda 30-si', A.dueDateOf({ joinedAt: '2026-01-31' }, '2026-04', {}), '2026-04-30');
+  eq('…mayda 31-si', A.dueDateOf({ joinedAt: '2026-01-31' }, '2026-05', {}), '2026-05-31');
   /* Guruhga qo'shilgan kunidan OLDIN muddat qo'yilmaydi */
   eq('Birinchi oyda muddat qo’shilgan kunidan oldin emas',
     A.dueDateOf(mC, PREV, { dueDay: 5 }), PREV + '-26');
@@ -273,12 +276,51 @@ const A = globalThis.A;
   eq('Keyingi oyda chegirma yo’q', invA3 && invA3.missedCredit, 0);
   eq('Keyingi oyda to’liq 880 000', invA3 && invA3.final, FEE);
 
+  /* =============== 7b. Tanaffus va guruh almashtirish =============== */
+  section('7b. Tanaffus hisobga olinadi; guruh almashtirilsa narx yangilanadi');
+  const NEXT3 = A.addMonths(YM, 2);
+  const FEE2 = 600000;
+  await put('groups/' + ID('g2'), {
+    id: ID('g2'), code: 'J' + String(Date.now() % 900 + 99).padStart(3, '0'),
+    name: 'Arzon guruh ' + R, courseId: ID('c'), teacherId: ID('t'),
+    days: [2, 4], startTime: '11:00', endTime: '12:30', startDate: A.monthStart(PREV), fee: FEE2,
+    feeHistory: [{ fee: FEE2, from: PREV }], lessonsPerMonth: 12, limit: 20, status: 'faol'
+  });
+  /* A — butun oy tanaffusda; B — oyning yarmi (birinchi 15 kun) */
+  const dIn = A.daysInMonth(NEXT3);
+  await api('/api/pause', { method: 'POST', body: { studentId: ID('sa'), from: A.monthStart(NEXT3), to: A.monthEnd(NEXT3) } });
+  await api('/api/pause', { method: 'POST', body: { studentId: ID('sb'), from: A.monthStart(NEXT3), to: NEXT3 + '-15' } });
+  const gen3 = await api('/api/invoices/generate', { method: 'POST', body: { month: NEXT3 } });
+  eq('Hisoblar yaratildi', gen3.status, 200);
+  ok('Butun oy tanaffusdagi o’quvchiga hisob yozilmadi', !(await get('invoices/' + A.invoiceId(ID('ma'), NEXT3))));
+  const invB3 = await get('invoices/' + A.invoiceId(ID('mb'), NEXT3));
+  const expB = FEE - Math.round(FEE * 15 / dIn);
+  eq('Yarim oy tanaffus — ulushiga chegirma', invB3 && invB3.final, expB);
+  ok('Izohda tanaffus aytilgan', invB3 && /Tanaffus: 15 kun/.test(invB3.note || ''), invB3 && invB3.note);
+  const invC3 = await get('invoices/' + A.invoiceId(ID('mc'), NEXT3));
+  eq('Tanaffussiz o’quvchi to’liq to’laydi', invC3 && invC3.final, FEE);
+
+  /* C ni joyida arzon guruhga o'tkazamiz — to'lanmagan hisoblar yangi narxda */
+  const mC0 = await get('memberships/' + ID('mc'));
+  const mv = await put('memberships/' + ID('mc'), Object.assign({}, mC0, { groupId: ID('g2') }));
+  eq('A’zolik saqlandi', mv.status, 200);
+  const invC3b = await get('invoices/' + A.invoiceId(ID('mc'), NEXT3));
+  eq('Guruh almashgach hisob yangi narxda', invC3b && invC3b.final, FEE2);
+  eq('Hisob yangi guruhga bog’landi', invC3b && invC3b.groupId, ID('g2'));
+  ok('Izohda almashtirish aytilgan', invC3b && /Guruh almashtirildi/.test(invC3b.note || ''));
+  await put('memberships/' + ID('mc'), mC0);   // qaytaramiz
+  for (const sx of ['sa', 'sb']) {
+    const pz = (await api('/api/collection?name=pauses')).json;
+    for (const z of Object.values((pz && pz.items) || {})) if (z.studentId === ID(sx)) await del('pauses/' + z.id);
+  }
+
   /* =============== 8. Tozalash =============== */
   section('8. Sinov ma’lumotlari tozalandi');
   const paths = [
     'invoices/' + A.invoiceId(ID('ma'), YM), 'invoices/' + A.invoiceId(ID('mb'), YM),
     'invoices/' + A.invoiceId(ID('mc'), YM), 'invoices/' + A.invoiceId(ID('ma'), NEXT2),
     'invoices/' + A.invoiceId(ID('mb'), NEXT2), 'invoices/' + A.invoiceId(ID('mc'), NEXT2),
+    'invoices/' + A.invoiceId(ID('mb'), NEXT3), 'invoices/' + A.invoiceId(ID('mc'), NEXT3), 'groups/' + ID('g2'),
     'lessons/' + ID('g') + '__' + PREV,
     'memberships/' + ID('ma'), 'memberships/' + ID('mb'), 'memberships/' + ID('mc'),
     'students/' + ID('sa'), 'students/' + ID('sb'), 'students/' + ID('sc'),

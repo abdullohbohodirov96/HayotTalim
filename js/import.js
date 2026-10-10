@@ -286,7 +286,7 @@
           rec.parentPhone = A.normPhone(g('parentPhone')) || rec.phone;
           rec.birthDate = cellDate(g('birthDate'));
           /* Qo'shilgan sana va to'lov kuni: "20", "20-sana", "har oy 20" yoki
-             to'liq sana (undan oyning kuni olinadi). 28 dan katta — 28. */
+             to'liq sana (undan oyning kuni olinadi). 29–31: qisqa oylarda oyning oxirgi kuni. */
           rec.joinDate = cellDate(g('joinDate'));
           var dd = g('dueDay'), ddN = 0;
           if (dd) {
@@ -294,15 +294,17 @@
             ddN = asDate && /\d{4}-\d{2}-\d{2}/.test(asDate) && !/^\s*\d{1,2}\s*(-?\s*(sana|chi|kun|число))?\s*$/i.test(dd)
               ? Number(asDate.slice(8, 10)) : Number((String(dd).match(/\d{1,2}/) || [0])[0]);
           }
-          rec.dueDay = ddN >= 1 && ddN <= 31 ? Math.min(28, ddN) : 0;
+          rec.dueDay = ddN >= 1 && ddN <= 31 ? ddN : 0;
           if (!rec.joinDate && rec.dueDay) {
             /* Faqat to'lov kuni berilgan — qo'shilgan sana: shu oyning o'sha kuni
                (kelajakda bo'lsa — o'tgan oyning). */
-            var tdy = A.today(), cand = tdy.slice(0, 8) + A.pad(rec.dueDay);
-            if (cand > tdy) { var dt = new Date(tdy + 'T12:00:00'); dt.setMonth(dt.getMonth() - 1); cand = A.toISODate(dt).slice(0, 8) + A.pad(rec.dueDay); }
+            var tdy = A.today();
+            var dayIn = function (ym) { return ym + '-' + A.pad(Math.min(rec.dueDay, A.daysInMonth(ym))); };
+            var cand = dayIn(tdy.slice(0, 7));
+            if (cand > tdy) { var dt = new Date(tdy + 'T12:00:00'); dt.setDate(1); dt.setMonth(dt.getMonth() - 1); cand = dayIn(A.toISODate(dt).slice(0, 7)); }
             rec.joinDate = cand;
           }
-          var pd = rec.dueDay || (rec.joinDate ? Math.min(28, Number(rec.joinDate.slice(8, 10)) || 0) : 0);
+          var pd = rec.dueDay || (rec.joinDate ? Number(rec.joinDate.slice(8, 10)) || 0 : 0);
           rec.payDay = pd ? 'har oy ' + pd + '-sana' : '';
           /* Tayyor shaxsiy kod — faylda bo'lsa o'shasi olinadi va o'zgarmaydi */
           rec.code = String(g('code') || '').replace(/\D/g, '').slice(0, 5);

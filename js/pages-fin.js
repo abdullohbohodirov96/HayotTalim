@@ -1879,7 +1879,7 @@
             if (!f.validate()) return;
             UI.busy(e.currentTarget, async function () {
               var v = f.values();
-              v.dueDay = Math.min(28, Math.max(1, v.dueDay || 5));
+              v.dueDay = Math.min(31, Math.max(1, v.dueDay || 5));
               await D.saveSettings(Object.assign({}, s, v));
               await A.Ops.audit(App.user, 'Sozlamalar o’zgartirildi', v.centerName, 'to’lov muddati: ' + v.dueDay);
               UI.toast('Saqlandi.', 'ok'); App.render();

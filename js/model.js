@@ -320,7 +320,8 @@
 
   /** To'lov muddati sanasi */
   function dueDateFor(ym, dueDay) {
-    var d = Math.min(Math.max(Number(dueDay) || 5, 1), 28);
+    /* 29–31: shu oyda bunday kun bo'lmasa — oyning oxirgi kuni */
+    var d = Math.min(Math.max(Number(dueDay) || 5, 1), 31, A.daysInMonth(ym));
     return ym + '-' + A.pad(d);
   }
 
@@ -335,16 +336,16 @@
        2) bo'lmasa — guruhga QO'SHILGAN kuni (17-sida qo'shilgan
           bo'lsa, har oy 17-si);
        3) ikkalasi ham bo'lmasa — sozlamadagi umumiy kun.
-     Kun 28 dan oshmaydi: fevralda ham mavjud sana bo'lsin.          */
+     29–31 kunlar qisqa oylarda oyning oxirgi kuniga tushadi.          */
   function dueDayOf(membership, settings) {
     var m = membership || {};
     var manual = Math.round(Number(m.dueDay));
-    if (isFinite(manual) && manual >= 1) return Math.min(28, manual);
+    if (isFinite(manual) && manual >= 1) return Math.min(31, manual);
     if (m.joinedAt && /^\d{4}-\d{2}-\d{2}$/.test(String(m.joinedAt))) {
-      return Math.min(28, Math.max(1, Number(String(m.joinedAt).slice(8, 10))));
+      return Math.min(31, Math.max(1, Number(String(m.joinedAt).slice(8, 10))));
     }
     var s = Math.round(Number(settings && settings.dueDay));
-    return isFinite(s) && s >= 1 ? Math.min(28, s) : 5;
+    return isFinite(s) && s >= 1 ? Math.min(31, s) : 5;
   }
 
   /** A'zolik uchun shu oydagi to'lov muddati sanasi */

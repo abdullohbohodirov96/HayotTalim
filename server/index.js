@@ -865,8 +865,25 @@ async function generateInvoicesServer(ym, user) {
   (await store.list('groups/')).forEach(x => { groups[x.data.id] = x.data; });
   (await store.list('students/')).forEach(x => { students[x.data.id] = x.data; });
   const mems = (await store.list('memberships/')).map(x => x.data);
-  let created = 0, skipped = 0;
+  let created = 0, skipped = 0, paused = 0;
   const errors = [];
+  /* O'quvchi tanaffuslari (pauses/): butun oy tanaffusda — hisob yozilmaydi,
+     qisman bo'lsa — tanaffus kunlari ulushiga chegirma.                   */
+  const pausesBy = {};
+  (await store.list('pauses/')).map(x => x.data).forEach(pz => {
+    if (pz && pz.studentId && pz.from) (pausesBy[pz.studentId] = pausesBy[pz.studentId] || []).push(pz);
+  });
+  const mStart = A.monthStart(ym), mEnd = A.monthEnd(ym), mDays = A.daysInMonth(ym);
+  function pausedDaysOf(sid) {
+    const days = {};
+    (pausesBy[sid] || []).forEach(pz => {
+      const from = pz.from > mStart ? pz.from : mStart;
+      const to = (pz.to && pz.to < mEnd) ? pz.to : mEnd;
+      if (from > to) return;
+      for (let d = Number(from.slice(8, 10)); d <= Number(to.slice(8, 10)); d++) days[d] = 1;
+    });
+    return Object.keys(days).length;
+  }
 
   /* O'tgan oydagi davomat — sababli qoldirilgan dars uchun chegirma.
      Hujjatlar guruh+oy bo'yicha, shuning uchun bir marta o'qiymiz. */
@@ -887,21 +904,25 @@ async function generateInvoicesServer(ym, user) {
       if (g.startDate && g.startDate > A.monthEnd(ym)) continue;
       const id = A.invoiceId(m.id, ym);
       if (await store.get('invoices/' + id)) { skipped++; continue; }
+      const pDays = pausedDaysOf(m.studentId);
+      if (pDays >= mDays) { paused++; continue; }      // butun oy tanaffusda
       const amt = A.invoiceAmountFor(g, m, ym);
 
       /* O'tgan oyda sababli qoldirilgan darslar uchun chegirma */
       const missed = A.excusedCount(prevLessons[m.groupId], m.id);
       const credit = Math.min(amt.final, A.excusedCredit(g, ym, missed));
-      const note = credit
-        ? A.monthLabel(prevYm) + ': ' + missed + ' ta sababli dars — ' +
-          A.som(credit) + ' so’m chegirildi'
-        : '';
+      const pauseCredit = pDays ? Math.min(amt.final - credit, Math.round(amt.final * pDays / mDays)) : 0;
+      const note = [
+        credit ? A.monthLabel(prevYm) + ': ' + missed + ' ta sababli dars — ' + A.som(credit) + ' so’m chegirildi' : '',
+        pauseCredit ? 'Tanaffus: ' + pDays + ' kun — ' + A.som(pauseCredit) + ' so’m chegirildi' : ''
+      ].filter(Boolean).join('; ');
 
       const due = A.dueDateOf(m, ym, settings);
       await store.set('invoices/' + id, Object.assign({
         id, membershipId: m.id, studentId: m.studentId, groupId: m.groupId, month: ym,
-        base: amt.base, discount: amt.discount + credit, final: amt.final - credit,
+        base: amt.base, discount: amt.discount + credit + pauseCredit, final: amt.final - credit - pauseCredit,
         missedCredit: credit, missedLessons: missed, missedMonth: credit ? prevYm : '',
+        pauseCredit, pausedDays: pDays,
         dueDate: due,
         createdAt: stamp(), createdBy: user ? user.name : 'tizim', note
       }, A.installmentFields(m, due)));
@@ -911,7 +932,41 @@ async function generateInvoicesServer(ym, user) {
     }
   }
   if (created) await writeAudit(user, 'Oylik hisoblar yaratildi', ym, created + ' ta');
-  return { created, skipped, errors };
+  return { created, skipped, paused, errors };
+}
+
+/** A'zolikda guruh almashtirilsa — joriy va keyingi oylarning TO'LANMAGAN
+    hisoblari yangi guruh narxi bilan qayta hisoblanadi.               */
+async function repriceMembership(oldM, newM, user) {
+  if (!oldM || !newM || oldM.groupId === newM.groupId) return 0;
+  const g = await store.get('groups/' + newM.groupId);
+  if (!g) return 0;
+  const cur = A.thisMonth();
+  const invs = (await store.list('invoices/')).map(x => x.data)
+    .filter(i => i && i.membershipId === newM.id && i.month >= cur && !i.voided);
+  if (!invs.length) return 0;
+  const paid = {};
+  (await store.list('payments/')).map(x => x.data).forEach(pm => {
+    if (!pm || pm.voided) return;
+    const sign = pm.type === 'refund' ? -1 : 1;
+    (pm.allocations || []).forEach(a => { paid[a.invoiceId] = (paid[a.invoiceId] || 0) + sign * Math.round(a.amount); });
+  });
+  let n = 0;
+  for (const inv of invs) {
+    if ((paid[inv.id] || 0) > 0) continue;            // to'langan hisobga tegmaymiz
+    const amt = A.invoiceAmountFor(g, newM, inv.month);
+    const extra = (Number(inv.missedCredit) || 0) + (Number(inv.pauseCredit) || 0);
+    const next = Object.assign({}, inv, {
+      groupId: newM.groupId, base: amt.base, discount: amt.discount + extra,
+      final: Math.max(0, amt.final - extra),
+      note: [inv.note, 'Guruh almashtirildi: ' + (g.name || g.id)].filter(Boolean).join('; '),
+      repricedAt: stamp()
+    });
+    await store.set('invoices/' + inv.id, next);
+    n++;
+  }
+  if (n) await writeAudit(user, 'Guruh almashtirildi — hisob qayta hisoblandi', newM.id, n + ' ta hisob');
+  return n;
 }
 
 
@@ -3451,8 +3506,13 @@ async function handleApi(req, res, url) {
           return send(res, 400, { error: 'O’z hisobingizni o’chira olmaysiz.' });
         }
       }
+      const prevDoc = p.indexOf('memberships/') === 0 ? await store.get(p) : null;
       await store.set(p, body.data);
       await writeAudit(user, body.action || 'Ma’lumot saqlandi', body.entity || p, body.details || '');
+      if (prevDoc) {
+        try { await withLock('invoices', () => repriceMembership(prevDoc, Object.assign({ id: p.split('/')[1] }, body.data), user)); }
+        catch (e) { console.error('reprice:', e.message); }
+      }
       // Bot navbatchisini uyg'otamiz (tasdiq/ e'lon darhol ketsin, bo'sh vaqtda esa baza tinch)
       if (p.indexOf('botreq/') === 0 || p.indexOf('botout/') === 0) {
         try { require('./bot').wake(); } catch (e) { /* bot ishlamayotgan bo'lsa muhim emas */ }
