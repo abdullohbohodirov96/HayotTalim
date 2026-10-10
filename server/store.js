@@ -113,6 +113,37 @@ function pgConf(url) {
   return { host, db, ssl, local, internal };
 }
 
+/**
+ * TLS sozlamasi: sertifikat STANDART holatda TEKSHIRILADI (Neon, Render tashqi
+ * manzili ochiq ishonchli sertifikat ishlatadi). O'z CA si bo'lsa —
+ * PG_CA_CERT (PEM matni) yoki PGSSLROOTCERT (fayl yo'li). Faqat zarur bo'lsa,
+ * PG_SSL_NO_VERIFY=1 bilan tekshiruv o'chiriladi (ogohlantirish chiqadi).
+ */
+function pgSslOptions(conf) {
+  if (!conf || !conf.ssl) return false;
+  const off = /^(1|true|ha|yes)$/i.test(String(process.env.PG_SSL_NO_VERIFY || ''));
+  if (off) {
+    console.warn('  OGOHLANTIRISH: PG_SSL_NO_VERIFY — baza sertifikati tekshirilmayapti.');
+    return { rejectUnauthorized: false };
+  }
+  const o = { rejectUnauthorized: true };
+  if (process.env.PG_CA_CERT) o.ca = String(process.env.PG_CA_CERT).replace(/\\n/g, '\n');
+  else if (process.env.PGSSLROOTCERT) {
+    try { o.ca = require('fs').readFileSync(process.env.PGSSLROOTCERT, 'utf8'); }
+    catch (e) { console.warn('  PGSSLROOTCERT o’qilmadi: ' + e.message); }
+  }
+  return o;
+}
+/** Manzildagi ssl* parametrlari olib tashlanadi — aks holda pg ular bilan
+    yuqoridagi sozlamani almashtirib yuboradi. */
+function stripSslParams(url) {
+  try {
+    const u = new URL(url);
+    ['sslmode', 'ssl', 'sslrootcert', 'sslcert', 'sslkey', 'uselibpqcompat'].forEach(k => u.searchParams.delete(k));
+    return u.toString();
+  } catch (e) { return url; }
+}
+
 function makePostgres(url) {
   let Pool;
   try { Pool = require('pg').Pool; }
@@ -120,8 +151,8 @@ function makePostgres(url) {
 
   const conf = pgConf(url);
   const pool = new Pool({
-    connectionString: url,
-    ssl: conf.ssl ? { rejectUnauthorized: false } : false,
+    connectionString: stripSslParams(url),
+    ssl: pgSslOptions(conf),
     max: Number(process.env.PG_POOL_MAX || 4),
     idleTimeoutMillis: Number(process.env.PG_IDLE_MS || 15000),   // bo'sh ulanish yopilsin
     connectionTimeoutMillis: Number(process.env.PG_CONNECT_MS || 15000),
@@ -197,4 +228,4 @@ function createStore() {
   return makeSqlite() || makeJsonFile();
 }
 
-module.exports = { createStore, DATA_DIR, pgConf };
+module.exports = { createStore, DATA_DIR, pgConf, pgSslOptions, stripSslParams };

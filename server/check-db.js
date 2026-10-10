@@ -12,7 +12,7 @@
 'use strict';
 try { require('dotenv').config(); } catch (e) { }
 
-const { pgConf } = require('./store');
+const { pgConf, pgSslOptions, stripSslParams } = require('./store');
 
 function mask(url) {
   try {
@@ -64,8 +64,8 @@ function bad(msg, tip) {
   catch (e) { bad('pg kutubxonasi o’rnatilmagan.', 'npm install'); }
 
   const pool = new Pool({
-    connectionString: url,
-    ssl: conf.ssl ? { rejectUnauthorized: false } : false,
+    connectionString: stripSslParams(url),
+    ssl: pgSslOptions(conf),
     max: 1,
     connectionTimeoutMillis: Number(process.env.PG_CONNECT_MS || 15000)
   });

@@ -159,6 +159,10 @@ ko'rsatilmaydi va sizning ma'lumotingizga tegilmaydi.
 SSL o'zi to'g'ri tanlanadi (ichki manzil va `localhost` uchun o'chiq, qolganiga
 yoqiq). Kerak bo'lsa majburan belgilash mumkin: `PGSSLMODE=require` yoki
 `PGSSLMODE=disable`.
+Sertifikat standart holatda **tekshiriladi** (`rejectUnauthorized: true`).
+O'z CA sertifikati bo'lsa — `PG_CA_CERT` (PEM matni) yoki `PGSSLROOTCERT`
+(fayl yo'li). Faqat zarur bo'lsa `PG_SSL_NO_VERIFY=1` bilan tekshiruv
+o'chiriladi (tavsiya etilmaydi).
 
 ### Neon (bepul PostgreSQL) ga ulash
 
