@@ -1882,6 +1882,8 @@ async function handleApi(req, res, url) {
       if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(type)) {
         return send(res, 400, { error: 'Faqat rasm (JPG, PNG) yoki PDF yuklang.' });
       }
+      const qErr = await files.studentQuotaError(store, sid, stamp().slice(0, 10), Math.floor(String(body.data || '').length * 3 / 4));
+      if (qErr) return send(res, 429, { error: qErr });
       const r = await files.save(store, {
         name: body.name, type, dataBase64: body.data,
         purpose: 'oquvchi-fayl', refPath: 'students/' + sid, byUserId: sid, byKind: 'oquvchi', stamp
@@ -1932,6 +1934,8 @@ async function handleApi(req, res, url) {
         if (!/^image\/(jpeg|png|webp)$|^application\/pdf$|^audio\/(webm|mp4|mpeg|ogg|wav)(;.*)?$/.test(type)) {
           return send(res, 400, { error: 'Faqat rasm (JPG, PNG), PDF yoki ovoz yozuvi yuklang.' });
         }
+        const qErr = await files.studentQuotaError(store, sid, stamp().slice(0, 10), Math.floor(String(body.data || '').length * 3 / 4));
+        if (qErr) return send(res, 429, { error: qErr });
         const r = await files.save(store, {
           name: body.name, type, dataBase64: body.data,
           purpose: 'kurs-vazifa', refPath: course.COL + sid,

@@ -166,4 +166,29 @@ async function sweep(store) {
   return n;
 }
 
-module.exports = { dbMode, save, meta, readBody, remove, forRef, sweep, safeName, TYPES, MAX_BYTES, DIR, COL };
+/* O'quvchi yuklashlari uchun cheklov (diskni to'ldirib tashlamaslik uchun) */
+const STUDENT_QUOTA_BYTES = Number(process.env.STUDENT_FILE_QUOTA_MB || 150) * 1024 * 1024;
+const STUDENT_DAY_FILES = Number(process.env.STUDENT_FILES_PER_DAY || 30);
+/** O'quvchining jami hajmi va bugungi fayllar soni. today — 'YYYY-MM-DD' */
+async function studentUsage(store, sid, today) {
+  const rows = await store.list(COL);
+  let bytes = 0, todayN = 0;
+  rows.forEach(r => {
+    const f = r.data;
+    if (!f || f.byKind !== 'oquvchi' || String(f.by) !== String(sid)) return;
+    bytes += Number(f.bytes) || 0;
+    if (today && String(f.at || '').slice(0, 10) === today) todayN++;
+  });
+  return { bytes, todayN };
+}
+/** Yangi fayl sig'adimi: null — ha; aks holda xato matni */
+async function studentQuotaError(store, sid, today, newBytes) {
+  const u = await studentUsage(store, sid, today);
+  if (u.todayN >= STUDENT_DAY_FILES) return 'Bugun juda ko’p fayl yuklandi (' + STUDENT_DAY_FILES + ' ta). Ertaga davom eting.';
+  if (u.bytes + (Number(newBytes) || 0) > STUDENT_QUOTA_BYTES) {
+    return 'Fayllar uchun joy tugadi (' + Math.round(STUDENT_QUOTA_BYTES / 1048576) + ' MB). Ustozingizga murojaat qiling.';
+  }
+  return null;
+}
+
+module.exports = { studentUsage, studentQuotaError, STUDENT_QUOTA_BYTES, STUDENT_DAY_FILES, dbMode, save, meta, readBody, remove, forRef, sweep, safeName, TYPES, MAX_BYTES, DIR, COL };
