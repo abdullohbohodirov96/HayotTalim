@@ -49,6 +49,12 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓ ' + n); } else { f
   const va = visibleData(admin, all);
   ok('Direktor hammasini ko‘radi (ota-ona kodi bilan)', va.col.parents && va.col.parents.p1 && va.col.quizres.q2);
   ok('teacherCanSee: parents doim yo‘q', teacherCanSee('parents', { id: 'x' }, { gid: {}, sid: {} }) === false);
+  const vm = visibleData(admin, [
+    { path: 'meta/settings', data: { centerName: 'X', bot: { token: '1:SECRET' } } },
+    { path: 'meta/autoinvoice', data: { lastRun: '2026-10' } },
+    { path: 'meta/backupstate', data: { last: 'x' } }]);
+  ok('meta/autoinvoice va meta/backupstate mijozga ketmaydi', !Object.keys(vm.docs || {}).some(k => k.indexOf('meta/') === 0), JSON.stringify(vm.docs));
+  ok('Sozlamalardagi bot tokeni olib tashlanadi', vm.settings && vm.settings.centerName === 'X' && !(vm.settings.bot || {}).token);
   console.log('\n' + (fail ? '✗ XATOLAR BOR' : '✓ HAMMASI O’TDI') + ' — ' + pass + " ta o'tdi, " + fail + ' ta xato');
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

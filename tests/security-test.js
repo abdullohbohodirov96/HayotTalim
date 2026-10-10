@@ -531,6 +531,23 @@ async function login(l, p) {
   ok('Buzilgan belgi yo’q (�)', backNote.indexOf('�') < 0);
   await req('/api/doc?path=leads/lead_chunk', { method: 'DELETE', cookie: dirCookie });
 
+  section('14. meta/* — faqat server yozadi va o’qiydi');
+  const metaPut = await put('meta/autoinvoice', { lastRun: '2000-01', hack: 1 }, adminCookie);
+  eq('Administrator meta/autoinvoice yoza olmaydi', metaPut.status, 403);
+  const metaPut2 = await put('meta/backupstate', { last: 'x' }, dirCookie);
+  eq('Direktor ham meta/backupstate ni API orqali yoza olmaydi', metaPut2.status, 403);
+  const metaNew = await put('meta/boshqa', { a: 1 }, dirCookie);
+  eq('Yangi meta/* hujjat yaratilmaydi', metaNew.status, 403);
+  const metaGet = await req('/api/doc?path=' + encodeURIComponent('meta/autoinvoice'), { cookie: adminCookie });
+  eq('meta/autoinvoice o’qib bo’lmaydi', metaGet.status, 403);
+  const setGet = await req('/api/doc?path=' + encodeURIComponent('meta/settings'), { cookie: ustozCookie });
+  ok('meta/settings ichida bot tokeni yo’q', setGet.status !== 200 || !(setGet.json.data && setGet.json.data.bot && setGet.json.data.bot.token), setGet.text.slice(0, 120));
+  const bootM = await req('/api/bootstrap', { cookie: adminCookie });
+  ok('Bootstrapda meta/* hujjatlar yo’q', !Object.keys((bootM.json && bootM.json.docs) || {}).some(k => k.indexOf('meta/') === 0),
+    Object.keys((bootM.json && bootM.json.docs) || {}).join(','));
+  const setPut = await put('meta/settings', Object.assign({}, (await req('/api/doc?path=meta%2Fsettings', { cookie: dirCookie })).json.data), dirCookie);
+  eq('Direktor sozlamalarni saqlay oladi', setPut.status, 200);
+
   console.log(out.join('\n'));
   console.log('\n' + '─'.repeat(52));
   console.log((fail === 0 ? '✓ HAMMASI O’TDI' : '✗ XATOLAR BOR') + ` — ${pass} ta o'tdi, ${fail} ta xato`);

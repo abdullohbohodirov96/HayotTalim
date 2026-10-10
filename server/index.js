@@ -9,7 +9,7 @@ const crypto = require('crypto');
 try { require('dotenv').config(); } catch (e) { /* dotenv ixtiyoriy */ }
 
 const { createStore } = require('./store');
-const { A, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT } = require('./shared');
+const { A, settingsForClient, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT } = require('./shared');
 const backup = require('./backup');
 const kabinet = require('./kabinet');
 const link = require('./link');
@@ -1434,6 +1434,7 @@ async function filterReadDoc(user, p, data) {
     : (data ? { id: data.id, name: data.name, role: data.role } : null);
   if (col === 'staff') return safeStaff(data, user);
   if (!data) return null;
+  if (col === 'meta') return p === 'meta/settings' ? settingsForClient(data) : false;
 
   /* Suhbat va vazifalar: ID orqali ham bootstrap bilan bir xil qoida ishlasin */
   if (col === 'chats') {

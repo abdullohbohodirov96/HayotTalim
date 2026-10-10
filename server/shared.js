@@ -49,16 +49,26 @@ function writePermFor(docPath) {
   };
   if (col === 'meta') {
     if (p === 'meta/settings') return 'settings.edit';
-    return null;                       // meta/finindex — har qanday kirgan foydalanuvchi
+    return '__server__';               // meta/autoinvoice, meta/backupstate va h.k. — faqat server
   }
   if (col === 'lessons') return 'attendance.mark';
   if (col === 'botstate' || col === 'botin') return '__server__';  // faqat bot yozadi
   return map[col] || '__server__';
 }
 
+/* Mijozga yuboriladigan meta/* hujjatlar (meta/settings alohida, tokensiz).
+   Qolgan meta/* (autoinvoice, backupstate, ...) — faqat serverniki.      */
+const META_CLIENT = [];
+function settingsForClient(data) {
+  const s = Object.assign({}, data || {});
+  if (s.bot) s.bot = Object.assign({}, s.bot, { token: undefined });
+  return s;
+}
+
 /** Ba'zi hujjatlarni ko'rish ham cheklangan */
 function readBlocked(docPath, user) {
   const col = String(docPath || '').split('/')[0];
+  if (col === 'meta' && docPath !== 'meta/settings' && META_CLIENT.indexOf(docPath) < 0) return true;
   if (col === 'botstate') return true;
   if (col === 'kabpass') return true;              // o'quvchi parollari (xesh) — hech kimga
   if (col === 'filebody') return true;             // fayl mazmuni faqat /api/file orqali
@@ -242,13 +252,9 @@ function visibleData(user, all) {
 
   all.forEach(({ path: p, data }) => {
     const seg = p.split('/');
-    if (p === 'meta/settings') {
-      settings = Object.assign({}, data);
-      if (settings.bot) settings.bot = Object.assign({}, settings.bot, { token: undefined });
-      return;
-    }
+    if (p === 'meta/settings') { settings = settingsForClient(data); return; }
     if (seg[0] === 'botstate') return;
-    if (seg[0] === 'meta') { docs[p] = data; return; }
+    if (seg[0] === 'meta') { if (META_CLIENT.indexOf(p) >= 0) docs[p] = data; return; }
 
     if (seg.length === 2) {
       if (!allowCollection(seg[0])) return;
@@ -270,4 +276,4 @@ function visibleData(user, all) {
   return { col, docs, settings };
 }
 
-module.exports = { A, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT };
+module.exports = { A, META_CLIENT, settingsForClient, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT };
