@@ -260,6 +260,8 @@ async function api(p, o = {}) {
   }
   eq('20 ta savolga javob berildi', answered, 20);
   await page.waitForSelector('.test-end', { timeout: 15000 });
+  /* Natija faqat telefon raqami bilan beriladi (brauzerda ham, serverda ham) */
+  await page.fill('#test-phone', '+998 90 123 45 67');
   await page.locator('.test-end button[type=submit]').tap();
   await page.waitForSelector('.test-res', { timeout: 20000 });
   const res = await page.evaluate(() => document.querySelector('.test-res').innerText);
