@@ -147,6 +147,10 @@ const ID = n => R + '_' + n;
   eq('Qabul qilindi', acc.status, 200);
   v = (await req('/api/kabinet/course', { cookie: kc })).json;
   ok('Baho 5, holat qabul', v.lessons[0].hw.grade === 5 && v.lessons[0].hw.status === 'qabul');
+  const resub = await kpost('course/homework', { lessonId: L1.id, autoAnswers: hwA, texts: ['boshqa matn'] });
+  eq('Qabul qilingan vazifani qayta yuborib bo’lmaydi', resub.status, 409);
+  v = (await req('/api/kabinet/course', { cookie: kc })).json;
+  ok('Baho va holat saqlanib qoldi', v.lessons[0].hw.grade === 5 && v.lessons[0].hw.status === 'qabul');
 
   section('5. Ustoz/admin darsga o’tkazadi');
   const L5 = C.LESSONS[4];

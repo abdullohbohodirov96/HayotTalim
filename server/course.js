@@ -148,6 +148,11 @@ async function submitHomework(A, store, sid, body, stamp, files) {
   if (!lesson) return { error: 'Dars topilmadi.', code: 404 };
   const doc = await get(store, sid);
   if (!lessonOpen(A, doc, lesson.id)) return { error: 'Bu dars hali yopiq.', code: 403 };
+  /* Ustoz qabul qilgan vazifani qayta yuborib bahoni o'chirib bo'lmaydi */
+  const prevHw = doc.lessons[lesson.id] && doc.lessons[lesson.id].hw;
+  if (prevHw && prevHw.status === 'qabul') {
+    return { error: 'Bu vazifa ustoz tomonidan qabul qilingan (baho qo’yilgan). Qayta yuborib bo’lmaydi.', code: 409 };
+  }
   const autoAnswers = Array.isArray(body.autoAnswers) ? body.autoAnswers.slice(0, 30).map(Number) : [];
   const texts = (Array.isArray(body.texts) ? body.texts : []).slice(0, 5).map(t => txt(t, 3000));
   /* Fayl faqat SHU o'quvchi yuklagan bo'lsa qabul qilinadi */
