@@ -1702,6 +1702,18 @@ async function handleApi(req, res, url) {
     const isParent = ses.kind === 'parent';
     const sub = route.slice('kabinet/'.length);
 
+    /* Sessiya egasini har so'rovda qayta tekshiramiz: ota-ona o'chirilgan /
+       farzand olib tashlangan yoki o'quvchi o'chirilgan bo'lsa — kirish yo'q. */
+    let liveIds = null;
+    if (isParent) {
+      const par = await store.get(parents.COL + ses.parentId);
+      if (!par || par.active === false) return send(res, 401, { error: 'Kirish kerak.' }, { 'Set-Cookie': kabsess.clearHeader() });
+      liveIds = (par.studentIds || []).map(String);
+    } else {
+      const st0 = await store.get('students/' + ses.studentId);
+      if (!st0 || st0.status === 'o’chirilgan') return send(res, 401, { error: 'Kirish kerak.' }, { 'Set-Cookie': kabsess.clearHeader() });
+    }
+
     /* O'zgartiruvchi so'rov uchun CSRF */
     function csrfOk() {
       const got = String(req.headers['x-kab-csrf'] || '');
@@ -1712,7 +1724,7 @@ async function handleApi(req, res, url) {
 
     /** Shu sessiya ko'rishi mumkin bo'lgan o'quvchi id lari */
     const mine = isParent
-      ? (Array.isArray(ses.studentIds) ? ses.studentIds.map(String) : [])
+      ? (Array.isArray(ses.studentIds) ? ses.studentIds.map(String) : []).filter(x => liveIds.indexOf(x) >= 0)
       : [String(ses.studentId)];
     function allowStudent(sid) { return mine.indexOf(String(sid)) >= 0; }
 
@@ -2912,8 +2924,15 @@ async function handleApi(req, res, url) {
   if (route === 'parent' && req.method === 'POST') {
     if (!A.can(user, 'parent.manage')) return nope();
     const body = await readBody(req);
+    const prevPar = body && body.id ? await store.get(parents.COL + String(body.id)) : null;
     const r = await parents.save(store, body, { byUserId: user.id, stamp });
     if (!r.ok) return send(res, 400, { error: 'Ota-ona ismi kerak.' });
+    /* Farzand olib tashlangan yoki hisob o'chirilgan bo'lsa — eski sessiyalar yopiladi */
+    if (prevPar) {
+      const now = (r.rec.studentIds || []).map(String);
+      const dropped = (prevPar.studentIds || []).some(x => now.indexOf(String(x)) < 0);
+      if (dropped || r.rec.active === false) await kabsess.revokeForParent(store, r.rec.id, { stamp });
+    }
     await writeAudit(user, 'Ota-ona hisobi saqlandi', r.rec.name, (r.rec.studentIds || []).length + ' ta farzand');
     return send(res, 200, { ok: true, parent: r.rec });
   }
@@ -2922,7 +2941,7 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const r = await parents.newCode(store, String(body.id || ''), { stamp });
     if (!r.ok) return send(res, 404, { error: 'Ota-ona topilmadi.' });
-    await kabsess.revokeForStudent(store, '__parent__' + r.rec.id, { stamp });
+    await kabsess.revokeForParent(store, r.rec.id, { stamp });
     await writeAudit(user, 'Ota-ona kodi yangilandi', r.rec.name, '');
     return send(res, 200, { ok: true, code: r.rec.code });
   }
@@ -2932,6 +2951,7 @@ async function handleApi(req, res, url) {
     const id = String(body.id || '');
     if (!await store.get(parents.COL + id)) return send(res, 404, { error: 'Topilmadi.' });
     if (store.del) await store.del(parents.COL + id);
+    await kabsess.revokeForParent(store, id, { stamp });
     await writeAudit(user, 'Ota-ona hisobi o’chirildi', id, '');
     return send(res, 200, { ok: true });
   }
@@ -2975,6 +2995,7 @@ async function handleApi(req, res, url) {
     const oldCode = st.code || '';
     st.code = code;
     await store.set('students/' + id, st);
+    await kabsess.revokeForStudent(store, id, { stamp, onlyStudent: true });   // eski kod bilan ochilgan sessiyalar
     await writeAudit(user, 'O’quvchi kodi yangilandi',
       (st.lastName || '') + ' ' + (st.firstName || ''), oldCode + ' → ' + code);
     return send(res, 200, { ok: true, code });
@@ -3053,6 +3074,7 @@ async function handleApi(req, res, url) {
     const pw = String(crypto.randomInt(100000, 1000000));
     const salt = crypto.randomBytes(16).toString('hex');
     await store.set('kabpass/' + sid, { salt, hash: kabHash(pw, salt), at: stamp(), by: 'admin' });
+    await kabsess.revokeForStudent(store, sid, { stamp, onlyStudent: true });   // eski parol bilan ochilgan sessiyalar
     await writeAudit(user, 'Kabinet paroli yaratildi', (st.lastName || '') + ' ' + (st.firstName || ''), '');
     const base = String(process.env.PUBLIC_URL || process.env.SITE_URL || '').replace(/\/$/, '');
     return send(res, 200, { ok: true, login: String(st.code), phone: String(st.phone || ''), password: pw, url: base ? base + '/#kabinet' : '' });

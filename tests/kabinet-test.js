@@ -248,6 +248,48 @@ const GCODE = 'K' + R.slice(-5).toUpperCase();
   eq('Eski sessiya endi ishlamaydi', after.status, 401);
   ok('Javobda ism yo’q', !/Karimova/.test(after.text), after.text.slice(0, 120));
 
+  section('   Kod yoki parol yangilansa, eski sessiyalar yopiladi');
+  const lk1 = await kabLink(ID('s1'));
+  const sesC = await req('/api/kabinet/session', { method: 'POST', body: { token: lk1.json.token } });
+  eq('Sessiya ochildi', (await req('/api/kabinet/me', { cookie: sesC.cookie })).status, 200);
+  const newCode = await req('/api/student/code', { method: 'POST', cookie: dir, body: { studentId: ID('s1') } });
+  eq('Kod yangilandi', newCode.status, 200);
+  eq('Eski kod bilan ochilgan sessiya yopildi', (await req('/api/kabinet/me', { cookie: sesC.cookie })).status, 401);
+  const lk2 = await kabLink(ID('s1'));
+  const sesP = await req('/api/kabinet/session', { method: 'POST', body: { token: lk2.json.token } });
+  eq('Yangi sessiya ochildi', (await req('/api/kabinet/me', { cookie: sesP.cookie })).status, 200);
+  const kp = await req('/api/student/kabpass', { method: 'POST', cookie: dir, body: { studentId: ID('s1') } });
+  eq('Kabinet paroli yangilandi', kp.status, 200);
+  eq('Parol yangilangach eski sessiya yopildi', (await req('/api/kabinet/me', { cookie: sesP.cookie })).status, 401);
+
+  section('   Ota-ona sessiyasi: kod yangilanganda, farzand olinganda, o’chirilganda yopiladi');
+  const mkPar = await req('/api/parent', { method: 'POST', cookie: dir, body: { name: 'Ota Sinov', studentIds: [ID('s1'), ID('s2')] } });
+  eq('Ota-ona hisobi yaratildi', mkPar.status, 200);
+  const PAR = mkPar.json.parent;
+  const pIn = await kabByCode(PAR.code, '203.0.113.61');
+  eq('Ota-ona kod bilan kirdi', pIn.status, 200);
+  const pCk = (pIn.cookie || '').split(';')[0];
+  const pL2 = await req('/api/kabinet/learning?studentId=' + ID('s2'), { cookie: pCk });
+  eq('Ikkinchi farzand ma’lumoti ochiladi', pL2.status, 200);
+  const shrink = await req('/api/parent', { method: 'POST', cookie: dir, body: { id: PAR.id, name: 'Ota Sinov', studentIds: [ID('s1')] } });
+  eq('Farzand olib tashlandi', shrink.status, 200);
+  const pL2b = await req('/api/kabinet/learning?studentId=' + ID('s2'), { cookie: pCk });
+  ok('Olib tashlangan farzand endi ko’rinmaydi', pL2b.status === 401 || pL2b.status === 403, String(pL2b.status));
+  const pIn2 = await kabByCode(PAR.code, '203.0.113.62');
+  const pCk2 = (pIn2.cookie || '').split(';')[0];
+  eq('Qayta kirdi', (await req('/api/kabinet/me', { cookie: pCk2 })).status, 200);
+  const pc = await req('/api/parent/code', { method: 'POST', cookie: dir, body: { id: PAR.id } });
+  eq('Ota-ona kodi yangilandi', pc.status, 200);
+  eq('Eski ota-ona sessiyasi yopildi', (await req('/api/kabinet/me', { cookie: pCk2 })).status, 401);
+  eq('Eski sessiya bilan o’quv sahifasi ham yopiq', (await req('/api/kabinet/learning?studentId=' + ID('s1'), { cookie: pCk2 })).status, 401);
+  const pIn3 = await kabByCode(pc.json.code, '203.0.113.63');
+  const pCk3 = (pIn3.cookie || '').split(';')[0];
+  eq('Yangi kod bilan kirdi', (await req('/api/kabinet/me', { cookie: pCk3 })).status, 200);
+  const pdel = await req('/api/parent/delete', { method: 'POST', cookie: dir, body: { id: PAR.id } });
+  eq('Ota-ona hisobi o’chirildi', pdel.status, 200);
+  eq('O’chirilgan ota-ona sessiyasi yopildi', (await req('/api/kabinet/me', { cookie: pCk3 })).status, 401);
+  eq('O’quv sahifasi ham yopiq', (await req('/api/kabinet/learning?studentId=' + ID('s1'), { cookie: pCk3 })).status, 401);
+
 
   /* Qulflash sinovi ALOHIDA server nusxasida bajariladi: u IP ni qulflaydi,
      shuning uchun asosiy serverga va boshqa sinovlarga xalaqit bermaydi.   */
