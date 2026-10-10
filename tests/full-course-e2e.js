@@ -232,8 +232,12 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       await timed(page, L.id + ' mashq→test', () => page.click('.cr-next .btn'), '.cr-testbar');
       const test = await page.evaluate(i => A.Course.buildTest(A.Course.LESSONS[i]), n);
       for (let k = 0; k < test.length; k++) {
+        /* Server variantlar tartibini aralashtiradi — to'g'ri javob matni bo'yicha bosamiz */
+        const want = test[k].options[test[k].answer];
         const opts = await page.$$('.cr-panel .cr-opt');
-        await opts[test[k].answer].click();
+        let hit = opts[0];
+        for (const o of opts) { if ((await o.innerText()).trim() === String(want).trim()) { hit = o; break; } }
+        await hit.click();
         await page.click('.cr-next .btn');
       }
       await page.waitForSelector('.cr-result', { timeout: 10000 });
@@ -242,7 +246,8 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       await timed(page, L.id + ' test→uy vazifasi', () => page.click('.cr-result .btn.primary'), '.cr-pin');
 
       /* Uy vazifasi */
-      const hw = await page.evaluate(i => { const l = A.Course.LESSONS[i]; return { auto: l.homework.auto.map(q => q.answer), w: A.Course.buildWritten(l) }; }, n);
+      const hw = await page.evaluate(i => { const l = A.Course.LESSONS[i]; return { w: A.Course.buildWritten(l) }; }, n);
+      hw.auto = require('../server/course-keys')[L.id] || [];   // javoblar faqat serverda
       ok('Uy vazifasi: qissa tepada ko’rinib turadi', !!(await page.$('.cr-pin .cr-story')));
       ok('Uy vazifasi: yordam boshida yashirin', await page.$$eval('.cr-hint-btn', bs => bs.every(b => b.hidden)));
       const cards = await page.$$('.cr-ex-card');

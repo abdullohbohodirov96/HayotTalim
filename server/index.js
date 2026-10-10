@@ -1948,6 +1948,7 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       let r;
       if (op === 'step') r = await course.markStep(A, store, sid, body, stamp);
+      else if (op === 'test/start') r = await course.startTest(A, store, sid, body);
       else if (op === 'test') r = await course.submitTest(A, store, sid, body, stamp);
       else if (op === 'review') r = await course.submitReview(A, store, sid, body, stamp);
       else if (op === 'vocab') r = await course.vocabMark(A, store, sid, body);

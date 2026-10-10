@@ -39,6 +39,21 @@ async function login(l, p) {
   return r.status === 200 ? r.cookie : null;
 }
 
+const KEYS = require('../server/course-keys');
+const hwKey = L => KEYS[L.id] || [];
+/** Serverdan test olib, kerakli javoblarni ko'rsatilgan tartib bo'yicha topadi */
+async function runTest(kp, L, right) {
+  const st = await kp('course/test/start', { lessonId: L.id });
+  if (st.status !== 200) return st;
+  const orig = C.buildTest(L);
+  const answers = st.json.questions.map((q, i) => {
+    const want = orig[i].options[orig[i].answer];
+    const k = q.options.indexOf(want);
+    return right ? k : (k + 1) % q.options.length;
+  });
+  return kp('course/test', { lessonId: L.id, answers, sessId: st.json.sessId });
+}
+
 const R = 'c' + Date.now().toString(36);
 const ID = n => R + '_' + n;
 
@@ -80,10 +95,15 @@ const ID = n => R + '_' + n;
   eq('Bosqich belgilandi', (await kpost('course/step', { lessonId: L1.id, step: 'words' })).status, 200);
 
   section('2. Test serverda baholanadi');
-  const test = C.buildTest(L1);
-  const bad = await kpost('course/test', { lessonId: L1.id, answers: test.map(q => (q.answer + 1) % q.options.length) });
+  ok('Mijoz kodida uy vazifasi javoblari yo’q', C.LESSONS.every(l => ((l.homework || {}).auto || []).every(q => !('answer' in q))));
+  const st0 = await kpost('course/test/start', { lessonId: L1.id });
+  eq('Test serverdan olindi', st0.status, 200);
+  ok('Savollarda to’g’ri javob yo’q', st0.json.questions.every(q => !('answer' in q) && !('word' in q)), JSON.stringify(st0.json.questions[0]));
+  const noSess = await kpost('course/test', { lessonId: L1.id, answers: C.buildTest(L1).map(q => q.answer) });
+  eq('Boshlanmagan test qabul qilinmaydi', noSess.status, 409);
+  const bad = await runTest(kpost, L1, false);
   ok('Noto’g’ri javoblar → 0%', bad.json.result.percent === 0 && !bad.json.passed, JSON.stringify(bad.json.result));
-  const good = await kpost('course/test', { lessonId: L1.id, answers: test.map(q => q.answer) });
+  const good = await runTest(kpost, L1, true);
   ok('To’g’ri javoblar → 100%', good.json.result.percent === 100 && good.json.passed);
   eq('Faqat test bilan keyingi dars ochilmaydi', good.json.view.lessons[1].status, 'locked');
 
@@ -97,7 +117,7 @@ const ID = n => R + '_' + n;
   eq('Rasm yuklandi', up.status, 200);
   const pdf = await kpost('course/upload', { name: 'vazifa.pdf', type: 'application/pdf', data: Buffer.from('%PDF-1.4\n%test\n').toString('base64') });
   eq('PDF yuklandi', pdf.status, 200);
-  const hwA = (L1.homework.auto || []).map(q => q.answer);
+  const hwA = hwKey(L1);
   const hw = await kpost('course/homework', { lessonId: L1.id, autoAnswers: hwA, texts: ['هٰذَا أَبِي'], fileIds: [up.json.file.id, pdf.json.file.id, 'begona_fayl'] });
   eq('Vazifa topshirildi', hw.status, 200);
   v = hw.json.view;
@@ -162,13 +182,14 @@ const ID = n => R + '_' + n;
   section('7. Kitobdagidek yozma mashqlar serverda baholanadi');
   const L5w = C.buildWritten(L5);
   const hw5 = await kp2('course/homework', {
-    lessonId: L5.id, autoAnswers: (L5.homework.auto || []).map(q => q.answer),
+    lessonId: L5.id, autoAnswers: hwKey(L5),
     fillAnswers: L5w.fill.map(f => f.answer), trAnswers: L5w.tr.map(t => t.ar), readPercent: 83, fileIds: [audio.json.file.id]
   });
   eq('Vazifa (faqat yozma mashqlar + ovoz) qabul qilindi', hw5.status, 200);
   const v5 = hw5.json.view.lessons[4].hw;
   ok('Bo’sh joy to’liq to’g’ri', v5.written && v5.written.fillOk === v5.written.fillTotal, JSON.stringify(v5.written));
   eq('O’qish natijasi saqlandi', v5.readPercent, 83);
+  ok('Uy vazifasi avtomatik qismi serverdagi kalit bilan baholandi', v5.auto && v5.auto.percent === 100, JSON.stringify(v5.auto));
   const ov2 = await req('/api/course/overview', { cookie: dir });
   const pend = ov2.json.rows.find(r => r.studentId === ID('s1')).pending.find(p => p.lessonId === L5.id);
   ok('Ustozga ovoz fayli turi bilan keladi', pend && pend.files.some(f => /^audio\//.test(f.type)));
@@ -180,9 +201,9 @@ const ID = n => R + '_' + n;
   const k3 = await req('/api/kabinet', { body: { login: code3, password: code3 }, ip: '10.3.3.3' });
   const kp3 = (sub, body) => req('/api/kabinet/' + sub, { cookie: k3.cookie, csrf: k3.json.csrf, body });
   for (const L of [C.LESSONS[0], C.LESSONS[1]]) {
-    await kp3('course/test', { lessonId: L.id, answers: C.buildTest(L).map(q => q.answer) });
+    await runTest(kp3, L, true);
     const w = C.buildWritten(L);
-    await kp3('course/homework', { lessonId: L.id, autoAnswers: (L.homework.auto || []).map(q => q.answer), fillAnswers: w.fill.map(f => f.answer), texts: ['ok ok'] });
+    await kp3('course/homework', { lessonId: L.id, autoAnswers: hwKey(L), fillAnswers: w.fill.map(f => f.answer), texts: ['ok ok'] });
   }
   let v3 = (await req('/api/kabinet/course', { cookie: k3.cookie })).json;
   eq('2 dars tugadi, lekin 3-dars yopiq (takrorlash kerak)', v3.lessons[2].status, 'locked');
@@ -215,6 +236,27 @@ const ID = n => R + '_' + n;
   eq('O’quvchi video yuklay olmaydi', (await req('/api/course/video', { cookie: k3.cookie, body: { lessonId: 'a1-03', type: 'video/mp4', data: mp4 } })).status, 401);
   ok('Ovoz xaritasi ochiq yo’lda', (await req('/api/qissa-audio/map')).status === 200);
   eq('Kalitsiz ElevenLabs yaratish aniq xato beradi', (await req('/api/course/tts', { cookie: dir, body: { lessonId: 'a1-01' } })).status, 400);
+
+  section('9. Urinishlar cheklangan; o’qish natijasi va yordamlar tekshiriladi');
+  await put('students/' + ID('s4'), { id: ID('s4'), firstName: 'Cheklov', lastName: 'Sinov', phone: '+998901234503', status: 'faol' }, dir);
+  await put('memberships/' + ID('m4'), { id: ID('m4'), studentId: ID('s4'), groupId: ID('g1'), joinedAt: '2026-09-01', status: 'faol' }, dir);
+  const code4 = (await getDoc('students/' + ID('s4'), dir)).json.data.code;
+  const k4 = await req('/api/kabinet', { body: { code: code4 }, ip: '10.4.4.4' });
+  const kp4 = (sub, body) => req('/api/kabinet/' + sub, { cookie: k4.cookie, csrf: k4.json.csrf, body });
+  let lastSt = 0;
+  for (let i = 0; i < 6; i++) lastSt = (await runTest(kp4, L1, false)).status;
+  eq('6-urinish rad etildi (kuniga 5 ta)', lastSt, 429);
+  const noAudio = await kp4('course/homework', { lessonId: L1.id, autoAnswers: hwKey(L1), texts: ['matn yozdim'], readPercent: 100,
+    hints: { fill: [99, -5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], tr: ['x'] } });
+  eq('Vazifa qabul qilindi', noAudio.status, 200);
+  const hw4 = noAudio.json.view.lessons[0].hw;
+  eq('Ovoz yozuvisiz o’qish foizi qabul qilinmadi', hw4.readPercent, null);
+  const cp4 = (await getDoc('courseprog/' + ID('s4'), dir)).json;
+  const h4 = cp4 && cp4.data && cp4.data.lessons[L1.id].hw.hints;
+  const w1 = C.buildWritten(L1);
+  ok('Yordamlar soni mashqlar soniga va 0–4 oralig’iga keltirildi',
+    h4 && h4.fill.length === w1.fill.length && h4.fill.every(x => x >= 0 && x <= 4) && h4.fill[0] === 4 && h4.fill[1] === 0 &&
+    h4.tr.length === w1.tr.length && h4.tr.every(x => x === 0), JSON.stringify(h4));
 
   console.log(out.join('\n'));
   console.log('\n' + (fail ? '✗ ' + fail + ' ta xato, ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o’tdi');

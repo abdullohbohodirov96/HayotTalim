@@ -91,11 +91,11 @@
       ],
       homework: {
         auto: [
-          { q: '___ صُورَةٌ', options: ['هَذَا', 'هَذِهِ'], answer: 1 },
-          { q: '___ أَخٌ', options: ['هَذَا', 'هَذِهِ'], answer: 0 },
-          { q: '___ جَدَّةٌ', options: ['هَذَا', 'هَذِهِ'], answer: 1 },
-          { q: '«otam» — arabchada:', options: ['أَبِي', 'أَخِي', 'جَدِّي'], answer: 0 },
-          { q: '«buvim» — arabchada:', options: ['أُمِّي', 'جَدَّتِي', 'أُخْتِي'], answer: 1 }
+          { q: '___ صُورَةٌ', options: ['هَذَا', 'هَذِهِ'] },
+          { q: '___ أَخٌ', options: ['هَذَا', 'هَذِهِ'] },
+          { q: '___ جَدَّةٌ', options: ['هَذَا', 'هَذِهِ'] },
+          { q: '«otam» — arabchada:', options: ['أَبِي', 'أَخِي', 'جَدِّي'] },
+          { q: '«buvim» — arabchada:', options: ['أُمِّي', 'جَدَّتِي', 'أُخْتِي'] }
         ],
         write: [
           { prompt: 'Oilangizni 4 ta gap bilan tanishtiring.', hint: 'Masalan: هَذَا أَبِي. هَذِهِ أُمِّي.' }
@@ -157,11 +157,11 @@
       ],
       homework: {
         auto: [
-          { q: 'فَاطِمَةُ ___ طَبِيبَةٌ', options: ['هُوَ', 'هِيَ'], answer: 1 },
-          { q: 'يُوسُفُ ___ طَالِبٌ', options: ['هُوَ', 'هِيَ'], answer: 0 },
-          { q: '«o’qituvchi (ayol)»:', options: ['مُعَلِّمٌ', 'مُعَلِّمَةٌ', 'مُهَنْدِسٌ'], answer: 1 },
-          { q: '«o’g’il»:', options: ['ابْنٌ', 'ابْنَةٌ', 'أَبٌ'], answer: 0 },
-          { q: '«Ha» arabchada:', options: ['لَا', 'نَعَمْ', 'هَلْ'], answer: 1 }
+          { q: 'فَاطِمَةُ ___ طَبِيبَةٌ', options: ['هُوَ', 'هِيَ'] },
+          { q: 'يُوسُفُ ___ طَالِبٌ', options: ['هُوَ', 'هِيَ'] },
+          { q: '«o’qituvchi (ayol)»:', options: ['مُعَلِّمٌ', 'مُعَلِّمَةٌ', 'مُهَنْدِسٌ'] },
+          { q: '«o’g’il»:', options: ['ابْنٌ', 'ابْنَةٌ', 'أَبٌ'] },
+          { q: '«Ha» arabchada:', options: ['لَا', 'نَعَمْ', 'هَلْ'] }
         ],
         write: [
           { prompt: 'Oilangizdagi 3 kishining kasbini yozing.', hint: 'Masalan: أَبِي مُهَنْدِسٌ. أُمِّي مُعَلِّمَةٌ.' }
@@ -222,11 +222,11 @@
       ],
       homework: {
         auto: [
-          { q: '«xona»:', options: ['غُرْفَةٌ', 'شَجَرَةٌ', 'صُورَةٌ'], answer: 0 },
-          { q: '«xonada»:', options: ['فِي الْغُرْفَةِ', 'فِي غُرْفَةٌ', 'الْغُرْفَةُ'], answer: 0 },
-          { q: 'Dialogda Yusuf qayerda?', options: ['فِي الْحَمَّامِ', 'فِي الْمَتْجَرِ', 'فِي الْغُرْفَةِ'], answer: 1 },
-          { q: '«ko’zoynak»:', options: ['مِعْطَفٌ', 'نَظَّارَةٌ', 'شُرْفَةٌ'], answer: 1 },
-          { q: 'أَيْنَ ___ ؟ — «Palto qayerda?»', options: ['الْمِعْطَفُ', 'الْمِعْطَفِ', 'مِعْطَفًا'], answer: 0 }
+          { q: '«xona»:', options: ['غُرْفَةٌ', 'شَجَرَةٌ', 'صُورَةٌ'] },
+          { q: '«xonada»:', options: ['فِي الْغُرْفَةِ', 'فِي غُرْفَةٌ', 'الْغُرْفَةُ'] },
+          { q: 'Dialogda Yusuf qayerda?', options: ['فِي الْحَمَّامِ', 'فِي الْمَتْجَرِ', 'فِي الْغُرْفَةِ'] },
+          { q: '«ko’zoynak»:', options: ['مِعْطَفٌ', 'نَظَّارَةٌ', 'شُرْفَةٌ'] },
+          { q: 'أَيْنَ ___ ؟ — «Palto qayerda?»', options: ['الْمِعْطَفُ', 'الْمِعْطَفِ', 'مِعْطَفًا'] }
         ],
         write: [
           { prompt: 'Uyingizdagi 3 narsa qayerda ekanini yozing.', hint: 'Masalan: الْمِعْطَفُ فِي الْغُرْفَةِ.' }
@@ -285,11 +285,11 @@
       ],
       homework: {
         auto: [
-          { q: '«uyg’ondi»:', options: ['اِسْتَيْقَظَ', 'أَكَلَ', 'جَلَسَ'], answer: 0 },
-          { q: '«berdi»:', options: ['أَخَذَ', 'أَعْطَى', 'لَبِسَ'], answer: 1 },
-          { q: 'مَرْيَمُ ___ الْكِتَابَ — «Maryam kitobni o’qidi»', options: ['قَرَأَ', 'قَرَأَتْ'], answer: 1 },
-          { q: 'Matnda Yusuf nimani kiydi?', options: ['الْمِعْطَفَ', 'النَّظَّارَةَ', 'الْكِتَابَ'], answer: 0 },
-          { q: '«oldi»:', options: ['خَلَعَ', 'أَخَذَ', 'أَعْطَى'], answer: 1 }
+          { q: '«uyg’ondi»:', options: ['اِسْتَيْقَظَ', 'أَكَلَ', 'جَلَسَ'] },
+          { q: '«berdi»:', options: ['أَخَذَ', 'أَعْطَى', 'لَبِسَ'] },
+          { q: 'مَرْيَمُ ___ الْكِتَابَ — «Maryam kitobni o’qidi»', options: ['قَرَأَ', 'قَرَأَتْ'] },
+          { q: 'Matnda Yusuf nimani kiydi?', options: ['الْمِعْطَفَ', 'النَّظَّارَةَ', 'الْكِتَابَ'] },
+          { q: '«oldi»:', options: ['خَلَعَ', 'أَخَذَ', 'أَعْطَى'] }
         ],
         write: [
           { prompt: 'Bugungi tongingizni 4 ta fe’l bilan yozing.', hint: 'Masalan: اِسْتَيْقَظْتُ… yoki u haqida: اِسْتَيْقَظَتْ أُمِّي ثُمَّ أَكَلَتْ.' }
@@ -346,11 +346,11 @@
       ],
       homework: {
         auto: [
-          { q: '«deraza»:', options: ['بَابٌ', 'نَافِذَةٌ', 'صَالَةٌ'], answer: 1 },
-          { q: 'حَدِيقَةٌ ___ — «chiroyli bog’»', options: ['جَمِيلٌ', 'جَمِيلَةٌ'], answer: 1 },
-          { q: 'الشَّقَّةُ ___ صَالَةٌ', options: ['فِيهِ', 'فِيهَا'], answer: 1 },
-          { q: '«yotoqxona»:', options: ['غُرْفَةُ النَّوْمِ', 'الْمَطْبَخُ', 'الْحَمَّامُ'], answer: 0 },
-          { q: 'Soraning uyida nima bor?', options: ['حَدِيقَةٌ', 'مِصْعَدٌ', 'مَتْجَرٌ'], answer: 0 }
+          { q: '«deraza»:', options: ['بَابٌ', 'نَافِذَةٌ', 'صَالَةٌ'] },
+          { q: 'حَدِيقَةٌ ___ — «chiroyli bog’»', options: ['جَمِيلٌ', 'جَمِيلَةٌ'] },
+          { q: 'الشَّقَّةُ ___ صَالَةٌ', options: ['فِيهِ', 'فِيهَا'] },
+          { q: '«yotoqxona»:', options: ['غُرْفَةُ النَّوْمِ', 'الْمَطْبَخُ', 'الْحَمَّامُ'] },
+          { q: 'Soraning uyida nima bor?', options: ['حَدِيقَةٌ', 'مِصْعَدٌ', 'مَتْجَرٌ'] }
         ],
         write: [
           { prompt: 'Uyingizni 3–4 gap bilan tasvirlang.', hint: 'Masalan: أَسْكُنُ فِي بَيْتٍ. فِي الْبَيْتِ مَطْبَخٌ كَبِيرٌ.' }
@@ -405,11 +405,11 @@
       ],
       homework: {
         auto: [
-          { q: '«stul»:', options: ['كُرْسِيٌّ', 'سَرِيرٌ', 'مَكْتَبٌ'], answer: 0 },
-          { q: '«divan»:', options: ['سَجَّادَةٌ', 'أَرِيكَةٌ', 'خِزَانَةٌ'], answer: 1 },
-          { q: '«Unda (ayol) bor»:', options: ['عِنْدَهُ', 'عِنْدَهَا', 'عِنْدِي'], answer: 1 },
-          { q: 'Qizda nima yangi?', options: ['سَرِيرٌ', 'مِرْآةٌ', 'ثَلَّاجَةٌ'], answer: 0 },
-          { q: '«ko’zgu»:', options: ['مِرْآةٌ', 'نَافِذَةٌ', 'بَابٌ'], answer: 0 }
+          { q: '«stul»:', options: ['كُرْسِيٌّ', 'سَرِيرٌ', 'مَكْتَبٌ'] },
+          { q: '«divan»:', options: ['سَجَّادَةٌ', 'أَرِيكَةٌ', 'خِزَانَةٌ'] },
+          { q: '«Unda (ayol) bor»:', options: ['عِنْدَهُ', 'عِنْدَهَا', 'عِنْدِي'] },
+          { q: 'Qizda nima yangi?', options: ['سَرِيرٌ', 'مِرْآةٌ', 'ثَلَّاجَةٌ'] },
+          { q: '«ko’zgu»:', options: ['مِرْآةٌ', 'نَافِذَةٌ', 'بَابٌ'] }
         ],
         write: [
           { prompt: 'Xonangizda nimalar borligini 4 ta gap bilan yozing.', hint: 'Masalan: عِنْدِي سَرِيرٌ. الْكُرْسِيُّ أَمَامَ الْمَكْتَبِ.' }
@@ -464,11 +464,11 @@
       ],
       homework: {
         auto: [
-          { q: '«ikkinchi qavat»:', options: ['الطَّابِقُ الثَّانِي', 'الطَّابِقُ الْأَوَّلُ', 'الطَّابِقُ الرَّابِعُ'], answer: 0 },
-          { q: '«zinapoya»:', options: ['دَرَجٌ', 'مِصْعَدٌ', 'شَارِعٌ'], answer: 0 },
-          { q: '«qo’shni (ayol)»:', options: ['جَارٌ', 'جَارَةٌ'], answer: 1 },
-          { q: 'قَرِيبٌ ning teskarisi:', options: ['كَبِيرٌ', 'بَعِيدٌ', 'جَمِيلٌ'], answer: 1 },
-          { q: 'Lift qayerda?', options: ['جَنْبَ الدَّرَجِ', 'فِي الشَّارِعِ', 'فِي الْمَتْجَرِ'], answer: 0 }
+          { q: '«ikkinchi qavat»:', options: ['الطَّابِقُ الثَّانِي', 'الطَّابِقُ الْأَوَّلُ', 'الطَّابِقُ الرَّابِعُ'] },
+          { q: '«zinapoya»:', options: ['دَرَجٌ', 'مِصْعَدٌ', 'شَارِعٌ'] },
+          { q: '«qo’shni (ayol)»:', options: ['جَارٌ', 'جَارَةٌ'] },
+          { q: 'قَرِيبٌ ning teskarisi:', options: ['كَبِيرٌ', 'بَعِيدٌ', 'جَمِيلٌ'] },
+          { q: 'Lift qayerda?', options: ['جَنْبَ الدَّرَجِ', 'فِي الشَّارِعِ', 'فِي الْمَتْجَرِ'] }
         ],
         write: [
           { prompt: 'Uyingiz qayerda: qavat, nima yaqin, nima uzoq — 3 gap.', hint: 'Masalan: أَسْكُنُ فِي الطَّابِقِ الْأَوَّلِ. الْمَتْجَرُ قَرِيبٌ.' }
@@ -523,11 +523,11 @@
       ],
       homework: {
         auto: [
-          { q: '«uxladi»:', options: ['نَامَ', 'سَكَنَ', 'غَسَلَ'], answer: 0 },
-          { q: 'فَاطِمَةُ ___ الْبَيْتَ — «kirdi»', options: ['دَخَلَ', 'دَخَلَتْ'], answer: 1 },
-          { q: '«yuvdi»:', options: ['طَبَخَ', 'غَسَلَ', 'فَتَحَ'], answer: 1 },
-          { q: 'Maryam qayerda ovqat pishirdi?', options: ['فِي الْمَطْبَخِ', 'فِي الصَّالَةِ', 'فِي الْحَدِيقَةِ'], answer: 0 },
-          { q: '«ochdi»:', options: ['أَغْلَقَ', 'فَتَحَ', 'خَرَجَ'], answer: 1 }
+          { q: '«uxladi»:', options: ['نَامَ', 'سَكَنَ', 'غَسَلَ'] },
+          { q: 'فَاطِمَةُ ___ الْبَيْتَ — «kirdi»', options: ['دَخَلَ', 'دَخَلَتْ'] },
+          { q: '«yuvdi»:', options: ['طَبَخَ', 'غَسَلَ', 'فَتَحَ'] },
+          { q: 'Maryam qayerda ovqat pishirdi?', options: ['فِي الْمَطْبَخِ', 'فِي الصَّالَةِ', 'فِي الْحَدِيقَةِ'] },
+          { q: '«ochdi»:', options: ['أَغْلَقَ', 'فَتَحَ', 'خَرَجَ'] }
         ],
         write: [
           { prompt: 'Onangiz yoki opangizning uydagi bir kunini 4 fe’l bilan yozing.', hint: 'Masalan: طَبَخَتْ أُمِّي الطَّعَامَ ثُمَّ غَسَلَتِ الصُّحُونَ.' }
@@ -606,10 +606,13 @@
     test.forEach(function (q, i) { if (answers && Number(answers[i]) === q.answer) ok++; });
     return { correct: ok, total: test.length, percent: test.length ? Math.round(ok * 100 / test.length) : 0 };
   }
-  function gradeHomeworkAuto(lesson, answers) {
+  /* Uy vazifasi savollarining javoblari brauzerga yuborilmaydi — ular faqat
+     serverda (server/course-keys.js). keys berilmasa natija hisoblanmaydi. */
+  function gradeHomeworkAuto(lesson, answers, keys) {
     var items = (lesson.homework && lesson.homework.auto) || [];
     var ok = 0;
-    items.forEach(function (q, i) { if (answers && Number(answers[i]) === q.answer) ok++; });
+    if (!keys) return { correct: 0, total: items.length, percent: 0, pending: true };
+    items.forEach(function (q, i) { if (answers && answers[i] != null && Number(answers[i]) === keys[i]) ok++; });
     return { correct: ok, total: items.length, percent: items.length ? Math.round(ok * 100 / items.length) : 0 };
   }
   /** Mashq javobini tekshirish (darhol, brauzerda) */

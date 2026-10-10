@@ -44,7 +44,9 @@
           var d = await D.api('GET', 'api/kabinet/course'); this.canAct = d.canAct !== false; return d;
         },
         step: function (lid, step) { return D.kabPost('api/kabinet/course/step', { lessonId: lid, step: step }); },
-        test: function (lid, answers) { return D.kabPost('api/kabinet/course/test', { lessonId: lid, answers: answers }); },
+        /* Savollar serverdan (variantlar tartibi har urinishda boshqacha, javob yuborilmaydi) */
+        startTest: function (lid) { return D.kabPost('api/kabinet/course/test/start', { lessonId: lid }); },
+        test: function (lid, answers, sessId) { return D.kabPost('api/kabinet/course/test', { lessonId: lid, answers: answers, sessId: sessId }); },
         homework: function (lid, body) { return D.kabPost('api/kabinet/course/homework', Object.assign({ lessonId: lid }, body)); },
         upload: function (f) { return D.kabPost('api/kabinet/course/upload', f); }
       };
@@ -644,12 +646,25 @@
 
     /* ---- 5. So'z testi ---- */
     function stepTest(body, lesson, lv) {
-      var test = C.buildTest(lesson);
+      if (src.startTest && !lv.__started) {
+        var wait = h('p', { class: 'muted' }, 'Test tayyorlanmoqda…');
+        body.appendChild(wait);
+        src.startTest(lesson.id).then(function (r) {
+          UI.clear(body);
+          stepTest(body, lesson, Object.assign({}, lv, { __started: true, __q: r.questions, __sess: r.sessId, __left: r.triesLeft }));
+        }).catch(function (e) {
+          UI.clear(body);
+          body.appendChild(h('div', { class: 'banner bad' }, h('div', {}, e.message || 'Test ochilmadi.')));
+        });
+        return;
+      }
+      var test = lv.__q || C.buildTest(lesson);
       var answers = [], idx = 0;
       body.appendChild(h('div', { class: 'cr-ph' }, [
         h('h2', {}, 'So’z testi'),
         h('p', {}, test.length + ' ta savol. O’tish uchun kamida ' + C.PASS + '% to’plang. ' +
-          (lv.testBest != null ? 'Eng yaxshi natijangiz: ' + lv.testBest + '%.' : ''))
+          (lv.testBest != null ? 'Eng yaxshi natijangiz: ' + lv.testBest + '%. ' : '') +
+          (lv.__left != null ? 'Bugun yana ' + lv.__left + ' ta urinish bor.' : ''))
       ]));
       var holder = h('div');
       body.appendChild(holder);
@@ -674,7 +689,7 @@
         UI.clear(holder);
         holder.appendChild(h('p', { class: 'muted' }, 'Natija hisoblanmoqda…'));
         try {
-          var r = await src.test(lesson.id, answers);
+          var r = await src.test(lesson.id, answers, lv.__sess);
           state.view = r.view; paintHead(); paintSide();
           UI.clear(holder);
           var pass = r.passed;

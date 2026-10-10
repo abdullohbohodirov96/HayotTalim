@@ -24,6 +24,10 @@
 'use strict';
 
 const COL = 'courseprog/';
+const crypto = require('crypto');
+const KEYS = require('./course-keys');          // uy vazifasi javoblari — faqat serverda
+const TEST_TRIES_PER_DAY = Number(process.env.COURSE_TEST_TRIES || 5);   // bir dars testiga kuniga
+const TEST_SESS_MS = 2 * 3600 * 1000;           // boshlangan test 2 soat amal qiladi
 
 function txt(v, max) { return String(v == null ? '' : v).replace(/\u0000/g, '').slice(0, max || 2000); }
 
@@ -66,16 +70,68 @@ async function markStep(A, store, sid, body, stamp) {
   return { ok: true, view: view(A, doc) };
 }
 
-/** So'z testi: server javoblarni o'zi baholaydi */
+function shuffledIdx(n) {
+  const a = []; for (let i = 0; i < n; i++) a.push(i);
+  for (let i = n - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+function triesToday(A, p) {
+  const day = A.today();
+  return p.testDay && p.testDay.date === day ? p.testDay.n : 0;
+}
+
+/** So'z testini boshlash: savollar server tomonidan, variantlar tartibi har
+    urinishda tasodifiy; to'g'ri javob mijozga berilmaydi. Kuniga cheklangan. */
+async function startTest(A, store, sid, body) {
+  const C = A.Course;
+  const lesson = C.byId(String(body.lessonId || ''));
+  if (!lesson) return { error: 'Dars topilmadi.', code: 404 };
+  const doc = await get(store, sid);
+  if (!lessonOpen(A, doc, lesson.id)) return { error: 'Bu dars hali yopiq.', code: 403 };
+  const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
+  if (triesToday(A, p) >= TEST_TRIES_PER_DAY) {
+    return { error: 'Bugungi urinishlar tugadi (' + TEST_TRIES_PER_DAY + ' ta). So’zlarni takrorlab, ertaga qayta urining.', code: 429 };
+  }
+  const test = C.buildTest(lesson);
+  const perms = test.map(q => shuffledIdx(q.options.length));
+  p.testSess = { id: crypto.randomBytes(6).toString('hex'), perms, at: Date.now() };
+  await put(store, sid, doc);
+  return {
+    ok: true, sessId: p.testSess.id, triesLeft: TEST_TRIES_PER_DAY - triesToday(A, p),
+    questions: test.map((q, i) => ({
+      id: q.id, kind: q.kind, prompt: q.prompt, show: q.show || null, anim: q.anim || null, optionsAr: !!q.optionsAr,
+      options: perms[i].map(k => q.options[k])
+    }))
+  };
+}
+
+/** So'z testi: server javoblarni o'zi baholaydi (boshlangan sessiya bo'yicha) */
 async function submitTest(A, store, sid, body, stamp) {
   const C = A.Course;
   const lesson = C.byId(String(body.lessonId || ''));
   if (!lesson) return { error: 'Dars topilmadi.', code: 404 };
-  const answers = Array.isArray(body.answers) ? body.answers.slice(0, 50).map(Number) : [];
+  const raw = Array.isArray(body.answers) ? body.answers.slice(0, 50) : [];
   const doc = await get(store, sid);
   if (!lessonOpen(A, doc, lesson.id)) return { error: 'Bu dars hali yopiq.', code: 403 };
+  const p0 = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
+  const ses = p0.testSess;
+  if (!ses || String(body.sessId || '') !== ses.id || Date.now() - ses.at > TEST_SESS_MS) {
+    return { error: 'Test sessiyasi topilmadi yoki eskirgan. Testni qaytadan boshlang.', code: 409 };
+  }
+  if (triesToday(A, p0) >= TEST_TRIES_PER_DAY) {
+    return { error: 'Bugungi urinishlar tugadi.', code: 429 };
+  }
+  /* Ko'rsatilgan tartibdagi javobni asl variant raqamiga qaytaramiz */
+  const answers = raw.map((a, i) => {
+    const k = Number(a);
+    const perm = ses.perms[i];
+    return perm && Number.isInteger(k) && k >= 0 && k < perm.length ? perm[k] : -1;
+  });
+  delete p0.testSess;
+  const day = A.today();
+  p0.testDay = { date: day, n: triesToday(A, p0) + 1 };
   const g = C.gradeTest(lesson, answers);
-  const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
+  const p = p0;
   p.testLast = g.percent;
   p.testTries = (p.testTries || 0) + 1;
   if (p.testBest == null || g.percent > p.testBest) p.testBest = g.percent;
@@ -104,21 +160,36 @@ async function submitHomework(A, store, sid, body, stamp, files) {
     (Array.isArray(body.fillAnswers) && body.fillAnswers.some(t => String(t || '').trim())) ||
     (Array.isArray(body.trAnswers) && body.trAnswers.some(t => String(t || '').trim().length >= 2));
   if (!hasWork) return { error: 'Yozma javob yozing yoki daftaringiz rasmini yuklang.', code: 400 };
-  const auto = C.gradeHomeworkAuto(lesson, autoAnswers);
+  const auto = C.gradeHomeworkAuto(lesson, autoAnswers, KEYS[lesson.id] || []);
   /* Kitobdagidek yozma mashqlar: bo'sh joyni to'ldirish va tarjima — server o'zi baholaydi */
   const fillAnswers = (Array.isArray(body.fillAnswers) ? body.fillAnswers : []).slice(0, 10).map(t => txt(t, 200));
   const trAnswers = (Array.isArray(body.trAnswers) ? body.trAnswers : []).slice(0, 10).map(t => txt(t, 600));
   const written = C.gradeWritten ? C.gradeWritten(lesson, fillAnswers, trAnswers) : null;
-  /* Qissani ovoz chiqarib o'qish natijasi (brauzerdagi nutqni tanish) — ustoz uchun ma'lumot */
+  /* Qissani ovoz chiqarib o'qish natijasi (brauzerdagi nutqni tanish) — faqat ma'lumot,
+     bahoga ta'sir qilmaydi. Ovoz yozuvi yuklangan bo'lsagina qabul qilinadi va
+     «o'quvchi qurilmasida o'lchangan» deb belgilanadi.                          */
+  let hasAudio = false;
+  for (const fid of fileIds) {
+    const rec = await files.meta(store, fid);
+    if (rec && /^audio\//.test(String(rec.type || ''))) hasAudio = true;
+  }
   const rp = Number(body.readPercent);
-  const readPercent = Number.isFinite(rp) ? Math.max(0, Math.min(100, Math.round(rp))) : null;
+  const readPercent = hasAudio && Number.isFinite(rp) ? Math.max(0, Math.min(100, Math.round(rp))) : null;
+  /* Yordamlar soni: mashqlar soni va har birining yordam bosqichlaridan oshmaydi */
+  const wr = C.buildWritten ? C.buildWritten(lesson) : { fill: [], tr: [] };
+  const hintList = (arr, n, max) => {
+    const a = Array.isArray(arr) ? arr : [];
+    const out = [];
+    for (let i = 0; i < n; i++) { const v = Math.round(Number(a[i])); out.push(Number.isFinite(v) ? Math.max(0, Math.min(max, v)) : 0); }
+    return out;
+  };
   const hints = body.hints && typeof body.hints === 'object' ? {
-    fill: (Array.isArray(body.hints.fill) ? body.hints.fill : []).slice(0, 10).map(x => Math.max(0, Math.min(9, Number(x) || 0))),
-    tr: (Array.isArray(body.hints.tr) ? body.hints.tr : []).slice(0, 10).map(x => Math.max(0, Math.min(9, Number(x) || 0)))
+    fill: hintList(body.hints.fill, wr.fill.length, 4),
+    tr: hintList(body.hints.tr, wr.tr.length, 3)
   } : null;
   const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
   p.hw = {
-    auto, autoAnswers, texts, fileIds, fillAnswers, trAnswers, written, readPercent, hints,
+    auto, autoAnswers, texts, fileIds, fillAnswers, trAnswers, written, readPercent, readSelf: readPercent != null, hints,
     submittedAt: stamp(), status: 'tekshirilmoqda', grade: null, comment: ''
   };
   p.steps = p.steps || {};
@@ -240,4 +311,4 @@ async function overview(A, store, studentIds) {
   return out;
 }
 
-module.exports = { COL, get, view, markStep, submitTest, submitHomework, submitReview, vocabMark, review, moveTo, overview };
+module.exports = { COL, TEST_TRIES_PER_DAY, get, view, markStep, startTest, submitTest, submitHomework, submitReview, vocabMark, review, moveTo, overview };
