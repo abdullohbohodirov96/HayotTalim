@@ -69,7 +69,8 @@ async function req(p, o = {}) {
 }
 const login = (l, p) => req('/api/login', { method: 'POST', body: { login: l, password: p } }).then(r => r.cookie);
 const start = (lg) => req('/api/test/start', { method: 'POST', body: lg ? { lang: lg } : {} });
-const submit = (b) => req('/api/test/submit', { method: 'POST', body: b });
+const submit = (b) => req('/api/test/submit', { method: 'POST', body: Object.assign({ phone: '+998901234567' }, b) });
+const lockAns = (b) => req('/api/test/lock', { method: 'POST', body: b });
 
 (async () => {
   if (!await bootServer()) { stopServer(); console.error('Sinov serveri ko’tarilmadi.'); process.exit(1); }
@@ -185,6 +186,44 @@ const submit = (b) => req('/api/test/submit', { method: 'POST', body: b });
       !Object.values((plc.json || {}).items || {}).some(p => p && p.sessionId === sT.json.id));
   }
 
+  /* ---------- 1b. Telefon va 10 daqiqa serverda ham majburiy ---------- */
+  section('1b. Telefon va vaqt chegarasi serverda tekshiriladi');
+  {
+    const { createStore } = require(require('path').join(__dirname, '..', 'server', 'store'));
+    const lv = require(require('path').join(__dirname, '..', 'server', 'levels'));
+    const stx = createStore();
+    if (stx.ready) await stx.ready;
+    const sP = await start();
+    const noPhone = await req('/api/test/submit', { method: 'POST', body: { sessionId: sP.json.id, answers: [] } });
+    eq('Telefonsiz natija berilmaydi', noPhone.status, 400);
+    ok('Sabab: telefon', /telefon/i.test(noPhone.text), noPhone.text.slice(0, 100));
+    const badPhone = await req('/api/test/submit', { method: 'POST', body: { sessionId: sP.json.id, answers: [], phone: '123' } });
+    eq('Qisqa raqam ham qabul qilinmaydi', badPhone.status, 400);
+
+    /* Vaqt ichida qulflangan javob — muhlatda telefon bilan natija beriladi */
+    const sL = await start();
+    const firstQ = sL.json.questions[0];
+    eq('Javoblar vaqt ichida qulflandi', (await lockAns({ sessionId: sL.json.id, answers: [{ id: firstQ.id, choice: 1 }] })).status, 200);
+    eq('Ikkinchi marta qulflab bo’lmaydi', (await lockAns({ sessionId: sL.json.id, answers: [] })).status, 409);
+    const dL = await stx.get(lv.SESS + sL.json.id);
+    dL.deadline = Date.now() - 5 * 60 * 1000;               // 10 daqiqa o'tdi, muhlat davom etmoqda
+    await stx.set(lv.SESS + sL.json.id, dL);
+    const allIn = sL.json.questions.map(q => ({ id: q.id, choice: 0 }));
+    const rL = await submit({ sessionId: sL.json.id, answers: allIn });
+    eq('Muhlatda telefon bilan natija berildi', rL.status, 200);
+    ok('Qulfdan keyin yuborilgan javoblar hisobga olinmadi', (rL.json || {}).score <= 1, JSON.stringify(rL.json && rL.json.score));
+
+    /* Qulflanmagan va 10 daqiqa o'tgan — javob qabul qilinmaydi */
+    const sN = await start();
+    const dN = await stx.get(lv.SESS + sN.json.id);
+    dN.deadline = Date.now() - 5 * 60 * 1000;
+    await stx.set(lv.SESS + sN.json.id, dN);
+    eq('Muddatdan keyin qulflab bo’lmaydi', (await lockAns({ sessionId: sN.json.id, answers: [] })).status, 400);
+    const rN = await submit({ sessionId: sN.json.id, answers: sN.json.questions.map(q => ({ id: q.id, choice: 0 })) });
+    eq('Muddatdan keyin javob bilan topshirib bo’lmaydi', rN.status, 400);
+    ok('Sabab: vaqt', /vaqt/i.test(rN.text), rN.text.slice(0, 100));
+  }
+
   /* ---------- 2. Savollar to'plami boshqa yo'l bilan ham chiqmaydi ---------- */
   section('2. Savollar bazasi (javoblari bilan) yopiq');
   for (const col of ['testq', 'testsess']) {
@@ -248,8 +287,8 @@ const submit = (b) => req('/api/test/submit', { method: 'POST', body: b });
   /* To'g'ri javoblarni SERVER kodidan olamiz (mijoz ularni bilmaydi) —
      bu sinov server hisobi to'g'riligini tekshirish uchun. */
   const path = require('path');
-  const { createStore } = require(path.join(__dirname, '..', 'server', 'store'));
-  const lv = require(path.join(__dirname, '..', 'server', 'levels'));
+  const { createStore } = require(require('path').join(__dirname, '..', 'server', 'store'));
+  const lv = require(require('path').join(__dirname, '..', 'server', 'levels'));
   const store = createStore();
   if (store.ready) await store.ready;
   /* Variantlar tartibi har sessiyada aralashtirilgani uchun, asl javobni
@@ -334,10 +373,10 @@ const submit = (b) => req('/api/test/submit', { method: 'POST', body: b });
     Object.values((leads.json || {}).items || {}).some(l => l && l.source === 'Daraja testi'),
     'murojaat topilmadi');
 
-  section('   Ismsiz topshirilsa murojaat ochilmaydi');
+  section('   Telefonsiz topshirilsa murojaat ham, natija ham yo’q');
   const s5 = await start();
   const nl0 = Object.values((await req('/api/collection?name=leads', { cookie: dir })).json.items || {}).length;
-  await submit({ sessionId: s5.json.id, answers: [] });
+  await req('/api/test/submit', { method: 'POST', body: { sessionId: s5.json.id, answers: [] } });
   const nl1 = Object.values((await req('/api/collection?name=leads', { cookie: dir })).json.items || {}).length;
   eq('Murojaatlar soni o’zgarmadi', nl1, nl0);
 

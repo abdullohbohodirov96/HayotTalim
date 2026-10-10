@@ -60,6 +60,32 @@ const LIMIT_MS = Number(process.env.TEST_LIMIT_MS || 10 * 60 * 1000);
    olishga 15 daqiqa muhlat. */
 const GRACE_MS = Number(process.env.TEST_GRACE_MS || 15 * 60 * 1000);
 const TTL_MS = Number(process.env.TEST_TTL_MS || LIMIT_MS + GRACE_MS);
+/* Muddatdan keyin javoblarni qabul qilish uchun kichik zaxira (sekin tarmoq) */
+const SLACK_MS = Number(process.env.TEST_SLACK_MS || 60 * 1000);
+
+function answersMap(list) {
+  const answers = {};
+  (Array.isArray(list) ? list : []).slice(0, 200).forEach(a => {
+    if (a && a.id != null) answers[String(a.id).slice(0, 40)] = Number(a.choice);
+  });
+  return answers;
+}
+
+/** Vaqt ichida javoblarni qulflash: keyin faqat telefon yoziladi.
+    Muddat (10 daqiqa + zaxira) o'tgach javob qabul qilinmaydi.        */
+async function lock(store, opts) {
+  const id = String((opts && opts.sessionId) || '');
+  if (!/^ts[a-f0-9]{16}$/.test(id)) return { ok: false, reason: 'format' };
+  const ses = await store.get(SESS + id);
+  if (!ses) return { ok: false, reason: 'topilmadi' };
+  if (ses.usedAt) return { ok: false, reason: 'ishlatilgan' };
+  if (ses.lockedAt) return { ok: false, reason: 'qulflangan' };
+  if (Number(ses.deadline) && Date.now() > Number(ses.deadline) + SLACK_MS) return { ok: false, reason: 'vaqt' };
+  ses.answers = answersMap(opts.answers);
+  ses.lockedAt = Date.now();
+  await store.set(SESS + id, ses);
+  return { ok: true };
+}
 
 const KINDS = {};
 Object.keys(DATA.KIND_LABELS).forEach(k => { KINDS[k] = DATA.KIND_LABELS[k].uz; });
@@ -241,11 +267,15 @@ async function submit(store, opts) {
   if (!ses) return { ok: false, reason: 'topilmadi' };
   if (ses.usedAt) return { ok: false, reason: 'ishlatilgan' };
   if (Number(ses.expiresAt) && Date.now() > Number(ses.expiresAt)) return { ok: false, reason: 'muddati' };
+  /* Telefon majburiy — faqat brauzerda emas, serverda ham */
+  if (String((opts && opts.phone) || '').replace(/\D/g, '').length < 9) return { ok: false, reason: 'telefon' };
 
-  const answers = {};
-  (Array.isArray(opts.answers) ? opts.answers : []).forEach(a => {
-    if (a && a.id != null) answers[String(a.id)] = Number(a.choice);
-  });
+  /* Javoblar: qulflangan bo'lsa — o'sha (keyingi o'zgartirish e'tiborga olinmaydi);
+     aks holda faqat 10 daqiqa (+zaxira) ichida yuborilgan javob qabul qilinadi. */
+  let answers;
+  if (ses.lockedAt && ses.answers) answers = ses.answers;
+  else if (Number(ses.deadline) && Date.now() > Number(ses.deadline) + SLACK_MS) return { ok: false, reason: 'vaqt' };
+  else answers = answersMap(opts.answers);
 
   const perLevel = {};
   ORDER.forEach(l => { perLevel[l] = { ok: 0, total: 0 }; });
@@ -311,7 +341,7 @@ function levelInfo(code, lg) {
 }
 
 module.exports = {
-  LEVELS, KINDS, ORDER, COUNT, TOTAL_Q, passFor, C2_MIN_TOTAL, LIMIT_MS, GRACE_MS,
+  LEVELS, KINDS, ORDER, COUNT, TOTAL_Q, passFor, C2_MIN_TOTAL, LIMIT_MS, GRACE_MS, SLACK_MS, lock,
   COL, SESS, RESULT, LANGS, DEF_LANG,
   ensureBank, bank, start, submit, decide, cleanup, levelInfo, levelList, lang
 };

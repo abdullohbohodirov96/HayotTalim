@@ -2016,6 +2016,20 @@ async function handleApi(req, res, url) {
     });
   }
 
+  /* Vaqt tugaganda (yoki o'quvchi tugatganda) javoblar qulflanadi */
+  if (route === 'test/lock' && req.method === 'POST') {
+    const body = await readBody(req);
+    const r = await levels.lock(store, { sessionId: body.sessionId, answers: body.answers });
+    if (!r.ok) {
+      return send(res, r.reason === 'ishlatilgan' || r.reason === 'qulflangan' ? 409 : 400, {
+        error: r.reason === 'vaqt' ? 'Test vaqti tugagan — javoblar qabul qilinmadi.'
+          : r.reason === 'qulflangan' ? 'Javoblar allaqachon yuborilgan.'
+            : r.reason === 'ishlatilgan' ? 'Bu test allaqachon topshirilgan.' : 'Test topilmadi.'
+      });
+    }
+    return send(res, 200, { ok: true });
+  }
+
   if (route === 'test/submit' && req.method === 'POST') {
     const ip = clientIp(req);
     const body = await readBody(req);
@@ -2027,7 +2041,9 @@ async function handleApi(req, res, url) {
       return send(res, r.reason === 'ishlatilgan' ? 409 : 400, {
         error: r.reason === 'ishlatilgan' ? 'Bu test allaqachon topshirilgan.'
           : r.reason === 'muddati' ? 'Test muddati tugadi, qaytadan boshlang.'
-            : 'Test topilmadi yoki so’rov noto’g’ri.'
+            : r.reason === 'telefon' ? 'Natijani ko’rish uchun telefon raqamingizni yozing.'
+              : r.reason === 'vaqt' ? 'Test vaqti (10 daqiqa) tugagan — javoblar qabul qilinmadi.'
+                : 'Test topilmadi yoki so’rov noto’g’ri.'
       });
     }
     /* Ismi va telefoni yozilgan bo'lsa — murojaat (lead) ochamiz. */

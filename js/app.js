@@ -1152,6 +1152,11 @@
          server muhlati raqam yozish uchun yetarli (TEST_GRACE_MS). */
       if (auto && D.mode !== 'server') send();
       else if (D.mode === 'server') setTimeout(function () { try { phoneI.focus(); } catch (e) { } }, 200);
+      /* Serverda javoblar darhol qulflanadi (vaqt ichida); keyin faqat telefon yoziladi */
+      var lockP = D.mode === 'server'
+        ? testApi('POST', 'api/test/lock', { sessionId: SES, answers: Object.keys(picked).map(function (id) { return { id: id, choice: picked[id] }; }) })
+          .then(function () { return true; }, function () { return false; })
+        : null;
 
       async function send() {
         if (D.mode === 'server' && A.phoneDigits(phoneI.value).length < 9) {
@@ -1160,6 +1165,7 @@
         }
         btn.disabled = true; btn.textContent = T().calc; err.hidden = true;
         var ans = Object.keys(picked).map(function (id) { return { id: id, choice: picked[id] }; });
+        if (lockP) { try { await lockP; } catch (e) { } }
         try {
           var r = await testApi('POST', 'api/test/submit', {
             sessionId: SES, answers: ans,
