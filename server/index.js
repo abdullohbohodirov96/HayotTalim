@@ -2901,8 +2901,10 @@ async function handleApi(req, res, url) {
     /* refPath faqat ruxsat etilgan ko'rinishda va o'z doirasida */
     const ref = String(body.refPath || '');
     if (ref) {
-      const m = /^(students|lessonlog)\/([A-Za-z0-9_\-.:~]{1,100})$/.exec(ref);
+      const m = /^(students|lessonlog|materials|homework)\/([A-Za-z0-9_\-.:~]{1,100})$/.exec(ref);
       if (!m) return send(res, 400, { error: 'Fayl qaysi yozuvga tegishli ekani noto’g’ri.' });
+      /* Dastur yozuvlariga (material, vazifa) fayl — faqat dastur huquqi bilan */
+      if ((m[1] === 'materials' || m[1] === 'homework') && !A.can(user, 'curriculum.edit')) return nope('Dasturni tahrirlash huquqi yo’q.');
       if (m[1] === 'students' && (!await store.get(ref) || !await ownsStudent(m[2]))) return nope('Bu o’quvchi sizning guruhingizda emas.');
       if (m[1] === 'lessonlog' && !await ownsGroup(m[2].split('__')[0])) return nope('Bu guruh sizga tegishli emas.');
     }

@@ -41,7 +41,8 @@ const at = (date, hm) => Date.parse(date + 'T' + hm + ':00Z') - 5 * 3600 * 1000;
   const c = calls[0];
   ok('Telegram Quiz: sendPoll, type=quiz, anonim', c.method === 'sendPoll' && c.params.type === 'quiz' && c.params.is_anonymous === true);
   ok('Kanal: @SaboAcademy', c.params.chat_id === '@SaboAcademy');
-  ok('To‘g‘ri javob va izoh bor', c.params.correct_option_id === BANK[0].correct && !!c.params.explanation);
+  ok('To‘g‘ri javob va izoh bor (variantlar aralashtirilgan)',
+    c.params.options[c.params.correct_option_id].text === BANK[0].options[BANK[0].correct] && !!c.params.explanation);
   ok('Birinchi savol — w1d1s1', c.params.question === BANK[0].question);
   r = await B.quizTick(at('2026-10-09', '09:07'));
   ok('Shu slot ikkinchi marta ketmaydi', r.sent === 0 && calls.length === 1);

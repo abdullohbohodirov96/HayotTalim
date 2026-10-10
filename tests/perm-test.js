@@ -317,7 +317,9 @@ async function dbDoc(path, dirCookie) {
   eq('Begona o’quvchi fayli doc orqali ham berilmaydi', (await get('files/' + fB.json.file.id, ustoz)).status, 403);
   eq('Begona o’quvchiga fayl biriktira olmaydi', (await up(ustoz, 'students/pst_b')).status, 403);
   eq('Ruxsatsiz refPath (asks/...) rad etiladi', (await up(ustoz, 'asks/xyz')).status, 400);
-  eq('Ruxsatsiz refPath (materials/...) rad etiladi', (await up(ustoz, 'materials/xyz')).status, 400);
+  eq('O’qituvchi dastur yozuviga (materials/...) fayl biriktira olmaydi', (await up(ustoz, 'materials/xyz')).status, 403);
+  eq('Noma’lum refPath (courseprog/...) rad etiladi', (await up(ustoz, 'courseprog/xyz')).status, 400);
+  eq('Direktor materialga fayl biriktira oladi', (await up(dir, 'materials/xyz')).status, 200);
   eq('O’z o’quvchisiga fayl biriktira oladi', (await up(ustoz, 'students/pst_a')).status, 200);
   eq('Begona o’quvchi hisoboti berilmaydi', (await req('/api/report/student?id=pst_b', { cookie: ustoz })).status, 403);
   eq('O’z o’quvchisi hisoboti beriladi', (await req('/api/report/student?id=pst_a', { cookie: ustoz })).status, 200);
