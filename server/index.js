@@ -1579,8 +1579,39 @@ function cleanSrc(v) {
   return String(v || '').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40);
 }
 
+/* ---- Namoyish (Vercel) saytidagi ochiq formalar ERP ga yetib kelishi uchun CORS ----
+   Faqat kirishsiz (cookie'siz) ochiq yo'llar: daraja testi, ariza, izoh.
+   Ruxsat etilgan manbalar: PUBLIC_CORS_ORIGINS (vergul bilan) yoki,
+   berilmagan bo'lsa, https://<loyiha>.vercel.app.                          */
+const PUBLIC_CORS_ROUTES = new Set(['test/start', 'test/lock', 'test/submit', 'lead', 'review']);
+const CORS_LIST = String(process.env.PUBLIC_CORS_ORIGINS || '').split(',').map(x => x.trim().replace(/\/$/, '')).filter(Boolean);
+function corsOriginOk(origin) {
+  const o = String(origin || '');
+  if (!o) return false;
+  if (CORS_LIST.length) return CORS_LIST.indexOf(o) >= 0;
+  return /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(o);
+}
+function applyPublicCors(req, res, route) {
+  if (!PUBLIC_CORS_ROUTES.has(route)) return false;
+  const origin = req.headers.origin;
+  if (!corsOriginOk(origin)) return false;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '600');
+  return true;
+}
+
 async function handleApi(req, res, url) {
   const route = url.pathname.replace(/^\/api\//, '');
+  if (req.headers.origin) {
+    const allowed = applyPublicCors(req, res, route);
+    if (req.method === 'OPTIONS') {
+      res.writeHead(allowed ? 204 : 403, { 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+  }
 
   if (route === 'health') return send(res, 200, { ok: true, mode: store.kind });
 

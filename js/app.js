@@ -978,6 +978,7 @@
     /* Serversiz namoyishda (Vercel, artefakt) test brauzerda baholanadi —
        js/levels-local.js faqat namoyish nusxasiga qo'shiladi.            */
     function testApi(m, p, b) {
+      if (D.mode !== 'server' && global.MARKAZ_API_BASE) return A.publicApi(m, p, b);
       if (D.mode !== 'server' && A.LevelsLocal) return A.LevelsLocal.api(m, p, b);
       return D.api(m, p, b);
     }
@@ -2708,7 +2709,7 @@
               rErr.hidden = true;
               if (nm.length < 2) { rErr.hidden = false; rErr.textContent = 'Ismingizni yozing.'; return; }
               if (tx.length < 10) { rErr.hidden = false; rErr.textContent = 'Izohni biroz to’liqroq yozing.'; return; }
-              if (D.mode !== 'server') {
+              if (D.mode !== 'server' && !global.MARKAZ_API_BASE) {
                 rErr.hidden = false; UI.clear(rErr);
                 rErr.appendChild(h('span', {}, 'Izohlar hozircha Telegram orqali qabul qilinadi — izohingizni nusxalab yuboring: '));
                 rErr.appendChild(contactButtons(true));
@@ -2716,7 +2717,7 @@
               }
               UI.busy(btn, async function () {
                 try {
-                  await D.api('POST', 'api/review', {
+                  await A.publicApi('POST', 'api/review', {
                     name: nm, text: tx, rating: pick, about: rAbout.input.value.trim()
                   });
                   A.track('review_sent', { rating: pick });
@@ -2912,7 +2913,7 @@
       /* Serversiz (namoyish) nusxada ariza saqlanadigan joy yo'q — xato
          o'rniga odamni to'g'ridan-to'g'ri qo'ng'iroq / Telegram'ga olib
          boramiz, ariza yo'qolib ketmasin.                               */
-      if (D.mode !== 'server') {
+      if (D.mode !== 'server' && !global.MARKAZ_API_BASE) {
         A.track('generate_lead', { method: 'fallback' });
         form.hidden = true; okBox.hidden = false; UI.clear(okBox);
         okBox.appendChild(h('div', { class: 'lead-ok-in' }, [
@@ -2925,7 +2926,7 @@
       }
       UI.busy(btn, async function () {
         try {
-          var r = await D.api('POST', 'api/lead', {
+          var r = await A.publicApi('POST', 'api/lead', {
             name: name2, phone: phone,
             courseId: leadCourse,
             startLevel: lvlPick,
@@ -2988,6 +2989,22 @@
      ishlaganini Murojaatlar hisobotida ko'rasiz.                        */
   /* Google Analytics hodisasi (teg yo'q bo'lsa — jim o'tadi).
      Shaxsiy ma'lumot (ism, telefon) HECH QACHON yuborilmaydi. */
+  /* Ochiq formalar (ariza, izoh, daraja testi). Namoyish (Vercel) nusxasida
+     MARKAZ_API_BASE bo'lsa — asosiy serverga (ERP ga) yuboriladi.           */
+  A.publicApi = async function (method, path, body) {
+    var base = D.mode !== 'server' && global.MARKAZ_API_BASE ? String(global.MARKAZ_API_BASE).replace(/\/$/, '') : '';
+    if (!base) return D.api(method, path, body);
+    var res = await fetch(base + '/' + String(path).replace(/^\//, ''), {
+      method: method, mode: 'cors', credentials: 'omit',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+    if (!res.ok) { var err = new Error((data && data.error) || ('Server xatosi (' + res.status + ')')); err.status = res.status; throw err; }
+    return data;
+  };
+
   A.track = function (name, params) {
     try { if (typeof global.gtag === 'function') global.gtag('event', name, params || {}); } catch (e) { }
   };
