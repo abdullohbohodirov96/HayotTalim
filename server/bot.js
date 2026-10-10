@@ -118,30 +118,9 @@ async function setState(chatId, st) {
 }
 
 /* ---------------- Bir martalik kod ---------------- */
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // chalkashadigan harflar yo'q (O/0, I/1)
-function makeCode() {
-  let s = '';
-  for (let i = 0; i < 6; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
-  return s;
-}
 function normCode(t) {
   return String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
-/** Kod bo'yicha o'quvchini topish. Muddati o'tgan yoki ishlatilgan kod yaramaydi. */
-async function studentByCode(code) {
-  const c = normCode(code);
-  if (c.length !== 6) return null;
-  const students = await listCol('students');
-  const now = Date.now();
-  return students.filter(s => {
-    const lk = s.botLink;
-    if (!lk || normCode(lk.code) !== c) return false;
-    if (lk.usedAt) return false;
-    if (lk.expiresAt && Date.parse(lk.expiresAt) < now) return false;
-    return true;
-  })[0] || null;
-}
-
 /* ---------------- Shaxsiy kod urinishlari (taxmin qilishdan himoya) ----------------
    Bitta suhbatdan 5 ta noto'g'ri urinishdan keyin 15 daqiqa kutiladi.          */
 const codeTries = new Map();
@@ -809,8 +788,13 @@ async function finishRegistration(chatId, st, from) {
   const funnel = funnels.filter(f => f.isDefault)[0] || funnels[0];
   const leads = await listCol('leads');
   const digits = A.phoneDigits(r.phone);
+  /* Mavjud murojaatga faqat raqam KONTAKT tugmasi bilan tasdiqlangan bo'lsa
+     (yoki o'sha murojaat aynan shu suhbatniki bo'lsa) qo'shiladi. Qo'lda
+     yozilgan begona raqam bilan boshqa odamning murojaati va eslatmalari
+     o'zlashtirib olinmaydi.                                                */
   const recent = leads.filter(l => A.phoneDigits(l.phone) === digits &&
-    Date.parse(String(l.createdAt || '').replace(' ', 'T') + ':00') > Date.now() - 30 * 864e5)[0];
+    Date.parse(String(l.createdAt || '').replace(' ', 'T') + ':00') > Date.now() - 30 * 864e5 &&
+    (r.phoneVerified || String(l.chatId || '') === String(chatId)))[0];
   let lead;
   if (recent) {
     lead = Object.assign({}, recent, {
@@ -824,7 +808,8 @@ async function finishRegistration(chatId, st, from) {
       funnelId: funnel ? funnel.id : '', name: r.name, phone: r.phone,
       courseId: '', source: 'Bot', src: r.src || '', region: r.region || '', district: '',
       ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
-      note: 'Bepul darsga ro’yxatdan o’tdi', nextContact: A.today(),
+      note: 'Bepul darsga ro’yxatdan o’tdi' + (r.phoneVerified ? '' : ' (raqam qo’lda yozilgan — tasdiqlanmagan)'),
+      nextContact: A.today(), phoneVerified: !!r.phoneVerified,
       chatId: String(chatId), tgUser: String((from && from.username) || '').slice(0, 40),
       createdAt: stamp(), viaBot: true, freeLessonAt: stamp()
     };
@@ -855,24 +840,25 @@ async function handleRegistration(chatId, text, contact, from, st) {
     return true;
   }
   if (st.step === 'reg_phone') {
-    let phone = '';
+    let phone = '', verified = false;
     if (contact && contact.phone_number) {
-      /* Faqat o'z raqami: boshqa odamning kontaktini ulashsa qabul qilinmaydi */
-      if (contact.user_id && from && from.id && String(contact.user_id) !== String(from.id)) {
+      /* Faqat o'z raqami (kontakt tugmasi): user_id yuboruvchiniki bo'lishi shart */
+      if (!contact.user_id || !from || !from.id || String(contact.user_id) !== String(from.id)) {
         await sendMessage(chatId, 'Iltimos, o’zingizning raqamingizni yuboring.',
           [[{ text: REG_PHONE_BTN, request_contact: true }]]);
         return true;
       }
       phone = A.normPhone(String(contact.phone_number));
+      verified = true;
     } else if (A.phoneDigits(text).length >= 9) {
-      phone = A.normPhone(String(text));
+      phone = A.normPhone(String(text));      // qo'lda yozilgan — tasdiqlanmagan
     }
     if (!phone) {
       await sendMessage(chatId, 'Raqam to’liq emas. Tugmani bosing yoki raqamni +998 90 123 45 67 ko’rinishida yozing.',
         [[{ text: REG_PHONE_BTN, request_contact: true }]]);
       return true;
     }
-    st.reg = Object.assign({}, st.reg, { phone });
+    st.reg = Object.assign({}, st.reg, { phone, phoneVerified: verified });
     st.step = 'reg_region';
     await setState(chatId, st);
     await sendMessage(chatId, 'Qaysi hududdansiz?', regionKeyboard());
@@ -1202,7 +1188,7 @@ async function onMessage(msg) {
       if (text === CANCEL_BTN) { st.step = 'code'; delete st.q; await setState(chatId, st); return sendMessage(chatId, 'Bekor qilindi.', GUEST_MENU); }
       let phone = '';
       const contact = msg.contact;
-      if (contact && contact.phone_number && (!contact.user_id || !msg.from || String(contact.user_id) === String(msg.from.id))) {
+      if (contact && contact.phone_number && contact.user_id && msg.from && String(contact.user_id) === String(msg.from.id)) {
         phone = A.normPhone(String(contact.phone_number));
       } else if (A.phoneDigits(text).length >= 9) phone = A.normPhone(text);
       /* Raqam o'rniga boshqa savol yozsa (masalan «sayt bormi?») va unga
@@ -1354,13 +1340,23 @@ async function nextQuiz() {
   if (fresh.length) return fresh[0];
   return all.slice().sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)))[0];
 }
+/** Variantlarni har yuborishda aralashtirish (bankda to'g'ri javob hech qachon oxirida emas edi) */
+function shuffleQuiz(q) {
+  const idx = q.options.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = require('crypto').randomInt(i + 1);
+    const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+  return { options: idx.map(i => q.options[i]), correct: idx.indexOf(Number(q.correct)) };
+}
 async function sendQuiz(q, channel) {
+  const mix = shuffleQuiz(q);
   const res = await quizApi('sendPoll', {
     chat_id: channel,
     question: q.question,
-    options: q.options.map(t => ({ text: t })),
+    options: mix.options.map(t => ({ text: t })),
     type: 'quiz',
-    correct_option_id: q.correct,
+    correct_option_id: mix.correct,
     explanation: q.explain || undefined,
     is_anonymous: true
   });
@@ -1455,8 +1451,25 @@ async function payPressed(chatId, student) {
   try { await paybot.reconcile(payCtx()); } catch (e) { console.error('paybot:', e.message); }
 }
 /** Mos kelgan kirim: to'lovni yozish va o'quvchiga xabar */
-async function confirmClaim(claim, tx) {
+/* Karta to'lovlari bitta navbatda: avtomatik solishtirish, qo'lda tasdiq va
+   rad etish bir vaqtda bitta da'voni ikki marta yopa olmaydi.             */
+let claimChain = Promise.resolve();
+function withClaimLock(fn) {
+  const next = claimChain.then(fn, fn);
+  claimChain = next.catch(() => { });
+  return next;
+}
+function confirmClaim(claim, tx) {
+  return withClaimLock(() => confirmClaimNow(claim, tx));
+}
+async function confirmClaimNow(claim, tx) {
   if (!recordPayment) throw new Error('to’lov yozuvchisi yo’q');
+  /* Holatni bazadan qayta o'qib tekshiramiz (navbatda turganda o'zgargan bo'lishi mumkin) */
+  const curC = claim && claim.id ? await store.get('payclaim/' + claim.id) : null;
+  if (curC && curC.status !== 'kutilmoqda' && curC.status !== 'tolandi') throw new Error('Bu da’vo allaqachon yopilgan (' + curC.status + ').');
+  const curT = tx && tx.id ? await store.get('banktx/' + tx.id) : null;
+  if (curT && curT.status === 'mos') throw new Error('Bu kirim allaqachon biriktirilgan.');
+  if (curT) tx = curT;
   const rec = await recordPayment({
     studentId: claim.studentId, amount: tx.amount, extId: tx.id,
     note: 'Karta (avtomatik): ' + (tx.card4 ? '*' + tx.card4 + ' · ' : '') + 'da’vo ' + claim.id
@@ -1687,7 +1700,7 @@ function _test(ctx) {
   if (ctx.tg) quizTg = ctx.tg;
   return {
     onMessage, flushQueue, enqueue, remindDebtors, notifyApproved,
-    makeCode, normCode, studentByCode, botConf, getState, setState,
+    normCode, shuffleQuiz, botConf, getState, setState,
     balanceText, attendanceText, scheduleText, daysBetween, KINDS, MAX_TRIES,
     handleLinkFlow, findStudentByChat, notifyStaff,
     startRegistration, handleRegistration, regSrc,
@@ -1726,4 +1739,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

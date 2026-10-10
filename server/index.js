@@ -372,9 +372,61 @@ function kabinetOk(ip) {
   kabinetTries.set(ip, { n: 0, first: Date.now(), total: rec.total || 0 });
 }
 
-/* ---------------- Sessiyalar ---------------- */
-const sessions = new Map();               // token -> {userId, at}
+/* ---------------- Sessiyalar ----------------
+   Xodim sessiyalari BAZADA saqlanadi (server qayta ishga tushsa ham chiqib
+   ketmaydi), lekin tokenning o'zi emas — faqat SHA-256 xeshi:
+     staffsess/<sha256(token)> { userId, at, expiresAt }
+   Har so'rovda bazaga bormaslik uchun qisqa muddatli xotira keshi bor.  */
 const SESSION_MS = Number(process.env.SESSION_MAX_AGE_DAYS || 7) * 864e5;
+const SESS_COL = 'staffsess/';
+const sessCache = new Map();              // xesh -> { rec, until }
+const SESS_CACHE_MS = 30 * 1000;
+function sessHash(token) { return crypto.createHash('sha256').update(String(token)).digest('hex'); }
+async function sessionCreate(userId) {
+  const token = newToken();
+  const rec = { userId: String(userId), at: Date.now(), expiresAt: Date.now() + SESSION_MS };
+  await store.set(SESS_COL + sessHash(token), rec);
+  return token;
+}
+async function sessionGet(token) {
+  const h = sessHash(token);
+  const c = sessCache.get(h);
+  let rec;
+  if (c && c.until > Date.now()) rec = c.rec;
+  else {
+    rec = await store.get(SESS_COL + h);
+    if (sessCache.size > 5000) sessCache.clear();
+    sessCache.set(h, { rec, until: Date.now() + SESS_CACHE_MS });
+  }
+  if (!rec) return null;
+  if (Date.now() > Number(rec.expiresAt || 0)) { await sessionDelete(token); return null; }
+  return rec;
+}
+async function sessionDelete(token) {
+  const h = sessHash(token);
+  sessCache.delete(h);
+  try { await store.del(SESS_COL + h); } catch (e) { }
+}
+/** Foydalanuvchining barcha sessiyalari (parol almashtirilganda, o'chirilganda) */
+async function sessionsRevokeUser(userId, exceptToken) {
+  const keep = exceptToken ? sessHash(exceptToken) : '';
+  let n = 0;
+  for (const r of await store.list(SESS_COL)) {
+    const h = r.path.slice(SESS_COL.length);
+    if (r.data && r.data.userId === String(userId) && h !== keep) {
+      sessCache.delete(h);
+      try { await store.del(r.path); n++; } catch (e) { }
+    }
+  }
+  return n;
+}
+async function sessionsCleanup() {
+  let n = 0;
+  for (const r of await store.list(SESS_COL)) {
+    if (!r.data || Date.now() > Number(r.data.expiresAt || 0)) { try { await store.del(r.path); n++; } catch (e) { } }
+  }
+  return n;
+}
 
 function newToken() { return crypto.randomBytes(24).toString('hex'); }
 function parseCookies(req) {
@@ -387,10 +439,9 @@ function parseCookies(req) {
 }
 async function currentUser(req) {
   const token = parseCookies(req).alb_session;
-  if (!token) return null;
-  const s = sessions.get(token);
+  if (!token || !/^[a-f0-9]{48}$/.test(token)) return null;
+  const s = await sessionGet(token);
   if (!s) return null;
-  if (Date.now() - s.at > SESSION_MS) { sessions.delete(token); return null; }
   const u = await store.get('users/' + s.userId);
   if (!u || u.active === false) return null;
   return u;
@@ -548,16 +599,17 @@ async function ensureSeed() {
   const users = await store.list('users/');
   if (!users.length) {
     const login = (process.env.SEED_DIRECTOR_LOGIN || 'admin').toLowerCase();
-    // SEED_DIRECTOR_PASSWORD berilmasa — birinchi kirish uchun oddiy parol (1234).
-    // Bu vaqtinchalik: ilova kirgandan keyin uni almashtirishni so'raydi.
+    /* SEED_DIRECTOR_PASSWORD berilmasa — TASODIFIY vaqtinchalik parol yaratiladi
+       va faqat shu bir marta (bo'sh bazada) jurnalga chiqadi. Kodda ochiq
+       yozilgan umumiy parol yo'q. Kirgandan keyin almashtirish so'raladi.   */
     const envPass = process.env.SEED_DIRECTOR_PASSWORD || '';
-    const pass = envPass || 'hayottalim.123';
+    const pass = envPass || crypto.randomBytes(9).toString('base64url');
     await store.set('users/usr_admin', Object.assign({
       id: 'usr_admin', login, name: 'Direktor', role: 'direktor', staffId: null,
       active: true, isDefault: !envPass, createdAt: stamp()
     }, makePassword(pass)));
     console.log('  Direktor hisobi yaratildi: ' + login +
-      (envPass ? '' : ' (parol: hayottalim.123 — kirgandan keyin almashtiring!)'));
+      (envPass ? '' : ' · vaqtinchalik parol (faqat bir marta ko’rsatiladi): ' + pass + ' — kirgandan keyin almashtiring!'));
   }
 }
 
@@ -1184,6 +1236,7 @@ async function maintenanceTick() {
   try { done.quizSess = await quiz.cleanup(store); } catch (e) { }
   try { done.links = await link.cleanup(store); } catch (e) { }
   try { done.sessions = await kabsess.cleanup(store); } catch (e) { }
+  try { done.staffSessions = await sessionsCleanup(); } catch (e) { }
   try { done.files = await files.sweep(store); } catch (e) { }
   const total = Object.values(done).reduce((a, b) => a + (Number(b) || 0), 0);
   if (total) {
@@ -2594,8 +2647,7 @@ async function handleApi(req, res, url) {
       const weak = isWeakPassword(pass, login);
       if (!!u.isDefault !== weak) { u.isDefault = weak; await store.set('users/' + u.id, u); }
     }
-    const token = newToken();
-    sessions.set(token, { userId: u.id, at: Date.now() });
+    const token = await sessionCreate(u.id);
     return send(res, 200, { user: safeUser(u) }, {
       'Set-Cookie': 'alb_session=' + token + '; HttpOnly; SameSite=Lax; Path=/' + (IS_PROD ? '; Secure' : '') + '; Max-Age=' +
         Math.floor(SESSION_MS / 1000) + (process.env.NODE_ENV === 'production' ? '; Secure' : '')
@@ -2604,7 +2656,7 @@ async function handleApi(req, res, url) {
 
   if (route === 'logout' && req.method === 'POST') {
     const token = parseCookies(req).alb_session;
-    if (token) sessions.delete(token);
+    if (token) await sessionDelete(token);
     return send(res, 200, { ok: true }, { 'Set-Cookie': 'alb_session=; HttpOnly; SameSite=Lax; Path=/' + (IS_PROD ? '; Secure' : '') + '; Max-Age=0' });
   }
 
@@ -2796,18 +2848,23 @@ async function handleApi(req, res, url) {
     if (req.method === 'POST') {
       const body = await readBody(req);
       if (route === 'paybank/reject') {
-        const c = await store.get('payclaim/' + String(body.claimId || ''));
-        if (!c) return send(res, 404, { error: 'Topilmadi.' });
-        c.status = 'rad'; c.closedBy = user.name;
-        await store.set('payclaim/' + c.id, c);
-        return send(res, 200, { ok: true });
+        /* Qulf ichida qayta o'qiymiz: shu payt avtomatik tasdiqlangan bo'lsa rad etilmaydi */
+        const out = await require('./bot').withClaimLock(async () => {
+          const c = await store.get('payclaim/' + String(body.claimId || ''));
+          if (!c) return { code: 404, body: { error: 'Topilmadi.' } };
+          if (c.status !== 'kutilmoqda' && c.status !== 'tolandi') return { code: 409, body: { error: 'Bu da’vo allaqachon yopilgan (' + c.status + ').' } };
+          c.status = 'rad'; c.closedBy = user.name;
+          await store.set('payclaim/' + c.id, c);
+          return { code: 200, body: { ok: true } };
+        });
+        return send(res, out.code, out.body);
       }
-      if (route === 'paybank/confirm') {
+      if (route === 'paybank/confirm') return send(res, ...(await withLock('paybank', async () => {
         /* Qo'lda: da'voni bank kirimiga yoki kirimni o'quvchiga biriktirish */
         let c = body.claimId ? await store.get('payclaim/' + String(body.claimId)) : null;
         let tx = body.txId ? await store.get('banktx/' + String(body.txId)) : null;
-        if (tx && tx.status === 'mos') return send(res, 400, { error: 'Bu kirim allaqachon biriktirilgan.' });
-        if (c && c.status === 'tasdiqlandi') return send(res, 400, { error: 'Bu da’vo allaqachon tasdiqlangan.' });
+        if (tx && tx.status === 'mos') return [409, { error: 'Bu kirim allaqachon biriktirilgan.' }];
+        if (c && c.status !== 'kutilmoqda' && c.status !== 'tolandi') return [409, { error: 'Bu da’vo allaqachon yopilgan (' + c.status + ').' }];
         if (!c && tx && body.studentId && tx.suggestClaimId) {
           /* Taxminiy da'vo shu o'quvchiniki bo'lsa — o'sha da'vo yopiladi */
           const sc = await store.get('payclaim/' + tx.suggestClaimId);
@@ -2815,11 +2872,11 @@ async function handleApi(req, res, url) {
         }
         if (!c && tx && body.studentId) {
           const st = await store.get('students/' + String(body.studentId));
-          if (!st) return send(res, 404, { error: 'O’quvchi topilmadi.' });
+          if (!st) return [404, { error: 'O’quvchi topilmadi.' }];
           c = { id: 'pc_m' + Date.now().toString(36), studentId: st.id, chatId: st.telegram && st.telegram.id ? String(st.telegram.id) : '',
             base: tx.amount, tail: 0, amount: tx.amount, status: 'kutilmoqda', createdAt: stamp(), atMs: Date.now(), manual: true };
         }
-        if (!c) return send(res, 400, { error: 'Da’vo yoki o’quvchi ko’rsatilmagan.' });
+        if (!c) return [400, { error: 'Da’vo yoki o’quvchi ko’rsatilmagan.' }];
         if (!tx) {
           /* Bildirishnoma kelmagan (masalan naqd/boshqa karta) — summa da'vodan olinadi */
           tx = { id: 'bt_m' + Date.now().toString(36), amount: c.amount, card4: '', text: 'Qo’lda tasdiq: ' + user.name,
@@ -2828,11 +2885,11 @@ async function handleApi(req, res, url) {
         try {
           const rec = await require('./bot').confirmClaimManual(c, tx);
           await writeAudit(user, 'Karta to’lovi qo’lda tasdiqlandi', rec.receiptNo, rec.amount + ' so’m');
-          return send(res, 200, { ok: true, payment: rec });
+          return [200, { ok: true, payment: rec }];
         } catch (e) {
-          return send(res, 400, { error: e.message });
+          return [400, { error: e.message }];
         }
-      }
+      })));
     }
     return send(res, 404, { error: 'Topilmadi.' });
   }
@@ -3433,8 +3490,9 @@ async function handleApi(req, res, url) {
         await writeAudit(user, 'Zaxira nusxa olindi', r.name, r.count + ' yozuv');
         return send(res, 200, { ok: true, file: r });
       } catch (e) {
-        await backup.writeState(store, { lastError: String(e.message), lastErrorAt: backup.tzStamp() });
-        return send(res, 500, { error: e.message });
+        console.error('backup/run:', e && e.message);
+        await backup.writeState(store, { lastError: 'Zaxira olinmadi (server jurnalida batafsil).', lastErrorAt: backup.tzStamp() });
+        return send(res, 500, { error: 'Zaxira olinmadi. Birozdan keyin qayta urinib ko’ring.' });
       }
     }
     /* Zaxirani yuklab olish va tiklash — faqat direktor, parolni qayta kiritib */
@@ -3536,6 +3594,10 @@ async function handleApi(req, res, url) {
         if (old && old.id === user.id && body.data.active === false) {
           return send(res, 400, { error: 'O’z hisobingizni o’chira olmaysiz.' });
         }
+        /* Parol almashtirilsa yoki hisob o'chirilsa — boshqa qurilmalardagi sessiyalar yopiladi */
+        if (old && (pass || body.data.active === false)) {
+          await sessionsRevokeUser(old.id, old.id === user.id ? parseCookies(req).alb_session : null);
+        }
       }
       const prevDoc = p.indexOf('memberships/') === 0 ? await store.get(p) : null;
       await store.set(p, body.data);
@@ -3631,6 +3693,10 @@ function serveStatic(req, res, pathname) {
         return send(res, 404, 'Topilmadi');
       }
       const tag = st ? '"' + st.size.toString(16) + '-' + Math.floor(st.mtimeMs).toString(16) + '"' : null;
+      /* Har qanday HTML sahifaga (qissa.html, tasdiqlash fayllari, zaxira
+         index.html) ham CSP: ichki skriptlar faqat xeshi mos kelsa ishlaydi. */
+      if (ext === '.html') res.setHeader('Content-Security-Policy', pageCsp(inlineScriptHashes(String(data || ''))));
+      else if (ext === '.svg') res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:");
       // O'zgarmagan bo'lsa — qayta yubormaymiz
       if (tag && req.headers['if-none-match'] === tag) {
         res.writeHead(304, { 'Cache-Control': codeFile ? 'no-cache' : 'public, max-age=86400', ETag: tag });
@@ -3697,6 +3763,14 @@ function securityHeaders(res) {
    ikki manbadan (Google Analytics, cdnjs) va xeshi aynan mos keladigan
    ichki skriptlardan. Boshqa har qanday kiritilgan
    skript (XSS) brauzerda ishlamaydi.                                      */
+function inlineScriptHashes(page) {
+  const hashes = [];
+  String(page).replace(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi, function (m, body) {
+    hashes.push("'sha256-" + crypto.createHash('sha256').update(body, 'utf8').digest('base64') + "'");
+    return m;
+  });
+  return hashes;
+}
 function pageCsp(hashes) {
   return [
     "default-src 'self'",
@@ -3781,12 +3855,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
       const page = seo.render(html, settings, req.headers.host || 'localhost');
       /* Ichki skriptlar xeshi — sahifa mazmunidan, shuning uchun 304 javobi
          bilan ham mos keladi (nonce har so'rovda o'zgarardi). */
-      const hashes = [];
-      page.replace(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi, function (m, body) {
-        hashes.push("'sha256-" + crypto.createHash('sha256').update(body, 'utf8').digest('base64') + "'");
-        return m;
-      });
-      res.setHeader('Content-Security-Policy', pageCsp(hashes));
+      res.setHeader('Content-Security-Policy', pageCsp(inlineScriptHashes(page)));
       /* Sahifa sozlamaga qarab o'zgaradi, shuning uchun ETag uning
          MAZMUNIDAN hisoblanadi: o'zgarmagan bo'lsa brauzer qayta
          yuklab o'tirmaydi, o'zgarsa darrov yangisini oladi.          */

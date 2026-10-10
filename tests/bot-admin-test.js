@@ -64,7 +64,11 @@ const ADMIN = 555111, GUEST = 777222;
   ok('Ko‘rib chiqish: to‘g‘ri javob belgilangan', /✅ Kitab/.test(r.text), r.text);
   const before = polls.length;
   r = await say(ADMIN, '📤 Hozir kanalga');
-  ok('Hozir kanalga ketdi', polls.length === before + 1 && polls[polls.length - 1].params.question === '"Kitob" arabchada qanday?' && polls[polls.length - 1].params.correct_option_id === 1, JSON.stringify(polls[polls.length - 1].params).slice(0, 160));
+  const lp = polls[polls.length - 1].params;
+  ok('Hozir kanalga ketdi (to’g’ri javob — Kitab)', polls.length === before + 1 && lp.question === '"Kitob" arabchada qanday?' && lp.options[lp.correct_option_id].text === 'Kitab', JSON.stringify(lp).slice(0, 200));
+  const pos = new Set();
+  for (let i = 0; i < 60; i++) { const m = B.shuffleQuiz({ options: ['a', 'b', 'c', 'd'], correct: 1 }); pos.add(m.correct); if (m.options[m.correct] !== 'b') pos.add('xato'); }
+  ok('Variantlar aralashadi: to’g’ri javob istalgan o’rinda, shu jumladan oxirida', pos.has(3) && pos.has(0) && !pos.has('xato'), JSON.stringify([...pos]));
   ok('Bazaga yozildi', (await B.quizList()).some(q => q.question === '"Kitob" arabchada qanday?' && q.sentAt));
 
   console.log('\n4. Bitta xabarda savol → navbatga');

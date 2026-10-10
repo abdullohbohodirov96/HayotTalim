@@ -95,7 +95,7 @@ function read(name) {
 
 /* Yuklab olinadigan nusxadan sirlar olib tashlanadi: bot tokeni, sessiyalar,
    bir martalik havola tokenlari. Nazorat summasi qayta hisoblanadi.        */
-const EXPORT_DROP = ['kabsess/', 'linktokens/', 'botstate/', 'tglink/'];
+const EXPORT_DROP = ['kabsess/', 'linktokens/', 'botstate/', 'tglink/', 'staffsess/'];
 function sanitizeForExport(dump) {
   const docs = Object.assign({}, (dump && dump.docs) || {});
   Object.keys(docs).forEach(p => {
@@ -228,13 +228,18 @@ async function restore(store, dump, opts) {
     v.docs['meta/settings'] = ns;
   }
 
+  /* Joriy xodim sessiyalariga tegilmaydi: tiklash hammani tizimdan chiqarib
+     yubormasin, zaxiradagi eski sessiyalar ham qaytmasin.                 */
+  const LIVE = p => p.indexOf('staffsess/') === 0;
   const now = await store.all();
   const keep = new Set(Object.keys(v.docs));
   let removed = 0, restored = 0;
   for (const r of now) {
+    if (LIVE(r.path)) continue;
     if (!keep.has(r.path)) { await store.del(r.path); removed++; }
   }
   for (const p of Object.keys(v.docs)) {
+    if (LIVE(p)) continue;
     await store.set(p, v.docs[p]);
     restored++;
   }

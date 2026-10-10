@@ -108,7 +108,7 @@ async function login(l, p) {
 
   /* ---------- 2. Kirish ---------- */
   section('2. Kirish va parol');
-  const dirCookie = await login('admin', PASS);
+  let dirCookie = await login('admin', PASS);
   ok('Direktor kirdi', !!dirCookie);
   const badLogin = await req('/api/login', { method: 'POST', body: { login: 'admin', password: 'notogri' } });
   eq('Noto’g’ri parol rad etildi', badLogin.status, 401);
@@ -444,6 +444,9 @@ async function login(l, p) {
   await req('/api/doc?path=' + encodeURIComponent('users/' + dirUser.id), {
     method: 'PUT', cookie: stillLogin, body: { data: Object.assign({}, dirUser), password: PASS }
   });
+  /* Parol almashtirilganda boshqa sessiyalar yopiladi — eski direktor sessiyasi ham */
+  eq('Parol almashgach eski sessiya yopildi', (await req('/api/me', { cookie: dirCookie })).status, 401);
+  dirCookie = stillLogin;
   const auditAfter = await req('/api/collection?name=audit', { cookie: stillLogin });
   ok('Tiklash tarixga yozildi',
     Object.values(auditAfter.json.items || {}).some(e => /tiklandi/i.test(e.action || '')));

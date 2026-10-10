@@ -106,24 +106,6 @@
       return true;
     },
 
-    /** O'quvchiga bir martalik ulash kodi berish */
-    async makeCode(studentId) {
-      var s = D.one('students', studentId);
-      if (!s) throw new Error('O’quvchi topilmadi.');
-      var conf = settings();
-      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      var code = '';
-      for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-      var rec = A.clone(s);
-      rec.botLink = {
-        code: code,
-        createdAt: A.nowStamp(),
-        expiresAt: new Date(Date.now() + conf.codeHours * 3600 * 1000).toISOString()
-      };
-      await D.save('students', rec);
-      return code;
-    },
-
     /** Davomat belgilanganda xabar */
     async notifyAttendance(groupId, date, records, actorName) {
       var conf = settings();
@@ -647,13 +629,10 @@
         }, 'Saqlash'))
       ]));
 
-      view.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('Ulash kodlari', [
-        h('p', { style: 'margin:0 0 10px' },
-          'O’quvchini botga ulash uchun unga bir martalik kod bering. Kod ishlatilgach yoki muddati ' +
-          'o’tgach yaroqsiz bo’ladi. Ism bo’yicha avtomatik ulash yo’q — bir xil ismlar chalkashmasligi uchun.'),
-        h('button', {
-          class: 'btn primary', onclick: function () { codeModal(App); }
-        }, 'O’quvchiga kod berish')
+      view.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('O’quvchini botga ulash', [
+        h('p', { style: 'margin:0' },
+          'O’quvchi kartasida «Telegram havolasi» tugmasini bosing — bir martalik havola yaratiladi. ' +
+          'Ism bo’yicha avtomatik ulash yo’q — bir xil ismlar chalkashmasligi uchun.')
       ])));
     }
   };
@@ -667,51 +646,6 @@
   }
 
   /** Bir martalik ulash kodi berish oynasi */
-  function codeModal(App) {
-    var students = A.sortBy(D.all('students').filter(function (s) {
-      return s.status !== 'arxiv' && !(s.telegram && s.telegram.id);
-    }), function (s) { return s.lastName + ' ' + s.firstName; });
-
-    if (!students.length) {
-      UI.toast('Ulanmagan o’quvchi yo’q.', 'info');
-      return;
-    }
-    var pick = UI.field({
-      label: 'O’quvchi', type: 'select', required: true,
-      options: students.map(function (s) {
-        return { value: s.id, label: s.lastName + ' ' + s.firstName + ' · ' + (s.phone || '') };
-      })
-    });
-    var out = h('div', { style: 'margin-top:12px' });
-    UI.modal({
-      title: 'Ulash kodi',
-      body: [
-        h('p', { class: 'small muted', style: 'margin:0 0 10px' },
-          'Kodni o’quvchiga bering. U botda /start bosib shu kodni yozadi.'),
-        pick.wrap, out
-      ],
-      actions: [
-        { label: 'Yopish' },
-        {
-          label: 'Kod yaratish', cls: 'primary', onClick: function (c, btn) {
-            if (!pick.input.value) { UI.toast('O’quvchini tanlang.', 'bad'); return; }
-            UI.busy(btn, async function () {
-              var code = await Bot.makeCode(pick.input.value);
-              var s = D.one('students', pick.input.value);
-              UI.clear(out);
-              out.appendChild(h('div', { class: 'banner ok' }, h('div', {}, [
-                h('b', {}, s.lastName + ' ' + s.firstName + ' uchun kod: '),
-                h('span', { class: 'mono', style: 'font-size:20px;letter-spacing:3px' }, code),
-                h('div', { class: 'small' }, 'Kod ' + settings().codeHours + ' soat amal qiladi va bir marta ishlatiladi.')
-              ])));
-              await A.Ops.audit(App.user, 'Botga ulash kodi berildi', s.lastName + ' ' + s.firstName, '');
-            });
-          }
-        }
-      ]
-    });
-  }
-
   function approveModal(req, App) {
     var candidates = [];
     var g = req.groupCode ? A.Q.groupByCode(req.groupCode) : null;

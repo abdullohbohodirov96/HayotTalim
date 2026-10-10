@@ -457,12 +457,7 @@ function section(t) { results.push('\n' + t); }
   /* ---------------- 19. Bot: bir martalik ulash kodi ---------------- */
   section('19. Bot — bir martalik ulash kodi');
   const bot = require('../server/bot.js');
-  const codes = [];
-  for (let i = 0; i < 200; i++) codes.push(bot.makeCode());
-  ok('Kod 6 belgidan iborat', codes.every(c => c.length === 6));
-  ok('Faqat katta harf va raqam', codes.every(c => /^[A-Z0-9]{6}$/.test(c)));
-  ok('Chalkashadigan belgilar yo’q (O, 0, I, 1)', codes.every(c => !/[O0I1]/.test(c)));
-  ok('Kodlar takrorlanmaydi', new Set(codes).size > 190, new Set(codes).size + ' ta har xil');
+  ok('Eski Math.random kod yaratuvchisi olib tashlangan', typeof bot.makeCode === 'undefined');
   eq('Kichik harf katta harfga aylanadi', bot.normCode('7kq3m2'), '7KQ3M2');
   eq('Ortiqcha belgilar olib tashlanadi', bot.normCode(' 7kq-3m2 '), '7KQ3M2');
   eq('Bo’sh matn bo’sh qoladi', bot.normCode(''), '');

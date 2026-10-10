@@ -70,6 +70,19 @@ const last = id => sent.filter(m => m.chatId === String(id)).slice(-1)[0] || {};
   const leads2 = (await store.list('leads/')).map(x => x.data);
   ok('Bir raqam ikki marta lead bo’lmaydi', leads2.length === 1, leads2.length);
   ok('Hudud yangilandi, birinchi reklama belgisi saqlanadi', leads2[0].region === 'Toshkent shahri' && leads2[0].src === 'reels1');
+  ok('Kontakt tugmasi bilan kelgan raqam tasdiqlangan', leads2[0].phoneVerified !== false);
+
+  /* Boshqa odam Madinaning raqamini QO'LDA yozsa — uning murojaati o'zlashtirilmaydi */
+  const hack = (t, extra) => B.onMessage(Object.assign({ chat: { id: 666, type: 'private' }, from: { id: 666, first_name: 'Begona' }, text: t }, extra || {}));
+  await hack('/start dars_x'); await hack('Begona'); await hack('+998 90 123 45 67'); await hack('Namangan');
+  const leads3 = (await store.list('leads/')).map(x => x.data);
+  const madina = leads3.find(l => l.id === leads2[0].id);
+  ok('Begona yozgan raqam bilan Madinaning murojaati o’zgarmadi', madina && madina.chatId === '555', JSON.stringify(madina && madina.chatId));
+  const fake = leads3.find(l => l.chatId === '666');
+  ok('Begona uchun alohida, «tasdiqlanmagan» murojaat', fake && fake.phoneVerified === false && /tasdiqlanmagan/.test(fake.note || ''), JSON.stringify(fake));
+  await hack('/start dars_y'); await hack('Begona');
+  await hack('', { contact: { phone_number: '998901234567' } });
+  ok('user_id siz kontakt (birovning kartasi) qabul qilinmaydi', /o’zingizning/.test(last(666).text), last(666).text);
 
   /* Oddiy /start: kod so'raydi va ro'yxat tugmasini ko'rsatadi */
   await B.onMessage({ chat: { id: 777, type: 'private' }, from: { id: 777 }, text: '/start' });
