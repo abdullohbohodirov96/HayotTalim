@@ -1434,6 +1434,16 @@ async function guardWrite(user, p, method, next) {
 }
 
 /** false — ruxsat yo'q; aks holda ko'rsatish mumkin bo'lgan ma'lumot */
+/** O'qituvchi shu faylni ko'ra oladimi (asks/ uchun savol egasi tekshiriladi) */
+async function teacherFileOk(user, rec, sc) {
+  sc = sc || await teacherScope(user);
+  const ref = String((rec && rec.refPath) || '');
+  let ask = null;
+  if (ref.indexOf('asks/') === 0 && /^asks\/[A-Za-z0-9_\-.:~]+$/.test(ref)) ask = await store.get(ref);
+  return teacherCanSee('files', rec, { gid: sc.gid, sid: sc.sid, staffId: user.staffId, userId: user.id },
+    p => (p === ref ? ask : null));
+}
+
 async function filterReadDoc(user, p, data) {
   const seg = p.split('/');
   const col = seg[0];
@@ -1475,11 +1485,9 @@ async function filterReadDoc(user, p, data) {
       if (!sc.gid[gidPart]) return false;
     }
     /* O'quv to'plamlari va ota-ona yozuvlari — bootstrap bilan bir xil qoida */
-    if (seg.length === 2 && !teacherCanSee(col, data, { gid: sc.gid, sid: sc.sid, staffId: user.staffId, userId: user.id })) return false;
-    if (col === 'files' && String(data.refPath || '').indexOf('asks/') === 0) {
-      const a = await store.get(String(data.refPath));
-      if (!a || !sc.sid[a.studentId]) return false;
-    }
+    if (col === 'files' && seg.length === 2) {
+      if (!await teacherFileOk(user, data, sc)) return false;
+    } else if (seg.length === 2 && !teacherCanSee(col, data, { gid: sc.gid, sid: sc.sid, staffId: user.staffId, userId: user.id })) return false;
   }
   /* O'quvchi yozuvi: o'qituvchiga kirish kodi va shaxsiy ma'lumotlarsiz */
   if (col === 'students' && seg.length === 2) return safeStudent(data, user);
@@ -2726,9 +2734,20 @@ async function handleApi(req, res, url) {
   if (route === 'file' && req.method === 'POST') {
     if (!A.can(user, 'curriculum.edit') && !A.can(user, 'lesson.log')) return nope();
     const body = await readBody(req, BODY_MAX_FILE);
+    /* refPath faqat ruxsat etilgan ko'rinishda va o'z doirasida */
+    const ref = String(body.refPath || '');
+    if (ref) {
+      const m = /^(students|lessonlog)\/([A-Za-z0-9_\-.:~]{1,100})$/.exec(ref);
+      if (!m) return send(res, 400, { error: 'Fayl qaysi yozuvga tegishli ekani noto’g’ri.' });
+      if (m[1] === 'students' && (!await store.get(ref) || !await ownsStudent(m[2]))) return nope('Bu o’quvchi sizning guruhingizda emas.');
+      if (m[1] === 'lessonlog' && !await ownsGroup(m[2].split('__')[0])) return nope('Bu guruh sizga tegishli emas.');
+    }
+    let purpose = String(body.purpose || '').slice(0, 40);
+    /* Dastur fayli (hamma o'qituvchiga ko'rinadi) — faqat dastur huquqi bilan */
+    if (!ref && (purpose === 'material' || purpose === 'vazifa') && !A.can(user, 'curriculum.edit')) purpose = 'xodim';
     const r = await files.save(store, {
       name: body.name, type: body.type, dataBase64: body.data,
-      purpose: body.purpose, refPath: body.refPath,
+      purpose, refPath: ref,
       byUserId: user.id, byKind: 'xodim', stamp
     });
     if (!r.ok) {
@@ -2745,6 +2764,7 @@ async function handleApi(req, res, url) {
     if (!A.can(user, 'group.view') && !A.can(user, 'student.view')) return nope();
     const rec = await files.meta(store, String(url.searchParams.get('id') || ''));
     if (!rec) return send(res, 404, { error: 'Fayl topilmadi.' });
+    if (user.role === 'oqituvchi' && !await teacherFileOk(user, rec)) return send(res, 404, { error: 'Fayl topilmadi.' });
     const buf = await files.readBody(store, rec);
     if (!buf) return send(res, 404, { error: 'Fayl topilmadi.' });
     res.writeHead(200, {
@@ -2959,6 +2979,7 @@ async function handleApi(req, res, url) {
   /* ---- Hisobotlar ---- */
   if (route === 'report/student' && req.method === 'GET') {
     if (!A.can(user, 'reports.learning') && !A.can(user, 'student.view')) return nope();
+    if (!await ownsStudent(url.searchParams.get('id'))) return nope('Bu o’quvchi sizning guruhingizda emas.');
     const r = await progress.forStudent(store, String(url.searchParams.get('id') || ''), {
       from: url.searchParams.get('from'), to: url.searchParams.get('to')
     });

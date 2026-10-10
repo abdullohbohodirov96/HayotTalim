@@ -303,7 +303,26 @@ async function dbDoc(path, dirCookie) {
   const askForeign = await req('/api/ask', { method: 'POST', cookie: ustoz, body: { studentId: 'pst_b', text: 'x' } });
   eq('Begona o’quvchiga savol yubora olmaydi', askForeign.status, 403);
 
-  section('6. Telegram guruhini ulash kodi');
+  section('6. O’qituvchi: fayllar va o’quvchi hisoboti faqat o’z doirasida');
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const up = (cookie, refPath, purpose) => req('/api/file', { method: 'POST', cookie, body: { name: 'a.png', type: 'image/png', data: PNG, refPath, purpose } });
+  const fB = await up(dir, 'students/pst_b');
+  const fA = await up(dir, 'students/pst_a');
+  const fM = await up(dir, '', 'material');
+  ok('Direktor fayllarni yukladi', fB.status === 200 && fA.status === 200 && fM.status === 200, fB.text.slice(0, 100));
+  const getF = (id, cookie) => req('/api/file?id=' + encodeURIComponent(id), { cookie });
+  eq('Begona o’quvchi fayli ochilmaydi', (await getF(fB.json.file.id, ustoz)).status, 404);
+  eq('O’z o’quvchisi fayli ochiladi', (await getF(fA.json.file.id, ustoz)).status, 200);
+  eq('Dastur materiali ochiladi', (await getF(fM.json.file.id, ustoz)).status, 200);
+  eq('Begona o’quvchi fayli doc orqali ham berilmaydi', (await get('files/' + fB.json.file.id, ustoz)).status, 403);
+  eq('Begona o’quvchiga fayl biriktira olmaydi', (await up(ustoz, 'students/pst_b')).status, 403);
+  eq('Ruxsatsiz refPath (asks/...) rad etiladi', (await up(ustoz, 'asks/xyz')).status, 400);
+  eq('Ruxsatsiz refPath (materials/...) rad etiladi', (await up(ustoz, 'materials/xyz')).status, 400);
+  eq('O’z o’quvchisiga fayl biriktira oladi', (await up(ustoz, 'students/pst_a')).status, 200);
+  eq('Begona o’quvchi hisoboti berilmaydi', (await req('/api/report/student?id=pst_b', { cookie: ustoz })).status, 403);
+  eq('O’z o’quvchisi hisoboti beriladi', (await req('/api/report/student?id=pst_a', { cookie: ustoz })).status, 200);
+
+  section('7. Telegram guruhini ulash kodi');
   const tlT = await req('/api/group/tglink', { method: 'POST', cookie: ustoz, body: { groupId: 'pg_a' } });
   eq('O’qituvchi ulash kodini ololmaydi', tlT.status, 403);
   const tlD = await req('/api/group/tglink', { method: 'POST', cookie: dir, body: { groupId: 'pg_a' } });

@@ -139,7 +139,8 @@ function teacherCanSee(name, d, scope, byPath) {
     case 'files': {
       const ref = String(d.refPath || '');
       const [c, k] = ref.split('/');
-      if (!ref) return d.by === scope.userId;
+      /* Dastur fayllari (material/vazifa) — hamma o'qituvchiga; boshqalari — faqat yuklaganiga */
+      if (!ref) return d.purpose === 'material' || d.purpose === 'vazifa' || d.by === scope.userId;
       if (c === 'students') return !!s[k];
       if (c === 'lessonlog') return !!g[String(k || '').split('__')[0]];
       if (c === 'asks') { const a = byPath && byPath(ref); return !!(a && s[a.studentId]); }
