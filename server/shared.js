@@ -107,6 +107,39 @@ function safeStudent(s, user) {
   };
 }
 
+/**
+ * O'qituvchi uchun o'quv to'plamlari: faqat O'Z guruhlari/o'quvchilariga
+ * tegishlilari. scope = { gid: {guruhId:1}, sid: {oquvchiId:1}, staffId, userId }.
+ * Ota-ona yozuvlari (kirish kodi bor) o'qituvchiga umuman berilmaydi.
+ * byPath — qo'shimcha hujjatni topish uchun (asks orqali fayl), ixtiyoriy.
+ */
+function teacherCanSee(name, d, scope, byPath) {
+  if (!d) return false;
+  const g = scope.gid || {}, s = scope.sid || {};
+  switch (name) {
+    case 'parents': return false;
+    case 'quizres': case 'asks':
+      return !!(s[d.studentId] || (d.groupId && g[d.groupId] && (!d.studentId || s[d.studentId])));
+    case 'pauses': return !!s[d.studentId];
+    case 'makeups': return !!(g[d.groupId] || (d.teacherId && d.teacherId === scope.staffId));
+    case 'feedback': case 'questions': return !!g[d.groupId];
+    case 'lessonlog': return !!g[d.groupId || String(d.key || '').split('__')[0]];
+    case 'quizzes': return !d.groupId || !!g[d.groupId];
+    case 'files': {
+      const ref = String(d.refPath || '');
+      const [c, k] = ref.split('/');
+      if (!ref) return d.by === scope.userId;
+      if (c === 'students') return !!s[k];
+      if (c === 'lessonlog') return !!g[String(k || '').split('__')[0]];
+      if (c === 'asks') { const a = byPath && byPath(ref); return !!(a && s[a.studentId]); }
+      if (c === 'materials' || c === 'homework' || c === 'qissaaudio' || c === 'lessonvideo') return true;
+      if (c === 'courseprog') return !!s[k];
+      return d.by === scope.userId;
+    }
+    default: return true;
+  }
+}
+
 /* Markazning yagona umumiy suhbati — identifikator server tomonida belgilangan */
 const GENERAL_CHAT = 'chat_umumiy';
 
@@ -199,7 +232,11 @@ function visibleData(user, all) {
       case 'tasks':
         if (A.can(user, 'task.assign') || A.can(user, 'settings.edit')) return d;
         return (d.assigneeId === user.id || d.createdById === user.id) ? d : null;
-      default: return d;
+      default:
+        if (user.role === 'oqituvchi' &&
+          !teacherCanSee(name, d, { gid: myGroupIds, sid: myStudentIds, staffId: user.staffId, userId: user.id },
+            p => byPath[p])) return null;
+        return d;
     }
   }
 
@@ -233,4 +270,4 @@ function visibleData(user, all) {
   return { col, docs, settings };
 }
 
-module.exports = { A, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, GENERAL_CHAT };
+module.exports = { A, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT };

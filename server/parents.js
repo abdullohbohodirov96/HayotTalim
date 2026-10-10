@@ -119,8 +119,10 @@ async function summary(store, parent, progress) {
     if (!st || st.status === 'o’chirilgan') continue;
     const base = await kabinet.summary(store, st);
     const prog = progress ? await progress.forStudent(store, st.id) : null;
+    /* Bolaning shaxsiy kodi (u bolaning kabinetiga kirish kaliti ham) ota-onaga ko'rsatilmaydi */
+    const child = Object.assign({}, base.student); delete child.code;
     kids.push({
-      student: base.student,
+      student: child,
       groups: base.groups,
       finance: base.finance,
       attendance: base.attendance,

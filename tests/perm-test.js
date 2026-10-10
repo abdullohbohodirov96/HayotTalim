@@ -277,6 +277,32 @@ async function dbDoc(path, dirCookie) {
   eq('Ijrochi o’z vazifasini yangiladi', taskByBux.status, 200);
   eq('Yangi holat saqlandi', (await dbDoc(TSK, dir)).status, 'bajarildi');
 
+  /* ================= 5. O'QITUVCHI — FAQAT O'Z O'QUVCHILARI ================= */
+  section('5. O’qituvchiga ota-ona kodlari va begona o’quv ma’lumotlari ketmaydi');
+  await put('students/pst_a', { id: 'pst_a', firstName: 'Ali', lastName: 'A', phone: '+998900000101', code: '55101', status: 'faol' }, dir);
+  await put('students/pst_b', { id: 'pst_b', firstName: 'Vali', lastName: 'B', phone: '+998900000102', code: '55102', status: 'faol' }, dir);
+  await put('memberships/pm_a', { id: 'pm_a', studentId: 'pst_a', groupId: 'pg_a', joinedAt: '2026-09-01', status: 'faol' }, dir);
+  await put('memberships/pm_b', { id: 'pm_b', studentId: 'pst_b', groupId: 'pg_b', joinedAt: '2026-09-01', status: 'faol' }, dir);
+  const par = await req('/api/parent', { method: 'POST', cookie: dir, body: { name: 'Ota B', studentIds: ['pst_b'] } });
+  const parA = await req('/api/parent', { method: 'POST', cookie: dir, body: { name: 'Ota A', studentIds: ['pst_a'] } });
+  await req('/api/ask', { method: 'POST', cookie: dir, body: { studentId: 'pst_b', text: 'Begona savol' } });
+  await req('/api/ask', { method: 'POST', cookie: dir, body: { studentId: 'pst_a', text: 'O‘z savoli' } });
+  await req('/api/pause', { method: 'POST', cookie: dir, body: { studentId: 'pst_b', from: '2099-01-01' } });
+  const tboot = await req('/api/bootstrap', { cookie: ustoz });
+  const tcol = (tboot.json && tboot.json.col) || {};
+  ok('Ota-ona yozuvlari (kodlari bilan) o’qituvchiga yuborilmadi', !Object.keys(tcol.parents || {}).length, JSON.stringify(tcol.parents || {}).slice(0, 120));
+  ok('Ota-ona kodi javobda yo’q', par.json && par.json.parent && tboot.text.indexOf(par.json.parent.code) < 0 && tboot.text.indexOf(parA.json.parent.code) < 0);
+  ok('Begona o’quvchiga savol (asks) ko’rinmaydi', !Object.values(tcol.asks || {}).some(a => a.studentId === 'pst_b'));
+  ok('O’z o’quvchisiga savol ko’rinadi', Object.values(tcol.asks || {}).some(a => a.studentId === 'pst_a'));
+  ok('Begona o’quvchi tanaffusi ko’rinmaydi', !Object.values(tcol.pauses || {}).some(a => a.studentId === 'pst_b'));
+  ok('O’z o’quvchisining kirish kodi bootstrapda yo’q', tboot.text.indexOf('55101') < 0 && tboot.text.indexOf('55102') < 0);
+  const stDoc = await get('students/pst_a', ustoz);
+  ok('GET /api/doc: o’z o’quvchisi kodsiz beriladi', stDoc.status === 200 && stDoc.json.data && !stDoc.json.data.code && stDoc.text.indexOf('55101') < 0, stDoc.text.slice(0, 160));
+  const parDoc = await get('parents/' + par.json.parent.id, ustoz);
+  ok('GET /api/doc: ota-ona yozuvi berilmaydi', parDoc.status === 403 || !(parDoc.json && parDoc.json.data), parDoc.status + ' ' + parDoc.text.slice(0, 100));
+  const askForeign = await req('/api/ask', { method: 'POST', cookie: ustoz, body: { studentId: 'pst_b', text: 'x' } });
+  eq('Begona o’quvchiga savol yubora olmaydi', askForeign.status, 403);
+
   console.log(out.join('\n'));
   console.log('\n' + '─'.repeat(52));
   console.log((fail === 0 ? '✓ HAMMASI O’TDI' : '✗ XATOLAR BOR') + ` — ${pass} ta o'tdi, ${fail} ta xato`);

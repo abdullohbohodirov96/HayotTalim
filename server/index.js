@@ -9,7 +9,7 @@ const crypto = require('crypto');
 try { require('dotenv').config(); } catch (e) { /* dotenv ixtiyoriy */ }
 
 const { createStore } = require('./store');
-const { A, writePermFor, readBlocked, safeUser, safeStaff, visibleData, GENERAL_CHAT } = require('./shared');
+const { A, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT } = require('./shared');
 const backup = require('./backup');
 const kabinet = require('./kabinet');
 const link = require('./link');
@@ -1456,7 +1456,15 @@ async function filterReadDoc(user, p, data) {
       const gidPart = String(seg[1] || '').split('__')[0];
       if (!sc.gid[gidPart]) return false;
     }
+    /* O'quv to'plamlari va ota-ona yozuvlari — bootstrap bilan bir xil qoida */
+    if (seg.length === 2 && !teacherCanSee(col, data, { gid: sc.gid, sid: sc.sid, staffId: user.staffId, userId: user.id })) return false;
+    if (col === 'files' && String(data.refPath || '').indexOf('asks/') === 0) {
+      const a = await store.get(String(data.refPath));
+      if (!a || !sc.sid[a.studentId]) return false;
+    }
   }
+  /* O'quvchi yozuvi: o'qituvchiga kirish kodi va shaxsiy ma'lumotlarsiz */
+  if (col === 'students' && seg.length === 2) return safeStudent(data, user);
   return data;
 }
 
@@ -2471,6 +2479,12 @@ async function handleApi(req, res, url) {
     const g = await store.get('groups/' + String(gid || ''));
     return !!(g && g.teacherId && g.teacherId === user.staffId);
   }
+  /** O'qituvchi faqat o'z guruhlaridagi o'quvchilar bilan ishlaydi */
+  async function ownsStudent(sid) {
+    if (user.role !== 'oqituvchi') return true;
+    const sc = await teacherScope(user);
+    return !!(sc && sc.sid[String(sid || '')]);
+  }
 
   /* ---- Dastur ---- */
   if (route === 'curriculum' && req.method === 'GET') {
@@ -2863,6 +2877,7 @@ async function handleApi(req, res, url) {
     if (!A.can(user, 'quiz.manage')) return nope();
     const body = await readBody(req);
     if (body.groupId && !await ownsGroup(body.groupId)) return nope('Bu guruh sizga tegishli emas.');
+    if (!await ownsStudent(body.studentId)) return nope('Bu o’quvchi sizning guruhingizda emas.');
     const r = await quiz.sendAsk(store, body, {
       byUserId: user.id, byName: user.name || user.login, stamp
     });

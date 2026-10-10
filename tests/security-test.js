@@ -451,7 +451,7 @@ async function login(l, p) {
      saytda ko'rsatish uchun. Ichki ma'lumot emas. */
   const allowed = ['centerName', 'phone', 'address', 'workStart', 'workEnd', 'about',
     'telegram', 'instagram', 'courses', 'teachers', 'lessonMinutes', 'taglines',
-    'youtube', 'heroBadge', 'stats', 'faq', 'heroProof', 'levels',
+    'youtube', 'facebook', 'heroBadge', 'stats', 'faq', 'heroProof', 'levels',
     'breakMinutes', 'lessonTimes', 'tgChannel', 'tgQabul', 'tgQabulLabel',
     /* Ikkinchi filialning qabul manzili */
     'tgQabul2', 'tgQabulLabel2', 'reviews'];
