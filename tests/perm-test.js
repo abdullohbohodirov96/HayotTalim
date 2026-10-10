@@ -303,6 +303,14 @@ async function dbDoc(path, dirCookie) {
   const askForeign = await req('/api/ask', { method: 'POST', cookie: ustoz, body: { studentId: 'pst_b', text: 'x' } });
   eq('Begona o’quvchiga savol yubora olmaydi', askForeign.status, 403);
 
+  section('6. Telegram guruhini ulash kodi');
+  const tlT = await req('/api/group/tglink', { method: 'POST', cookie: ustoz, body: { groupId: 'pg_a' } });
+  eq('O’qituvchi ulash kodini ololmaydi', tlT.status, 403);
+  const tlD = await req('/api/group/tglink', { method: 'POST', cookie: dir, body: { groupId: 'pg_a' } });
+  ok('Direktor bir martalik kod oldi', tlD.status === 200 && /^[A-Z0-9]{10}$/.test(tlD.json.token || ''), tlD.text.slice(0, 100));
+  const tlRead = await get('tglink/x', dir);
+  eq('tglink yozuvlari API orqali o’qilmaydi', tlRead.status, 403);
+
   console.log(out.join('\n'));
   console.log('\n' + '─'.repeat(52));
   console.log((fail === 0 ? '✓ HAMMASI O’TDI' : '✗ XATOLAR BOR') + ` — ${pass} ta o'tdi, ${fail} ta xato`);

@@ -611,13 +611,15 @@ async function handleLinkFlow(chatId, text, from, st) {
     const code = normCode(text);
     const groups = await listCol('groups');
     const group = groups.filter(g => g.code && normCode(g.code) === code)[0];
-    if (!group) {
-      await sendMessage(chatId, 'Bunday guruh kodi topilmadi: <b>' + code + '</b>\nKodni tekshirib, qayta yozing.');
+    /* Kod bor-yo'qligi aytilmaydi (aks holda guruh kodlarini terib topish mumkin).
+       Har qanday holatda so'rov administratorga boradi, u o'zi tekshiradi.     */
+    if (!code || code.length > 12) {
+      await sendMessage(chatId, 'Guruh kodini yozing, masalan: <code>B020</code>');
       return;
     }
     await store.set('botreq/req_' + chatId, {
       id: 'req_' + chatId, chatId: String(chatId), username: (from && from.username) || '',
-      name: st.name, groupCode: code, groupId: group.id,
+      name: st.name, groupCode: code, groupId: group ? group.id : null,
       status: 'kutilmoqda', createdAt: stamp()
     });
     st.step = 'waiting';
@@ -635,82 +637,57 @@ async function handleLinkFlow(chatId, text, from, st) {
 }
 
 /* ---------------- Telegram guruhiga ulanish ----------------
-   Bot guruhga qo'shilganda guruh NOMIDAGI kodni (4 raqam) topadi va
-   o'sha o'quv guruhiga bog'lanadi. Kod topilmasa — qanday qilishni tushuntiradi.
-   Ulangach guruhga "ulandim" xabari boradi.                                */
+   Ulash faqat ERP’dan olingan BIR MARTALIK kod bilan: xodim guruh sahifasida
+   «Ulash kodini olish» ni bosadi va Telegram guruhida /ulash <kod> deb yozadi.
+   Guruh nomidagi kod bilan ulash olib tashlandi — nomni istalgan odam
+   o'zgartira oladi va begona guruhni markaz guruhiga ulab olishi mumkin edi. */
+const GLINK = 'tglink/';
+const GLINK_TTL_MS = 30 * 60 * 1000;
+function glinkHash(t) { return require('crypto').createHash('sha256').update(String(t).toUpperCase()).digest('hex'); }
 
-/** Guruh nomidan kodga o'xshash bo'laklarni ajratib olish.
-    Avval faqat 4 xonali raqam qidirilardi — shuning uchun "B020" kabi
-    kodlar topilmasdi. Endi harf-raqamli bo'laklar ham olinadi.
-
-    Eng kami 3 belgi: "A1", "B2" kabi ikki belgili bo'laklar DARAJA nomi
-    bo'lib, guruh nomlarida doim uchraydi ("Kechki A1"). Ularni kod deb
-    olsak, bot noto'g'ri guruhga ulanib qolishi mumkin edi.               */
-function codesInTitle(title) {
-  const out = [];
-  String(title || '').split(/[^A-Za-z0-9]+/).forEach(w => {
-    const c = normCode(w);
-    if (c.length >= 3 && c.length <= 12 && /\d/.test(c) && out.indexOf(c) < 0) out.push(c);
-  });
-  return out;
+/** ERP: guruh uchun bir martalik ulash kodi (30 daqiqa) */
+async function makeGroupLinkToken(groupId, byUserId) {
+  const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = require('crypto').randomBytes(10);
+  let t = '';
+  for (let i = 0; i < 10; i++) t += ABC[bytes[i] % ABC.length];
+  await store.set(GLINK + glinkHash(t), { groupId: String(groupId), by: String(byUserId || ''), expiresAt: Date.now() + GLINK_TTL_MS });
+  return { token: t, expiresAt: Date.now() + GLINK_TTL_MS };
 }
 
-async function allGroups() {
-  const rows = await store.list('groups/');
-  return rows.filter(r => r.path.split('/').length === 2).map(r => r.data).filter(Boolean);
-}
+const GLINK_HELP = 'Bu guruhni markazga ulash uchun ERP’dagi guruh sahifasida ' +
+  '<b>«Telegramga ulash kodi»</b> ni bosing va shu yerga <code>/ulash KOD</code> deb yozing.\n' +
+  'Kod bir marta va 30 daqiqa ishlaydi.';
 
-/** Guruh nomiga qarab o'quv guruhini topish */
-async function groupByTitle(title) {
-  const codes = codesInTitle(title);
-  if (!codes.length) return { error: 'kod-yoq' };
-  const groups = await allGroups();
-  const hits = groups.filter(g => g.code && codes.indexOf(normCode(g.code)) >= 0);
-  if (!hits.length) return { error: 'topilmadi', codes };
-  /* Bir nechta kod mos kelsa ham, hammasi BITTA guruhga tegishli bo'lsa — mayli */
-  const uniq = [];
-  hits.forEach(g => { if (uniq.indexOf(g.id) < 0) uniq.push(g.id); });
-  if (uniq.length > 1) return { error: 'kop', codes };
-  return { group: hits[0] };
-}
-
-/** Guruhni shu Telegram suhbatiga bog'lash */
-async function linkGroupChat(chatId, title) {
-  const r = await groupByTitle(title);
-  if (r.error === 'kod-yoq') {
-    await sendMessage(chatId,
-      'Assalomu alaykum! Bu guruhni markazga bog’lash uchun guruh nomiga ' +
-      '<b>guruh kodini</b> qo’shing — 4 ta raqam, masalan: <code>Arab tili A1 · 4821</code>\n' +
-      'Kodni ERP’dagi guruh sahifasidan olasiz. Nomni o’zgartirgach <code>/ulash</code> deb yozing.');
+/** Guruhni shu Telegram suhbatiga bog'lash (faqat bir martalik kod bilan) */
+async function linkGroupChat(chatId, title, token) {
+  const tok = String(token || '').trim().toUpperCase();
+  if (!tok) { await sendMessage(chatId, 'Assalomu alaykum! ' + GLINK_HELP); return null; }
+  const key = GLINK + glinkHash(tok);
+  const rec0 = /^[A-Z0-9]{6,16}$/.test(tok) ? await store.get(key) : null;
+  if (!rec0 || !(rec0.expiresAt > Date.now())) {
+    await sendMessage(chatId, 'Kod noto’g’ri yoki muddati o’tgan. ERP’dan yangi kod oling.');
     return null;
   }
-  if (r.error === 'topilmadi') {
-    await sendMessage(chatId,
-      'Guruh nomidagi kod (' + r.codes.join(', ') + ') markazdagi hech bir guruhga to’g’ri kelmadi. ' +
-      'Kodni tekshirib, <code>/ulash</code> deb yozing.');
-    return null;
-  }
-  if (r.error === 'kop') {
-    await sendMessage(chatId, 'Nomda bir nechta kod bor. Faqat bittasini qoldiring va <code>/ulash</code> deb yozing.');
-    return null;
-  }
-  const g = r.group;
+  if (store.del) await store.del(key); else await store.set(key, { used: true, expiresAt: 0 });
+  const g = await store.get('groups/' + rec0.groupId);
+  if (!g) { await sendMessage(chatId, 'Guruh topilmadi.'); return null; }
   const already = String(g.tgChat || '') === String(chatId);
   const rec = Object.assign({}, g, { tgChat: String(chatId), tgTitle: String(title || ''), tgAt: stamp() });
   await store.set('groups/' + g.id, rec);
   await sendMessage(chatId,
     (already ? '✅ Bog’lanish yangilandi' : '✅ Ulandim!') + '\n\n' +
-    'Bu guruh <b>' + (g.name || g.id) + '</b> guruhiga bog’landi (kod <code>' + g.code + '</code>).\n' +
+    'Bu guruh <b>' + esc(g.name || g.id) + '</b> guruhiga bog’landi.\n' +
     'Endi shu yerga e’lon, dars va to’lov xabarlarini yubora olaman.');
   return rec;
 }
 
 /** Guruhdan kelgan xabar/hodisa */
 async function onGroupUpdate(chatId, title, text) {
-  const t = String(text || '').trim().toLowerCase();
-  if (t === '/ulash' || t === '/start' || t.indexOf('/ulash@') === 0 || t.indexOf('/start@') === 0) {
-    return linkGroupChat(chatId, title);
-  }
+  const raw = String(text || '').trim();
+  const t = raw.toLowerCase();
+  const m = /^\/(ulash|start)(@\w+)?(?:\s+(\S+))?\s*$/i.exec(raw);
+  if (m) return linkGroupChat(chatId, title, m[3] || '');
   if (t === '/id' || t.indexOf('/id@') === 0) {
     return sendMessage(chatId, 'Suhbat raqami: <code>' + chatId + '</code>');
   }
@@ -1566,7 +1543,7 @@ async function poll() {
         }
         if (cm && cm.chat && /group/.test(String(cm.chat.type || '')) &&
           /member|administrator/.test(String((cm.new_chat_member || {}).status || ''))) {
-          try { await linkGroupChat(cm.chat.id, cm.chat.title); }
+          try { await linkGroupChat(cm.chat.id, cm.chat.title, ''); }   // faqat yo'riqnoma
           catch (e) { console.error('bot guruh:', e.message); }
           continue;
         }
@@ -1714,7 +1691,7 @@ function _test(ctx) {
     balanceText, attendanceText, scheduleText, daysBetween, KINDS, MAX_TRIES,
     handleLinkFlow, findStudentByChat, notifyStaff,
     startRegistration, handleRegistration, regSrc,
-    linkGroupChat, onGroupUpdate, sendToGroup, codesInTitle,
+    linkGroupChat, onGroupUpdate, sendToGroup, makeGroupLinkToken,
     wake, remindStudy, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
     ensureQuizBank, quizTick, nextQuiz, quizList, addQuizzes, tashkentNow, quizConf, botProfileTexts,
     /** Sinovda navbatchini qo'lda ishga tushirish/to'xtatish */
@@ -1749,4 +1726,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, init, _test, quiz };
+module.exports = { start, stop, setTransport, makeCode, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

@@ -3123,6 +3123,19 @@ async function handleApi(req, res, url) {
     return send(res, 200, { ok: true });
   }
 
+  /* ---------- Telegram guruhini ulash uchun bir martalik kod ---------- */
+  if (route === 'group/tglink' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit')) return send(res, 403, { error: 'Sizda bu amal uchun ruxsat yo’q.' });
+    const body = await readBody(req);
+    const gid = String(body.groupId || '');
+    if (!/^[A-Za-z0-9_\-.]+$/.test(gid)) return send(res, 400, { error: 'Guruh noto’g’ri.' });
+    const g = await store.get('groups/' + gid);
+    if (!g) return send(res, 404, { error: 'Guruh topilmadi.' });
+    const r = await require('./bot').makeGroupLinkToken(gid, user.id);
+    await writeAudit(user, 'Telegram guruhini ulash kodi berildi', g.name || gid, '');
+    return send(res, 200, { ok: true, token: r.token, expiresAt: r.expiresAt });
+  }
+
   /* ---------- Telegram guruhiga xabar ----------
      Faqat ERP’dan, ruxsati borlar uchun. Matn guruhning o'z suhbatiga boradi. */
   if (route === 'group/message' && req.method === 'POST') {

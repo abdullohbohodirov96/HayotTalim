@@ -95,7 +95,7 @@ function read(name) {
 
 /* Yuklab olinadigan nusxadan sirlar olib tashlanadi: bot tokeni, sessiyalar,
    bir martalik havola tokenlari. Nazorat summasi qayta hisoblanadi.        */
-const EXPORT_DROP = ['kabsess/', 'linktokens/', 'botstate/'];
+const EXPORT_DROP = ['kabsess/', 'linktokens/', 'botstate/', 'tglink/'];
 function sanitizeForExport(dump) {
   const docs = Object.assign({}, (dump && dump.docs) || {});
   Object.keys(docs).forEach(p => {

@@ -93,8 +93,7 @@
   /* ================= GURUH KARTASI ================= */
 
   /* ---------- Telegram guruhi ----------
-     Guruh kodi guruh NOMIGA yoziladi; bot qo'shilganda shu kodni ko'rib
-     o'zi ulanadi va guruhga "ulandim" deb yozadi. */
+     Ulash ERP’dan olingan bir martalik kod bilan: guruhda /ulash KOD. */
   function tgGroupCard(g, App) {
     var linked = !!g.tgChat;
     var code = g.code || '—';
@@ -110,12 +109,28 @@
         ]
         : [
           h('span', { class: 'small' },
-            'Telegram guruh nomiga shu kodni qo’shing (masalan “' + (g.name || 'Guruh') + ' · ' + code + '”), ' +
-            'so’ng botni guruhga admin qilib qo’shing — o’zi ulanadi.')
+            'Botni Telegram guruhiga admin qilib qo’shing, so’ng «Telegramga ulash kodi» ni bosib, ' +
+            'guruhga /ulash KOD deb yozing. Kod bir marta va 30 daqiqa ishlaydi.')
         ]),
       h('div', { class: 'rowflex' }, [
-        h('button', { class: 'btn sm', type: 'button', onclick: function () { UI.copy(String(code)); } },
-          'Kodni nusxalash'),
+        (App.can('group.edit') && D.mode === 'server') ? h('button', {
+          class: 'btn sm', type: 'button', onclick: function (e) {
+            UI.busy(e.currentTarget, async function () {
+              try {
+                var r = await D.api('POST', 'api/group/tglink', { groupId: g.id });
+                var cmd = '/ulash ' + r.token;
+                UI.modal({
+                  title: 'Telegramga ulash kodi',
+                  body: [
+                    h('p', {}, 'Telegram guruhiga quyidagini yozing (30 daqiqa ichida, bir marta):'),
+                    h('p', {}, h('b', { class: 'mono', style: 'font-size:1.2em' }, cmd))
+                  ],
+                  actions: [{ label: 'Nusxalash', cls: 'primary', onClick: function (c) { UI.copy(cmd); c(); } }]
+                });
+              } catch (ex) { UI.toast(ex.message || 'Kod olinmadi.', 'bad'); }
+            });
+          }
+        }, 'Telegramga ulash kodi') : null,
         (linked && (App.can('group.edit') || App.can('bot.broadcast')))
           ? h('button', {
             class: 'btn sm primary', type: 'button',

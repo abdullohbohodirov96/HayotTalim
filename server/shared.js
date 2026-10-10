@@ -73,7 +73,8 @@ function readBlocked(docPath, user) {
   if (col === 'kabpass') return true;              // o'quvchi parollari (xesh) — hech kimga
   if (col === 'filebody') return true;             // fayl mazmuni faqat /api/file orqali
   if (col === 'tgquiz' || col === 'tgquizlog') return true;  // kanal viktorinasi (javoblari bilan)
-  if (col === 'photos') return true;               // rasm faqat /api/photo orqali beriladi
+  if (col === 'photos') return true;
+  if (col === 'tglink' || col === 'linktokens' || col === 'kabsess') return true;   // tokenlar               // rasm faqat /api/photo orqali beriladi
   /* Daraja testi: savollar ichida TO'G'RI JAVOB bor — hech kimga berilmaydi.
      Boshlangan test sessiyasi ham (savol ro'yxati) mijozga chiqmaydi.       */
   if (col === 'testq' || col === 'testsess') return true;

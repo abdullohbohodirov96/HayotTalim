@@ -67,6 +67,13 @@ function lastTo(chatId) {
   const req = await store.get('botreq/req_100');
   ok('Administrator uchun so’rov yaratildi', !!req && req.status === 'kutilmoqda');
   ok('O’quvchiga kutish haqida aytildi', /administrator/i.test(lastTo(100)), lastTo(100));
+  await msg(110, 'ismim');
+  await msg(110, 'Sinov Odam');
+  await msg(110, 'Z999');
+  const fakeAns = lastTo(110);
+  ok('Mavjud bo’lmagan guruh kodi ham xuddi shunday javob oladi (kodlarni terib topib bo’lmaydi)',
+    /administrator/i.test(fakeAns) && !/topilmadi/i.test(fakeAns), fakeAns);
+  ok('Noma’lum kodli so’rov guruhsiz saqlandi', (await store.get('botreq/req_110')).groupId === null);
 
   /* ---------- 2. Bir martalik havola bilan ulash ---------- */
   section('2. Bir martalik havola (token) bilan ulash');
@@ -220,34 +227,40 @@ function lastTo(chatId) {
     sent.filter(m => m.chatId === '100' && /tasdiqlandi/i.test(m.text)).length === cnt);
 
   /* ================= Telegram guruhiga ulanish ================= */
-  section('Telegram guruhiga ulanish (guruh kodi nom ichida)');
+  section('Telegram guruhiga ulanish (faqat ERP’dagi bir martalik kod bilan)');
   await store.set('groups/g9', {
     id: 'g9', code: '4821', name: 'Kechki A1', days: [2, 4], startTime: '18:30', endTime: '20:00'
   });
 
-  ok('Nomdan kod ajratiladi',
-    JSON.stringify(B.codesInTitle('AlBayan · Kechki A1 · 4821')) === '["4821"]',
-    JSON.stringify(B.codesInTitle('AlBayan · Kechki A1 · 4821')));
-
-  await B.linkGroupChat(-100200, 'AlBayan Kechki A1');
-  const g9a = await store.get('groups/g9');
-  ok('Kodsiz nom bilan ulanmaydi', !g9a.tgChat);
-  ok('Nima qilish kerakligi tushuntiriladi', /kod/i.test(lastTo(-100200)), lastTo(-100200).slice(0, 80));
-
-  await B.linkGroupChat(-100200, 'AlBayan · Kechki A1 · 9999');
-  ok('Notanish kod bilan ulanmaydi', !(await store.get('groups/g9')).tgChat);
-
-  await B.linkGroupChat(-100200, 'AlBayan · Kechki A1 · 4821');
-  const g9b = await store.get('groups/g9');
-  ok('Kod bo’yicha guruhga ulandi', String(g9b.tgChat) === '-100200', String(g9b.tgChat));
-  ok('Guruh nomi saqlandi', /4821/.test(g9b.tgTitle || ''), g9b.tgTitle);
-  ok('Guruhga "ulandim" xabari bordi', /Ulandim/.test(lastTo(-100200)), lastTo(-100200).slice(0, 90));
-  ok('Xabarda guruh nomi bor', /Kechki A1/.test(lastTo(-100200)));
-
-  ok('Boshqa guruh tegilmadi', !(await store.get('groups/g1')).tgChat);
+  await B.linkGroupChat(-100200, 'AlBayan · Kechki A1 · 4821', '');
+  ok('Nomdagi guruh kodi bilan endi ulanmaydi', !(await store.get('groups/g9')).tgChat);
+  ok('Nima qilish kerakligi tushuntiriladi', /ulash KOD/i.test(lastTo(-100200)), lastTo(-100200).slice(0, 80));
+  ok('Yo’riqnomada guruh kodlari ko’rsatilmaydi', !/4821/.test(lastTo(-100200)));
 
   await B.onGroupUpdate(-100200, 'AlBayan · Kechki A1 · 4821', '/ulash');
-  ok('/ulash qayta ulaydi', /yangilandi|Ulandim/.test(lastTo(-100200)), lastTo(-100200).slice(0, 60));
+  ok('Kodsiz /ulash ulamaydi', !(await store.get('groups/g9')).tgChat);
+  await B.onGroupUpdate(-100200, 'Begona guruh', '/ulash ABCDEF2345');
+  ok('Soxta kod bilan ulanmaydi', !(await store.get('groups/g9')).tgChat);
+  ok('Soxta kodga javobda guruh nomi/kodi yo’q', !/Kechki|4821/.test(lastTo(-100200)), lastTo(-100200));
+
+  const tk = await B.makeGroupLinkToken('g9', 'usr_admin');
+  ok('Bir martalik kod berildi', /^[A-Z0-9]{10}$/.test(tk.token), tk.token);
+  ok('Bazada kodning o’zi saqlanmaydi', !JSON.stringify((await store.list('tglink/')).map(r => r.path)).includes(tk.token));
+  await B.onGroupUpdate(-100200, 'Istalgan nom', '/ulash@SaboAcademy_bot ' + tk.token.toLowerCase());
+  const g9b = await store.get('groups/g9');
+  ok('Kod bilan guruhga ulandi', String(g9b.tgChat) === '-100200', String(g9b.tgChat));
+  ok('Guruhga "ulandim" xabari bordi', /Ulandim/.test(lastTo(-100200)), lastTo(-100200).slice(0, 90));
+  ok('Xabarda guruh nomi bor', /Kechki A1/.test(lastTo(-100200)));
+  ok('Boshqa guruh tegilmadi', !(await store.get('groups/g1')).tgChat);
+
+  await B.onGroupUpdate(-100300, 'Hujumchi guruhi', '/ulash ' + tk.token);
+  ok('Ishlatilgan kod qayta ishlamaydi', String((await store.get('groups/g9')).tgChat) === '-100200');
+
+  const tkOld = await B.makeGroupLinkToken('g9', 'usr_admin');
+  const keyOld = (await store.list('tglink/'))[0];
+  await store.set(keyOld.path, Object.assign({}, keyOld.data, { expiresAt: Date.now() - 1 }));
+  await B.onGroupUpdate(-100300, 'Hujumchi guruhi', '/ulash ' + tkOld.token);
+  ok('Muddati o’tgan kod ishlamaydi', String((await store.get('groups/g9')).tgChat) === '-100200');
 
   const nBefore = sent.length;
   await B.onGroupUpdate(-100200, 'AlBayan · Kechki A1 · 4821', 'shunchaki suhbat');
