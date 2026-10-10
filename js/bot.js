@@ -39,6 +39,7 @@
       payCard: s.payCard || '',
       payHolder: s.payHolder || '',
       payBankChat: s.payBankChat || '',
+      payBankSenders: s.payBankSenders || '',
       payPreDays: s.payPreDays == null ? 2 : Number(s.payPreDays)
     };
   }
@@ -577,7 +578,12 @@
         {
           name: 'payBankChat', label: 'Bildirishnoma kanali (raqami yoki @nomi)', value: conf.payBankChat,
           placeholder: '-1001234567890',
-          help: 'Karta SMS/bot bildirishnomalari tushadigan kanal. Botni shu kanalga administrator qilib qo’shing — raqamni bot o’zi yozib yuboradi.'
+          help: 'Karta SMS/bot bildirishnomalari tushadigan KANAL. Botni shu kanalga administrator qilib qo’shing — raqamni bot o’zi yozib yuboradi.'
+        },
+        {
+          name: 'payBankSenders', label: 'Guruh bo’lsa: ishonchli yuboruvchi ID lari', value: conf.payBankSenders,
+          placeholder: '123456789',
+          help: 'Faqat bildirishnomalar GURUHGA tushsa kerak. Shu Telegram ID laridan kelgan xabarlargina to’lov deb qabul qilinadi; guruhning boshqa a’zolari yozgani hisobga olinmaydi. Kanal ishlatsangiz — bo’sh qoldiring.'
         },
         {
           name: 'payPreDays', label: 'To’lovdan necha kun oldin eslatilsin', type: 'number', value: conf.payPreDays,
@@ -621,6 +627,7 @@
                   payCard: String(v.payCard || '').replace(/[^\d ]/g, '').trim(),
                   payHolder: String(v.payHolder || '').trim(),
                   payBankChat: String(v.payBankChat || '').trim(),
+                  payBankSenders: String(v.payBankSenders || '').replace(/[^\d,\s]/g, '').trim(),
                   payPreDays: Math.max(0, Number(v.payPreDays) || 0),
                   username: String(v.username || '').replace('@', ''),
                   welcome: v.welcome,

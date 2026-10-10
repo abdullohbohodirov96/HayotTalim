@@ -1504,6 +1504,12 @@ async function confirmClaim(claim, tx) {
 async function onBankPost(chat, msg) {
   const conf = paybot.payConf(await settings());
   if (!paybot.isBankChat(conf, chat)) return false;
+  /* Bank chatidagi, lekin ishonchsiz yuboruvchidan kelgan xabar — e'tiborsiz
+     (true: guruh buyrug'i sifatida ham ishlanmaydi). */
+  if (!paybot.isTrustedBankMsg(conf, chat, msg)) {
+    console.warn('bot bank: ishonchsiz yuboruvchi e’tiborsiz qoldirildi', chat.id, msg && msg.from && msg.from.id);
+    return true;
+  }
   const text = msg.text || msg.caption || '';
   const tx = await paybot.saveBankTx(payCtx(), text, chat.id, msg.message_id);
   if (tx) { try { await paybot.reconcile(payCtx()); } catch (e) { console.error('paybot:', e.message); } }

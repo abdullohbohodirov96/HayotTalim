@@ -80,6 +80,18 @@ const lastTo = id => (sent.filter(m => m.chatId === String(id)).slice(-1)[0] || 
   ok('Tekshirilmoqda deb javob berdi', /tekshirilmoqda/.test(lastTo(501).text));
   const bankText = '🟢 Пополнение\n➕ ' + paybot.fmt(c1.amount) + '.00 UZS\n💳 HUMOCARD *9012';
   ok('Begona kanal e’tiborsiz', (await B.onBankPost({ id: -100999, type: 'channel' }, { text: bankText, message_id: 1 })) === false);
+  /* KRITIK: bank chati guruh bo'lsa, oddiy a'zo soxta "Пополнение" yozib to'lov yozdira olmasin */
+  await B.onBankPost({ id: -100777, type: 'supergroup' }, { text: bankText, message_id: 2, from: { id: 999 } });
+  await B.onBankPost({ id: -100777, type: 'group' }, { text: bankText, message_id: 3 });
+  ok('Guruhdagi oddiy a’zoning soxta bank xabari to’lov yozmaydi',
+    (await store.get('payclaim/' + c1.id)).status !== 'tasdiqlandi' && (await store.list('payments/')).length === 0 &&
+    (await store.list('banktx/')).length === 0);
+  const cf = paybot.payConf({ bot: { payBankChat: '-100777', payBankSenders: '4242, 5151' } });
+  ok('Guruhda faqat oq ro’yxatdagi yuboruvchi ishonchli',
+    paybot.isTrustedBankMsg(cf, { id: -100777, type: 'supergroup' }, { from: { id: 4242 } }) &&
+    !paybot.isTrustedBankMsg(cf, { id: -100777, type: 'supergroup' }, { from: { id: 999 } }) &&
+    !paybot.isTrustedBankMsg(cf, { id: -100777, type: 'supergroup' }, {}) &&
+    paybot.isTrustedBankMsg(cf, { id: -100777, type: 'channel' }, {}));
   await B.onBankPost({ id: -100777, type: 'channel' }, { text: bankText, message_id: 10 });
   const done = await store.get('payclaim/' + c1.id);
   ok('Da’vo tasdiqlandi', done.status === 'tasdiqlandi', done.status);

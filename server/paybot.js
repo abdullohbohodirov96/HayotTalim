@@ -65,8 +65,21 @@ function payConf(settings) {
     card: String(b.payCard || '').replace(/[^\d ]/g, '').trim(),
     holder: String(b.payHolder || '').trim(),
     bank: String(b.payBankChat || '').trim(),            // kanal: -100… yoki @nom
+    /* Guruh bo'lsa: faqat shu Telegram foydalanuvchi ID laridan kelgan xabarlar
+       bank bildirishnomasi deb qabul qilinadi (guruh a'zolari soxtalashtira olmasin). */
+    senders: String(b.payBankSenders || '').split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d{3,20}$/.test(x)),
     preDays: b.payPreDays == null ? 2 : Math.max(0, Number(b.payPreDays) || 0)
   };
+}
+
+/** Xabar haqiqiy bank bildirishnomasi bo'lishi mumkinmi:
+    kanal posti — ha (kanalga faqat adminlar yozadi); guruh xabari — faqat
+    oq ro'yxatdagi yuboruvchidan. Aks holda hech qachon. */
+function isTrustedBankMsg(conf, chat, msg) {
+  if (!isBankChat(conf, chat)) return false;
+  if (String(chat.type || '') === 'channel') return true;
+  const from = msg && msg.from && msg.from.id != null ? String(msg.from.id) : '';
+  return !!from && conf.senders.indexOf(from) >= 0;
 }
 
 function isBankChat(conf, chat) {
@@ -205,6 +218,6 @@ async function reconcile(ctx) {
 }
 
 module.exports = {
-  parseBank, payConf, isBankChat, startClaim, markPaid, saveBankTx, reconcile, dueFor,
+  parseBank, payConf, isBankChat, isTrustedBankMsg, startClaim, markPaid, saveBankTx, reconcile, dueFor,
   fmt, cardFmt, CLAIM_TTL_MS, listCol
 };
