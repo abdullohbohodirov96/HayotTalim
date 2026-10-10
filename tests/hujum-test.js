@@ -392,7 +392,7 @@ function raw(pathRaw, opts = {}) {
   section('12. Boshqaruv yo’llari sessiyasiz ochilmaydi');
   const adminRoutes = [
     ['/api/bootstrap', 'GET'], ['/api/collection?name=students', 'GET'],
-    ['/api/backup/run', 'POST'], ['/api/backup/file?name=x', 'GET'],
+    ['/api/backup/run', 'POST'], ['/api/backup/file', 'POST'],
     ['/api/backup/restore', 'POST'], ['/api/payment', 'POST'],
     ['/api/invoices/generate', 'POST'], ['/api/report/overview', 'GET'],
     ['/api/chat/send', 'POST'], ['/api/holiday', 'POST']

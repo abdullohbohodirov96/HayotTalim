@@ -75,6 +75,23 @@ function verifyPassword(user, pass) {
   // eski usul — kirishda avtomatik yangilanadi
   return legacyHash(user.login, pass, user.salt) === user.hash;
 }
+/* Zaxira amallari uchun parolni qayta tekshirish (5 urinish / 15 daqiqa) */
+const backupPwFails = new Map();
+async function checkBackupPassword(user, pass) {
+  const key = String(user.id);
+  const now = Date.now();
+  const f = backupPwFails.get(key);
+  if (f && f.until > now && f.n >= 5) return { code: 429, error: 'Juda ko’p noto’g’ri urinish. 15 daqiqadan keyin qayta urining.' };
+  const u = await store.get('users/' + user.id);
+  if (!pass || !verifyPassword(u, String(pass))) {
+    const cur = f && f.until > now ? f : { n: 0, until: now + 15 * 60 * 1000 };
+    cur.n++;
+    backupPwFails.set(key, cur);
+    return { code: 401, error: 'Parol noto’g’ri.' };
+  }
+  backupPwFails.delete(key);
+  return null;
+}
 function stamp() {
   const d = new Date(Date.now() + 5 * 3600 * 1000); // Asia/Tashkent
   const p = n => (n < 10 ? '0' + n : '' + n);
@@ -3257,10 +3274,21 @@ async function handleApi(req, res, url) {
         return send(res, 500, { error: e.message });
       }
     }
-    if (route === 'backup/file' && req.method === 'GET') {
-      const name = String(url.searchParams.get('name') || '');
+    /* Zaxirani yuklab olish va tiklash — faqat direktor, parolni qayta kiritib */
+    let backupBody = null;
+    if (route === 'backup/file' || route === 'backup/restore' || route === 'backup/preview') {
+      if (user.role !== 'direktor') return send(res, 403, { error: 'Bu amal faqat direktor uchun.' });
+    }
+    if (route === 'backup/file' || route === 'backup/restore') {
+      if (req.method !== 'POST') return send(res, 405, { error: 'Faqat POST.' });
+      backupBody = await readBody(req);
+      const pw = await checkBackupPassword(user, backupBody.password);
+      if (pw) return send(res, pw.code, { error: pw.error });
+    }
+    if (route === 'backup/file') {
       try {
-        const dump = backup.read(name);
+        const dump = backup.sanitizeForExport(backup.read(String(backupBody.name || '')));
+        await writeAudit(user, 'Zaxira yuklab olindi', String(backupBody.name || ''), dump.count + ' yozuv');
         return send(res, 200, dump);
       } catch (e) { return send(res, 404, { error: e.message }); }
     }
@@ -3271,14 +3299,14 @@ async function handleApi(req, res, url) {
       return send(res, 200, await backup.preview(store, dump));
     }
     if (route === 'backup/restore' && req.method === 'POST') {
-      const body = await readBody(req);
+      const body = backupBody;
       if (String(body.confirm || '') !== 'TIKLASH') {
         return send(res, 400, { error: 'Tasdiqlash so’zi noto’g’ri.' });
       }
       const dump = body.name ? backupReadSafe(body.name) : body.dump;
       if (!dump) return send(res, 400, { error: 'Zaxira berilmadi.' });
       try {
-        const r = await withLock('backup', () => backup.restore(store, dump));
+        const r = await withLock('backup', () => backup.restore(store, dump, { keepUserId: user.id }));
         await writeAudit(user, 'Ma’lumotlar zaxiradan tiklandi',
           body.name || 'yuklangan fayl', r.restored + ' yozuv tiklandi, ' + r.removed + ' ta olib tashlandi');
         return send(res, 200, r);

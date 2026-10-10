@@ -2110,9 +2110,9 @@
               });
             }
           }, [UI.icon('down'), 'Hozir zaxira olish']),
-          h('button', {
+          (D.mode !== 'server' || (App.user && App.user.role === 'direktor')) ? h('button', {
             class: 'btn', onclick: function () { restoreDialog(App, refresh); }
-          }, 'Zaxiradan tiklash')
+          }, 'Zaxiradan tiklash') : null
         ]),
         h('p', { class: 'small muted', style: 'margin:12px 0 0' },
           'Server rejimida zaxira har kuni avtomatik olinadi va ' +
@@ -2172,6 +2172,8 @@
     var result = h('div', { style: 'margin-top:12px' });
     var chosen = null;           // {dump, name}
     var confirmInput = h('input', { class: 'inp', placeholder: 'TIKLASH' });
+    /* Serverda: yuklab olish va tiklash uchun direktor parolini qayta kiritadi */
+    var pwInput = h('input', { class: 'inp', type: 'password', autocomplete: 'current-password', placeholder: 'Parolingiz' });
     var applyBtn = null;
 
     if (D.mode === 'server') {
@@ -2183,9 +2185,10 @@
       }).catch(function () { });
       serverPick.onchange = function () {
         if (!serverPick.value) return;
-        D.api('GET', 'api/backup/file?name=' + encodeURIComponent(serverPick.value))
+        if (!pwInput.value) { UI.toast('Avval parolingizni kiriting.', 'bad'); serverPick.value = ''; pwInput.focus(); return; }
+        D.api('POST', 'api/backup/file', { name: serverPick.value, password: pwInput.value })
           .then(function (dump) { chosen = { dump: dump, name: serverPick.value, fromServer: true }; show(); })
-          .catch(function (e) { UI.toast(e.message, 'bad'); });
+          .catch(function (e) { UI.toast(e.message, 'bad'); serverPick.value = ''; });
       };
     }
 
@@ -2255,6 +2258,7 @@
       body: [
         h('div', { class: 'banner info' }, h('div', {},
           'Tiklash hozirgi ma’lumotlarni zaxiradagi holat bilan almashtiradi. Avval fayl tekshiriladi va o’zgarish ko’rsatiladi.')),
+        D.mode === 'server' ? h('label', { class: 'fld' }, [h('span', {}, 'Parolingiz (faqat direktor)'), pwInput]) : null,
         D.mode === 'server' ? h('label', { class: 'fld' }, [h('span', {}, 'Serverdagi zaxira'), serverPick]) : null,
         h('label', { class: 'fld' }, [h('span', {}, 'Yoki kompyuteringizdagi fayl'), fileInput]),
         result
@@ -2271,9 +2275,10 @@
           UI.busy(btn, async function () {
             try {
               if (D.mode === 'server') {
+                if (!pwInput.value) { UI.toast('Parolingizni kiriting.', 'bad'); return; }
                 var body = chosen.fromServer
-                  ? { name: chosen.name, confirm: 'TIKLASH' }
-                  : { dump: chosen.dump, confirm: 'TIKLASH' };
+                  ? { name: chosen.name, confirm: 'TIKLASH', password: pwInput.value }
+                  : { dump: chosen.dump, confirm: 'TIKLASH', password: pwInput.value };
                 var r = await D.api('POST', 'api/backup/restore', body);
                 UI.toast('Tiklandi: ' + r.restored + ' yozuv. Oldingi holat "' + r.safety + '" fayliga saqlandi.', 'ok');
                 await D.loadBootstrap();

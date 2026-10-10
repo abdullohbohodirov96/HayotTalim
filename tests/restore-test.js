@@ -47,7 +47,7 @@ const login = b => api(b, '/api/login', { method: 'POST', body: { login: 'admin'
   const run = await api(SRC, '/api/backup/run', { method: 'POST', cookie: s, body: {} });
   ok('zaxira yaratildi (' + run.status + ')', run.status === 200 && !!(run.json && run.json.file), run.text.slice(0, 160));
   const name = run.json && run.json.file && run.json.file.name;
-  const dump = await api(SRC, '/api/backup/file?name=' + encodeURIComponent(name || ''), { cookie: s });
+  const dump = await api(SRC, '/api/backup/file', { method: 'POST', cookie: s, body: { name: name || '', password: PASS } });
   ok('zaxira fayli o’qildi (' + dump.status + ')', dump.status === 200 && !!dump.json, dump.text.slice(0, 160));
   const before = await api(DST, '/api/collection?name=students', { cookie: d });
   const nBefore = Object.keys((before.json || {}).items || {}).length;
@@ -60,11 +60,11 @@ const login = b => api(b, '/api/login', { method: 'POST', body: { login: 'admin'
   ok('belgili o’quvchi sinov bazasida hali yo’q (' + nBefore + ' / ' + nSrc + ')',
     !JSON.stringify((before.json || {}).items || {}).includes(markName));
 
-  const noWord = await api(DST, '/api/backup/restore', { method: 'POST', cookie: d, body: { dump: dump.json } });
+  const noWord = await api(DST, '/api/backup/restore', { method: 'POST', cookie: d, body: { dump: dump.json, password: PASS } });
   ok('tasdiqlash so’zisiz tiklanmadi (' + noWord.status + ')', noWord.status === 400);
   const midway = await api(DST, '/api/collection?name=students', { cookie: d });
   ok('rad etilgandan keyin baza o’zgarmadi', Object.keys((midway.json || {}).items || {}).length === nBefore);
-  const res = await api(DST, '/api/backup/restore', { method: 'POST', cookie: d, body: { dump: dump.json, confirm: 'TIKLASH' } });
+  const res = await api(DST, '/api/backup/restore', { method: 'POST', cookie: d, body: { dump: dump.json, confirm: 'TIKLASH', password: PASS } });
   ok('tiklash so’rovi qabul qilindi (' + res.status + ')', res.status === 200, res.text.slice(0, 200));
   const after = await api(DST, '/api/collection?name=students', { cookie: d });
   const nAfter = Object.keys((after.json || {}).items || {}).length;

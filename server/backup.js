@@ -93,6 +93,25 @@ function read(name) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
+/* Yuklab olinadigan nusxadan sirlar olib tashlanadi: bot tokeni, sessiyalar,
+   bir martalik havola tokenlari. Nazorat summasi qayta hisoblanadi.        */
+const EXPORT_DROP = ['kabsess/', 'linktokens/', 'botstate/'];
+function sanitizeForExport(dump) {
+  const docs = Object.assign({}, (dump && dump.docs) || {});
+  Object.keys(docs).forEach(p => {
+    if (EXPORT_DROP.some(pre => p.indexOf(pre) === 0)) delete docs[p];
+  });
+  if (docs['meta/settings'] && docs['meta/settings'].bot) {
+    const s = Object.assign({}, docs['meta/settings']);
+    s.bot = Object.assign({}, s.bot);
+    delete s.bot.token;
+    docs['meta/settings'] = s;
+  }
+  const out = Object.assign({}, dump, { docs, count: Object.keys(docs).length });
+  out.checksum = checksum(out);
+  return out;
+}
+
 /* ---------------- Tekshirish ---------------- */
 
 const REQUIRED = ['users'];
@@ -188,11 +207,26 @@ async function preview(store, dump) {
  * Tiklash. Avval joriy holat zaxiraga olinadi, keyin hamma narsa almashtiriladi.
  * Natija: { ok, restored, removed, safety }
  */
-async function restore(store, dump) {
+async function restore(store, dump, opts) {
   const v = validate(dump);
   if (!v.ok) { const e = new Error(v.errors[0] || 'Zaxira yaroqsiz.'); e.details = v.errors; throw e; }
 
   const safety = await makeBackup(store, 'tiklashdan oldin', 'oldingi');
+
+  /* Tiklayotgan direktor o'z hisobini (joriy paroli bilan) yo'qotmasin,
+     joriy bot tokeni ham saqlanib qolsin.                               */
+  const keepUserId = opts && opts.keepUserId;
+  if (keepUserId) {
+    const cur = await store.get('users/' + keepUserId);
+    if (cur) v.docs['users/' + keepUserId] = cur;
+  }
+  const curSet = await store.get('meta/settings');
+  if (curSet && curSet.bot && curSet.bot.token && v.docs['meta/settings']) {
+    const ns = Object.assign({}, v.docs['meta/settings']);
+    ns.bot = Object.assign({}, ns.bot || {});
+    if (!ns.bot.token) ns.bot.token = curSet.bot.token;
+    v.docs['meta/settings'] = ns;
+  }
 
   const now = await store.all();
   const keep = new Set(Object.keys(v.docs));
@@ -249,6 +283,7 @@ function startSchedule(store, onFail) {
 }
 
 module.exports = {
+  sanitizeForExport,
   DIR, FORMAT, tzDate, tzStamp,
   makeBackup, list, read, validate, preview, restore,
   readState, writeState, startSchedule, dumpOf, checksum, flattenOld, safeName
