@@ -2663,6 +2663,11 @@ async function handleApi(req, res, url) {
         let tx = body.txId ? await store.get('banktx/' + String(body.txId)) : null;
         if (tx && tx.status === 'mos') return send(res, 400, { error: 'Bu kirim allaqachon biriktirilgan.' });
         if (c && c.status === 'tasdiqlandi') return send(res, 400, { error: 'Bu da’vo allaqachon tasdiqlangan.' });
+        if (!c && tx && body.studentId && tx.suggestClaimId) {
+          /* Taxminiy da'vo shu o'quvchiniki bo'lsa — o'sha da'vo yopiladi */
+          const sc = await store.get('payclaim/' + tx.suggestClaimId);
+          if (sc && sc.studentId === String(body.studentId) && (sc.status === 'kutilmoqda' || sc.status === 'tolandi')) c = sc;
+        }
         if (!c && tx && body.studentId) {
           const st = await store.get('students/' + String(body.studentId));
           if (!st) return send(res, 404, { error: 'O’quvchi topilmadi.' });

@@ -433,7 +433,9 @@
                 D.all('students').filter(function (s) { return s.status === 'faol'; })
                   .sort(function (a, b) { return (a.lastName + a.firstName).localeCompare(b.lastName + b.firstName); })
                   .map(function (s) { return h('option', { value: s.id }, s.lastName + ' ' + s.firstName); })));
-              return h('div', { class: 'rowflex', style: 'gap:6px;justify-content:flex-end' }, [sel,
+              if (t.suggestStudentId) sel.value = t.suggestStudentId;
+              return h('div', { class: 'rowflex', style: 'gap:6px;justify-content:flex-end' }, [
+                t.suggestStudentId ? h('span', { class: 'small muted' }, 'Taxmin — tekshiring:') : null, sel,
                 h('button', { class: 'btn sm primary', onclick: function (e) {
                   e.stopPropagation();
                   if (!sel.value) { UI.toast('O’quvchini tanlang.', 'bad'); return; }

@@ -105,9 +105,13 @@ const lastTo = id => (sent.filter(m => m.chatId === String(id)).slice(-1)[0] || 
   ok('Bir xabar ikki marta yozilmaydi', (await store.list('payments/')).length === 1);
   ok('s2 ning da’vosi tegilmadi', (await store.get('payclaim/' + c2.id)).status === 'kutilmoqda');
 
-  section('4. Dumsiz to’lov ham taniladi (faqat bitta mos da’vo bo’lsa)');
+  section('4. Dumsiz to’lov avtomatik biriktirilmaydi — qo’lda tasdiqlashga');
+  const payBefore = (await store.list('payments/')).length;
   await B.onBankPost({ id: -100777, type: 'channel' }, { text: 'Пополнение ➕ 400 000.00 UZS *9012', message_id: 11 });
-  ok('s2 400 000 to’lagan — tasdiqlandi', (await store.get('payclaim/' + c2.id)).status === 'tasdiqlandi');
+  ok('s2 da’vosi avtomatik tasdiqlanmadi', (await store.get('payclaim/' + c2.id)).status !== 'tasdiqlandi');
+  ok('To’lov yozilmadi', (await store.list('payments/')).length === payBefore);
+  const loose = (await store.list('banktx/')).map(x => x.data).find(t => t.amount === 400000);
+  ok('Kirim «mos-emas» — taxminiy o’quvchi belgilangan', loose && loose.status === 'mos-emas' && loose.suggestStudentId === c2.studentId, JSON.stringify(loose));
 
   section('5. Muddatdan oldin eslatma');
   await store.set('invoices/i3', { id: 'i3', studentId: 's3', month: today.slice(0, 7), final: 350000, dueDate: plus(2) });

@@ -184,10 +184,23 @@ async function reconcile(ctx) {
   for (const tx of txs.sort((a, b) => a.atMs - b.atMs)) {
     /* 1) aniq summa (dum bilan) */
     let hit = claims.filter(c => c.amount === tx.amount);
-    /* 2) dumsiz to'lagan bo'lsa — faqat bitta da'vo shu summaga mos kelsa */
+    /* 2) dumsiz (asosiy summa) to'lov AVTOMATIK biriktirilmaydi: shu summani
+       boshqa odam ham to'lagan bo'lishi mumkin. Taxminiy o'quvchi belgilanadi,
+       xodim ERPda qo'lda tasdiqlaydi. */
     if (!hit.length) {
       const base = claims.filter(c => c.base === tx.amount);
-      if (base.length === 1) hit = base;
+      if (base.length) {
+        tx.status = 'mos-emas';
+        tx.suggestClaimId = base.length === 1 ? base[0].id : null;
+        tx.suggestStudentId = base.length === 1 ? base[0].studentId : null;
+        await ctx.store.set('banktx/' + tx.id, tx);
+        unmatched++;
+        if (ctx.notifyStaff) {
+          ctx.notifyStaff('Kartaga ' + fmt(tx.amount) + ' so’m tushdi (aniq summasiz — dum yo’q).\n' +
+            'Avtomatik biriktirilmadi. ERP → Telegram bot → Karta to’lovlari bo’limida tekshirib, qo’lda tasdiqlang.');
+        }
+        continue;
+      }
     }
     if (hit.length === 1) {
       const c = hit[0];
