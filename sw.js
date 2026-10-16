@@ -23,6 +23,7 @@ const SHELL = [
   './js/pages-fin.js',
   './js/pages-team.js',
   './js/pages-lms.js',
+  './js/pages-forms.js',
   './js/course-a1.js',
   './js/course-anim.js',
   './js/course-ui.js',
@@ -103,6 +104,11 @@ self.addEventListener('fetch', event => {
   // 3) HTML — joriy versiya keshidan
   const isHtml = req.mode === 'navigate' ||
     (req.headers.get('accept') || '').indexOf('text/html') >= 0;
+
+  // Ilova FAQAT "/" (va /index.html) da. Forma (/f/…), robots, sitemap —
+  // serverning o'zi beradi: ERP ochilgan telefonda forma havolasi ERP ni ochmasin.
+  const isAppPage = url.pathname === '/' || url.pathname === '/index.html';
+  if (isHtml && !isAppPage) return;
 
   // 3) HTML — shu versiya keshidan (JS/CSS bilan bir xil to'plamdan).
   //    Yangi chiqarilish brauzerga sw.js orqali yetadi: u o'zgargani uchun

@@ -53,6 +53,7 @@ function writePermFor(docPath) {
   }
   if (col === 'lessons') return 'attendance.mark';
   if (col === 'botstate' || col === 'botin') return '__server__';  // faqat bot yozadi
+  if (col === 'forms' || col === 'formbg' || col === 'formsub' || col === 'formstat') return '__server__';
   return map[col] || '__server__';
 }
 
@@ -74,6 +75,7 @@ function readBlocked(docPath, user) {
   if (col === 'filebody') return true;             // fayl mazmuni faqat /api/file orqali
   if (col === 'tgquiz' || col === 'tgquizlog') return true;  // kanal viktorinasi (javoblari bilan)
   if (col === 'photos') return true;
+  if (col === 'formbg') return true;               // fon rasmi faqat /api/form-bg orqali
   if (col === 'tglink' || col === 'linktokens' || col === 'kabsess' || col === 'staffsess') return true;   // tokenlar               // rasm faqat /api/photo orqali beriladi
   /* Daraja testi: savollar ichida TO'G'RI JAVOB bor — hech kimga berilmaydi.
      Boshlangan test sessiyasi ham (savol ro'yxati) mijozga chiqmaydi.       */
@@ -189,6 +191,7 @@ function visibleData(user, all) {
       case 'groups': case 'courses': case 'rooms': case 'memberships':
         return A.can(user, 'group.view') || A.can(user, 'student.view');
       case 'leads': case 'funnels': return A.can(user, 'nav.leads');
+      case 'forms': case 'formsub': case 'formstat': return A.can(user, 'nav.leads');
       /* Saytdagi izohlar — sozlamani boshqaradiganlarga (tasdiqlash uchun) */
       case 'reviews': return A.can(user, 'settings.edit');
       /* Daraja testi natijalari — murojaatlar bilan ishlaydiganlarga.
