@@ -103,6 +103,7 @@
       body.appendChild(UI.tabs([
         { id: 'tekshirish', label: 'Tekshirish kerak (' + pendingAll.length + ')' },
         { id: 'oquvchilar', label: 'O’quvchilar va darslar' },
+        { id: 'etaplar', label: 'Bosqichlar statistikasi' },
         { id: 'fayllar', label: 'O’quvchilar fayllari' }
       ], tab, function (id) { App.go('course', { tab: id }); }));
 
@@ -127,6 +128,35 @@
             { label: 'Vaqt', render: function (f) { return h('span', { class: 'small muted' }, f.at); } }
           ], fr.files, { page: 50 }));
         })();
+        return;
+      }
+
+      if (tab === 'etaplar') {
+        body.appendChild(h('p', { class: 'small muted', style: 'margin:4px 0 10px' },
+          'Har bir dars (bosqich) bo’yicha: nechta o’quvchi yetib keldi, test va uy vazifasining o’rtacha foizi va necha foizi o’tdi (o’tish chegarasi — ' + C.PASS + '%).'));
+        var stat = (data.lessons || []).map(function (l) {
+          var reached = 0, done = 0, tN = 0, tSum = 0, tOk = 0, hN = 0, hSum = 0, hOk = 0;
+          rows.forEach(function (r) {
+            var x = r.lessons[l.id] || {};
+            if (x.status === 'open' || x.status === 'done') reached++;
+            if (x.status === 'done') done++;
+            if (x.testBest != null) { tN++; tSum += Number(x.testBest); if (x.testBest >= C.PASS) tOk++; }
+            var a = x.hw && x.hw.submittedAt && x.hw.auto;
+            if (a && a.total && !a.pending) { hN++; hSum += Number(a.percent); if (a.percent >= C.PASS) hOk++; }
+          });
+          return { l: l, reached: reached, done: done, tAvg: tN ? Math.round(tSum / tN) : null, tPass: tN ? Math.round(tOk * 100 / tN) : null, tN: tN,
+            hAvg: hN ? Math.round(hSum / hN) : null, hPass: hN ? Math.round(hOk * 100 / hN) : null, hN: hN };
+        });
+        function pc(v, n) { return v == null ? h('span', { class: 'muted' }, '—') : h('span', { class: v >= C.PASS ? 'cr-hwpass ok' : 'cr-hwpass bad' }, v + '%' + (n != null ? ' · ' + n + ' ta' : '')); }
+        body.appendChild(UI.card(null, UI.table([
+          { label: 'Bosqich (dars)', render: function (x) { return h('b', {}, x.l.n + '. ' + x.l.title); } },
+          { label: 'Yetib keldi', right: true, render: function (x) { return String(x.reached); } },
+          { label: 'Tugatdi', right: true, render: function (x) { return x.done + (x.reached ? ' (' + Math.round(x.done * 100 / x.reached) + '%)' : ''); } },
+          { label: 'Test o’rtacha', right: true, render: function (x) { return pc(x.tAvg); } },
+          { label: 'Testdan o’tdi', right: true, render: function (x) { return pc(x.tPass, x.tN); } },
+          { label: 'Vazifa o’rtacha', right: true, render: function (x) { return pc(x.hAvg); } },
+          { label: 'Vazifadan o’tdi', right: true, render: function (x) { return pc(x.hPass, x.hN); } }
+        ], stat, { page: 100 }), null, null, true));
         return;
       }
 
@@ -166,13 +196,34 @@
           { label: 'Kutilmoqda', render: function (r) { return r.pending.length ? UI.pill(r.pending.length + ' vazifa', 'warn') : h('span', { class: 'muted' }, '—'); } },
           {
             label: '', right: true, render: function (r) {
-              return h('button', { class: 'btn sm', onclick: function () { moveForm(r, data.lessons, App); } }, 'Darsga o’tkazish');
+              return h('button', { class: 'btn sm', onclick: function (e) { e.stopPropagation(); moveForm(r, data.lessons, App); } }, 'Darsga o’tkazish');
             }
           }
-        ], rows, { page: 100 }), null, null, true));
+        ], rows, { page: 100, onRow: function (r) { studentStages(r, data.lessons); } }), null, null, true));
       }
     })();
   };
+
+  /** Bitta o'quvchi: har bir bosqichda test va vazifa necha foiz, o'tdimi */
+  function studentStages(r, lessons) {
+    var list = (lessons || []).map(function (l) {
+      var x = r.lessons[l.id] || {};
+      var a = x.hw && x.hw.submittedAt && x.hw.auto;
+      var hp = a && a.total && !a.pending ? a.percent : null;
+      var t = x.testBest;
+      var ok = x.status === 'done';
+      return h('div', { class: 'kab-line', style: 'gap:10px' }, [
+        h('span', {}, h('b', {}, l.n + '. ' + l.title)),
+        h('span', { class: 'small' }, [
+          'Test: ', t == null ? '—' : h('b', { class: t >= C.PASS ? 'cr-hwpass ok' : 'cr-hwpass bad' }, t + '%'),
+          '  ·  Vazifa: ', hp == null ? (x.hw && x.hw.submittedAt ? 'yuborilgan' : '—') : h('b', { class: hp >= C.PASS ? 'cr-hwpass ok' : 'cr-hwpass bad' }, hp + '%'),
+          (x.hw && x.hw.grade) ? '  ·  Baho: ' + x.hw.grade : '',
+          '  ·  ', ok ? UI.pill('O’tdi', 'ok') : (x.status === 'locked' ? UI.pill('Yopiq', 'mute') : UI.pill('Jarayonda', 'warn'))
+        ])
+      ]);
+    });
+    UI.modal({ title: r.name + ' — bosqichlar', body: [h('p', { class: 'small muted' }, 'O’tish chegarasi: ' + C.PASS + '%')].concat(list), actions: [{ label: 'Yopish' }] });
+  }
 
   function fileLinks(p) {
     var out = [];

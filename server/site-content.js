@@ -29,7 +29,7 @@ const TAGLINES = 'Tilni yodlatmaymiz — gapirtiramiz!\nOnline va offline darsla
 /* Odamlar nomni turlicha yozadi — hammasi shu saytga olib kelsin */
 const ALT_NAMES = (process.env.APP_ALT_NAMES
   ? String(process.env.APP_ALT_NAMES).split(',')
-  : ['Sabo Academy', 'Sabo Akademiya', 'SaboAcademy', 'Sabo til markazi', 'Сабо Академия', 'Hayot Ta’lim', 'Hayot Talim', 'Hayottalim'])
+  : ['Sabo Academy', 'Sabo Akademiya', 'SaboAcademy', 'Sabo til markazi', 'Сабо Академия'])
   .map(s => s.trim()).filter(Boolean);
 
 /* ~60 belgi: brend oldinda (nom bo'yicha qidiruv), keyin asosiy so'z */

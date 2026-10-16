@@ -165,7 +165,7 @@ function answer(text, ctx) {
 /** Sozlamalardan javoblar uchun kontekst */
 function context(settings) {
   const s = settings || {};
-  const site = String(process.env.PUBLIC_URL || process.env.SITE_URL || 'https://hayottalim.uz').replace(/\/$/, '');
+  const site = String(process.env.PUBLIC_URL || process.env.SITE_URL || 'https://saboacademy.uz').replace(/\/$/, '');
   const times = (Array.isArray(s.lessonTimes) ? s.lessonTimes : [])
     .map(x => (typeof x === 'string' ? x : (x && x.from && x.to ? x.from + '–' + x.to : ''))).filter(Boolean).slice(0, 8);
   return {

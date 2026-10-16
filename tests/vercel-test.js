@@ -12,7 +12,7 @@ const ok = (n, c, e) => { if (c) { pass++; out.push('  ✓ ' + n); } else { fail
 (async () => {
   out.push('\n1. Vercel nusxasi');
   execFileSync(process.execPath, [path.join(root, 'build.js')], { stdio: 'ignore' });
-  execFileSync(process.execPath, [path.join(root, 'scripts/build-vercel.js')], { stdio: 'ignore', env: Object.assign({}, process.env, { SITE_URL: 'https://hayottalim.uz' }) });
+  execFileSync(process.execPath, [path.join(root, 'scripts/build-vercel.js')], { stdio: 'ignore', env: Object.assign({}, process.env, { SITE_URL: 'https://saboacademy.uz' }) });
   const dist = path.join(root, 'vercel-dist');
   ok('levels-local.js (javoblar kaliti) yo’q', !fs.existsSync(path.join(dist, 'js/levels-local.js')));
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');

@@ -17,7 +17,7 @@
 
    Qoidalar (js/course-a1.js dagi A.Course bilan bir xil):
      — birinchi dars doim ochiq;
-     — keyingi dars: oldingi darsning testi ≥ 80% VA vazifasi topshirilgan bo'lsa;
+     — keyingi dars: oldingi darsning testi ≥ 60% VA uy vazifasining avtomatik qismi ≥ 60% bo'lsa;
      — ustoz/admin istalgan darsgacha qo'lda ochib bera oladi;
      — ustoz vazifani «qayta topshir» deb qaytarsa, dars tugagan hisoblanmaydi.
    Test va vazifaning avtomatik qismini SERVER o'zi baholaydi.                */
@@ -200,7 +200,7 @@ async function submitHomework(A, store, sid, body, stamp, files) {
   p.steps = p.steps || {};
   p.steps.homework = p.steps.homework || stamp();
   await put(store, sid, doc);
-  return { ok: true, auto, view: view(A, doc) };
+  return { ok: true, auto, passed: C.hwPassed ? C.hwPassed(p.hw) : true, pass: C.PASS, view: view(A, doc) };
 }
 
 /** Takrorlash testi (har 2 darsdan keyin). O'tilsa keyingi dars ochiladi;

@@ -908,7 +908,7 @@ const ADMIN_MENU = [[{ text: ADM_SEND }, { text: ADM_ADD }], [{ text: ADM_STATUS
 const ADM_CANCEL_KB = [[{ text: ADM_CANCEL }]];
 
 function siteBase() {
-  return String(process.env.PUBLIC_URL || process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || 'https://hayottalim.uz').replace(/\/$/, '');
+  return String(process.env.PUBLIC_URL || process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || 'https://saboacademy.uz').replace(/\/$/, '');
 }
 function quizPreview(q) {
   return '<b>' + esc(q.question) + '</b>\n' +

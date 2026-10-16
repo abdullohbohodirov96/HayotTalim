@@ -29,9 +29,9 @@ services:
       - key: SEED_DIRECTOR_LOGIN
         value: admin
       - key: SITE_URL
-        value: https://hayottalim.uz
+        value: https://saboacademy.uz
       - key: PUBLIC_URL
-        value: https://hayottalim.uz
+        value: https://saboacademy.uz
       - key: GA_MEASUREMENT_ID
         value: G-HQWL42X43Y
       # Maxfiy qiymatlar — Render panelida o'zingiz kiritasiz:

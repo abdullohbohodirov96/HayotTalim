@@ -12,6 +12,7 @@ const { createStore } = require('./store');
 const { A, settingsForClient, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT } = require('./shared');
 const backup = require('./backup');
 const kabinet = require('./kabinet');
+const gamify = require('./gamify');
 const link = require('./link');
 const kabsess = require('./kabsess');
 const levels = require('./levels');
@@ -520,6 +521,26 @@ async function ensureSeed() {
         settings.bot = Object.assign({}, settings.bot, { quizChannel: '@SaboAcademy' });
       }
       settings.rebrandSaboTg = 1;
+      touched = true;
+    }
+    /* Eski nom va domen qolgan bo'lsa — sozlamaning HAMMA matnlaridan tozalash
+       (sayt matnlari, bot xabarlari, havolalar). Token va parollarga tegilmaydi. */
+    if (!settings.rebrandSabo3) {
+      const fixStr = v => String(v)
+        .replace(/https?:\/\/(www\.)?hayottalim\.uz/gi, 'https://saboacademy.uz')
+        .replace(/hayottalim\.uz/gi, 'saboacademy.uz')
+        .replace(/Hayot\s*Ta[’'`]?lim(i)?/gi, SITE.NAME);
+      const walk = (o, depth) => {
+        if (!o || typeof o !== 'object' || depth > 6) return;
+        Object.keys(o).forEach(k => {
+          if (/token|secret|pass|key/i.test(k)) return;
+          const v = o[k];
+          if (typeof v === 'string') { const n = fixStr(v); if (n !== v) o[k] = n; }
+          else if (v && typeof v === 'object') walk(v, depth + 1);
+        });
+      };
+      walk(settings, 0);
+      settings.rebrandSabo3 = 1;
       touched = true;
     }
     if (touched) await store.set('meta/settings', settings);
@@ -1881,6 +1902,13 @@ async function handleApi(req, res, url) {
       : [String(ses.studentId)];
     function allowStudent(sid) { return mine.indexOf(String(sid)) >= 0; }
 
+    /* ---- Ballarim va Top o'quvchilar ---- */
+    if (sub === 'top' && req.method === 'GET') {
+      const sid = String(url.searchParams.get('studentId') || mine[0] || '');
+      if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
+      return send(res, 200, await gamify.forStudent(store, sid, 10));
+    }
+
     /* ---- O'quv sahifasi: vazifa, test, savol, material ---- */
     if (sub === 'learning' && req.method === 'GET') {
       const sid = String(url.searchParams.get('studentId') || mine[0] || '');
@@ -3175,6 +3203,37 @@ async function handleApi(req, res, url) {
     }));
   }
 
+  /* ---- Gamifikatsiya: reyting, sozlama, bonus ball ---- */
+  if (route === 'gamify/top' && req.method === 'GET') {
+    if (!A.can(user, 'reports.learning') && !A.can(user, 'student.view')) return nope();
+    const gid = String(url.searchParams.get('group') || '');
+    if (gid && !await ownsGroup(gid)) return nope('Bu guruh sizga tegishli emas.');
+    const r = await gamify.forStaff(store, gid);
+    /* O'qituvchi faqat o'z o'quvchilarini ko'radi */
+    if (!A.can(user, 'reports.learning')) {
+      const ok = [];
+      for (const row of r.rows) { if (await ownsStudent(row.studentId)) ok.push(row); }
+      r.rows = ok;
+    }
+    return send(res, 200, r);
+  }
+  if (route === 'gamify/settings' && req.method === 'POST') {
+    if (!A.can(user, 'settings.edit')) return nope();
+    const body = await readBody(req);
+    const g = await gamify.saveConf(store, body || {});
+    await writeAudit(user, 'Gamifikatsiya sozlamasi o’zgardi', g.enabled ? 'yoqilgan' : 'o’chirilgan', '');
+    return send(res, 200, { ok: true, rules: g });
+  }
+  if (route === 'gamify/bonus' && req.method === 'POST') {
+    if (!A.can(user, 'attendance.mark') && !A.can(user, 'student.edit')) return nope();
+    const body = await readBody(req);
+    if (!await ownsStudent(body.studentId)) return nope('Bu o’quvchi sizning guruhingizda emas.');
+    const r = await gamify.addBonus(store, body || {}, { stamp, by: user.name || user.login || '' });
+    if (r.error) return send(res, 400, { error: r.error });
+    await writeAudit(user, 'Bonus ball', body.studentId, (r.bonus.points > 0 ? '+' : '') + r.bonus.points + ' · ' + r.bonus.reason);
+    return send(res, 200, r);
+  }
+
   /* O'quvchining shaxsiy kodini yangilash (kod boshqaga ma'lum bo'lib qolsa) */
   if (route === 'student/code' && req.method === 'POST') {
     if (!A.can(user, 'student.edit')) return send(res, 403, { error: 'Ruxsat yo’q.' });
@@ -3950,7 +4009,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   const awakeUrl = String(process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
   if (process.env.RENDER && awakeUrl && process.env.KEEP_AWAKE !== '0') {
     const ka = setInterval(() => {
-      fetch(awakeUrl + '/api/health', { headers: { 'User-Agent': 'hayot-keepalive' } }).catch(() => { });
+      fetch(awakeUrl + '/api/health', { headers: { 'User-Agent': 'sabo-keepalive' } }).catch(() => { });
     }, 10 * 60 * 1000);
     if (ka.unref) ka.unref();
     console.log('  Uyg’oq turish: har 10 daqiqada ' + awakeUrl + '/api/health');

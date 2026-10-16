@@ -25,7 +25,7 @@ if (!/src="js\/core\.js"/.test(html)) throw new Error('index.html da js/core.js 
 /* Ochiq formalar (ariza, izoh, daraja testi) asosiy serverga — ERP ga — boradi.
    Daraja testining javoblar kaliti (levels-local.js) bu nusxaga QO'SHILMAYDI:
    baholash faqat serverda. Asosiy server manzili: SITE_URL (yoki API_BASE).   */
-if (!process.env.SITE_URL) process.env.SITE_URL = 'https://hayottalim.uz';
+if (!process.env.SITE_URL) process.env.SITE_URL = 'https://saboacademy.uz';
 const API_BASE = String(process.env.API_BASE || process.env.SITE_URL).replace(/\/$/, '');
 if (!/^https:\/\/[a-z0-9.-]+$/i.test(API_BASE)) throw new Error('API_BASE noto‘g‘ri: ' + API_BASE);
 html = html.replace('<script src="js/core.js"></script>',

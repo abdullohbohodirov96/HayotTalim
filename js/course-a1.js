@@ -13,7 +13,7 @@
      2. dialog    — matn, tarjima, ovoz
      3. qoida     — grammatika va misollar
      4. mashq     — savol-javob (darhol tekshiriladi)
-     5. test      — so'zlar bo'yicha, 80% dan o'tish kerak
+     5. test      — so'zlar bo'yicha, 60% dan o'tish kerak
      6. vazifa    — uy vazifasi: avtomatik qism + ustoz tekshiradigan qism
    Keyingi dars: test o'tilgan VA vazifa topshirilgan bo'lsa ochiladi.
    Ustoz istalgan darsni qo'lda ham ochib bera oladi.                      */
@@ -21,7 +21,7 @@
   'use strict';
   var A = global.A = global.A || {};
 
-  var PASS = 80;
+  var PASS = 60;   // test va uy vazifasi: 60% va undan yuqori — o'tdi
 
   var UNITS = [
     { id: 'u2', n: 2, title: 'Oila', ar: 'الأُسْرَةُ' },
@@ -624,8 +624,15 @@
   }
 
   /** Dars tugaganmi: test o'tilgan va vazifa topshirilgan */
+  /** Uy vazifasining avtomatik qismi o'tildimi (60%+). Avtomatik savol bo'lmasa — o'tgan. */
+  function hwPassed(hw) {
+    if (!hw || !hw.submittedAt) return false;
+    var a = hw.auto;
+    if (!a || !a.total || a.pending) return true;
+    return Number(a.percent) >= PASS;
+  }
   function lessonDone(p) {
-    return !!(p && p.testBest != null && p.testBest >= PASS && p.hw && p.hw.submittedAt);
+    return !!(p && p.testBest != null && p.testBest >= PASS && hwPassed(p.hw));
   }
 
   /** Har bir darsning holati: 'done' | 'open' | 'locked'
@@ -853,7 +860,7 @@
 
   A.Course = {
     code: 'A1', title: 'Arab tili — A1 (Oila, Uy-joy)',
-    PASS: PASS, UNITS: UNITS, LESSONS: LESSONS, STEPS: STEPS,
+    PASS: PASS, hwPassed: hwPassed, UNITS: UNITS, LESSONS: LESSONS, STEPS: STEPS,
     byId: byId, indexOf: indexOf, unitOf: unitOf,
     buildTest: buildTest, gradeTest: gradeTest, gradeHomeworkAuto: gradeHomeworkAuto,
     checkPractice: checkPractice, lessonDone: lessonDone, statuses: statuses,

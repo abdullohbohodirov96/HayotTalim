@@ -13,6 +13,7 @@
     { id: 'darslar', label: 'Darslarim', icon: 'play', mob: true },
     { id: 'vazifalar', label: 'Uy vazifalarim', short: 'Vazifalar', icon: 'task', mob: true },
     { id: 'lugat', label: 'Lug’at yodlash', short: 'Lug’at', icon: 'award', mob: true },
+    { id: 'reyting', label: 'Reyting va ballarim', short: 'Reyting', icon: 'award' },
     { id: 'jadval', label: 'Dars jadvali', icon: 'calendar' },
     { id: 'tolov', label: 'To’lovlarim', short: 'To’lov', icon: 'wallet' },
     { id: 'fayllar', label: 'Fayllarim', icon: 'upload' },
@@ -37,6 +38,7 @@
         review: function (rid, answers) { return D.kabPost('api/kabinet/course/review', { reviewId: rid, answers: answers }); },
         vocab: function (items) { return D.kabPost('api/kabinet/course/vocab', { items: items }); },
         payments: function () { return D.api('GET', 'api/kabinet/payments'); },
+        top: function () { return D.api('GET', 'api/kabinet/top'); },
         files: function () { return D.api('GET', 'api/kabinet/files'); },
         learning: function () { return D.api('GET', 'api/kabinet/learning?studentId=' + encodeURIComponent(sid)); },
         upload: function (f) { return D.kabPost('api/kabinet/files/upload', f); },
@@ -82,6 +84,7 @@
         return { files: own };
       },
       learning: async function () { return { homework: [], quizzes: [], questions: [], canSubmit: true }; },
+      top: async function () { return { enabled: false }; },
       upload: async function (f) {
         var list = localFiles();
         var rec = { id: 'l' + Date.now(), name: f.name, type: f.type, bytes: Math.round(f.data.length * 0.75), at: new Date().toISOString().slice(0, 16).replace('T', ' '), purpose: 'oquvchi-fayl', note: f.note || '' };
@@ -262,7 +265,7 @@
 
     function paintView() {
       UI.clear(view);
-      var fn = { asosiy: vHome, darslar: vLessons, vazifalar: vHomework, lugat: vVocab, jadval: vSchedule, tolov: vPay, fayllar: vFiles, savol: vAsk, profil: vProfile }[cur];
+      var fn = { asosiy: vHome, reyting: vRating, darslar: vLessons, vazifalar: vHomework, lugat: vVocab, jadval: vSchedule, tolov: vPay, fayllar: vFiles, savol: vAsk, profil: vProfile }[cur];
       fn(view);
       if (A.I18N && A.I18N.apply) { try { A.I18N.apply(view); } catch (e) { } }
     }
@@ -295,7 +298,7 @@
       var heroR = h('div', { class: 'sp-hero-r' }, loading());
       el.appendChild(h('section', { class: 'sp-hero' }, [
         h('div', { class: 'sp-hero-l' }, [
-          h('span', { class: 'sp-eyebrow' }, 'Assalomu alaykum'),
+          h('span', { class: 'sp-eyebrow' }, 'Xush kelibsiz'),
           h('h1', {}, first ? first + '!' : 'Xush kelibsiz!'),
           h('p', { class: 'sp-hero-me' }, st.name + ' · kod ' + st.code),
           h('p', {}, 'Bugun ham bir qadam: darsni davom ettiring, vazifani yuboring — keyingi dars o’zi ochiladi.')
@@ -332,6 +335,17 @@
         h('button', { class: 'btn sm', style: 'margin-top:6px', onclick: function () { go('tolov'); } }, 'Batafsil va to’lash')
       ]));
       colR.appendChild(card('Davomat', [attBlock()]));
+      var ptsBox = h('div', {}, loading());
+      var ptsCard = card('Ballarim', [ptsBox], { action: h('button', { class: 'sp-link', onclick: function () { go('reyting'); } }, 'Reyting →') });
+      colR.insertBefore(ptsCard, colR.firstChild);
+      load('top').then(function (t) {
+        if (!t || !t.enabled || !t.me) { ptsCard.remove(); return; }
+        UI.clear(ptsBox);
+        ptsBox.appendChild(h('div', { class: 'gm-me' }, [
+          h('div', { class: 'gm-pts' }, [h('b', {}, String(t.me.points)), h('span', {}, 'ball')]),
+          h('div', { class: 'gm-rank' }, [h('b', {}, t.me.rank + '-o’rin'), h('span', {}, t.me.count + ' o’quvchi orasida')])
+        ]));
+      }).catch(function () { ptsCard.remove(); });
 
       load('course').then(function (cv) {
         var ls = cv.lessons || [];
@@ -409,10 +423,57 @@
       ]);
     }
 
+    /* ---------- Reyting va ballarim (gamifikatsiya) ---------- */
+    function vRating(el) {
+      var box = h('div', {}, loading());
+      el.appendChild(box);
+      load('top').then(function (t) {
+        UI.clear(box);
+        if (!t || !t.enabled) { box.appendChild(empty('award', 'Reyting hozircha yoqilmagan', 'Markaz ball tizimini yoqqanda shu yerda ballaringiz chiqadi.')); return; }
+        var me = t.me, R = t.rules || {};
+        if (me) {
+          box.appendChild(h('section', { class: 'sp-hero gm-hero' }, [
+            h('div', { class: 'sp-hero-l' }, [
+              h('span', { class: 'sp-eyebrow' }, 'Mening natijam'),
+              h('h1', {}, me.points + ' ball'),
+              h('p', {}, me.rank === 1 ? 'Siz markazda 1-o’rindasiz! 🏆' : me.rank + '-o’rin · ' + me.count + ' o’quvchi orasida. Yuqoriga ko’tarilish uchun darsga keling va vazifani a’lo bajaring.')
+            ]),
+            h('div', { class: 'gm-parts' }, [
+              part('Davomat', me.parts.keldi + me.parts.kechikdi + ' dars'),
+              part('Baholar', me.parts.grades + ' ta · ' + me.parts.gradePts + ' ball'),
+              part('Testlar', (me.parts.tests + me.parts.quizzes) + ' ta'),
+              me.parts.bonus ? part('Bonus', (me.parts.bonus > 0 ? '+' : '') + me.parts.bonus) : null
+            ])
+          ]));
+        }
+        box.appendChild(card('Top o’quvchilar — butun markaz', [board(t.top)]));
+        (t.groups || []).forEach(function (g) {
+          box.appendChild(card('Guruh reytingi: ' + g.name, [board(g.top), g.myRank ? h('p', { class: 'sp-muted' }, 'Guruhda siz ' + g.myRank + '-o’rindasiz (' + g.count + ' kishi).') : null]));
+        });
+        box.appendChild(card('Ball qanday to’planadi?', [h('div', { class: 'gm-rules' }, [
+          rule('Darsga keldingiz', R.keldi), rule('Kechikib keldingiz', R.kechikdi),
+          rule('Ustoz «5» qo’ydi', R.grade5), rule('«4» baho', R.grade4), rule('«3» baho', R.grade3),
+          rule('Dars testidan o’tdingiz (60%+)', R.testPass), rule('Markaz testidan o’tdingiz', R.quizPass)
+        ])]));
+      }).catch(function (e) { fail(box, e); });
+      function part(k, v) { return h('div', { class: 'gm-part' }, [h('span', {}, k), h('b', {}, v)]); }
+      function rule(k, v) { return h('div', { class: 'gm-rule' }, [h('span', {}, k), h('b', {}, '+' + (v || 0))]); }
+      function board(list) {
+        if (!list || !list.length) return h('p', { class: 'sp-muted' }, 'Hozircha ball yo’q.');
+        return h('ol', { class: 'gm-board' }, list.map(function (r) {
+          return h('li', { class: 'gm-row' + (r.me ? ' me' : '') + (r.rank <= 3 ? ' top' + r.rank : '') }, [
+            h('span', { class: 'gm-n' }, r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : String(r.rank)),
+            h('span', { class: 'gm-name' }, r.short + (r.me ? ' (siz)' : '')),
+            h('b', { class: 'gm-v' }, r.points + ' ball')
+          ]);
+        }));
+      }
+    }
+
     /* ---------- 2. Darslarim ---------- */
     function vLessons(el) {
       var box = h('div', {}, loading());
-      el.appendChild(h('p', { class: 'sp-lead' }, 'Har bir dars: video → qissa → so’zlar → qoida → mashq → test, keyin uy vazifasi. Test 80% dan yuqori va vazifa yuborilgach keyingi dars ochiladi.'));
+      el.appendChild(h('p', { class: 'sp-lead' }, 'Har bir dars: video → qissa → so’zlar → qoida → mashq → test, keyin uy vazifasi. Test va uy vazifasi 60% dan yuqori bo’lsa keyingi dars ochiladi.'));
       el.appendChild(box);
       load('course').then(function (cv) {
         UI.clear(box);
@@ -456,9 +517,10 @@
             }, [
               h('div', { class: 'sp-lesson-top' }, [
                 h('span', { class: 'sp-lesson-n' }, l.status === 'done' ? '✓' : locked ? '🔒' : String(l.n)),
-                h('span', { class: 'sp-ar' }, l.titleAr || '')
+                h('span', { class: 'sp-ar sp-blur' }, locked ? 'كتاب جديد' : (l.titleAr || ''))
               ]),
-              h('b', {}, l.n + '. ' + l.title),
+              h('b', { class: locked ? 'sp-blur' : '' }, l.n + '. ' + (locked ? 'Yangi dars mavzusi' : l.title)),
+              locked ? h('span', { class: 'sp-lock-note' }, '🔒 Oldingi dars tugagach ochiladi') : null,
               h('div', { class: 'sp-steps' }, STEP_IDS.map(function (s) { return h('i', { class: l.steps && l.steps[s] ? 'on' : '' }); })),
               h('span', { class: 'sp-lesson-s' }, locked ? 'Yopiq' : l.status === 'done' ? 'Tugallangan' + (l.testBest != null ? ' · test ' + l.testBest + '%' : '')
                 : sd ? sd + ' / 7 bosqich' : 'Boshlanmagan')
@@ -697,7 +759,7 @@
       }).catch(function (e) { UI.toast(e.message || 'Yuklanmadi', 'bad'); });
     }
 
-    /** Takrorlash testi: har 2 darsdan keyin; 80% dan o'tilsa keyingi dars ochiladi */
+    /** Takrorlash testi: har 2 darsdan keyin; 60% dan o'tilsa keyingi dars ochiladi */
     function startReview(rid) {
       var rv = A.Course.reviewById(rid); if (!rv) return;
       var qs = A.Course.buildReview(rv);

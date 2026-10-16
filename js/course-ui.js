@@ -362,14 +362,16 @@
             }
           }, [
             h('span', { class: 'cr-lesson-ico' }, icon),
-            h('span', { class: 'cr-lesson-t' }, [h('b', {}, l.n + '. ' + l.title), ar(l.titleAr, 'sm')]),
+            l.status === 'locked'
+              ? h('span', { class: 'cr-lesson-t sp-blur' }, [h('b', {}, l.n + '. Yangi dars mavzusi'), ar('درس جديد', 'sm')])
+              : h('span', { class: 'cr-lesson-t' }, [h('b', {}, l.n + '. ' + l.title), ar(l.titleAr, 'sm')]),
             l.testBest != null ? h('span', { class: 'cr-lesson-s' }, l.testBest + '%') : null
           ]));
         });
       });
       side.appendChild(h('div', { class: 'cr-rule' }, [
         h('b', {}, 'Qanday ochiladi?'),
-        h('p', {}, 'Har darsda so’z testidan ' + C.PASS + '% to’plang va uy vazifasini yuboring — keyingi dars o’zi ochiladi.')
+        h('p', {}, 'Har darsda so’z testidan va uy vazifasidan kamida ' + C.PASS + '% to’plang — keyingi dars o’zi ochiladi. Ungacha keyingi darslar yopiq turadi.')
       ]));
       /* Telefonda (gorizontal lenta) joriy darsni ko'rinadigan joyga suramiz */
       var curEl = side.querySelector('.cr-lesson.cur');
@@ -727,10 +729,12 @@
           h('b', {}, stTxt),
           h('span', {}, 'Yuborildi: ' + cur.submittedAt + (cur.auto ? ' · test qismi ' + cur.auto.correct + '/' + cur.auto.total : '')),
           cur.written ? h('span', {}, 'Bo’sh joy: ' + cur.written.fillOk + '/' + cur.written.fillTotal + ' · tarjima ' + cur.written.trPercent + '%' + (cur.readPercent != null ? ' · o’qish ' + cur.readPercent + '%' : '')) : null,
+          (cur.auto && cur.auto.total && !cur.auto.pending) ? h('span', { class: 'cr-hwpass ' + (C.hwPassed(cur) ? 'ok' : 'bad') },
+            'Natija: ' + cur.auto.percent + '% — ' + (C.hwPassed(cur) ? 'O’tdingiz ✓' : 'O’tmadingiz (kamida ' + C.PASS + '% kerak) — qayta bajaring')) : null,
           cur.grade ? h('span', {}, 'Baho: ' + cur.grade + ' / 5') : null,
           cur.comment ? h('p', {}, 'Ustoz izohi: ' + cur.comment) : null
         ]));
-        if (cur.status !== 'qayta') {
+        if (cur.status !== 'qayta' && (!C.hwPassed || C.hwPassed(cur))) {
           var nxt = nextLessonId(lesson.id);
           var nv = nxt ? lessonView(nxt) : null;
           var gateRv = C.reviewAfter ? C.reviewAfter(lesson.id) : null;
@@ -975,7 +979,9 @@
               });
               state.view = r.view; paintHead(); paintSide();
               try { if (kbEl && kbEl.parentNode) kbEl.parentNode.removeChild(kbEl); kbEl = null; document.body.classList.remove('kb-open'); } catch (e2) { }
-              UI.toast('Vazifa yuborildi. Savollar: ' + r.auto.correct + '/' + r.auto.total, 'ok');
+              UI.toast(r.passed === false
+                ? 'Natija ' + r.auto.percent + '% — o’tmadingiz. Kamida ' + C.PASS + '% kerak, xatolarni tuzatib qayta yuboring.'
+                : 'Vazifa yuborildi. Natija: ' + r.auto.correct + '/' + r.auto.total + (r.auto.total ? ' (' + r.auto.percent + '%) — o’tdingiz ✓' : ''), r.passed === false ? 'bad' : 'ok');
               goStep('homework');
             } catch (ex) { err.hidden = false; err.textContent = ex.message || 'Yuborilmadi.'; }
           });

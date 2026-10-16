@@ -28,7 +28,7 @@ const body = src.replace(/^[\s\S]*?(?=<div id="boot")/, function (top) {
    SITE_URL — saytning asosiy manzili. O'z domeningiz bo'lsa, uni shu yerga
    yozing (yoki SITE_URL muhit o'zgaruvchisida bering): havolalar, canonical
    va sitemap shunga qarab tuziladi.                                        */
-const SITE_URL = (process.env.SITE_URL || 'https://hayottalim.uz')
+const SITE_URL = (process.env.SITE_URL || 'https://saboacademy.uz')
   .replace(/\/+$/, '');
 const CONTENT = require('./server/site-content');
 const SITE_NAME = CONTENT.NAME;

@@ -136,6 +136,7 @@
     { id: 'staff', label: 'Xodimlar', icon: 'badge', perm: 'nav.staff' },
     { id: 'reports', label: 'Hisobotlar', icon: 'chart', perm: 'nav.reports' },
     { id: 'progress', label: 'O’quv natijalari', icon: 'chart', perm: 'reports.learning' },
+    { id: 'rating', label: 'Reyting', icon: 'award', perm: 'nav.students' },
     { id: 'chat', label: 'Suhbat', icon: 'chat', perm: 'nav.chat' },
     { id: 'tasks', label: 'Vazifalar', icon: 'task', perm: 'nav.tasks' },
     { id: 'bot', label: 'Telegram bot', icon: 'bot', perm: 'nav.bot' },
@@ -2073,6 +2074,47 @@
     function benefit(icon, t) {
       return h('div', { class: 'ben-row' }, [h('span', { class: 'ben-ico' }, UI.icon(icon)), h('span', {}, t)]);
     }
+    /* Telefon maydoni: bosilganda "+998 " o'zi yoziladi, raqamlar guruhlanadi */
+    function phoneMask(inp) {
+      if (!inp) return;
+      inp.setAttribute('autocomplete', 'tel');
+      inp.addEventListener('focus', function () { if (!inp.value.trim()) inp.value = '+998 '; });
+      inp.addEventListener('blur', function () { if (inp.value.trim() === '+998') inp.value = ''; });
+      inp.addEventListener('input', function () {
+        var d = inp.value.replace(/\D/g, '');
+        if (d.indexOf('998') !== 0) d = '998' + d.replace(/^998/, '');
+        d = d.slice(0, 12);
+        var p = d.slice(3);
+        var out = '+998' + (p ? ' ' + p.slice(0, 2) : '') + (p.length > 2 ? ' ' + p.slice(2, 5) : '') +
+          (p.length > 5 ? ' ' + p.slice(5, 7) : '') + (p.length > 7 ? ' ' + p.slice(7, 9) : '');
+        if (inp.value !== out) inp.value = out;
+      });
+    }
+    phoneMask(fPhone.input);
+
+    /* Tezkor yozilish: hero ostida — ism va raqam, bitta tugma.
+       Asosiy forma bilan bir xil yo'l (sendLead) orqali yuboriladi. */
+    var qfName = h('input', { class: 'input', type: 'text', placeholder: 'Ismingiz', autocomplete: 'name', 'aria-label': 'Ismingiz' });
+    var qfPhone = h('input', { class: 'input', type: 'tel', inputmode: 'tel', placeholder: '+998 90 123 45 67', 'aria-label': 'Telefon raqamingiz' });
+    phoneMask(qfPhone);
+    var qfErr = h('div', { class: 'err-msg', hidden: true });
+    var quickBand = h('section', { class: 'qf-band reveal', id: 'tez-yozilish' }, [
+      h('div', { class: 'qf-in' }, [
+        h('div', { class: 'qf-t' }, [h('b', {}, 'Tekin darsga 30 soniyada yoziling'), h('span', {}, 'Ism va raqamingizni qoldiring — administrator o’zi bog’lanadi.')]),
+        h('form', { class: 'qf-form', onsubmit: function (e) {
+          e.preventDefault();
+          qfErr.hidden = true;
+          if (qfName.value.trim().length < 2) { qfErr.hidden = false; qfErr.textContent = 'Ismingizni yozing.'; qfName.focus(); return; }
+          if (String(qfPhone.value).replace(/\D/g, '').length < 12) { qfErr.hidden = false; qfErr.textContent = 'Telefon raqamni to’liq yozing.'; qfPhone.focus(); return; }
+          fName.input.value = qfName.value.trim();
+          fPhone.input.value = qfPhone.value.trim();
+          scrollTo('ariza');
+          sendLead();
+        } }, [qfName, qfPhone, h('button', { class: 'btn gold', type: 'submit' }, ['Yozilish', goIcon()])]),
+        qfErr
+      ])
+    ]);
+
     var apply = h('section', { class: 'site-sec reveal', id: 'ariza' }, [
       h('div', { class: 'apply-wrap' }, [
         h('div', { class: 'apply-left' }, [
@@ -2197,7 +2239,7 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, promoBand, statsBand, revBand, roadmap, feats, howSec, teachers,
+      [hero, quickBand, promoBand, statsBand, revBand, roadmap, feats, howSec, teachers,
         levelsSec, timetable, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak

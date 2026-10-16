@@ -291,5 +291,5 @@ module.exports = [
     explain: 'سَبْعَة — yetti (7). O‘n — عَشَرَة (‘ashara).' },
   { id: 'w4d7s3', kind: 'Viktorina', question: '🎓 Markazimiz nomidagi «Ta’lim» so‘zi arabchada nimani bildiradi?',
     options: ['O‘qitish, bilim berish', 'Sayohat', 'Savdo', 'Sport'], correct: 0,
-    explain: 'تَعْلِيم (ta‘līm) — o‘qitish, bilim berish. «Hayot ta’limi» — hayot uchun bilim 🙂' }
+    explain: 'تَعْلِيم (ta‘līm) — o‘qitish, bilim berish. «Ta’lim markazi» — o‘quv markazi 🙂' }
 ];

@@ -753,6 +753,108 @@
     });
   };
 
+  /* ================= REYTING (GAMIFIKATSIYA) ================= */
+  var GAMI_LABELS = [
+    ['keldi', 'Darsga keldi'], ['kechikdi', 'Kechikib keldi'],
+    ['grade5', '«5» baho'], ['grade4', '«4» baho'], ['grade3', '«3» baho'], ['grade2', '«2» baho'],
+    ['testPass', 'Dars testi (60%+)'], ['quizPass', 'Markaz testidan o’tdi']
+  ];
+  A.Pages.rating = function (view, route, App) {
+    App.guard('nav.students');
+    var gid = route.group || '';
+    var key = 'rating:' + gid;
+    var groups = D.all('groups').filter(function (g) { return g.status !== 'yopilgan'; });
+    view.appendChild(UI.pageHead('Reyting', 'O’quvchilar ballari — davomat, baho va testlardan avtomatik hisoblanadi', [
+      App.can('settings.edit') ? h('button', { class: 'btn', onclick: function () { ratingSettings(App, key); } }, [UI.icon('gear'), 'Ball qoidalari']) : null
+    ]));
+    var sel = h('select', { class: 'input', style: 'max-width:320px', onchange: function () { App.go('rating', sel.value ? { group: sel.value } : {}); } },
+      [h('option', { value: '' }, 'Butun markaz')].concat(groups.map(function (g) {
+        return h('option', { value: g.id, selected: g.id === gid ? 'selected' : null }, (g.code ? g.code + ' · ' : '') + g.name);
+      })));
+    view.appendChild(h('div', { style: 'margin:0 0 14px' }, sel));
+    loader(view, App, key, function () {
+      return D.api('GET', 'api/gamify/top' + (gid ? '?group=' + encodeURIComponent(gid) : ''));
+    }, function (d) {
+      if (!d) { view.appendChild(box('Yuklab bo’lmadi.')); return; }
+      if (!d.enabled) view.appendChild(h('div', { class: 'note warn', style: 'margin-bottom:12px' }, 'Gamifikatsiya o’chirilgan — o’quvchilar kabinetida reyting ko’rinmaydi. «Ball qoidalari» dan yoqing.'));
+      var rows = d.rows || [];
+      var top3 = rows.slice(0, 3);
+      if (top3.length) {
+        view.appendChild(h('div', { class: 'tiles' }, top3.map(function (r, i) {
+          return UI.tile({ label: ['🥇 1-o’rin', '🥈 2-o’rin', '🥉 3-o’rin'][i], value: r.points + ' ball', hint: r.name });
+        })));
+      }
+      if (!rows.length) { view.appendChild(UI.empty({ title: 'Hozircha o’quvchi yo’q', text: 'Davomat va baholar kiritilgach, ballar shu yerda chiqadi.' })); return; }
+      view.appendChild(UI.table([
+        { key: 'rank', label: '#', render: function (r) { return r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : String(r.rank); } },
+        { key: 'name', label: 'O’quvchi' },
+        { key: 'grp', label: 'Guruh', render: function (r) { return (r.groups || []).map(function (g) { return g.name; }).join(', ') || '—'; } },
+        { key: 'points', label: 'Ball', right: true, render: function (r) { return h('b', {}, String(r.points)); } },
+        { key: 'att', label: 'Davomat', right: true, render: function (r) { return String(r.parts.keldi + r.parts.kechikdi); } },
+        { key: 'gr', label: 'Baholar', right: true, render: function (r) { return String(r.parts.grades); } },
+        { key: 'ts', label: 'Testlar', right: true, render: function (r) { return String(r.parts.tests + r.parts.quizzes); } },
+        { key: 'bn', label: 'Bonus', right: true, render: function (r) { return r.parts.bonus ? (r.parts.bonus > 0 ? '+' : '') + r.parts.bonus : '—'; } },
+        { key: 'act', label: '', render: function (r) {
+          return (App.can('attendance.mark') || App.can('student.edit')) ? h('button', { class: 'btn sm', onclick: function (e) { e.stopPropagation(); bonusForm(r, App, key); } }, '+ Bonus') : '';
+        } }
+      ], rows, { page: 100 }));
+    });
+  };
+  function bonusForm(r, App, key) {
+    var f = UI.form([
+      { name: 'points', label: 'Ball (jarima uchun minus: −5)', type: 'text', required: true, value: '5',
+        validate: function (v) { var n = Number(String(v).replace(/[−–]/g, '-')); return (!Number.isFinite(n) || n === 0 || Math.abs(n) > 500) ? '−500 dan 500 gacha son yozing.' : null; } },
+      { name: 'reason', label: 'Sabab', type: 'text', required: true, placeholder: 'Masalan: darsda faol qatnashdi' }
+    ]);
+    UI.modal({
+      title: 'Bonus ball — ' + r.name,
+      body: [f.node],
+      actions: [{ label: 'Bekor qilish' }, {
+        label: 'Saqlash', cls: 'primary', onClick: function (close, btn) {
+          if (!f.validate()) return;
+          var v = f.values();
+          UI.busy(btn, async function () {
+            try {
+              await D.api('POST', 'api/gamify/bonus', { studentId: r.studentId, points: Number(String(v.points).replace(/[−–]/g, '-')), reason: v.reason });
+              close(true); UI.toast('Ball qo’shildi.', 'ok'); drop(App, key); App.render();
+            } catch (e) { err(e); }
+          });
+        }
+      }]
+    });
+  }
+  function ratingSettings(App, key) {
+    var cur = Object.assign({}, (D.settings && D.settings.gamify) || {});
+    var defs = { enabled: true, keldi: 5, kechikdi: 2, grade5: 10, grade4: 7, grade3: 4, grade2: 1, testPass: 5, quizPass: 5 };
+    Object.keys(defs).forEach(function (k) { if (cur[k] == null) cur[k] = defs[k]; });
+    var on = h('input', { type: 'checkbox', checked: cur.enabled !== false ? 'checked' : null });
+    var inputs = {};
+    var rows = GAMI_LABELS.map(function (x) {
+      inputs[x[0]] = h('input', { class: 'input', type: 'number', min: '0', max: '1000', value: String(cur[x[0]]), style: 'max-width:110px' });
+      return h('label', { class: 'rowflex', style: 'justify-content:space-between;gap:12px;margin:6px 0' }, [h('span', {}, x[1]), inputs[x[0]]]);
+    });
+    UI.modal({
+      title: 'Ball qoidalari',
+      body: [
+        h('label', { class: 'rowflex', style: 'gap:8px;margin-bottom:10px' }, [on, h('b', {}, 'Gamifikatsiya yoqilgan (o’quvchi kabinetida ball va reyting)')]),
+        h('p', { class: 'small muted' }, 'Har bir harakat uchun necha ball berilishini yozing. Ballar eski yozuvlar uchun ham qayta hisoblanadi.')
+      ].concat(rows),
+      actions: [{ label: 'Bekor qilish' }, {
+        label: 'Saqlash', cls: 'primary', onClick: function (close, btn) {
+          var body = { enabled: !!on.checked };
+          Object.keys(inputs).forEach(function (k) { body[k] = Number(inputs[k].value) || 0; });
+          UI.busy(btn, async function () {
+            try {
+              await D.api('POST', 'api/gamify/settings', body);
+              try { await D.loadBootstrap(); } catch (e) { }
+              close(true); UI.toast('Saqlandi.', 'ok'); drop(App, key); App.render();
+            } catch (e) { err(e); }
+          });
+        }
+      }]
+    });
+  }
+
   /* ================= BAYRAM VA TANAFFUS ================= */
   A.Pages.holidays = function (view, route, App) {
     App.guard('holiday.manage');
