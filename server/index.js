@@ -1120,15 +1120,21 @@ async function kabLogin(login, pw) {
   const students = (await store.list('students/')).map(r => r.data)
     .filter(s => s && s.status !== 'o’chirilgan');
   let cands = [];
-  if (digits.length === kabinet.CODE_LEN) {
+  /* Kod bilan kirish: yangi 5 xonali VA eski 4 xonali kodlar ham qabul qilinadi
+     (avval faqat 5 xonali tekshirilardi — eski kodli o'quvchilar kira olmasdi). */
+  if (kabinet.validCode(digits)) {
     cands = students.filter(s => String(s.code || '') === digits);
     if (!cands.length) {
       const par = await parents.byCode(store, digits);
       if (par && String(pw).trim() === digits) return { parent: par };
     }
-  } else if (digits.length >= 9) {
-    const tail = digits.slice(-9);
-    cands = students.filter(s => String(s.phone || '').replace(/\D/g, '').slice(-9) === tail);
+  } else if (digits.length >= 7) {
+    /* Telefon: 998901234567, 901234567 yoki 1234567 ko'rinishida yozilsa ham topiladi */
+    const tail = digits.slice(-Math.min(9, digits.length));
+    cands = students.filter(s => {
+      const p = String(s.phone || '').replace(/\D/g, '');
+      return p.length >= tail.length && p.slice(-tail.length) === tail;
+    });
   }
   for (const st of cands) { if (await kabPassOk(st, pw)) return { student: st }; }
   return null;
