@@ -69,7 +69,7 @@ function seoText(o) {
     '<p><strong>' + name + '</strong> — xorijiy tillar markazi. Arab tilini noldan boshlab 1 yilda o‘rganing: ' +
       'tajribali ustozlar bilan jonli darslar (onlayn Zoom va offline), haftada 3 marta, har biri 80 daqiqa. ' +
       'Ayollar, erkaklar va bolalar uchun alohida kichik guruhlar (10 kishigacha). Har bir dars yozib olinadi.</p>',
-    '<h2>Arab tili kursi: A1 dan C2 gacha</h2>',
+    '<h2>Arab tili kursi: A0 (alifbo) dan C2 gacha</h2>',
     '<ul><li>1-oy: harflar va o‘qish</li><li>3-oy: ravon o‘qish va to‘g‘ri talaffuz</li>' +
       '<li>6-oy: ma’noni tushunish, asosiy grammatika</li><li>12-oy: arabcha gaplashish (A2–B1)</li></ul>',
     '<h2>Tekin dars va bepul daraja testi</h2>',

@@ -1963,7 +1963,7 @@
     var levelsSec = h('section', { class: 'site-sec reveal', id: 'bosqichlar' }, [
       h('div', { class: 'sec-mid' }, [
         h('div', { class: 'sec-eyebrow center' }, 'O’quv dasturi'),
-        h('h2', {}, 'Bitta dastur — olti daraja'),
+        h('h2', {}, 'Bitta dastur — A0 dan C2 gacha'),
         h('p', { class: 'sec-note center' },
           'Guruhlar daraja bo’yicha tuziladi: ayollar, erkaklar va bolalar alohida o’qiydi. ' +
           'Qaysi darajadan boshlashni bepul test bir necha daqiqada aniqlaydi.')
@@ -2785,14 +2785,14 @@
     }
 
     /* --- Darajalar: A1…C2 --- */
-    var LVL_ICO = { A1: 'layers', A2: 'chat', B1: 'users', B2: 'task', C1: 'award', C2: 'edit' };
+    var LVL_ICO = { A0: 'card', A1: 'layers', A2: 'chat', B1: 'users', B2: 'task', C1: 'award', C2: 'edit' };
     function paintLevels(list) {
       UI.clear(lvlGrid);
       if (!list.length) {
         lvlGrid.appendChild(h('p', { class: 'muted' }, 'Darajalar ro’yxati tez orada.'));
         return;
       }
-      list.slice(0, 6).forEach(function (l) {
+      list.slice(0, 7).forEach(function (l) {
         lvlGrid.appendChild(h('button', {
           class: 'lvl', type: 'button',
           onclick: function () { pickLevel(l.code, l.name); }

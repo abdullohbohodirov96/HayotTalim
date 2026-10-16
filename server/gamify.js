@@ -123,6 +123,16 @@ async function compute(store) {
     });
   });
 
+  /* 2b. A0 Alifbo darslari: har bir o'tilgan dars testi */
+  const alif = (await store.list('alifprog/')).filter(r => r.path.split('/').length === 2);
+  alif.forEach(rec => {
+    const sid = rec.path.split('/')[1];
+    const r = byId[sid];
+    const ls = rec.data && rec.data.lessons;
+    if (!r || !ls) return;
+    Object.keys(ls).forEach(k => { if (ls[k] && Number(ls[k].best) >= PASS) { r.parts.tests++; r.points += c.testPass; } });
+  });
+
   /* 3. Markaz testlari (quiz) — har bir testdan bir marta */
   const qres = await listCol(store, 'quizres/');
   const quizSeen = {};

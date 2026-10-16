@@ -16,14 +16,22 @@ const DEF_LANG = 'uz';
 function lang(v) { return LANGS.indexOf(String(v || '')) >= 0 ? String(v) : DEF_LANG; }
 
 const ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-const LEVELS = ORDER.map(code => ({
+/* Ko'rsatish uchun to'liq ro'yxat: A0 (alifbo) + CEFR. Daraja testi esa
+   A1…C2 ni o'lchaydi — testdan o'tolmagan odamga A0 tavsiya qilinadi.   */
+const ALL = ['A0'].concat(ORDER);
+const LEVELS = ALL.map(code => ({
   code,
   name: DATA.LEVEL_NAMES[code].uz,
   ar: DATA.LEVEL_NAMES[code].ar,
   about: DATA.LEVEL_ABOUT[code].uz
 }));
 
-/** Darajalar ro'yxati tanlangan tilda */
+/** Sayt, ariza va o'quv dasturi uchun: A0 bilan birga */
+function displayList(lg) {
+  const L = lang(lg);
+  return ALL.map(code => ({ code, name: DATA.LEVEL_NAMES[code][L], about: DATA.LEVEL_ABOUT[code][L] }));
+}
+/** Darajalar ro'yxati tanlangan tilda (daraja testi uchun: A1…C2) */
 function levelList(lg) {
   const L = lang(lg);
   return ORDER.map(code => ({
@@ -343,5 +351,5 @@ function levelInfo(code, lg) {
 module.exports = {
   LEVELS, KINDS, ORDER, COUNT, TOTAL_Q, passFor, C2_MIN_TOTAL, LIMIT_MS, GRACE_MS, SLACK_MS, lock,
   COL, SESS, RESULT, LANGS, DEF_LANG,
-  ensureBank, bank, start, submit, decide, cleanup, levelInfo, levelList, lang
+  ensureBank, bank, start, submit, decide, cleanup, levelInfo, levelList, displayList, ALL, lang
 };

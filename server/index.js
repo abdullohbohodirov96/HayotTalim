@@ -1134,6 +1134,23 @@ async function kabPassOk(student, pw) {
   /* Parol qo'yilmagan — boshlang'ich parol shaxsiy kod */
   return !!student.code && String(pw).trim() === String(student.code);
 }
+/** O'quvchining darajasi: qo'lda belgilangan → daraja testi → A0 (alifbo tugamagan bo'lsa) */
+async function studentLevel(st) {
+  if (!st) return null;
+  let code = String(st.level || '').toUpperCase();
+  if (!code) {
+    const pl = (await store.list('placements/')).map(r => r.data)
+      .filter(p => p && p.studentId === st.id)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+    if (pl && pl.level) code = String(pl.level);
+  }
+  if (!code) {
+    const v = A.Alifbo.view((await store.get('alifprog/' + st.id)) || { lessons: {} });
+    code = v.done >= v.total ? 'A1' : 'A0';
+  }
+  const info = levels.levelInfo(code, 'uz');
+  return { code: info.code, name: info.name };
+}
 async function kabLogin(login, pw) {
   const raw = String(login || '').trim();
   const digits = raw.replace(/\D/g, '');
@@ -1748,6 +1765,7 @@ async function handleApi(req, res, url) {
       }
       const sum = await kabinet.summary(store, who.student);
       sum.hasOwnPassword = !!(await store.get('kabpass/' + who.student.id));
+      sum.level = await studentLevel(who.student);
       const ses = await kabsess.create(store, { studentId: who.student.id, kind: 'student', via: 'parol', stamp });
       await writeAudit(null, 'Kabinet: parol bilan kirildi', (who.student.lastName || '') + ' ' + (who.student.firstName || ''), ip);
       return send(res, 200, Object.assign({ csrf: ses.csrf, kind: 'student' }, sum), {
@@ -1856,6 +1874,7 @@ async function handleApi(req, res, url) {
     }
     const sum = await kabinet.summary(store, st);
     sum.hasOwnPassword = !!(await store.get('kabpass/' + st.id));
+    sum.level = await studentLevel(st);
     return send(res, 200, Object.assign({ csrf: ses.csrf, kind: 'student' }, sum));
   }
 
@@ -1901,6 +1920,45 @@ async function handleApi(req, res, url) {
       ? (Array.isArray(ses.studentIds) ? ses.studentIds.map(String) : []).filter(x => liveIds.indexOf(x) >= 0)
       : [String(ses.studentId)];
     function allowStudent(sid) { return mine.indexOf(String(sid)) >= 0; }
+
+    /* ---- A0: Alifbo (harf o'rgatish) — darslar va test ---- */
+    if (sub === 'alif' && req.method === 'GET') {
+      const sid = String(url.searchParams.get('studentId') || mine[0] || '');
+      if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
+      const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
+      return send(res, 200, A.Alifbo.view(doc));
+    }
+    if (sub === 'alif/start' && req.method === 'POST') {
+      if (isParent) return send(res, 403, { error: 'Testni o’quvchining o’zi ishlaydi.' });
+      const sid = String(mine[0]);
+      const body = await readBody(req);
+      const lesson = A.Alifbo.byId(String(body.lessonId || ''));
+      if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
+      const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
+      if (A.Alifbo.statuses(doc)[lesson.id] === 'locked') return send(res, 403, { error: 'Bu dars hali yopiq: oldingi darsdan ' + A.Alifbo.PASS + '% to’plang.' });
+      const seed = crypto.randomBytes(6).toString('hex');
+      doc.sess = { id: 'as' + seed, lessonId: lesson.id, seed, at: Date.now() };
+      await store.set('alifprog/' + sid, doc);
+      return send(res, 200, { sessId: doc.sess.id, questions: A.Alifbo.publicTest(A.Alifbo.buildTest(lesson, seed)) });
+    }
+    if (sub === 'alif/submit' && req.method === 'POST') {
+      if (isParent) return send(res, 403, { error: 'Testni o’quvchining o’zi ishlaydi.' });
+      const sid = String(mine[0]);
+      const body = await readBody(req);
+      const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
+      const ses = doc.sess;
+      if (!ses || ses.id !== String(body.sessId || '') || Date.now() - ses.at > 2 * 3600 * 1000) {
+        return send(res, 409, { error: 'Test eskirgan. Qaytadan boshlang.' });
+      }
+      const lesson = A.Alifbo.byId(ses.lessonId);
+      const g = A.Alifbo.grade(A.Alifbo.buildTest(lesson, ses.seed), Array.isArray(body.answers) ? body.answers.slice(0, 60) : []);
+      delete doc.sess;
+      const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
+      p.last = g.percent; p.tries = (p.tries || 0) + 1; p.at = stamp();
+      if (p.best == null || g.percent > p.best) p.best = g.percent;
+      await store.set('alifprog/' + sid, doc);
+      return send(res, 200, { ok: true, result: g, passed: g.percent >= A.Alifbo.PASS, view: A.Alifbo.view(doc) });
+    }
 
     /* ---- Ballarim va Top o'quvchilar ---- */
     if (sub === 'top' && req.method === 'GET') {
@@ -2427,7 +2485,7 @@ async function handleApi(req, res, url) {
          allaqachon bor ro'yxat (server/levels.js): daraja testi ham,
          o'quv dasturi ham shu darajalar ustiga qurilgan. Shuning uchun
          sayt uni o'zi o'ylab topmaydi, bir joydan oladi.                 */
-      out.levels = levels.levelList('uz').map(l => ({
+      out.levels = levels.displayList('uz').map(l => ({
         code: String(l.code), name: String(l.name), about: String(l.about)
       }));
       /* Savol-javob. Har juftlik: savol qatori, keyin javob qatori,
@@ -2523,7 +2581,7 @@ async function handleApi(req, res, url) {
     /* Saytdagi daraja kartasidan kelgan CEFR kodi ham qabul qilinadi
        (A1…C2). Ro'yxat server/levels.js dan olinadi — ya'ni bu yerda ham
        yopiq ro'yxat, mijoz o'z matnini yozib yubora olmaydi.             */
-    levels.levelList('uz').forEach(function (l) {
+    levels.displayList('uz').forEach(function (l) {
       LEVELS[l.code] = l.code + ' — ' + l.name;
     });
     const startLevel = LEVELS[String(body.startLevel || '')] || '';
@@ -2772,6 +2830,8 @@ async function handleApi(req, res, url) {
         const st = await store.get('students/' + r.studentId);
         r.name = st ? ((st.lastName || '') + ' ' + (st.firstName || '')).trim() : r.studentId;
         r.groups = (scope[r.studentId] || []).map(g => ({ id: g.id, name: g.name, code: g.code || '' }));
+        /* A0 Alifbo taraqqiyoti — bosqichlar statistikasi uchun */
+        r.alif = A.Alifbo.view((await store.get('alifprog/' + r.studentId)) || { lessons: {} });
         for (const pd of r.pending) {
           pd.files = [];
           for (const fid of pd.fileIds || []) {

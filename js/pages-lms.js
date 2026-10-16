@@ -10,7 +10,7 @@
   var A = global.A, UI = A.UI, D = A.Data, h = UI.h;
   A.Pages = A.Pages || {};
 
-  var LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  var LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function box(text) {
     return h('div', { class: 'card' }, h('div', { class: 'card-body' },

@@ -157,6 +157,29 @@
           { label: 'Vazifa o’rtacha', right: true, render: function (x) { return pc(x.hAvg); } },
           { label: 'Vazifadan o’tdi', right: true, render: function (x) { return pc(x.hPass, x.hN); } }
         ], stat, { page: 100 }), null, null, true));
+        /* A0 — Alifbo bosqichlari */
+        if (A.Alifbo && rows.some(function (r) { return r.alif; })) {
+          var F = A.Alifbo;
+          var ast = F.LESSONS.map(function (l) {
+            var reached = 0, done = 0, n = 0, sum = 0, ok = 0;
+            rows.forEach(function (r) {
+              var x = r.alif && r.alif.lessons.filter(function (y) { return y.id === l.id; })[0];
+              if (!x) return;
+              if (x.status !== 'locked') reached++;
+              if (x.status === 'done') done++;
+              if (x.best != null) { n++; sum += x.best; if (x.best >= F.PASS) ok++; }
+            });
+            return { l: l, reached: reached, done: done, avg: n ? Math.round(sum / n) : null, pass: n ? Math.round(ok * 100 / n) : null, n: n };
+          });
+          body.appendChild(h('h3', { style: 'margin:22px 0 8px' }, 'A0 — Alifbo (harflar) bosqichlari'));
+          body.appendChild(UI.card(null, UI.table([
+            { label: 'Bosqich', render: function (x) { return h('b', {}, x.l.n + '. ' + x.l.title); } },
+            { label: 'Yetib keldi', right: true, render: function (x) { return String(x.reached); } },
+            { label: 'Tugatdi', right: true, render: function (x) { return x.done + (x.reached ? ' (' + Math.round(x.done * 100 / x.reached) + '%)' : ''); } },
+            { label: 'Test o’rtacha', right: true, render: function (x) { return pc(x.avg); } },
+            { label: 'O’tdi', right: true, render: function (x) { return pc(x.pass, x.n); } }
+          ], ast, { page: 100 }), null, null, true));
+        }
         return;
       }
 
@@ -222,7 +245,12 @@
         ])
       ]);
     });
-    UI.modal({ title: r.name + ' — bosqichlar', body: [h('p', { class: 'small muted' }, 'O’tish chegarasi: ' + C.PASS + '%')].concat(list), actions: [{ label: 'Yopish' }] });
+    var al = (r.alif && r.alif.lessons || []).map(function (x) {
+      return h('div', { class: 'kab-line' }, [h('span', {}, 'A0 · ' + x.n + '. ' + x.title), h('span', { class: 'small' }, [
+        x.best == null ? '—' : h('b', { class: x.best >= C.PASS ? 'cr-hwpass ok' : 'cr-hwpass bad' }, x.best + '%'), '  ·  ',
+        x.status === 'done' ? UI.pill('O’tdi', 'ok') : (x.status === 'locked' ? UI.pill('Yopiq', 'mute') : UI.pill('Jarayonda', 'warn'))])]);
+    });
+    UI.modal({ title: r.name + ' — bosqichlar', body: [h('p', { class: 'small muted' }, 'O’tish chegarasi: ' + C.PASS + '%')].concat(al.length ? [h('b', {}, 'A0 — Alifbo')].concat(al, [h('b', { style: 'display:block;margin-top:10px' }, 'A1 — darslar')]) : []).concat(list), actions: [{ label: 'Yopish' }] });
   }
 
   function fileLinks(p) {

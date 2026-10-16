@@ -127,7 +127,7 @@ const TOPICS = [
   {
     id: 'tillar', weight: 1,
     keys: ['qaysi til', 'ingliz', 'rus tili', 'turk tili', 'koreys', 'nemis', 'english', 'boshqa til', 'arab tili'],
-    answer: () => '🌍 Hozir asosiy yo‘nalishimiz — <b>arab tili</b> (A1 dan C2 gacha). Boshqa tillar bo‘yicha guruhlar ochilsa, kanalimizda e’lon qilamiz.'
+    answer: () => '🌍 Hozir asosiy yo‘nalishimiz — <b>arab tili</b> (A0 — alifbodan C2 gacha). Boshqa tillar bo‘yicha guruhlar ochilsa, kanalimizda e’lon qilamiz.'
   },
   {
     id: 'yosh', weight: 1,

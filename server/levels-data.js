@@ -409,6 +409,7 @@ const KIND_LABELS = {
 
 /* Daraja nomlari — uch tilda */
 const LEVEL_NAMES = {
+  A0: { uz: 'Alifbo (harflar)', ru: 'Алфавит (буквы)', ar: 'الحروف الهجائية' },
   A1: { uz: 'Boshlang’ich', ru: 'Начальный', ar: 'مبتدئ' },
   A2: { uz: 'Asosiy', ru: 'Базовый', ar: 'أساسي' },
   B1: { uz: 'O’rta', ru: 'Средний', ar: 'متوسط' },
@@ -418,10 +419,15 @@ const LEVEL_NAMES = {
 };
 
 const LEVEL_ABOUT = {
+  A0: {
+    uz: '28 ta harf, harakatlar va bo’g’in o’qish — arab tilini noldan boshlaganlar uchun.',
+    ru: '28 букв, огласовки и чтение по слогам — для начинающих с нуля.',
+    ar: 'الحروف الثمانية والعشرون والحركات وقراءة المقاطع — للمبتدئين من الصفر.'
+  },
   A1: {
-    uz: 'Harflar, salomlashish, oddiy so’zlar.',
-    ru: 'Буквы, приветствия, простые слова.',
-    ar: 'الحروف والتحيّات والكلمات البسيطة.'
+    uz: 'Salomlashish, tanishuv, oddiy so’z va gaplar.',
+    ru: 'Приветствия, знакомство, простые слова и фразы.',
+    ar: 'التحيّات والتعارف والكلمات والجمل البسيطة.'
   },
   A2: {
     uz: 'Kundalik gaplar, oddiy o’tgan zamon.',
@@ -451,9 +457,9 @@ const LEVEL_ABOUT = {
 };
 
 const A0_INFO = {
-  uz: { name: 'Hali boshlanmagan', about: 'Alifbodan boshlash tavsiya etiladi.' },
-  ru: { name: 'Ещё не начат', about: 'Рекомендуем начать с алфавита.' },
-  ar: { name: 'لم يبدأ بعد', about: 'يُنصح بالبدء من الحروف الأبجدية.' }
+  uz: { name: 'Alifbo (harflar)', about: 'A0 — alifbodan boshlash tavsiya etiladi: harflar, harakatlar, bo’g’in o’qish.' },
+  ru: { name: 'Алфавит (буквы)', about: 'A0 — рекомендуем начать с алфавита: буквы, огласовки, чтение по слогам.' },
+  ar: { name: 'الحروف الهجائية', about: 'A0 — يُنصح بالبدء من الحروف: الحروف والحركات وقراءة المقاطع.' }
 };
 
 const LANGS = ['uz', 'ru', 'ar'];

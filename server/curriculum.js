@@ -32,7 +32,7 @@ async function listCol(store, name) {
 
 /** Darajaning kodi to'g'rimi (A1…C2) */
 function validLevel(code) {
-  return levels.ORDER.indexOf(String(code || '')) >= 0;
+  return (levels.ALL || levels.ORDER).indexOf(String(code || '')) >= 0;
 }
 
 /** Butun dastur daraxti: darajalar → modullar → darslar (+ material/vazifa soni) */

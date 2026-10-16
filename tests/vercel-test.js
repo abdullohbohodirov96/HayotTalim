@@ -17,7 +17,7 @@ const ok = (n, c, e) => { if (c) { pass++; out.push('  ✓ ' + n); } else { fail
   ok('levels-local.js (javoblar kaliti) yo’q', !fs.existsSync(path.join(dist, 'js/levels-local.js')));
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   ok('index.html da levels-local ulanmagan', !/levels-local/.test(html));
-  ok('Ochiq formalar asosiy serverga yo’naltirilgan', /MARKAZ_API_BASE = "https:\/\/hayottalim\.uz"/.test(html));
+  ok('Ochiq formalar asosiy serverga yo’naltirilgan', /MARKAZ_API_BASE = "https:\/\/saboacademy\.uz"/.test(html));
   const jsFiles = fs.readdirSync(path.join(dist, 'js')).filter(f => /\.js$/.test(f));
   const leak = jsFiles.filter(f => /testq\/|"answer"\s*:\s*\d/.test(fs.readFileSync(path.join(dist, 'js', f), 'utf8')));
   ok('JS fayllarda daraja testi javoblari yo’q', leak.length === 0, leak.join(', '));
