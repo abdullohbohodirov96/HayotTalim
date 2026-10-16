@@ -584,6 +584,9 @@
             ])
           ]));
         }
+        box.appendChild(h('div', { class: 'gm-prizes' }, [
+          prize('🥇', '1-o’rin', 'Tekin o’qiydi'), prize('🥈', '2-o’rin', '50% chegirma'), prize('🥉', '3-o’rin', '20% chegirma')
+        ]));
         box.appendChild(card('Top o’quvchilar — butun markaz', [board(t.top)]));
         (t.groups || []).forEach(function (g) {
           box.appendChild(card('Guruh reytingi: ' + g.name, [board(g.top), g.myRank ? h('p', { class: 'sp-muted' }, 'Guruhda siz ' + g.myRank + '-o’rindasiz (' + g.count + ' kishi).') : null]));
@@ -594,6 +597,7 @@
           rule('Dars testidan o’tdingiz (60%+)', R.testPass), rule('Markaz testidan o’tdingiz', R.quizPass)
         ])]));
       }).catch(function (e) { fail(box, e); });
+      function prize(m, k, v) { return h('div', { class: 'gm-prize' }, [h('span', {}, m), h('small', {}, k), h('b', {}, v)]); }
       function part(k, v) { return h('div', { class: 'gm-part' }, [h('span', {}, k), h('b', {}, v)]); }
       function rule(k, v) { return h('div', { class: 'gm-rule' }, [h('span', {}, k), h('b', {}, '+' + (v || 0))]); }
       function board(list) {

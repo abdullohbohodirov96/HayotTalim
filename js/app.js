@@ -1927,7 +1927,7 @@
             h('span', { class: 'why-ar', 'aria-hidden': 'true' }, 'العربية'),
             h('img', { src: LOGO, alt: '' }),
             h('div', { class: 'why-badge' }, [
-              h('b', { id: 'why-badge-v' }, 'A1–C2'),
+              h('b', { id: 'why-badge-v' }, 'A0–C2'),
               h('span', {}, 'to’liq dastur')
             ])
           ])
@@ -1937,20 +1937,19 @@
           h('h2', {}, 'Uydan chiqmasdan, tajribali ustoz bilan'),
           h('p', { class: 'sec-note' },
             'Darslar jonli: ustozni ko’rasiz, savol berasiz, xatoingiz o’sha zahoti ' +
-            'tuzatiladi. Dars qoldirsangiz — yozuvi Telegram guruhda turadi. ' +
-            'Noldan boshlab bir yilda arabcha matnni tushunib o’qish va erkin suhbatga yetasiz.'),
+            'tuzatiladi. Noldan boshlab bir yilda arabcha matnni tushunib o’qish va erkin suhbatga yetasiz.'),
           h('ul', { class: 'why-list' }, [
             whyRow('Ayollar, erkaklar va bolalar uchun alohida guruhlar'),
-            whyRow('Haftada 3 marta jonli Zoom dars, har biri 80 daqiqa'),
-            whyRow('Har bir dars yozib olinadi — qoldirsangiz ham ortda qolmaysiz'),
+            whyRow('Haftada 3 marta jonli Zoom dars, har biri 1,5 soat'),
+            whyRow('Darsdan keyin saytda — mavzuning to’liq video darsligi'),
+            whyRow('Uy vazifasi va so’z yodlash — interaktiv, kabinetda'),
             whyRow('Kichik guruh: 10 kishigacha, har biriga vaqt yetadi'),
-            whyRow('Butun O’zbekiston va chet eldan qatnashish mumkin'),
-            whyRow('Uy vazifasi, davomat va to’lov — shaxsiy kabinetda')
+            whyRow('Eng yaxshi o’quvchi — tekin o’qiydi')
           ]),
           h('button', {
             class: 'btn primary lg', type: 'button',
-            onclick: function () { scrollTo('ustozlar'); }
-          }, ['Ustozlar bilan tanishing', goIcon()])
+            onclick: function () { scrollTo('tizim'); }
+          }, ['Qanday o’qitamiz', goIcon()])
         ])
       ])
     ]);
@@ -1963,12 +1962,68 @@
     var levelsSec = h('section', { class: 'site-sec reveal', id: 'bosqichlar' }, [
       h('div', { class: 'sec-mid' }, [
         h('div', { class: 'sec-eyebrow center' }, 'O’quv dasturi'),
-        h('h2', {}, 'Bitta dastur — A0 dan C2 gacha'),
+        h('h2', {}, 'Harflardan — erkin gaplashishgacha'),
         h('p', { class: 'sec-note center' },
-          'Guruhlar daraja bo’yicha tuziladi: ayollar, erkaklar va bolalar alohida o’qiydi. ' +
-          'Qaysi darajadan boshlashni bepul test bir necha daqiqada aniqlaydi.')
+          '7 daraja, 3 bosqich. Qaysi darajadan boshlashni bepul test bir necha daqiqada aniqlaydi.')
+      ]),
+      h('div', { class: 'lvl-tiers', 'aria-hidden': 'true' }, [
+        h('span', { class: 't1' }, [h('i'), 'Boshlang’ich · A0–A1']),
+        h('span', { class: 't2' }, [h('i'), 'O’rta · A2–B1']),
+        h('span', { class: 't3' }, [h('i'), 'Yuqori · B2–C2'])
       ]),
       lvlGrid
+    ]);
+
+    /* ---------- Ta'lim tizimi: jonli dars → video darslik → interaktiv vazifa ---------- */
+    function sysCard(n, icon, title, text, tags) {
+      return h('div', { class: 'sys-card' }, [
+        h('div', { class: 'sys-top' }, [h('span', { class: 'sys-ico' }, UI.icon(icon)), h('span', { class: 'sys-n' }, n)]),
+        h('b', {}, title), h('p', {}, text),
+        h('div', { class: 'sys-tags' }, tags.map(function (t) { return h('span', {}, t); }))
+      ]);
+    }
+    var sysSec = h('section', { class: 'site-sec reveal sys-sec', id: 'tizim' }, [
+      h('div', { class: 'sec-mid' }, [
+        h('div', { class: 'sec-eyebrow center' }, 'Ta’lim tizimi'),
+        h('h2', {}, 'Har bir mavzu — uch qadamda'),
+        h('p', { class: 'sec-note center' },
+          'Zamonaviy texnologiya, yangi metodika va arab metodikasi asosida: avval ustoz bilan jonli, ' +
+          'keyin saytda video darslik, so’ng interaktiv mashqlar.')
+      ]),
+      h('div', { class: 'sys-grid' }, [
+        sysCard('01', 'users', 'Zoom’da jonli dars', 'Ustoz bilan guruhda 1,5 soatlik dars. Savol berasiz, gapirasiz, xatoingiz o’sha zahoti tuzatiladi.', ['1,5 soat', 'Haftada 3 marta', '10 kishigacha']),
+        sysCard('02', 'play', 'Saytda video darslik', 'Darsdan keyin mavzu saytda to’liq video darslik bilan qayta tushuntiriladi — interaktiv va tushunarli.', ['To’liq mavzu', 'Interaktiv', 'Istalgan vaqtda']),
+        sysCard('03', 'check', 'Interaktiv uy vazifasi', 'Uy vazifasi va so’z yodlash — kabinetda interaktiv mashqlar. 60% dan yuqori bajarsangiz keyingi dars ochiladi.', ['So’z yodlash', 'Testlar', 'Ustoz bahosi'])
+      ]),
+      h('div', { class: 'sys-meth' }, [
+        h('span', {}, [UI.icon('award'), 'Yangi metodika']),
+        h('span', {}, [UI.icon('layers'), 'Arab metodikasi']),
+        h('span', {}, [UI.icon('play'), 'Zamonaviy texnologiya'])
+      ])
+    ]);
+
+    /* ---------- Reyting: eng yaxshi o'quvchilarga mukofot ---------- */
+    function prize(place, medal, title, text) {
+      return h('div', { class: 'pz pz' + place }, [
+        h('span', { class: 'pz-medal' }, medal),
+        h('span', { class: 'pz-place' }, place + '-o’rin'),
+        h('b', {}, title), h('p', {}, text)
+      ]);
+    }
+    var rewardSec = h('section', { class: 'site-sec reveal pz-sec', id: 'reyting' }, [
+      h('div', { class: 'sec-mid' }, [
+        h('div', { class: 'sec-eyebrow center' }, 'Reyting · Liderlar'),
+        h('h2', {}, 'A’lo o’qing — tekin o’qing'),
+        h('p', { class: 'sec-note center' },
+          'Ustoz har bir vazifaga baho qo’yadi. Hamma vazifani to’g’ri bajargan o’quvchi ko’proq ball to’playdi. ' +
+          'Markaz bo’yicha reytingda birinchi uchtalik mukofot oladi.')
+      ]),
+      h('div', { class: 'pz-podium' }, [
+        prize(2, '🥈', '50% chegirma', 'O’qish to’lovining yarmi'),
+        prize(1, '🥇', 'Tekin o’qiydi', 'O’qish to’lovi 100% bepul'),
+        prize(3, '🥉', '20% chegirma', 'O’qish to’lovidan 20%')
+      ]),
+      h('p', { class: 'pz-note' }, 'Reyting va ballaringiz har doim shaxsiy kabinetingizda ko’rinib turadi.')
     ]);
 
     /* ---------- Bitta narx ---------- */
@@ -1995,7 +2050,7 @@
     var timetable = h('section', { class: 'site-sec reveal', id: 'vaqt' }, [
       h('div', { class: 'sec-eyebrow' }, 'Jadval'),
       h('h2', {}, 'Dars vaqtlari'),
-      h('p', { class: 'muted', id: 'slot-lead' }, 'Har bir dars 80 daqiqa, Zoom orqali.'),
+      h('p', { class: 'muted', id: 'slot-lead' }, 'Har bir dars 1,5 soat, Zoom orqali.'),
       slotBox
     ]);
 
@@ -2239,8 +2294,8 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, quickBand, promoBand, statsBand, revBand, roadmap, feats, howSec, teachers,
-        levelsSec, timetable, apply, faq, ctaBand, foot]));
+      [hero, quickBand, promoBand, statsBand, revBand, sysSec, levelsSec, rewardSec, feats, howSec, teachers,
+        roadmap, timetable, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak
        emas — u ko'zdan yo'qolgandan keyin chiqadi.                     */
@@ -2528,7 +2583,8 @@
       UI.clear(statsBox);
       var rows = (list && list.length) ? list : [
         { v: '1 yil', t: 'noldan natijagacha' },
-        { v: (minutes || 80) + ' daqiqa', t: 'jonli Zoom dars' },
+        { v: (!minutes || minutes === 90) ? '1,5 soat' : minutes + ' daqiqa', t: 'jonli Zoom dars' },
+        { v: 'Video', t: 'darslik saytda' },
         { v: '3 marta', t: 'haftasiga dars' }
       ];
       rows.forEach(function (r, i) {
@@ -2792,20 +2848,35 @@
         lvlGrid.appendChild(h('p', { class: 'muted' }, 'Darajalar ro’yxati tez orada.'));
         return;
       }
-      list.slice(0, 7).forEach(function (l) {
+      var TIER = { A0: 1, A1: 1, A2: 2, B1: 2, B2: 3, C1: 3, C2: 3 };
+      var items = list.slice(0, 7);
+      items.forEach(function (l, i) {
         lvlGrid.appendChild(h('button', {
-          class: 'lvl', type: 'button',
+          class: 'lvl tier' + (TIER[l.code] || 2) + (l.code === 'A0' ? ' lvl-start' : ''), type: 'button',
           onclick: function () { pickLevel(l.code, l.name); }
         }, [
           h('span', { class: 'lvl-top' }, [
             h('span', { class: 'lvl-ico' }, UI.icon(LVL_ICO[l.code] || 'layers')),
+            h('span', { class: 'lvl-step' }, (i + 1) + '/' + items.length),
             h('span', { class: 'lvl-code' }, l.code)
           ]),
+          l.code === 'A0' ? h('span', { class: 'lvl-badge' }, 'Noldan boshlovchilar uchun') : null,
           h('b', {}, l.name),
           h('p', {}, l.about),
           h('span', { class: 'lvl-go' }, [h('span', {}, 'Shu darajadan boshlash'), goIcon()])
         ]));
       });
+      if (items.length % 4) {
+        lvlGrid.appendChild(h('button', {
+          class: 'lvl lvl-test', type: 'button',
+          onclick: function () { location.hash = 'test'; renderTest(); }
+        }, [
+          h('span', { class: 'lvl-top' }, [h('span', { class: 'lvl-ico' }, UI.icon('check'))]),
+          h('b', {}, 'Darajangizni bilmaysizmi?'),
+          h('p', {}, 'Bepul testdan o’ting — bir necha daqiqada qaysi darajadan boshlashni aytamiz.'),
+          h('span', { class: 'lvl-go' }, [h('span', {}, 'Bepul testni boshlash'), goIcon()])
+        ]));
+      }
     }
 
     /* Uzun izohni so'z o'rtasidan kesmaymiz */
@@ -2907,6 +2978,9 @@
       if (!list.length) {
         /* Ro'yxat hali to'ldirilmagan — "tez orada" o'rniga foydali taklif */
         teachBox.style.setProperty('--cols', '1');
+        /* Ustozlar hali kiritilmagan — bo'sh bo'lim saytda ko'rinmaydi */
+        var tsec = document.getElementById('ustozlar');
+        if (tsec) tsec.hidden = true;
         teachBox.appendChild(h('div', { class: 'tch-empty' }, [
           h('b', {}, 'Ustoz bilan tekin darsda tanishing'),
           h('p', {}, 'Birinchi dars — tekin. Ustozning dars uslubini o’zingiz ko’rasiz, savollaringizga javob olasiz va keyin qaror qilasiz.'),
@@ -2917,6 +2991,8 @@
         ]));
         return;
       }
+      var tsec2 = document.getElementById('ustozlar');
+      if (tsec2) tsec2.hidden = false;
       list.forEach(function (t) {
         teachBox.appendChild(A.teacherCard(t, function (x) { openTeacher(x, list); }));
       });

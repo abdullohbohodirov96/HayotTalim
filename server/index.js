@@ -525,6 +525,11 @@ async function ensureSeed() {
     }
     /* Eski nom va domen qolgan bo'lsa — sozlamaning HAMMA matnlaridan tozalash
        (sayt matnlari, bot xabarlari, havolalar). Token va parollarga tegilmaydi. */
+    /* Bir martalik: darslar 1,5 soat (90 daqiqa) */
+    if (!settings.lesson90) {
+      if (!settings.lessonMinutes || Number(settings.lessonMinutes) === 80) settings.lessonMinutes = 90;
+      settings.lesson90 = 1; touched = true;
+    }
     if (!settings.rebrandSabo3) {
       const fixStr = v => String(v)
         .replace(/https?:\/\/(www\.)?hayottalim\.uz/gi, 'https://saboacademy.uz')
@@ -548,7 +553,7 @@ async function ensureSeed() {
   if (!settings) {
     await store.set('meta/settings', {
       centerName: process.env.APP_NAME || 'Sabo Academy',
-      address: '', phone: SITE.PHONE, workStart: '08:00', workEnd: '22:00', lessonMinutes: 80, dueDay: 5,
+      address: '', phone: SITE.PHONE, workStart: '08:00', workEnd: '22:00', lessonMinutes: 90, dueDay: 5,
       instagram: SITE.LINKS[0].url, tgChannel: SITE.LINKS[1].url, taglines: SITE.TAGLINES, siteDefaults: 1,
       expenseCategories: ['Ijara', 'Kommunal', 'Reklama', 'Jihozlar', 'Xo’jalik', 'Ish haqi', 'Boshqa'],
       bot: {

@@ -8,7 +8,7 @@
    Bitta joyda o'zgartirilsa — hamma joyda bir xil bo'ladi.
 
    Qoidalar: narx yozilmaydi, diniy ibora ishlatilmaydi, faqat haqiqiy
-   ma'lumot (markaz o'zi aytgan: haftada 3 marta, 80 daqiqa, 10 kishigacha,
+   ma'lumot (markaz o'zi aytgan: haftada 3 marta, 90 daqiqa (1,5 soat), 10 kishigacha,
    ayollar/erkaklar/bolalar alohida, online va offline).                */
 'use strict';
 
@@ -45,7 +45,7 @@ const FAQ = [
   { q: 'Darslar onlaynmi yoki offlaynmi?',
     a: 'Ikkalasi ham bor. Onlayn darslar Zoom orqali jonli o‘tadi — O‘zbekistonning istalgan joyidan va chet eldan qatnashish mumkin.' },
   { q: 'Darslar qanchalik tez-tez bo‘ladi?',
-    a: 'Haftada 3 marta, har bir dars 80 daqiqa. Ertalabki, kunduzgi va kechki vaqtlardan qulayini tanlaysiz.' },
+    a: 'Haftada 3 marta, har bir dars 90 daqiqa (1,5 soat). Ertalabki, kunduzgi va kechki vaqtlardan qulayini tanlaysiz.' },
   { q: 'Guruhlar qanday tuzilgan?',
     a: 'Ayollar, erkaklar va bolalar uchun alohida guruhlar. Guruhda 10 kishigacha — ustoz har bir o‘quvchiga vaqt ajratadi.' },
   { q: 'Darsni qoldirib ketsam nima bo‘ladi?',
@@ -67,7 +67,7 @@ function seoText(o) {
     '<noscript><main id="seo-prerender" style="max-width:860px;margin:24px auto;padding:28px;font:16px/1.6 system-ui,sans-serif;color:#0f4a40;background:#fff;border-radius:18px">',
     '<h1>' + name + ' — arab tili kurslari</h1>',
     '<p><strong>' + name + '</strong> — xorijiy tillar markazi. Arab tilini noldan boshlab 1 yilda o‘rganing: ' +
-      'tajribali ustozlar bilan jonli darslar (onlayn Zoom va offline), haftada 3 marta, har biri 80 daqiqa. ' +
+      'tajribali ustozlar bilan jonli darslar (onlayn Zoom va offline), haftada 3 marta, har biri 90 daqiqa (1,5 soat). ' +
       'Ayollar, erkaklar va bolalar uchun alohida kichik guruhlar (10 kishigacha). Har bir dars yozib olinadi.</p>',
     '<h2>Arab tili kursi: A0 (alifbo) dan C2 gacha</h2>',
     '<ul><li>1-oy: harflar va o‘qish</li><li>3-oy: ravon o‘qish va to‘g‘ri talaffuz</li>' +

@@ -176,7 +176,7 @@ function context(settings) {
     facebook: String(s.facebook == null ? SITE.FACEBOOK : s.facebook),
     channel: String(s.tgChannel == null ? SITE.LINKS[1].url : s.tgChannel),
     workStart: String(s.workStart || ''), workEnd: String(s.workEnd || ''),
-    lessonMinutes: Number(s.lessonMinutes) || 80,
+    lessonMinutes: Number(s.lessonMinutes) || 90,
     times, site
   };
 }

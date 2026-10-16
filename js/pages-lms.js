@@ -781,7 +781,7 @@
       var top3 = rows.slice(0, 3);
       if (top3.length) {
         view.appendChild(h('div', { class: 'tiles' }, top3.map(function (r, i) {
-          return UI.tile({ label: ['🥇 1-o’rin', '🥈 2-o’rin', '🥉 3-o’rin'][i], value: r.points + ' ball', hint: r.name });
+          return UI.tile({ label: ['🥇 1-o’rin · tekin o’qiydi', '🥈 2-o’rin · 50% chegirma', '🥉 3-o’rin · 20% chegirma'][i], value: r.points + ' ball', hint: r.name });
         })));
       }
       if (!rows.length) { view.appendChild(UI.empty({ title: 'Hozircha o’quvchi yo’q', text: 'Davomat va baholar kiritilgach, ballar shu yerda chiqadi.' })); return; }
