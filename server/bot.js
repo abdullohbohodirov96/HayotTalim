@@ -28,7 +28,7 @@ function setTransport(fn) { transport = fn; }
 
 const MAX_TRIES = 3;
 const RETRY_MS = [0, 60 * 1000, 10 * 60 * 1000];   // 1-urinish darhol, keyin 1 daq, 10 daq
-const KINDS = ['davomat', 'tolov', 'qarz', 'elon', 'ulash'];
+const KINDS = ['davomat', 'tolov', 'qarz', 'elon', 'ulash', 'dars'];
 
 /* Navbat bo'sh bo'lsa baza shuncha vaqtda bir marta so'raladi (ehtiyot tekshiruvi).
    Yangi xabar yoki tasdiq paydo bo'lsa — kutmasdan uyg'onadi (wake). */
@@ -615,6 +615,73 @@ async function handleLinkFlow(chatId, text, from, st) {
   }
 }
 
+/* ---------------- Guruh kodi bilan ulanish ----------------
+   Ustoz o'quvchilarga guruhning MAXFIY kodini beradi (6 belgi, ERP → guruh).
+   O'quvchi kodni yozadi → Telegram tasdiqlagan raqamini yuboradi → shu guruhda
+   shu raqamli o'quvchi bo'lsa, darhol bog'lanadi va Telegram guruhiga taklif oladi.
+   Raqam mos kelmasa — so'rov administratorga ketadi.                        */
+function looksLikeJoinCode(t) { return /^\s*(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{6}\s*$/.test(String(t || '')); }
+async function groupByJoinCode(t) {
+  const c = String(t || '').trim().toUpperCase();
+  return (await listCol('groups')).filter(g => g.joinCode && String(g.joinCode).toUpperCase() === c && g.status !== 'yakunlangan')[0] || null;
+}
+function tail9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
+async function inviteToGroupChat(chatId, group) {
+  if (!group || !group.tgChat) return false;
+  try {
+    const r = await quizApi('createChatInviteLink', {
+      chat_id: group.tgChat, member_limit: 1, expire_date: Math.floor(Date.now() / 1000) + 2 * 86400,
+      name: 'ulanish ' + String(chatId).slice(-6)
+    });
+    if (r && r.invite_link) {
+      await sendMessage(chatId, '👥 Guruhingizning Telegram chatiga qo’shiling (havola faqat siz uchun):\n' + r.invite_link);
+      return true;
+    }
+  } catch (e) { /* bot guruhda admin bo'lmasa — jim */ }
+  return false;
+}
+async function joinByGroupCode(chatId, contact, from, st) {
+  const ask = [[{ text: REG_PHONE_BTN, request_contact: true }], [{ text: CANCEL_BTN }]];
+  if (!contact || !contact.phone_number) return sendMessage(chatId, 'Iltimos, «' + REG_PHONE_BTN + '» tugmasini bosing.', ask);
+  if (!contact.user_id || String(contact.user_id) !== String(from.id || '')) {
+    return sendMessage(chatId, 'Faqat o’zingizning raqamingizni tugma orqali yuboring.', ask);
+  }
+  const group = await store.get('groups/' + String(st.joinGroup || ''));
+  if (!group) { st.step = 'code'; await setState(chatId, st); return sendMessage(chatId, 'Guruh topilmadi. Kodni qayta yozing.', GUEST_MENU); }
+  const ph = tail9(contact.phone_number);
+  const mems = (await listCol('memberships')).filter(m => m.groupId === group.id && m.status === 'faol');
+  let student = null;
+  for (const m of mems) {
+    const s = await store.get('students/' + m.studentId);
+    if (!s) continue;
+    const nums = [s.phone, s.phone2, s.parentPhone, s.motherPhone, s.fatherPhone].map(tail9).filter(Boolean);
+    if (ph && nums.indexOf(ph) >= 0) { student = s; break; }
+  }
+  if (!student) {
+    const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || (from.first_name || '');
+    await store.set('botreq/req_' + chatId, {
+      id: 'req_' + chatId, chatId: String(chatId), username: from.username || '',
+      name, phone: A.normPhone(String(contact.phone_number)), groupCode: group.code || '', groupId: group.id,
+      status: 'kutilmoqda', createdAt: stamp()
+    });
+    st.step = 'waiting'; delete st.joinGroup;
+    await setState(chatId, st);
+    try { await notifyStaff('Guruh kodi bilan ulanish so’rovi: ' + name + ' (' + contact.phone_number + ') → ' + (group.code || group.name) + '. Raqam guruhdagi o’quvchilarga mos kelmadi — tasdiqlang.'); } catch (e) { }
+    return sendMessage(chatId, 'Bu raqam guruh ro’yxatida topilmadi. So’rovingiz administratorga yuborildi — tasdiqlagach xabar keladi.', GUEST_MENU);
+  }
+  const at = await link.attach(store, { studentId: student.id, chatId, from, stamp, via: 'guruh-kodi' });
+  if (!at.ok) {
+    st.step = 'code'; delete st.joinGroup; await setState(chatId, st);
+    return sendMessage(chatId, at.reason === 'band'
+      ? 'Bu o’quvchi boshqa Telegram profiliga ulangan. Administrator bilan bog’laning.'
+      : 'Ulab bo’lmadi. Administrator bilan bog’laning.', GUEST_MENU);
+  }
+  delete st.joinGroup;
+  await afterLink(chatId, at.student, st);
+  await inviteToGroupChat(chatId, group);
+  return true;
+}
+
 /* ---------------- Telegram guruhiga ulanish ----------------
    Ulash faqat ERP’dan olingan BIR MARTALIK kod bilan: xodim guruh sahifasida
    «Ulash kodini olish» ni bosadi va Telegram guruhida /ulash <kod> deb yozadi.
@@ -1181,8 +1248,29 @@ async function onMessage(msg) {
     if (text === STUDENT_BTN) {
       st.step = 'code'; st.codeTries = 0; st.studentMode = true;
       await setState(chatId, st);
-      return sendMessage(chatId, 'Administrator bergan <b>bir martalik havolani</b> bosing — hisobingiz shu suhbatga bog’lanadi.\n' +
-        'Havolangiz bo’lmasa, <b>ismim</b> deb yozing — administrator tasdiqlaydi.', GUEST_MENU);
+      return sendMessage(chatId, '🔑 Ustozingiz bergan <b>guruh kodini</b> yozing (6 belgi, masalan <code>K7M2Q4</code>) — ' +
+        'raqamingizni tasdiqlasangiz, darhol guruhingizga ulanasiz.\n\n' +
+        'Yoki administrator bergan <b>bir martalik havolani</b> bosing.', GUEST_MENU);
+    }
+    /* Guruh kodi → raqamni tasdiqlash → darhol ulanish */
+    if (st.step === 'gjoin') {
+      if (text === CANCEL_BTN) { st.step = 'code'; delete st.joinGroup; await setState(chatId, st); return sendMessage(chatId, 'Bekor qilindi.', GUEST_MENU); }
+      return joinByGroupCode(chatId, msg.contact, msg.from || {}, st);
+    }
+    if (looksLikeJoinCode(text)) {
+      const gate = codeGate(chatId);
+      if (!gate.ok) return sendMessage(chatId, 'Juda ko’p urinish. ' + gate.wait + ' daqiqadan keyin qayta urinib ko’ring.');
+      const grp = await groupByJoinCode(text);
+      if (!grp) {
+        codeFail(chatId);
+        return sendMessage(chatId, 'Bunday guruh kodi topilmadi. Ustozingizdan kodni qayta so’rang.');
+      }
+      codeOk(chatId);
+      st.step = 'gjoin'; st.joinGroup = grp.id;
+      await setState(chatId, st);
+      return sendMessage(chatId, '✅ Guruh: <b>' + esc(grp.code || grp.name || '') + '</b>\n\n' +
+        'Endi pastdagi «' + REG_PHONE_BTN + '» tugmasini bosing — markazdagi raqamingiz bilan solishtirib, darhol ulayman.',
+        [[{ text: REG_PHONE_BTN, request_contact: true }], [{ text: CANCEL_BTN }]]);
     }
     if (st.step === 'ask_phone') {
       if (text === CANCEL_BTN) { st.step = 'code'; delete st.q; await setState(chatId, st); return sendMessage(chatId, 'Bekor qilindi.', GUEST_MENU); }
@@ -1739,4 +1827,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, sendToGroup, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

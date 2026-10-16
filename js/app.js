@@ -128,6 +128,7 @@
     { id: 'forms', label: 'Formalar', icon: 'task', perm: 'nav.leads' },
     { id: 'students', label: 'O’quvchilar', icon: 'users', perm: 'nav.students' },
     { id: 'groups', label: 'Guruhlar', icon: 'layers', perm: 'nav.groups' },
+    { id: 'zoom', label: 'Zoom darslar', icon: 'play', perm: 'nav.groups' },
     { id: 'schedule', label: 'Jadval', icon: 'calendar', perm: 'nav.schedule' },
     { id: 'attendance', label: 'Davomat', icon: 'check', perm: 'nav.attendance' },
     { id: 'curriculum', label: 'O’quv dasturi', icon: 'layers', perm: 'nav.curriculum' },

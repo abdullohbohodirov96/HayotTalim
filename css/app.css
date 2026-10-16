@@ -4170,3 +4170,21 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .lead-ans>summary::after{content:"▾";color:var(--muted)}.lead-ans[open]>summary::after{content:"▴"}
 .lead-ans .form-ans{padding:0 0 10px}
 .lead-ans dl.kv{margin:0}
+
+/* ---- Zoom darslar ---- */
+.zm-setup{padding:18px 20px}.zm-setup ol{margin:8px 0 0 18px;line-height:1.7}
+.zm-card{padding:16px 18px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
+.zm-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.zm-head>div:first-child{margin-right:auto}
+.zm-count{font-size:14px;color:var(--muted)}.zm-count b{font-size:18px;color:var(--text,#111)}
+.zm-steps{display:flex;flex-wrap:wrap;gap:6px}
+.zm-step{font-size:12px;padding:4px 10px;border-radius:20px;background:var(--surface-2,#f3f5f4);color:var(--muted)}
+.zm-step.on{background:#eaf7f0;color:#137a4b;font-weight:600}
+.zm-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.zm-t{font-weight:700;font-size:13px;margin-bottom:4px}.zm-t.ok{color:#137a4b}.zm-t.bad{color:#c2410c}
+.zm-list{margin:0;padding-left:18px;font-size:14px;line-height:1.6}
+.zm-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+@media (max-width:640px){.zm-cols{grid-template-columns:1fr}}
+.jc-card{padding:14px 16px;margin-bottom:12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.jc-l{display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px}
+.jc-code{font-family:ui-monospace,Menlo,monospace;font-size:24px;letter-spacing:.18em;color:#0b4a2e}
+.jc-r{display:flex;gap:8px}

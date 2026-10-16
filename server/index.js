@@ -14,6 +14,7 @@ const backup = require('./backup');
 const kabinet = require('./kabinet');
 const gamify = require('./gamify');
 const forms = require('./forms');
+const zoom = require('./zoom');
 const link = require('./link');
 const kabsess = require('./kabsess');
 const levels = require('./levels');
@@ -1307,6 +1308,63 @@ function startMaintenance() {
   return t;
 }
 
+/* ---------------- Zoom avtomatikasi ---------------- */
+function zoomCtx() {
+  return {
+    stamp,
+    send: (msg) => { try { return require('./bot').enqueue(Object.assign({}, msg, { kind: 'dars' }), 6 * 3600 * 1000); } catch (e) { return null; } },
+    sendGroup: (g, text) => require('./bot').sendToGroup(g, text),
+    sendVideo: async (chatId, buf, caption) => {
+      const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
+      if (!tokenTg) throw new Error('bot token yo‘q');
+      const fd = new FormData();
+      fd.append('chat_id', String(chatId));
+      fd.append('caption', caption);
+      fd.append('parse_mode', 'HTML');
+      fd.append('supports_streaming', 'true');
+      fd.append('video', new Blob([buf], { type: 'video/mp4' }), 'dars.mp4');
+      const r = await fetch('https://api.telegram.org/bot' + tokenTg + '/sendVideo', { method: 'POST', body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) throw new Error(j.description || ('HTTP ' + r.status));
+    }
+  };
+}
+/* Guruhning maxfiy kodi (botda yozib darhol ulanish uchun): 6 belgi, harf+raqam */
+function newJoinCode(taken) {
+  const AL = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for (let i = 0; i < 50; i++) {
+    let c = '';
+    const b = crypto.randomBytes(6);
+    for (let k = 0; k < 6; k++) c += AL[b[k] % AL.length];
+    if (/\d/.test(c) && /[A-Z]/.test(c) && !taken[c]) return c;
+  }
+  return 'G' + crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 4) + '7';
+}
+async function ensureJoinCodes() {
+  const groups = (await store.list('groups/')).map(r => r.data).filter(Boolean);
+  const taken = {};
+  groups.forEach(g => { if (g.joinCode) taken[String(g.joinCode).toUpperCase()] = 1; });
+  for (const g of groups) {
+    if (g.joinCode || !g.id) continue;
+    g.joinCode = newJoinCode(taken); taken[g.joinCode] = 1;
+    await store.set('groups/' + g.id, g);
+  }
+}
+let zoomBusy = false;
+async function zoomTick() {
+  if (zoomBusy || !zoom.configured()) return;
+  zoomBusy = true;
+  try { await zoom.tick(store, A, zoomCtx()); } finally { zoomBusy = false; }
+}
+function startZoom() {
+  ensureJoinCodes().catch(e => console.error('guruh kodi:', e.message));
+  const jc = setInterval(() => { ensureJoinCodes().catch(() => { }); }, 10 * 60 * 1000);
+  if (jc.unref) jc.unref();
+  const t = setInterval(() => { zoomTick().catch(e => console.error('zoom:', e.message)); }, Number(process.env.ZOOM_TICK_MS || 60 * 1000));
+  if (t.unref) t.unref();
+  return t;
+}
+
 function startAutoInvoice() {
   const t = setInterval(() => {
     autoInvoiceTick().catch(e => console.error('auto invoice:', e.message));
@@ -2548,6 +2606,20 @@ async function handleApi(req, res, url) {
      /api/form?slug=…      — shakl ta'rifi (ichki maydonlarsiz)
      /api/form/submit      — ariza yuborish → murojaat (lead) ochiladi
      /api/form-bg?id=…     — fon rasmi (faqat faol shakl uchun)    */
+  /* ---------- ZOOM webhook (kirishsiz, imzo bilan) ---------- */
+  if (route === 'zoom/webhook' && req.method === 'POST') {
+    const raw = await new Promise((resolve, reject) => {
+      const ch = []; let n = 0;
+      req.on('data', c => { n += c.length; if (n > 512000) { reject(new Error('katta')); req.destroy(); } else ch.push(c); });
+      req.on('end', () => resolve(Buffer.concat(ch).toString('utf8')));
+      req.on('error', reject);
+    }).catch(() => null);
+    if (raw == null) return send(res, 413, { error: 'Katta.' });
+    if (!zoom.verify(raw, req.headers)) return send(res, 401, { error: 'Imzo noto’g’ri.' });
+    let body; try { body = JSON.parse(raw); } catch (e) { return send(res, 400, { error: 'JSON.' }); }
+    const r = await zoom.webhook(store, body, zoomCtx());
+    return send(res, 200, r.reply || { ok: true });
+  }
   if (route === 'form' && req.method === 'GET') {
     const f = await forms.bySlug(store, String(url.searchParams.get('slug') || ''));
     if (!f || f.active === false) return send(res, 404, { error: 'Forma topilmadi.' });
@@ -3422,6 +3494,43 @@ async function handleApi(req, res, url) {
   }
 
   /* ---- Gamifikatsiya: reyting, sozlama, bonus ball ---- */
+  /* ---------- ZOOM (xodim) ---------- */
+  if (route === 'zoom/overview' && req.method === 'GET') {
+    if (!A.can(user, 'nav.groups') && !A.can(user, 'attendance.mark')) return nope();
+    const d = await zoom.overview(store, String(url.searchParams.get('from') || ''));
+    if (!A.can(user, 'group.edit')) d.lessons.forEach(l => { l.startUrl = ''; });
+    return send(res, 200, d);
+  }
+  if (route === 'zoom/run' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit')) return nope();
+    if (!zoom.configured()) return send(res, 400, { error: 'Zoom ulanmagan: Render’da ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET ni yozing.' });
+    await zoomTick();
+    return send(res, 200, { ok: true });
+  }
+  if (route === 'groups/joincode' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit')) return nope();
+    const body = await readBody(req);
+    const g = await store.get('groups/' + String(body.id || ''));
+    if (!g) return send(res, 404, { error: 'Guruh topilmadi.' });
+    const taken = {};
+    (await store.list('groups/')).forEach(r => { if (r.data && r.data.joinCode) taken[String(r.data.joinCode).toUpperCase()] = 1; });
+    g.joinCode = newJoinCode(taken);
+    await store.set('groups/' + g.id, g);
+    await writeAudit(user, 'Guruh kodi yangilandi', g.code || g.name, '');
+    return send(res, 200, { ok: true, joinCode: g.joinCode });
+  }
+  if (route === 'zoom/remind' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit') && !A.can(user, 'attendance.mark')) return nope();
+    const body = await readBody(req);
+    const rec = await store.get(zoom.COL + String(body.id || ''));
+    if (!rec || !rec.meetingId) return send(res, 404, { error: 'Dars topilmadi.' });
+    const ctx = zoomCtx();
+    const base = ctx.send;
+    ctx.send = (m) => base(Object.assign({}, m, { dedupeKey: m.dedupeKey + ':qolda:' + Date.now() }));
+    const n = await zoom.notifyStudents(store, rec, 'miss', ctx, true);
+    await writeAudit(user, 'Zoom: qo’shilmaganlarga xabar', rec.groupName, n + ' ta');
+    return send(res, 200, { ok: true, sent: n });
+  }
   if (route === 'gamify/top' && req.method === 'GET') {
     if (!A.can(user, 'reports.learning') && !A.can(user, 'student.view')) return nope();
     const gid = String(url.searchParams.get('group') || '');
@@ -4223,6 +4332,9 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
 
   // Kunlik tozalash — baza va disk cheksiz o'smasin
   startMaintenance();
+
+  // Zoom: konferensiya, eslatmalar, davomat, dars yozuvi (ZOOM_* sozlansa)
+  startZoom();
 
   /* Bot modulini doim tayyorlaymiz — token bo'lmasa ham ERP dan karta to'lovini tasdiqlash ishlaydi */
   require('./bot').init({ store, stamp, A, recordPayment: autoCardPayment });

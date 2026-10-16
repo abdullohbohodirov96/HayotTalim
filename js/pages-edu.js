@@ -193,6 +193,27 @@
       ]));
 
     view.appendChild(tgGroupCard(g, App));
+    /* Guruh kodi: o'quvchi botga yozsa — raqami tasdiqlanib darhol ulanadi */
+    if (g.joinCode && (App.can('group.edit') || App.can('attendance.mark'))) {
+      var jcB = h('b', { class: 'jc-code' }, g.joinCode);
+      view.appendChild(h('div', { class: 'card jc-card' }, [
+        h('div', { class: 'jc-l' }, [
+          h('span', { class: 'muted small' }, 'Botga ulanish kodi'),
+          jcB,
+          h('span', { class: 'muted small' }, 'O’quvchi botda «Men o’quvchiman» → shu kodni yozadi → raqamini tasdiqlaydi va darhol ulanadi (Telegram guruhga ham taklif oladi). Kodni faqat guruh o’quvchilariga bering.')
+        ]),
+        h('div', { class: 'jc-r' }, [
+          h('button', { class: 'btn sm', onclick: function () { try { navigator.clipboard.writeText(jcB.textContent); UI.toast('Nusxalandi.', 'ok'); } catch (e) { } } }, 'Nusxalash'),
+          App.can('group.edit') ? h('button', {
+            class: 'btn sm', onclick: async function () {
+              if (!confirm('Yangi kod yaratilsinmi? Eski kod ishlamay qoladi.')) return;
+              try { var r = await D.api('POST', 'api/groups/joincode', { id: g.id }); jcB.textContent = r.joinCode; g.joinCode = r.joinCode; UI.toast('Yangi kod: ' + r.joinCode, 'ok'); }
+              catch (e) { UI.toast(e.message || 'Bo’lmadi', 'bad'); }
+            }
+          }, 'Yangi kod') : null
+        ])
+      ]));
+    }
     if (g.zoomLink || g.recordingsLink) {
       view.appendChild(h('div', { class: 'card', style: 'padding:12px 16px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center' }, [
         h('b', { style: 'margin-right:auto' }, 'Onlayn dars'),
