@@ -4031,7 +4031,14 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .qf-t b{font-size:18px;color:#0b4a2e}
 .qf-t span{font-size:13.5px;color:#5b6b64}
 .qf-form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px}
-.qf-form .input{height:48px;border-radius:14px}
+.qf-form .input{height:48px;width:100%;min-width:0;box-sizing:border-box;padding:0 16px;border:1.5px solid #d6e4dc;border-radius:14px;
+  background:#f6faf8;font:inherit;font-size:15px;color:#10231a;outline:none;transition:border-color .15s,box-shadow .15s,background .15s;appearance:none;-webkit-appearance:none}
+.qf-form .input::placeholder{color:#8a9b93}
+.qf-form .input:hover{border-color:#b9d0c3}
+.qf-form .input:focus{border-color:#b8901f;background:#fff;box-shadow:0 0 0 4px rgba(184,144,31,.15)}
+/* Tezkor forma hero'ga yopishadi, shuning uchun undan keyingi "Tekin dars" tasmasi ustiga chiqmasin */
+.site-wrap .qf-band + .promo-band:not([hidden]){margin-top:22px}
+.site-wrap .qf-band + .promo-band[hidden] + .stat-band,.site-wrap .qf-band + .stat-band{margin-top:22px !important}
 .qf-form .btn{height:48px;white-space:nowrap}
 .qf-in .err-msg{grid-column:1/-1;margin:0}
 @media (max-width:820px){
@@ -4064,3 +4071,4 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .sp-lvl{display:inline-flex;align-items:center;gap:6px;margin:6px 0;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:inherit;font-weight:700;font-size:13px;cursor:pointer}
 /* 7 ta daraja (A0…C2): kompyuterda 4 + 3 qator */
 @media (min-width:1100px){ .lvl-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important} }
+.site-wrap .promo-band{background:transparent !important}
