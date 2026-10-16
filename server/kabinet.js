@@ -161,6 +161,37 @@ async function summary(store, student) {
     };
   }).filter(Boolean);
 
+  /* --- Zoom: bugungi darsga O'ZINING shaxsiy havolasi va dars yozuvlari ---
+     Konferensiya avtomatik ochilgan bo'lsa (server/zoom.js), guruhning doimiy
+     havolasi o'rniga o'quvchining shaxsiy havolasi beriladi — kim kirgani aniq
+     bilinadi. Yozuvlar — oxirgi 10 ta dars.                                    */
+  try {
+    const zl = (await store.list('zoomlesson/')).map(r => r.data).filter(Boolean);
+    groupList.forEach(g => {
+      const mine = zl.filter(z => z.groupId === g.id);
+      /* Faqat dars tugamagan bo'lsa — keyingi kun darsiga eski havola chiqmasin */
+      const nowD = new Date(Date.now() + 5 * 3600 * 1000);
+      const nowMin = nowD.getUTCHours() * 60 + nowD.getUTCMinutes();
+      const endMin = z => { const m = /^(\d{1,2}):(\d{2})/.exec(String(z.end || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : 24 * 60; };
+      const t = mine.filter(z => z.date === today && z.meetingId && nowMin <= endMin(z) + 15)[0];
+      if (t) {
+        const reg = t.regs && t.regs[student.id];
+        const link = A.safeUrl((reg && reg.joinUrl) || t.joinUrl || '');
+        if (link) {
+          g.zoomLink = link;
+          g.zoomToday = {
+            start: t.start || '', end: t.end || '', status: t.status || '',
+            personal: !!(reg && reg.joinUrl), joined: !!(t.joined && t.joined[student.id]),
+            password: (reg && reg.joinUrl) ? '' : String(t.password || '')
+          };
+        }
+      }
+      g.recordings = mine.filter(z => z.recording && z.recording.shareUrl && A.safeUrl(z.recording.shareUrl))
+        .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 10)
+        .map(z => ({ date: z.date, start: z.start || '', url: A.safeUrl(z.recording.shareUrl), password: String(z.recording.password || '') }));
+    });
+  } catch (e) { /* zoom bo'lmasa — oddiy havola qoladi */ }
+
   /* --- Pul --- */
   const bal = A.balanceOf(student.id, invoices, payments);
   const overdue = A.overdueOf(student.id, invoices, payments, today);

@@ -301,8 +301,16 @@
           g.teacher ? h('div', { class: 'small' }, 'O’qituvchi: ' + g.teacher) : null,
           h('div', { class: 'small muted' }, [g.daysText, (g.startTime && g.endTime) ? g.startTime + '–' + g.endTime : '', g.room].filter(Boolean).join('  ·  ')),
           (g.zoomLink || g.recordingsLink) ? h('div', { class: 'rowflex', style: 'gap:6px;margin-top:8px' }, [
-            g.zoomLink ? h('a', { class: 'btn primary sm', href: g.zoomLink, target: '_blank', rel: 'noopener' }, 'Darsga kirish (Zoom)') : null,
+            g.zoomLink ? h('a', { class: 'btn primary sm', href: g.zoomLink, target: '_blank', rel: 'noopener' }, g.zoomToday ? 'Bugungi darsga kirish (Zoom)' : 'Darsga kirish (Zoom)') : null,
             g.recordingsLink ? h('a', { class: 'btn sm', href: g.recordingsLink, target: '_blank', rel: 'noopener' }, 'Dars yozuvlari') : null
+          ]) : null,
+          g.zoomToday && g.zoomToday.password ? h('div', { class: 'small muted', style: 'margin-top:6px' }, 'Zoom paroli: ' + g.zoomToday.password) : null,
+          (g.recordings && g.recordings.length) ? h('details', { class: 'kab-recs' }, [
+            h('summary', {}, '📹 Dars yozuvlari (' + g.recordings.length + ')'),
+            h('ul', {}, g.recordings.map(function (r) {
+              return h('li', {}, [h('a', { href: r.url, target: '_blank', rel: 'noopener' }, r.date + (r.start ? ' · ' + r.start : '')),
+                r.password ? h('span', { class: 'small muted' }, '  parol: ' + r.password) : null]);
+            }))
           ]) : null
         ]);
       })) : h('p', { class: 'sp-muted' }, 'Hozircha guruhga yozilmagansiz.');
@@ -966,7 +974,12 @@
             h('h2', {}, whenLabel(n0)),
             h('p', {}, n0.g.name + (n0.g.teacher ? ' · ' + n0.g.teacher : '') + ' · ' + (n0.g.room || 'Onlayn'))
           ]),
-          n0.g.zoomLink ? h('a', { class: 'btn sp-cta', href: n0.g.zoomLink, target: '_blank', rel: 'noopener' }, 'Zoom’ga kirish →')
+          n0.g.zoomLink ? h('div', { class: 'sp-zoom' }, [
+            h('a', { class: 'btn sp-cta', href: n0.g.zoomLink, target: '_blank', rel: 'noopener' },
+              n0.g.zoomToday && n0.g.zoomToday.joined ? 'Darsga qaytish →' : 'Zoom’ga kirish →'),
+            n0.g.zoomToday && n0.g.zoomToday.personal ? h('span', { class: 'sp-zoom-n' }, 'Shaxsiy havolangiz — davomat o’zi belgilanadi') : null,
+            n0.g.zoomToday && n0.g.zoomToday.password ? h('span', { class: 'sp-zoom-n' }, 'Parol: ' + n0.g.zoomToday.password) : null
+          ])
             : h('span', { class: 'sp-muted light' }, 'Zoom havolasi dars oldidan beriladi')
         ]));
       }

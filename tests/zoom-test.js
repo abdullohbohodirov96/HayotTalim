@@ -19,6 +19,7 @@ const store = {
   async get(p) { return db[p] ? JSON.parse(JSON.stringify(db[p])) : null; },
   async set(p, v) { db[p] = JSON.parse(JSON.stringify(v)); },
   async del(p) { delete db[p]; },
+  async all() { return Object.keys(db).map(k => ({ path: k, data: JSON.parse(JSON.stringify(db[k])) })); },
   async list(prefix) { return Object.keys(db).filter(k => k.indexOf(prefix) === 0).map(k => ({ path: k, data: JSON.parse(JSON.stringify(db[k])) })); }
 };
 
@@ -135,6 +136,18 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const rec3 = await store.get('zoomlesson/g1__' + iso);
   await zoom.writeAttendance(store, rec3, ctx);
   ok('Sababli o’zgarmadi', db['lessons/g1__2026-10'].items[iso].attendance.ms2.status === 'sababli');
+
+  console.log('\n6. O’quvchi kabinetida shaxsiy havola va yozuv');
+  const kab = require('../server/kabinet');
+  const realToday = A.today;
+  db['zoomlesson/g1__' + iso].end = '23:59';
+  A.today = () => iso;
+  const sum = await kab.summary(store, await store.get('students/s1'));
+  A.today = realToday;
+  const kg = (sum.groups || []).filter(g => g.id === 'g1')[0];
+  ok('Kabinetda bugungi darsga O’Z havolasi', kg && kg.zoomLink === 'https://zoom.us/w/777?tk=Madina', kg && kg.zoomLink);
+  ok('Qo’shilgani ko’rinadi', kg && kg.zoomToday && kg.zoomToday.joined === true);
+  ok('Dars yozuvi kabinetda', kg && kg.recordings && kg.recordings[0] && /rec\/share\/abc/.test(kg.recordings[0].url), kg && JSON.stringify(kg.recordings));
 
   const ov = await zoom.overview(store, '');
   ok('ERP ro’yxati: 2 qo’shildi, 1 qo’shilmadi', ov.lessons[0].joined.length === 2 && ov.lessons[0].missing.length === 1);
