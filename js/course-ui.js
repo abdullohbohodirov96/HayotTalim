@@ -498,9 +498,14 @@
           if (anim.firstChild) return;
           var have = { lines: [], words: [] };
           (async function () {
-            if (D.mode === 'server') { try { have = await D.api('GET', 'api/qissa-audio?l=' + encodeURIComponent(lesson.id)); } catch (e) { } }
+            var extra = [];
+            if (D.mode === 'server') {
+              try { have = await D.api('GET', 'api/qissa-audio?l=' + encodeURIComponent(lesson.id)); } catch (e) { }
+              try { extra = ((await D.api('GET', 'api/qissa-q?l=' + encodeURIComponent(lesson.id))) || {}).items || []; } catch (e) { }
+            }
             var sc = A.QissaVideo.scriptFor(lesson);
             A.QissaVideo.mount(anim, lesson, {
+              extraChecks: extra,
               audioUrl: function (i) { return have.lines.indexOf(i) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&i=' + i : null; },
               wordUrl: function (text) {
                 var k = sc.recap ? sc.recap.words.map(function (w) { return w[0]; }).indexOf(text) : -1;
@@ -510,14 +515,18 @@
             });
           })();
         }
+        /* Asosiy — interaktiv dars (so'zma-so'z tarjima, savollar). Markaz yuklagan MP4 — qo'shimcha. */
+        if (A.QissaVideo) { vbox.appendChild(anim); mountAnim(); }
         if (mp4) {
-          var vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4 });
-          vid.addEventListener('ended', function () { markStep('video'); });
-          vbox.appendChild(vid);
+          var vid = null;
           vbox.appendChild(h('button', { class: 'btn sm', type: 'button', style: 'margin-top:8px', onclick: function (e) {
-            e.currentTarget.remove(); vid.pause(); vid.hidden = true; vbox.appendChild(anim); mountAnim();
-          } }, 'Harakatli versiyani ochish (takrorlash rejimi bilan)'));
-        } else if (A.QissaVideo) { vbox.appendChild(anim); mountAnim(); }
+            e.currentTarget.remove();
+            vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4 });
+            vid.addEventListener('ended', function () { markStep('video'); });
+            vbox.appendChild(vid);
+          } }, '🎞 Qo’shimcha video'));
+          if (!A.QissaVideo) vbox.lastChild.click();
+        }
       })();
       body.appendChild(nextBtn('Qissani o’qishga o’tish', function () { stopSpeech(); markStep('video'); goStep('dialog'); }));
     }

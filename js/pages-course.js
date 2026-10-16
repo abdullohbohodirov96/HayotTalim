@@ -383,7 +383,8 @@
       });
       list.appendChild(h('div', { class: 'list-item', style: 'flex-wrap:wrap;gap:8px' }, [
         h('div', { class: 'main-col', style: 'min-width:200px' }, [h('b', {}, l.n + '. ' + l.title), h('span', {}, ['🎙 ', aStat]), h('span', {}, ['🎬 ', vStat])]),
-        h('div', { class: 'rowflex', style: 'gap:6px;flex-wrap:wrap' }, [aBtn, vBtn, vDel, file])
+        h('div', { class: 'rowflex', style: 'gap:6px;flex-wrap:wrap' }, [aBtn, vBtn, vDel, file,
+          h('button', { class: 'btn sm', onclick: function () { quizModal(l); } }, '❓ Video savollari')])
       ]));
       function refresh() {
         D.api('GET', 'api/qissa-audio?l=' + l.id).then(function (st) {
@@ -401,6 +402,71 @@
       function watch() { refresh(); var t = setInterval(function () { refresh(); if (!aBtn.disabled) clearInterval(t); }, 2500); timers.push(t); }
       refresh();
     });
+  }
+
+  /* Video ichidagi qo'shimcha savollar: «To'g'ri / Xato» yoki variantli.
+     Darsning o'z savollari (dasturda) doim bor — bu yerda ustoz qo'shadigan qo'shimchalar. */
+  function quizModal(l) {
+    var items = [];
+    var listBox = h('div', { class: 'qq-list' }, h('p', { class: 'muted small' }, 'Yuklanmoqda…'));
+    var lineOpts = l.dialog.lines.map(function (ln, i) { return { value: String(i), label: (i + 1) + '-gapdan keyin: ' + ln.uz }; });
+    function paint() {
+      UI.clear(listBox);
+      if (!items.length) { listBox.appendChild(h('p', { class: 'muted small' }, 'Hozircha qo’shimcha savol yo’q. Pastdan qo’shing.')); return; }
+      items.forEach(function (it, k) {
+        listBox.appendChild(h('div', { class: 'qq-item' }, [
+          h('div', { class: 'qq-t' }, [
+            h('span', { class: 'pill ' + (it.type === 'tf' ? 'info' : 'ok') }, it.type === 'tf' ? 'To’g’ri / Xato' : 'Variantli'),
+            h('span', { class: 'small muted' }, ' ' + (Number(it.after) + 1) + '-gapdan keyin')
+          ]),
+          it.qa ? h('div', { class: 'qq-ar', dir: 'rtl', lang: 'ar' }, it.qa) : null,
+          h('b', {}, it.q),
+          h('div', { class: 'small muted' }, it.type === 'tf' ? ('Javob: ' + (it.a ? 'To’g’ri' : 'Xato')) :
+            it.opts.map(function (o, j) { return (j === Number(it.a) ? '✓ ' : '• ') + o; }).join('   ')),
+          h('button', { class: 'btn sm danger', onclick: function () { items.splice(k, 1); paint(); } }, 'O’chirish')
+        ]));
+      });
+    }
+    var fType = UI.field({ label: 'Savol turi', type: 'select', value: 'tf', options: [{ value: 'tf', label: 'To’g’ri yoki xato' }, { value: 'choice', label: 'Variantli (to’g’ri javobni tanlash)' }] });
+    var fAfter = UI.field({ label: 'Qachon chiqsin', type: 'select', value: String(l.dialog.lines.length - 1), options: lineOpts });
+    var fQa = UI.field({ label: 'Arabcha so’z/gap (ixtiyoriy)', placeholder: 'هَذِهِ أُمِّي' });
+    var fQ = UI.field({ label: 'Savol yoki gap', placeholder: 'Masalan: «Bu onam» degani' });
+    var fTf = UI.field({ label: 'To’g’ri javob', type: 'select', value: 'true', options: [{ value: 'true', label: 'To’g’ri' }, { value: 'false', label: 'Xato' }] });
+    var fOpts = UI.field({ label: 'Variantlar (har biri yangi qatorda, birinchisi — TO’G’RI)', type: 'textarea', placeholder: 'Bu onam\nBu otam\nBu buvim' });
+    var fWhy = UI.field({ label: 'Izoh (javobdan keyin chiqadi, ixtiyoriy)', placeholder: 'أُمِّي — onam' });
+    function syncType() { var tf = fType.input.value === 'tf'; fTf.wrap.hidden = !tf; fOpts.wrap.hidden = tf; }
+    fType.input.addEventListener('change', syncType); syncType();
+    var addBtn = h('button', { class: 'btn', onclick: function () {
+      var it = { type: fType.input.value, after: Number(fAfter.input.value), qa: fQa.input.value.trim(), q: fQ.input.value.trim(), why: fWhy.input.value.trim() };
+      if (!it.q && !it.qa) { UI.toast('Savol matnini yozing.', 'bad'); return; }
+      if (it.type === 'tf') it.a = fTf.input.value === 'true';
+      else {
+        it.opts = fOpts.input.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 5);
+        if (it.opts.length < 2) { UI.toast('Kamida 2 ta variant yozing.', 'bad'); return; }
+        it.a = 0;
+      }
+      items.push(it); paint();
+      fQa.input.value = ''; fQ.input.value = ''; fWhy.input.value = ''; fOpts.input.value = '';
+    } }, '+ Ro’yxatga qo’shish');
+    UI.modal({
+      title: l.n + '-dars — video savollari',
+      body: [
+        h('p', { class: 'small muted' }, 'Darsning o’z savollari doim chiqadi. Bu yerda qo’shgan savollaringiz videoda tanlangan gapdan keyin chiqadi va o’quvchi javob bermaguncha video to’xtab turadi.'),
+        listBox,
+        h('div', { class: 'card', style: 'padding:12px;margin-top:10px' }, [h('b', {}, 'Yangi savol'),
+          h('div', { class: 'form-grid' }, [fType.wrap, fAfter.wrap, fQa.wrap, fQ.wrap, fTf.wrap, fOpts.wrap, fWhy.wrap]), addBtn])
+      ],
+      actions: [
+        { label: 'Yopish' },
+        { label: 'Saqlash', cls: 'primary', onClick: function (close, btn) {
+          UI.busy(btn, async function () {
+            try { var r = await D.api('POST', 'api/qissa-q/save', { lessonId: l.id, items: items }); items = r.items || []; UI.toast('Saqlandi: ' + items.length + ' ta savol.', 'ok'); close(); }
+            catch (e) { UI.toast(e.message || 'Saqlanmadi', 'bad'); }
+          });
+        } }
+      ]
+    });
+    D.api('GET', 'api/qissa-q?l=' + l.id).then(function (r) { items = (r && r.items) || []; paint(); }).catch(function () { paint(); });
   }
 
   function moveForm(r, lessons, App) {

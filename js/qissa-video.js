@@ -58,10 +58,30 @@
       '<text y="11" text-anchor="middle" font-size="32" font-weight="800" fill="' + G1 + '">?</text></g>' +
       '</g></g></g>';
   }
+  /* Erkak qahramon (masalan Ota) — ro'molsiz, qisqa soch */
+  function hero(id, shirt) {
+    return '<g class="qv-char" data-char="' + id + '"><g class="qv-pos"><g class="qv-body">' +
+      '<ellipse cx="0" cy="4" rx="64" ry="12" fill="rgba(15,74,64,.12)"/>' +
+      '<rect x="-26" y="-96" width="22" height="96" rx="9" fill="' + INK + '"/><rect x="4" y="-96" width="22" height="96" rx="9" fill="' + INK + '"/>' +
+      '<path d="M-40 -190q40-14 80 0l4 100h-88z" fill="' + shirt + '"/>' +
+      '<path d="M-10 -190l10 22l10-22z" fill="#fff" opacity=".85"/>' +
+      arm(id + 'L', -44, shirt, 'l') + arm(id + 'R', 44, shirt, 'r') +
+      '<rect x="-10" y="-208" width="20" height="22" fill="' + SK + '"/>' +
+      '<ellipse cx="0" cy="-236" rx="26" ry="30" fill="' + SK + '"/>' +
+      '<path d="M-27 -244q2-32 27-34q25 2 27 34q-7-16-27-17q-20 1-27 17z" fill="' + INK + '"/>' +
+      '<g class="qv-waves" transform="translate(52 -250)"><path d="M0 -10q8 10 0 20" stroke="' + G2 + '" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+      '<path d="M10 -18q14 18 0 36" stroke="' + G3 + '" stroke-width="4" fill="none" stroke-linecap="round"/></g>' +
+      '<g class="qv-q" transform="translate(-6 -330)"><circle r="26" fill="#fff" stroke="' + G2 + '" stroke-width="3"/>' +
+      '<text y="11" text-anchor="middle" font-size="32" font-weight="800" fill="' + G1 + '">?</text></g>' +
+      '</g></g></g>';
+  }
   /* Suratdagi oila a'zolari (kichik siluetlar) */
   function member(key, x, kind, s) {
     var body;
-    if (kind === 'man' || kind === 'oldman' || kind === 'boy') {
+    if (String(kind).indexOf('emoji:') === 0) {
+      body = '<rect x="-34" y="-82" width="68" height="78" rx="14" fill="#fff" stroke="' + GS + '" stroke-width="3"/>' +
+        '<text x="0" y="-26" text-anchor="middle" font-size="44">' + String(kind).slice(6) + '</text>';
+    } else if (kind === 'man' || kind === 'oldman' || kind === 'boy') {
       var shirt = kind === 'boy' ? G3 : (kind === 'oldman' ? '#5c7a70' : G2);
       body = '<rect x="-9" y="-26" width="7" height="26" rx="3" fill="' + INK + '"/><rect x="2" y="-26" width="7" height="26" rx="3" fill="' + INK + '"/>' +
         '<rect x="-13" y="-62" width="26" height="38" rx="8" fill="' + shirt + '"/>' +
@@ -121,11 +141,14 @@
         '<path d="M14 230h492v56a10 10 0 0 1-10 10h-472a10 10 0 0 1-10-10z" fill="' + GS + '"/>' +
         ph.members.map(function (m) { return member(m.key, m.x, m.kind, m.s); }).join('') +
         ph.members.map(function (m) { return tag(m.key, m.x, m.ar, m.uz); }).join('') +
+        ph.members.map(function (m) { return m.badge ? '<text class="qv-badge" x="' + (m.x + 26) + '" y="150" text-anchor="middle" font-size="30">' + m.badge + '</text>' : ''; }).join('') +
         '<text x="260" y="44" text-anchor="middle" class="qv-ar-t" font-size="24" fill="' + G1 + '">' + (ph.title || '') + '</text>' +
         '</g></g>';
     }
     return '<svg class="qv-svg" viewBox="0 0 960 540" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Qissa sahnasi">' +
-      room + photo + heroine('A', G2, G1) + heroine('B', '#5aa58b', '#2b6f5d') + '</svg>';
+      room + photo +
+      (script && script.cast && script.cast.A === 'man' ? hero('A', '#3b6f8f') : heroine('A', G2, G1)) +
+      (script && script.cast && script.cast.B === 'man' ? hero('B', '#3b6f8f') : heroine('B', '#5aa58b', '#2b6f5d')) + '</svg>';
   }
 
   /* ---------- Ssenariylar ----------
@@ -163,6 +186,114 @@
       }
     }
   };
+  SCRIPTS['a1-02'] = {
+    title: 'هُوَ مُهَنْدِسٌ', titleUz: '2-dars · Kim nima ish qiladi?',
+    start: { A: { x: -160 }, B: { x: 690 } },
+    photo: {
+      title: 'أُسْرَتِي',
+      members: [
+        { key: 'ab', x: 95, kind: 'man', ar: 'طَبِيبٌ', uz: 'shifokor', badge: '🩺' },
+        { key: 'umm', x: 205, kind: 'woman', ar: 'مُعَلِّمَةٌ', uz: 'o’qituvchi', badge: '📚' },
+        { key: 'akh', x: 315, kind: 'man', ar: 'مُهَنْدِسٌ', uz: 'muhandis', badge: '⛑️' },
+        { key: 'bint', x: 425, kind: 'girl', s: 1.1, ar: 'طَالِبَةٌ', uz: 'talaba', badge: '🎓' }
+      ]
+    },
+    lines: [
+      { pre: 1.8, photo: true, A: { x: 112, gest: 'point' }, B: { x: 850 }, ask: 'ab' },
+      { B: { gest: 'point' }, hl: ['ab'], tags: ['ab'] },
+      { A: { gest: 'point' }, ask: 'umm' },
+      { B: { gest: 'chest' }, hl: ['umm'], tags: ['umm'], then: { at: .3, B: { gest: 'point' } } },
+      { A: { gest: 'up' }, ask: 'akh' },
+      { B: { gest: 'point' }, hl: ['akh'], tags: ['akh'] },
+      { A: { gest: 'point' }, ask: 'bint' },
+      { B: { gest: 'point' }, hl: ['bint'], tags: ['bint'] }
+    ],
+    recap: {
+      title: 'Yangi so’zlar',
+      words: [['طَبِيبٌ', 'shifokor'], ['طَبِيبَةٌ', 'shifokor (ayol)'], ['مُعَلِّمَةٌ', 'o’qituvchi (ayol)'], ['مُهَنْدِسٌ', 'muhandis'], ['طَالِبَةٌ', 'talaba (qiz)'], ['ابْنَةٌ', 'qiz (farzand)']],
+      rule: { title: 'Qoida', rows: [['هُوَ', 'u — erkak', 'هُوَ طَبِيبٌ'], ['هِيَ', 'u — ayol', 'هِيَ طَبِيبَةٌ']] }
+    }
+  };
+  SCRIPTS['a1-03'] = {
+    title: 'أَيْنَ؟', titleUz: '3-dars · Ertalab uyda',
+    cast: { A: 'man', B: 'woman' },
+    start: { A: { x: -160 }, B: { x: 690 } },
+    photo: {
+      title: 'بَيْتُنَا',
+      members: [
+        { key: 'gurfa', x: 95, kind: 'emoji:🛏️', ar: 'الْغُرْفَةُ', uz: 'xona', badge: '👓' },
+        { key: 'huna', x: 205, kind: 'emoji:🧥', ar: 'هُنَا', uz: 'shu yerda' },
+        { key: 'matjar', x: 315, kind: 'emoji:🏪', ar: 'الْمَتْجَرُ', uz: 'do’kon', badge: '👦' },
+        { key: 'shurfa', x: 425, kind: 'emoji:🌿', ar: 'الشُّرْفَةُ', uz: 'ayvon', badge: '👧' }
+      ]
+    },
+    lines: [
+      { pre: 1.8, photo: true, A: { x: 112, gest: 'up' }, B: { x: 850 }, ask: '?' },
+      { B: { gest: 'point' }, hl: ['gurfa'], tags: ['gurfa'] },
+      { A: { gest: 'up' }, ask: '?' },
+      { B: { gest: 'chest' }, hl: ['huna'], tags: ['huna'] },
+      { A: { gest: 'wave' }, ask: '?' },
+      { B: { gest: 'point' }, hl: ['matjar'], tags: ['matjar'] },
+      { A: { gest: 'up' }, ask: '?' },
+      { B: { gest: 'point' }, hl: ['shurfa'], tags: ['shurfa'] }
+    ],
+    recap: {
+      title: 'Yangi so’zlar',
+      words: [['غُرْفَةٌ', 'xona'], ['مَتْجَرٌ', 'do’kon'], ['شُرْفَةٌ', 'ayvon'], ['مِعْطَفٌ', 'palto'], ['نَظَّارَةٌ', 'ko’zoynak'], ['هُنَا', 'shu yerda']],
+      rule: { title: 'Qoida', rows: [['أَيْنَ؟', 'qayerda?', 'أَيْنَ يُوسُفُ؟'], ['فِي', 'ichida (-da)', 'فِي الْغُرْفَةِ'], ['هُنَا', 'shu yerda', 'الْمِعْطَفُ هُنَا']] }
+    }
+  };
+
+  /* ---------- Tushunarli qilish: o'qilishi, so'zma-so'z tarjima, izoh va savollar ----------
+     g: har bir arabcha so'z ostida o'zbekcha ma'nosi (so'zlar soni bilan bir xil),
+     tr: lotincha o'qilishi, note: shu gapdagi qoida, checks: video ichidagi savollar. */
+  var EXTRA = {
+    'a1-01': {
+      tr: ['Assalaamu ‘alaykum, yaa Zaynab.', 'Wa ‘alaykumus-salaam. Unzurii, haazihi suuratu usratii.', 'Raa’i‘un! Man haazaa?', 'Haazaa abii, wa haazaa jaddii.',
+        'Wa man haazihi?', 'Haazihi ummii, wa haazihi jaddatii.', 'Wa man haazal-walad?', 'Haazaa axii Yuusuf, wa haazihi uxtii.'],
+      g: [['tinchlik', 'sizga', 'ey', 'Zaynab'], ['va sizga', 'tinchlik', 'qara', 'bu (ayol)', 'surati', 'oilamning'], ['ajoyib', 'kim', 'bu?'], ['bu', 'otam', 'va bu', 'bobom'],
+        ['va kim', 'bu (ayol)?'], ['bu (ayol)', 'onam', 'va bu (ayol)', 'buvim'], ['va kim', 'bu', 'bola?'], ['bu', 'ukam', 'Yusuf', 'va bu (ayol)', 'singlim']],
+      note: { 2: 'مَنْ؟ — «kim?» degan savol so’zi', 3: 'هَذَا — «bu» (erkak kishi uchun)', 5: 'هَذِهِ — «bu» (ayol kishi uchun)', 7: 'ـِي qo’shimchasi = «-im»: أَخٌ → أَخِي (ukam)' },
+      checks: [
+        { after: 3, type: 'tf', qa: 'أَبِي', q: '«otam» degani', a: true, why: 'أَبٌ — ota, أَبِي — otam.' },
+        { after: 5, type: 'choice', qa: 'هَذِهِ أُمِّي', q: 'Bu gap nima degani?', opts: ['Bu onam', 'Bu otam', 'Bu buvim'], a: 0, why: 'أُمِّي — onam.' },
+        { after: 7, type: 'listen', line: 3, q: 'Eshiting: Zaynab nima dedi?', opts: ['Bu otam, bu esa bobom', 'Bu onam, bu esa buvim', 'Bu ukam, bu esa singlim'], a: 0 },
+        { after: 7, type: 'tf', q: 'Yusuf — Zaynabning singlisi.', a: false, why: 'Yusuf — ukasi (أَخِي). Singlisi — أُخْتِي.' }
+      ]
+    },
+    'a1-02': {
+      tr: ['Man haazaa, yaa Zaynab?', 'Haazaa abii, huwa tabiib.', 'Wa haazihi ummuki? Hal hiya tabiibatun aydan?', 'Laa, hiya mu‘allima.',
+        'Wa man haazaa?', 'Haazaa axii ‘Aliy, huwa muhandis.', 'Wa haazihil-bint?', 'Haazihi ibnatu axii, hiya taaliba.'],
+      g: [['kim', 'bu', 'ey', 'Zaynab?'], ['bu', 'otam', 'u (erkak)', 'shifokor'], ['va bu (ayol)', 'onangmi?', '…mi? (savol)', 'u (ayol)', 'shifokor (ayol)', 'ham?'], ['yo’q', 'u (ayol)', 'o’qituvchi (ayol)'],
+        ['va kim', 'bu?'], ['bu', 'akam', 'Ali', 'u (erkak)', 'muhandis'], ['va bu (ayol)', 'qiz?'], ['bu (ayol)', 'qizi', 'akamning', 'u (ayol)', 'talaba (qiz)']],
+      note: { 1: 'هُوَ — «u» (erkak kishi haqida)', 2: 'هَلْ …؟ — gapni «-mi?» savoliga aylantiradi', 3: 'هِيَ — «u» (ayol). Ayol kasbi: طَبِيبٌ + ة → طَبِيبَةٌ', 7: 'ابْنَةُ أَخِي — «akamning qizi»' },
+      checks: [
+        { after: 1, type: 'choice', q: 'Zaynabning otasi kim bo’lib ishlaydi?', opts: ['Shifokor', 'Muhandis', 'O’qituvchi'], a: 0, why: 'هُوَ طَبِيبٌ — u shifokor.' },
+        { after: 3, type: 'tf', q: 'Zaynabning onasi ham shifokor.', a: false, why: 'لَا، هِيَ مُعَلِّمَةٌ — yo’q, u o’qituvchi.' },
+        { after: 5, type: 'choice', qa: 'مُهَنْدِسٌ', q: 'Bu so’z nima degani?', opts: ['muhandis', 'talaba', 'o’qituvchi'], a: 0 },
+        { after: 7, type: 'listen', line: 3, q: 'Eshiting: Zaynab nima dedi?', opts: ['Yo’q, u o’qituvchi', 'Yo’q, u shifokor', 'Ha, u talaba'], a: 0 },
+        { after: 7, type: 'tf', qa: 'هِيَ طَالِبَةٌ', q: '«U qiz talaba» degani', a: true }
+      ]
+    },
+    'a1-03': {
+      tr: ['Ayna nazzaaratii?', 'An-nazzaaratu fil-gurfa.', 'Wa aynal-mi‘taf?', 'Al-mi‘tafu hunaa.', 'Shukran. Wa ayna Yuusuf?', 'Yuusufu fil-matjar.', 'Wa ayna Faatima?', 'Faatimatu fish-shurfa.'],
+      g: [['qayerda', 'ko’zoynagim?'], ['ko’zoynak', '-da (ichida)', 'xona'], ['va qayerda', 'palto?'], ['palto', 'shu yerda'],
+        ['rahmat', 'va qayerda', 'Yusuf?'], ['Yusuf', '-da', 'do’kon'], ['va qayerda', 'Fotima?'], ['Fotima', '-da', 'ayvon']],
+      note: { 0: 'أَيْنَ؟ — «qayerda?»', 1: 'فِي — «ichida», o’zbekchadagi «-da»', 3: 'هُنَا — «shu yerda»', 4: 'شُكْرًا — «rahmat»' },
+      checks: [
+        { after: 1, type: 'choice', q: 'Ko’zoynak qayerda?', opts: ['Xonada', 'Do’konda', 'Ayvonda'], a: 0, why: 'فِي الْغُرْفَةِ — xonada.' },
+        { after: 3, type: 'tf', qa: 'هُنَا', q: '«shu yerda» degani', a: true },
+        { after: 5, type: 'listen', line: 5, q: 'Eshiting: Yusuf qayerda?', opts: ['Do’konda', 'Ayvonda', 'Xonada'], a: 0 },
+        { after: 7, type: 'tf', q: 'Fotima xonada.', a: false, why: 'فَاطِمَةُ فِي الشُّرْفَةِ — Fotima ayvonda.' }
+      ]
+    }
+  };
+  /* Tayyor studiya ovozlari (ElevenLabs, saytning o'zida): assets/qissa/<dars>/<gap>.mp3 */
+  var STATIC_AUDIO = { 'a1-01': 8, 'a1-02': 8, 'a1-03': 8 };
+  var EMO = { family: '👨‍👩‍👧', father: '👨', mother: '👩', brother: '👦', sister: '👧', grandpa: '👴', grandma: '👵', photo: '🖼️',
+    doctor: '👨‍⚕️', doctorF: '👩‍⚕️', engineer: '👷', teacher: '👨‍🏫', teacherF: '👩‍🏫', student: '🧑‍🎓', studentF: '👩‍🎓', son: '👦', daughter: '👧',
+    room: '🛏️', bathroom: '🛁', shop: '🏪', balcony: '🌿', coat: '🧥', glasses: '👓', tree: '🌳', here: '📍' };
+
   /* Boshqa darslar uchun umumiy ssenariy: ikki qahramon navbat bilan gapiradi */
   function genericScript(lesson) {
     var words = (lesson.words || []).slice(0, 6).map(function (w) { return [w.ar, w.uz]; });
@@ -193,25 +324,84 @@
     return who === 'B' && list.length > 1 ? list[1] : list[0];
   }
 
+  /* ---------- Web Audio: oldindan yuklash va boshidagi/oxiridagi jimlikni kesish ----------
+     Gaplar orasida «to'xtab qolish» bo'lmasin: har bir gap faylidan jim joylar
+     olib tashlanadi va keyingi gap darhol (tabiiy suhbat oralig'i bilan) boshlanadi. */
+  var AC = null;
+  function ac() {
+    if (!AC) { var C = global.AudioContext || global.webkitAudioContext; if (C) { try { AC = new C(); } catch (e) { AC = null; } } }
+    return AC;
+  }
+  var bufCache = {};
+  function trimBuf(b) {
+    if (!b) return null;
+    var d = b.getChannelData(0), n = d.length, th = 0.015, a = 0, z = n - 1;
+    while (a < n && Math.abs(d[a]) < th) a++;
+    while (z > a && Math.abs(d[z]) < th) z--;
+    var pad = Math.floor(b.sampleRate * 0.025);
+    a = Math.max(0, a - pad); z = Math.min(n - 1, z + pad);
+    if (z <= a) return { buf: b, off: 0, dur: b.duration };
+    return { buf: b, off: a / b.sampleRate, dur: (z - a) / b.sampleRate };
+  }
+  function loadBuf(url) {
+    if (!url || !ac() || !global.fetch) return Promise.resolve(null);
+    if (!bufCache[url]) {
+      bufCache[url] = fetch(url).then(function (r) { return r.ok ? r.arrayBuffer() : null; }).then(function (ab) {
+        if (!ab) return null;
+        return new Promise(function (res) { ac().decodeAudioData(ab, res, function () { res(null); }); });
+      }).then(trimBuf).catch(function () { return null; });
+    }
+    return bufCache[url];
+  }
+
   /* =================== Pleyer =================== */
   function mount(container, lesson, opts) {
     opts = opts || {};
     var sc = scriptFor(lesson);
     var lines = lesson.dialog.lines;
     var names = { A: lines[0] ? lines[0].whoUz : 'A', B: lines[1] ? lines[1].whoUz : 'B' };
-    var st = { playing: false, idx: -1, repeat: !!opts.repeat, slow: false, uz: true, token: 0 };
+    var st = { playing: false, idx: -1, repeat: !!opts.repeat, slow: false, uz: true, token: 0, quiz: !opts.render, score: { ok: 0, n: 0 }, asked: {} };
+    var ex = EXTRA[lesson.id] || {};
+    var checks = (ex.checks || []).concat(opts.extraChecks || []).map(function (c, k) {
+      var o = Object.assign({}, c); o._k = k;
+      if (o.after == null || o.after === '' || Number(o.after) >= lines.length) o.after = lines.length - 1;
+      o.after = Number(o.after); return o;
+    });
+    function audioFor(i) {
+      if (STATIC_AUDIO[lesson.id] > i) return (opts.assetBase || '') + 'assets/qissa/' + lesson.id + '/' + i + '.mp3';
+      return opts.audioUrl ? opts.audioUrl(i) : null;
+    }
+    /* Hamma gaplarni oldindan yuklab qo'yamiz — gaplar orasida kutish bo'lmaydi */
+    lines.forEach(function (ln, i) { var u = audioFor(i); if (u) loadBuf(u); });
 
     var stage = el('div', { class: 'qv-stage', 'data-photo': '0' });
     stage.innerHTML = stageSvg(sc);
     var title = el('div', { class: 'qv-title' }, [el('span', { class: 'qv-title-ar', lang: 'ar', dir: 'rtl' }, sc.title), el('b', {}, sc.titleUz)]);
     var subAr = el('div', { class: 'qv-sub-ar', lang: 'ar', dir: 'rtl' });
     var subUz = el('div', { class: 'qv-sub-uz' });
+    var subTr = el('div', { class: 'qv-sub-tr' });
     var subWho = el('span', { class: 'qv-sub-who' });
-    var sub = el('div', { class: 'qv-sub' }, [subWho, subAr, subUz]);
+    var sub = el('div', { class: 'qv-sub' }, [subWho, subAr, subTr, subUz]);
+    var noteBox = el('div', { class: 'qv-note' });
+    var quiz = el('div', { class: 'qv-quiz' });
+    var intro = el('div', { class: 'qv-intro' });
     var repeatBox = el('div', { class: 'qv-repeat' }, [el('b', {}, '🎤 Endi siz takrorlang'), el('span', {}, '')]);
     var recap = el('div', { class: 'qv-recap' });
     var big = el('button', { class: 'qv-bigplay', type: 'button', 'aria-label': 'Boshlash', onclick: function () { play(); } }, '▶');
-    stage.appendChild(title); stage.appendChild(sub); stage.appendChild(repeatBox); stage.appendChild(recap); stage.appendChild(big);
+    stage.appendChild(title); stage.appendChild(sub); stage.appendChild(noteBox); stage.appendChild(repeatBox); stage.appendChild(recap);
+    if (!opts.render) { stage.appendChild(intro); stage.appendChild(quiz); }
+    stage.appendChild(big);
+    /* Kirish: bu darsda nima o'rganiladi + kalit so'zlar (bosilsa eshitiladi) */
+    (function () {
+      var kw = (lesson.words || []).slice(0, 6);
+      intro.appendChild(el('div', { class: 'qv-intro-h' }, [el('span', {}, 'Bu darsda'), el('b', {}, lesson.title || '')]));
+      if (lesson.dialog.scene) intro.appendChild(el('p', { class: 'qv-intro-p' }, '🎬 ' + lesson.dialog.scene));
+      intro.appendChild(el('div', { class: 'qv-intro-w' }, kw.map(function (w) {
+        return el('button', { type: 'button', class: 'qv-kw', onclick: function (e) { e.stopPropagation(); tapWord(w.ar); } }, [
+          el('i', {}, EMO[w.anim] || '•'), el('b', { lang: 'ar', dir: 'rtl' }, w.ar), el('span', {}, w.uz)]);
+      })));
+      intro.appendChild(el('p', { class: 'qv-intro-tip' }, '💡 Videoda har bir arabcha so’z ostida ma’nosi chiqadi — so’zni bossangiz, eshitasiz. Orada savollar bo’ladi.'));
+    })();
 
     var bPlay = el('button', { class: 'qv-btn primary', type: 'button', onclick: function () { st.playing ? pause() : play(); } }, '▶ Boshlash');
     var bRe = el('button', { class: 'qv-btn', type: 'button', onclick: function () { restart(); } }, '↺ Qaytadan');
@@ -223,7 +413,9 @@
     var dots = el('div', { class: 'qv-dots' }, lines.map(function (ln, i) {
       return el('button', { type: 'button', class: 'qv-dot', title: (i + 1) + '-gap', onclick: function () { jump(i); } });
     }));
-    var controls = opts.render ? null : el('div', { class: 'qv-ctrl' }, [bPlay, bRe, bRep, bSlow, bUz, dots]);
+    var bQuiz = el('button', { class: 'qv-btn on', type: 'button', onclick: function () { st.quiz = !st.quiz; bQuiz.classList.toggle('on', st.quiz); } }, '❓ Savollar');
+    var bLine = el('button', { class: 'qv-btn', type: 'button', title: 'Shu gapni qayta eshitish', onclick: function () { if (st.idx >= 0) jump(st.idx); } }, '↻ Shu gap');
+    var controls = opts.render ? null : el('div', { class: 'qv-ctrl' }, [bPlay, bRe, bLine, bSlow, bUz, bQuiz, bRep, dots]);
     var root = el('div', { class: 'qv' + (opts.render ? ' render' : '') }, [stage, controls]);
     container.appendChild(root);
 
@@ -246,7 +438,7 @@
       ['A', 'B'].forEach(function (k) { ch(k).classList.remove('asking'); });
       if (key) ch('A').classList.add('asking');
       svg.querySelectorAll('.qv-mem').forEach(function (m) { m.classList.toggle('q', m.getAttribute('data-mem') === key); });
-      if (key) highlight([key], true);
+      if (key && key !== '?') highlight([key], true);
     }
     function highlight(keys, soft) {
       var any = keys && keys.length;
@@ -289,12 +481,19 @@
       subWho.className = 'qv-sub-who ' + who;
       subAr.innerHTML = '';
       wordSpans = []; wordW = [];
-      String(ln.ar).split(/\s+/).forEach(function (w) {
-        var s = el('span', {}, w + ' ');
+      var gl = (ex.g && ex.g[i]) || null;
+      String(ln.ar).split(/\s+/).forEach(function (w, k) {
+        var clean = w.replace(/[.,!?؟،:;«»"]/g, '');
+        var s = el('span', { class: 'qv-w' + (gl ? ' gl' : ''), onclick: function (e) { e.stopPropagation(); tapWord(clean); s.classList.add('tap'); setTimeout(function () { s.classList.remove('tap'); }, 900); } },
+          [el('b', {}, w), gl && gl[k] ? el('small', { dir: 'ltr' }, gl[k]) : null]);
         wordSpans.push(s); wordW.push(Math.max(2, w.replace(/[ً-ْ]/g, '').length));
         subAr.appendChild(s);
       });
+      subTr.textContent = (ex.tr && ex.tr[i]) || '';
       subUz.textContent = ln.uz;
+      var nt = ex.note && ex.note[i];
+      noteBox.textContent = nt ? '💡 ' + nt : '';
+      noteBox.classList.toggle('on', !!nt);
       sub.classList.add('on');
       Array.prototype.forEach.call(dots.children, function (d, k) { d.classList.toggle('on', k === i); d.classList.toggle('done', k < i); });
       return who;
@@ -303,7 +502,7 @@
       var total = wordW.reduce(function (s, x) { return s + x; }, 0), acc = 0, cur = -1;
       for (var k = 0; k < wordW.length; k++) { acc += wordW[k]; if (p * total < acc) { cur = k; break; } }
       if (p >= 1) cur = wordW.length;
-      wordSpans.forEach(function (s, k) { s.className = k < cur ? 'said' : (k === cur ? 'now' : ''); });
+      wordSpans.forEach(function (s, k) { s.classList.toggle('said', k < cur); s.classList.toggle('now', k === cur); });
     }
 
     function reset() {
@@ -318,6 +517,8 @@
       svg.querySelectorAll('.qv-mem').forEach(function (m) { m.classList.remove('q'); });
       Array.prototype.forEach.call(dots.children, function (d) { d.classList.remove('on', 'done'); });
       repeatBox.classList.remove('on');
+      noteBox.classList.remove('on');
+      stage.classList.remove('quiz-on');
     }
     reset();
 
@@ -340,8 +541,15 @@
     function speak(i, tok, onP) {
       var ln = lines[i];
       var rate = st.slow ? 0.62 : 0.85;
-      var url = opts.audioUrl ? opts.audioUrl(i) : null;
+      var url = audioFor(i);
       var est = Math.max(1600, String(ln.ar).replace(/[ً-ْ\s]/g, '').length * 115 / rate);
+      if (url && ac()) {
+        return loadBuf(url).then(function (t) {
+          if (tok !== st.token) throw 'stop';
+          if (!t) return speakTts();
+          return playTrim(t, st.slow ? 0.82 : 1, tok, onP);
+        });
+      }
       if (url) {
         return new Promise(function (res, rej) {
           var au = new Audio(url);
@@ -379,6 +587,74 @@
       }
     }
 
+    function playTrim(t, rate, tok, onP) {
+      return new Promise(function (res, rej) {
+        var c = ac();
+        try { if (c.state === 'suspended') c.resume(); } catch (e) { }
+        var src = c.createBufferSource();
+        src.buffer = t.buf; src.playbackRate.value = rate; src.connect(c.destination);
+        var t0 = c.currentTime + 0.02, total = t.dur / rate;
+        src.start(t0, t.off, t.dur);
+        (function f() {
+          if (tok !== st.token) { try { src.stop(); } catch (e) { } rej('stop'); return; }
+          var p = Math.max(0, Math.min(1, (c.currentTime - t0) / total));
+          onP(p);
+          if (p >= 1) { res(); return; }
+          requestAnimationFrame(f);
+        })();
+      });
+    }
+
+    /* ---------- Savol (video ichida): to'g'ri/xato, tanlash, eshitib tanlash ---------- */
+    function shuffle(a) { a = a.slice(); for (var k = a.length - 1; k > 0; k--) { var j = Math.floor(Math.random() * (k + 1)); var x = a[k]; a[k] = a[j]; a[j] = x; } return a; }
+    function askCheck(c, tok) {
+      return new Promise(function (res, rej) {
+        quiz.innerHTML = '';
+        stage.classList.add('quiz-on'); talk(null); sub.classList.remove('on'); noteBox.classList.remove('on');
+        var kind = c.type === 'tf' ? 'To’g’ri yoki xato?' : c.type === 'listen' ? '🎧 Eshiting va tanlang' : 'To’g’ri javobni tanlang';
+        var tries = 0, done = false;
+        var fb = el('div', { class: 'qv-fb' });
+        var opts2 = c.type === 'tf' ? [{ t: '✓ To’g’ri', ok: c.a === true }, { t: '✗ Xato', ok: c.a === false }]
+          : shuffle((c.opts || []).map(function (t, k) { return { t: t, ok: k === Number(c.a) }; }));
+        var btns = opts2.map(function (o) {
+          var b = el('button', { type: 'button', class: 'qv-opt', onclick: function (e) {
+            e.stopPropagation();
+            if (done) return;
+            if (o.ok) {
+              b.classList.add('ok'); done = true;
+              if (!tries) st.score.ok++;
+              fb.className = 'qv-fb ok'; fb.textContent = '✓ Barakalla!' + (c.why ? ' ' + c.why : '');
+              setTimeout(finish, c.why ? 1900 : 1000);
+            } else {
+              tries++; b.classList.add('bad'); b.disabled = true;
+              fb.className = 'qv-fb bad';
+              if (tries >= 2 || c.type === 'tf') {
+                done = true;
+                btns.forEach(function (x, k) { if (opts2[k].ok) x.classList.add('ok'); });
+                fb.textContent = '✗ To’g’ri javob belgilandi.' + (c.why ? ' ' + c.why : '');
+                quiz.appendChild(el('button', { type: 'button', class: 'qv-next', onclick: function (e) { e.stopPropagation(); finish(); } }, 'Davom etish →'));
+              } else fb.textContent = 'Yana bir bor urinib ko’ring.';
+            }
+          } }, o.t);
+          return b;
+        });
+        st.score.n++;
+        quiz.appendChild(el('div', { class: 'qv-qk' }, '❓ ' + kind));
+        if (c.qa) quiz.appendChild(el('div', { class: 'qv-qa', lang: 'ar', dir: 'rtl' }, c.qa));
+        if (c.type === 'listen') {
+          var play = function () { var u = audioFor(Number(c.line)); if (u && ac()) loadBuf(u).then(function (t) { if (t) playTrim(t, 1, st.token, function () { }).catch(function () { }); }); else if (A.Speak) A.Speak.say(lines[Number(c.line)].ar, { rate: .85 }); };
+          quiz.appendChild(el('button', { type: 'button', class: 'qv-listen', onclick: function (e) { e.stopPropagation(); play(); } }, '🔊 Eshitish'));
+          setTimeout(play, 350);
+        }
+        quiz.appendChild(el('div', { class: 'qv-qq' }, c.q || ''));
+        quiz.appendChild(el('div', { class: 'qv-opts' + (c.type === 'tf' ? ' tf' : '') }, btns));
+        quiz.appendChild(fb);
+        quiz.appendChild(el('button', { type: 'button', class: 'qv-skip', onclick: function (e) { e.stopPropagation(); finish(); } }, 'O’tkazib yuborish'));
+        var iv = setInterval(function () { if (tok !== st.token) { clearInterval(iv); stage.classList.remove('quiz-on'); rej('stop'); } }, 200);
+        function finish() { clearInterval(iv); stage.classList.remove('quiz-on'); if (tok === st.token) res(); else rej('stop'); }
+      });
+    }
+
     async function runLine(i, tok, durMs) {
       st.idx = i;
       var a = sc.lines[i] || {};
@@ -404,7 +680,15 @@
         for (var s = secs; s > 0; s--) { repeatBox.lastChild.textContent = s + ' soniya'; await wait(1000, tok); }
         repeatBox.classList.remove('on');
       }
-      await wait(650, tok);
+      /* Tabiiy suhbat: boshqa odam javob bersa — qisqa oraliq, o'sha odam davom etsa — yanada qisqa */
+      var nextWho = (i + 1) % 2 ? 'B' : 'A';
+      await wait(durMs ? 650 : (nextWho === who ? 160 : 300), tok);
+      if (st.quiz && !opts.render) {
+        for (var q = 0; q < checks.length; q++) {
+          var c = checks[q];
+          if (c.after === i && !st.asked[c._k]) { st.asked[c._k] = 1; await askCheck(c, tok); await wait(250, tok); }
+        }
+      }
     }
 
     async function runRecap(tok, durs) {
@@ -436,7 +720,12 @@
         })));
         await wait(durs ? 5200 : 5000, tok);
       }
+      if (st.score.n) recap.appendChild(el('div', { class: 'qv-score' }, '❓ Savollar: ' + st.score.ok + ' / ' + st.score.n + ' birinchi urinishda to’g’ri'));
       recap.appendChild(el('div', { class: 'qv-end' }, 'Barakalla! Endi «Mashq» va «Uy vazifasi»ga o’ting.'));
+    }
+    function tapWord(text) {
+      if (!A.Speak || !text) return;
+      try { var p = A.Speak.say(text, { rate: 0.8 }); if (p && p.catch) p.catch(function () { }); } catch (e) { }
     }
     function sayWord(text, tok) {
       var url = opts.wordUrl && opts.wordUrl(text);
@@ -467,7 +756,8 @@
     function play() {
       st.token++; st.playing = true; setBtn();
       var from = st.idx < 0 ? 0 : st.idx;
-      if (st.idx < 0) reset();
+      if (st.idx < 0) { reset(); st.score = { ok: 0, n: 0 }; st.asked = {}; }
+      try { var c0 = ac(); if (c0 && c0.state === 'suspended') c0.resume(); } catch (e) { }
       run(from, st.token);
     }
     function pause() {
@@ -475,7 +765,7 @@
       if (A.Speak) A.Speak.stop();
       talk(null); setBtn();
     }
-    function restart() { pause(); reset(); play(); }
+    function restart() { pause(); reset(); st.idx = -1; play(); }
     /** Ma'lum gapga sakrash: oldingi gaplarning holati darhol qo'llanadi */
     function jump(i) {
       pause(); reset();
@@ -519,5 +809,5 @@
     return { events: out, total: t + 6.2 };
   }
 
-  A.QissaVideo = { mount: mount, scriptFor: scriptFor, timeline: timeline, SCRIPTS: SCRIPTS };
+  A.QissaVideo = { mount: mount, scriptFor: scriptFor, timeline: timeline, SCRIPTS: SCRIPTS, EXTRA: EXTRA, STATIC_AUDIO: STATIC_AUDIO };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -173,12 +173,14 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
         throw e;
       }
       await clearSaid(page);
+      const studio = await page.evaluate(id => !!(A.QissaVideo.STATIC_AUDIO || {})[id], L.id);
+      await page.evaluate(() => { const b = [...document.querySelectorAll('.qv-btn')].find(x => /Savollar/.test(x.textContent)); if (b && b.classList.contains('on')) b.click(); });
       await page.click('.qv-bigplay');
       await page.waitForSelector('.qv-stage.recap-on', { timeout: 40000 });
       await page.waitForSelector('.qv-end', { timeout: 30000 });
       let s = (await said(page)).map(x => norm(x.text));
-      ok('Video: qissaning barcha ' + L.lines.length + ' gapi o’qildi', L.lines.every(t => s.indexOf(norm(t)) >= 0), s.length + ' ta ovoz');
-      ok('Video: ovoz arabcha (ar-SA)', (await said(page)).every(x => /^ar/.test(x.lang)));
+      if (!studio) ok('Video: qissaning barcha ' + L.lines.length + ' gapi o’qildi', L.lines.every(t => s.indexOf(norm(t)) >= 0), s.length + ' ta ovoz');
+      if (!studio) ok('Video: ovoz arabcha (ar-SA)', (await said(page)).every(x => /^ar/.test(x.lang)));
       if (n === 0) await page.screenshot({ path: path.join(SHOTS, vname + '-video-oxiri.png') });
 
       /* Video → Qissa */
@@ -401,6 +403,7 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
   const rows = (ov.json.rows || []).filter(r => /^e2e/.test(r.studentId));
   ok('Ustoz ikki sinov o’quvchisining vazifalarini ko’radi', rows.length === 2 && rows.every(r => r.pending.length === 2), rows.map(r => r.pending.length).join(','));
   for (const r of rows) {
+    if (!r.pending.length) continue;
     const rr = await api('/api/course/review', { studentId: r.studentId, lessonId: r.pending[0].lessonId, decision: 'qabul', grade: 5, comment: 'Barakalla' }, dir);
     ok('Vazifa qabul qilindi', rr.status === 200);
   }

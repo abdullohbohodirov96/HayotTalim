@@ -4193,3 +4193,62 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .sp-zoom-n{font-size:12px;opacity:.85}
 .kab-recs{margin-top:8px;font-size:14px}.kab-recs summary{cursor:pointer;font-weight:600}
 .kab-recs ul{margin:6px 0 0;padding-left:18px;line-height:1.7}
+/* ---- Qissa video: tushunarli rejim (so'zma-so'z tarjima, izoh, savollar) ---- */
+.qv-sub-ar{display:flex;flex-wrap:wrap;justify-content:center;gap:.2cqw 1.1cqw;direction:rtl}
+.qv-w{display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;border-radius:.8cqw;padding:0 .3cqw;transition:background .15s}
+.qv-w b{font-weight:700;line-height:1.35}
+.qv-w small{font-family:var(--c-font,system-ui,sans-serif);font-size:1.25cqw;line-height:1.2;color:#8aa59b;font-weight:700;direction:ltr;white-space:nowrap}
+.qv-w.said small,.qv-w.now small{color:#1f7a5c}
+.qv-w.now{background:#e2f4ec}
+.qv-w.tap{background:#fff1c9}
+.qv-sub-ar .qv-w.said b{color:#0f4a40}
+.qv-sub-ar .qv-w.now b{color:#1f9d74}
+.qv-sub-tr{font-size:1.45cqw;color:#6b8a80;font-style:italic;margin:.2cqw 0 .3cqw}
+.qv-stage.no-uz .qv-sub-tr,.qv-stage.no-uz .qv-w small{display:none}
+.qv-note{position:absolute;top:3%;left:3%;max-width:46%;background:#fff6dc;color:#6b4500;border-radius:1.4cqw;padding:1cqw 1.6cqw;font-size:1.6cqw;font-weight:700;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);opacity:0;transform:translateY(-6px);transition:opacity .3s,transform .3s;pointer-events:none;line-height:1.45}
+.qv-note.on{opacity:1;transform:none}
+.qv-stage.recap-on .qv-note,.qv-stage.quiz-on .qv-note{opacity:0}
+/* Kirish kartasi */
+.qv-intro{position:absolute;inset:5% 6% 24%;background:rgba(255,255,255,.96);border-radius:2.2cqw;padding:2cqw 2.4cqw;display:flex;flex-direction:column;gap:1.1cqw;
+  align-items:center;text-align:center;box-shadow:0 18px 40px rgba(15,74,64,.16)}
+.qv-stage.started .qv-intro{display:none}
+.qv-stage:not(.started) .qv-bigplay{top:auto;bottom:4%;transform:translateX(-50%);width:10cqw;height:10cqw;font-size:4cqw}
+.qv-intro-h{display:flex;flex-direction:column;gap:.2cqw}.qv-intro-h span{font-size:1.4cqw;letter-spacing:.14em;text-transform:uppercase;color:#1f9d74;font-weight:800}
+.qv-intro-h b{font-size:2.8cqw;color:#0f2e27}
+.qv-intro-p{margin:0;font-size:1.7cqw;color:#3d5a51}
+.qv-intro-w{display:flex;flex-wrap:wrap;justify-content:center;gap:1cqw}
+.qv-kw{display:flex;flex-direction:column;align-items:center;gap:.1cqw;border:2px solid #dcebe3;background:#f6faf8;border-radius:1.4cqw;padding:.8cqw 1.4cqw;cursor:pointer;min-width:11cqw}
+.qv-kw:hover{border-color:#1f9d74;background:#e9f7f0}
+.qv-kw i{font-style:normal;font-size:3cqw;line-height:1.1}
+.qv-kw b{font-family:var(--c-ar,'Amiri',serif);font-size:2.6cqw;color:#0f4a40;line-height:1.3}
+.qv-kw span{font-size:1.3cqw;color:#5c7a70;font-weight:700}
+.qv-intro-tip{margin:auto 0 0;font-size:1.4cqw;color:#6b8a80}
+/* Savol */
+.qv-quiz{position:absolute;inset:8% 14%;background:#fff;border-radius:2.4cqw;padding:2.2cqw 2.6cqw;display:none;flex-direction:column;align-items:center;gap:1.2cqw;
+  box-shadow:0 24px 60px rgba(15,74,64,.3);text-align:center;z-index:5}
+.qv-stage.quiz-on .qv-quiz{display:flex;animation:qvQin .35s ease-out}
+@keyframes qvQin{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.qv-stage.quiz-on .qv-sub{opacity:0}
+.qv-qk{font-size:1.5cqw;font-weight:800;letter-spacing:.06em;color:#1f9d74;text-transform:uppercase}
+.qv-qa{font-family:var(--c-ar,'Amiri',serif);font-size:4.4cqw;color:#0f4a40;line-height:1.3}
+.qv-qq{font-size:2.2cqw;font-weight:700;color:#0f2e27}
+.qv-opts{display:grid;grid-template-columns:1fr;gap:1cqw;width:100%;max-width:60cqw}
+.qv-opts.tf{grid-template-columns:1fr 1fr}
+.qv-opt{border:2px solid #dcebe3;background:#f6faf8;border-radius:1.4cqw;padding:1.2cqw 1.6cqw;font-size:2cqw;font-weight:700;color:#0f2e27;cursor:pointer;transition:all .15s}
+.qv-opt:hover:not(:disabled){border-color:#1f9d74;background:#e9f7f0}
+.qv-opt.ok{border-color:#17805f;background:#dff5ea;color:#0f5a40}
+.qv-opt.bad{border-color:#e0a4a4;background:#fdeeee;color:#9b2c2c}
+.qv-fb{min-height:2.4cqw;font-size:1.8cqw;font-weight:700}.qv-fb.ok{color:#17805f}.qv-fb.bad{color:#b42318}
+.qv-listen,.qv-next{border:0;background:#1f9d74;color:#fff;border-radius:999px;padding:.9cqw 2.2cqw;font-size:1.8cqw;font-weight:800;cursor:pointer}
+.qv-next{background:#0f4a40}
+.qv-skip{border:0;background:none;color:#8aa59b;font-size:1.4cqw;cursor:pointer;margin-top:auto}
+.qv-score{font-size:2cqw;font-weight:800;color:#0f4a40;background:#e2f4ec;border-radius:999px;padding:.6cqw 2cqw}
+@media (max-width:640px){
+  .qv-w small{font-size:2.1cqw}.qv-sub-tr{font-size:2.3cqw}.qv-note{font-size:2.4cqw;max-width:70%}
+  .qv-quiz{inset:4% 4%}.qv-qq{font-size:3.2cqw}.qv-opt{font-size:3cqw}.qv-fb{font-size:2.8cqw}.qv-qk{font-size:2.4cqw}
+  .qv-intro{inset:3% 3% 22%}.qv-intro-p{font-size:2.6cqw}.qv-kw span{font-size:2.1cqw}.qv-intro-tip{display:none}
+}
+.qq-list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+.qq-item{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.qq-ar{font-family:var(--c-ar,'Amiri',serif);font-size:22px;color:#0f4a40}

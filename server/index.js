@@ -2368,6 +2368,13 @@ async function handleApi(req, res, url) {
   /* ---- Qissa ovozlari (ochiq): dars videosi va qissa uchun studiya ovozi ----
      qissaaudio/<darsId> { lines: {i: fileId}, words: {k: fileId}, at }       */
   /* Studiya ovozlari xaritasi: matn (harakatsiz) → fayl manzili. Brauzerdagi barcha «🔊» shu orqali */
+  /* Video ichidagi qo'shimcha savollar (ustoz qo'shadi) — o'quvchi uchun ochiq */
+  if (route === 'qissa-q' && req.method === 'GET') {
+    const lid = String(url.searchParams.get('l') || '');
+    if (!/^[a-z0-9-]{2,20}$/.test(lid)) return send(res, 404, { error: 'Topilmadi.' });
+    const doc = (await store.get('qissaq/' + lid)) || { items: [] };
+    return send(res, 200, { items: doc.items || [] });
+  }
   if (route === 'qissa-audio/map' && req.method === 'GET') {
     const lid = String(url.searchParams.get('l') || '');
     const rows = (await store.list('qissaaudio/')).map(r => r.data).filter(Boolean)
@@ -3013,6 +3020,31 @@ async function handleApi(req, res, url) {
         rows,
         lessons: A.Course.LESSONS.map(l => ({ id: l.id, n: l.n, title: l.title, unit: l.unit }))
       });
+    }
+    /* ---- Video ichidagi savollarni saqlash (to'g'ri/xato, tanlash) ---- */
+    if (route === 'qissa-q/save' && req.method === 'POST') {
+      if (!A.can(user, 'settings.edit') && !A.can(user, 'curriculum.edit')) return nope();
+      const body = await readBody(req);
+      const lesson = A.Course.byId(String(body.lessonId || ''));
+      if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
+      const txt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+      const nLines = lesson.dialog.lines.length;
+      const items = (Array.isArray(body.items) ? body.items : []).slice(0, 20).map(it => {
+        const type = ['tf', 'choice'].indexOf(it && it.type) >= 0 ? it.type : null;
+        if (!type) return null;
+        const q = txt(it.q, 200), qa = txt(it.qa, 120), why = txt(it.why, 200);
+        let after = Math.round(Number(it.after));
+        if (!Number.isFinite(after) || after < 0 || after >= nLines) after = nLines - 1;
+        if (!q && !qa) return null;
+        if (type === 'tf') return { type, q, qa, why, after, a: it.a === true || it.a === 'true' };
+        const opts = (Array.isArray(it.opts) ? it.opts : []).map(o => txt(o, 80)).filter(Boolean).slice(0, 5);
+        const a = Math.round(Number(it.a));
+        if (opts.length < 2 || !(a >= 0 && a < opts.length)) return null;
+        return { type, q, qa, why, after, opts, a };
+      }).filter(Boolean);
+      await store.set('qissaq/' + lesson.id, { lessonId: lesson.id, items, at: stamp(), by: user.name || '' });
+      await writeAudit(user, 'Video savollari saqlandi', lesson.id, items.length + ' ta');
+      return send(res, 200, { ok: true, items });
     }
     /* ---- Qissa ovozlarini ElevenLabs bilan yaratish (serverda ELEVENLABS_API_KEY bo'lsa) ---- */
     if (route === 'course/tts' && req.method === 'POST') {
