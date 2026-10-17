@@ -534,18 +534,38 @@
         var f = F.forms(x), dr = F.drill(x);
         /* 1. Harf va chiqish joyi */
         var stBox = h('div', { class: 'mx-stage' });
+        var nar = (info && info.nar) || [];
+        var vowelLine = 'Endi og‘izni ochib unli qo‘shamiz: ' + dr.open[0] + ' (fatha), ' + dr.open[1] + ' (kasra), ' + dr.open[2] + ' (damma). O‘zingiz ham ovoz chiqarib takrorlang!';
+        var lines = [nar[0] || (info && info.steps[0]) || '', nar[1] || (info && info.steps[1]) || '', nar[2] || (info && info.steps[2]) || '', vowelLine];
+        var cap = h('div', { class: 'mx-cap' }, [h('span', { class: 'mx-cap-n' }, '▶'), h('span', { class: 'mx-cap-t' }, 'Tugmani bosing — harf qanday chiqishini ko‘rsatib, tushuntirib beraman.')]);
+        var bars = h('div', { class: 'mx-bars' }, lines.map(function () { return h('i', {}, h('b')); }));
+        var screen = h('div', { class: 'mx-screen' }, [stBox, cap, bars]);
         var stepEls = (info ? info.steps : []).map(function (t, i) { return h('li', { class: 'mx-step' }, t); });
-        function mark(i) { stepEls.forEach(function (e, k) { e.classList.toggle('on', k === i); }); }
+        function mark(i) {
+          stepEls.forEach(function (e, k) { e.classList.toggle('on', k === i); });
+          if (i >= 0 && lines[i]) {
+            cap.lastChild.textContent = lines[i]; cap.firstChild.textContent = (i + 1) + '/4';
+            cap.classList.remove('in'); void cap.offsetWidth; cap.classList.add('in');
+          }
+          Array.prototype.forEach.call(bars.children, function (e, k) { e.className = k < i ? 'done' : k === i ? 'on' : ''; });
+        }
+        var STEP_MS = 4200;
+        bars.style.setProperty('--d', STEP_MS + 'ms');
         var playBtn = h('button', { class: 'btn primary', type: 'button', onclick: function () {
           if (!stage) return;
           playBtn.disabled = true; playBtn.textContent = '⏳ Ko’rsatilmoqda…';
           stage.play(function (st) {
-            if (st < 0) { playBtn.disabled = false; playBtn.textContent = '↻ Yana ko’rsat'; return; }
+            if (st < 0) {
+              playBtn.disabled = false; playBtn.textContent = '↻ Yana ko’rsat';
+              Array.prototype.forEach.call(bars.children, function (e) { e.className = 'done'; });
+              return;
+            }
             mark(st);
             if (st === 0) alifSay(x.ch);
-            if (st === 3) alifSay(dr.open[0]);
-          });
-        } }, '▶ Qanday chiqadi — ko’rsat');
+            if (st === 2) setTimeout(function () { alifSay(dr.open[0]); }, 600);
+            if (st === 3) { alifSay(dr.open[0]); setTimeout(function () { alifSay(dr.open[1]); }, 1300); setTimeout(function () { alifSay(dr.open[2]); }, 2500); }
+          }, 'a', STEP_MS);
+        } }, '▶ Qanday chiqadi — ko’rsat va tushuntir');
         body.appendChild(sec(1, 'Harf va uning chiqish joyi (maxraj)', [
           h('div', { class: 'mx-top' }, [
             h('div', { class: 'mx-letter' }, [
@@ -557,7 +577,7 @@
               h('button', { class: 'sp-csay', type: 'button', onclick: function () { alifSay(x.ch); } }, '🔊 Harf nomi')
             ]),
             h('div', { class: 'mx-anim' }, [
-              stBox,
+              screen,
               info ? h('p', { class: 'mx-sum' }, info.sum) : null,
               h('div', { class: 'mx-legend' }, [
                 h('span', {}, [h('i', { class: 'lg-pt' }), 'chiqish joyi']),

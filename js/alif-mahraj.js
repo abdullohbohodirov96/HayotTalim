@@ -156,6 +156,41 @@
       err: 'Oson harf.' }
   };
 
+
+  /* ---- Diktor matni: animatsiya bosqichlari bilan birga chiqadi ----
+     [0] og'iz/til shakli · [1] havo qayerdan o'tadi · [2] tovush qanday chiqadi */
+  var NAR = {
+    'ا': ['Alifni harakat bilan aytish uchun og‘zingizni erkin oching — til pastda, tinch yotadi.', 'Nafasni bo‘g‘izning eng ichida, ovoz paychalarida bir lahza to‘xtatasiz.', 'To‘xtagan havoni birdan qo‘yib yuborasiz — qisqa «ʼa» tovushi chiqadi.'],
+    'ب': ['«B» harfini chiqarish uchun og‘zingiz mana shunday ko‘rinishda bo‘ladi: ikki lab bir-biriga yopiladi.', 'Havo lablar orqasida to‘planadi — lablar uni ushlab turadi, bo‘g‘iz titraydi.', 'Endi lablarni ochasiz — havo chiqib, «b» tovushi eshitiladi.'],
+    'ت': ['«T» harfi uchun tilingizning uchini yuqori tishlaringizning boshlanish joyiga — milkka tekkizasiz.', 'Havo til orqasida bir lahza to‘xtaydi. Bo‘g‘iz titramaydi.', 'Til uchini tez tushirasiz — «t» tovushi chiqadi.'],
+    'ث': ['«Sā» uchun til uchini ozgina tashqariga chiqarib, yuqori tishlar uchiga tekkizasiz.', 'Havo til bilan tish orasidan sekin, shivirlab chiqadi. Bo‘g‘iz titramaydi.', 'Shunda yumshoq, shivirlagan «s» chiqadi — inglizcha «think» dagi kabi.'],
+    'ج': ['«J» uchun tilning o‘rta qismini qattiq tanglayga — og‘iz shiftiga ko‘tarasiz.', 'Havo bir lahza to‘xtaydi, bo‘g‘iz titraydi.', 'Tilni tanglaydan ajratasiz — «dj» tovushi chiqadi.'],
+    'ح': ['«Ḥā» uchun og‘izni ochasiz, til pastda yotadi. Ishlaydigan joy — bo‘g‘izning o‘rtasi.', 'Bo‘g‘iz o‘rtasini siqasiz, havo o‘sha tor joydan issiq nafas bo‘lib o‘tadi.', 'Xirillatmasdan, kuchli nafas bilan «ḥ» chiqadi. Bo‘g‘iz titramaydi.'],
+    'خ': ['«X» uchun tilning orqa qismini yumshoq tanglay va kichik tilga ko‘tarasiz.', 'Ular orasida tor yo‘l qoladi — havo shu yerdan ishqalanib o‘tadi.', 'Shunda o‘zbekchadagi kabi xirillagan «x» chiqadi.'],
+    'د': ['«D» uchun til uchini yuqori old tishlar milkiga — tishlar boshlanadigan joyga qo‘yasiz.', 'Havo til orqasida to‘xtaydi, bo‘g‘iz titraydi.', 'Tilni tushirasiz — ovozli «d» chiqadi.'],
+    'ذ': ['«Zāl» uchun til uchini yuqori tishlar uchiga tekkizasiz — til ozgina ko‘rinib turadi.', 'Havo til va tish orasidan o‘tadi, bo‘g‘iz titraydi.', 'Shunda ovozli, yumshoq «z» chiqadi — inglizcha «this» dagi kabi.'],
+    'ر': ['«R» uchun til uchini yuqori tishlar milkiga yaqinlashtirasiz.', 'Havo o‘tganda til uchi milkka bir-ikki marta urilib titraydi.', 'Bo‘g‘iz titraydi — qisqa, aniq «r» chiqadi.'],
+    'ز': ['«Z» uchun til uchini pastki old tishlar orqasiga qo‘yasiz, tishlar bir-biriga yaqin.', 'Havo tishlar orasidan ingichka oqim bo‘lib chiqadi, bo‘g‘iz titraydi.', 'Shunda vizillagan, ovozli «z» chiqadi.'],
+    'س': ['«S» uchun til uchini pastki old tishlar orqasiga qo‘yasiz, tishlar yaqin turadi.', 'Havo tishlar orasidan hushtakdek ingichka chiqadi. Bo‘g‘iz titramaydi.', 'Shunda ingichka, toza «s» chiqadi.'],
+    'ش': ['«Sh» uchun tilning o‘rtasini tanglayga yaqinlashtirasiz, lablar ozgina oldinga chiqadi.', 'Havo keng oqim bo‘lib til va tanglay orasidan o‘tadi.', 'O‘zbekchadagi kabi «sh» chiqadi. Bo‘g‘iz titramaydi.'],
+    'ص': ['«Ṣād» uchun til uchi pastki tishlar orqasida, tilning orqasi esa tanglayga ko‘tariladi — og‘iz ichi «to‘ladi».', 'Lablar ozgina yumaloqlanadi, havo tishlar orasidan chiqadi.', 'Shunda qalin, to‘la «ṣ» chiqadi — keyingi «a» ham «o» ga yaqin eshitiladi.'],
+    'ض': ['«Ḍād» uchun tilning yon chetini yuqori jag‘ tishlariga bosasiz, tilning orqasi ko‘tariladi.', 'Havo to‘xtaydi, bo‘g‘iz titraydi — og‘iz ichi to‘la.', 'Tilni ajratasiz — qalin, og‘ir «ḍ» chiqadi.'],
+    'ط': ['«Ṭā» uchun til uchini «t» dagi kabi milkka qo‘yasiz, lekin tilning orqasini ham ko‘tarasiz.', 'Havo to‘xtaydi, og‘iz ichi to‘la, bo‘g‘iz titramaydi.', 'Keskin ochasiz — qalin «ṭ» chiqadi, nafas puflanmaydi.'],
+    'ظ': ['«Ẓā» uchun til uchini yuqori tishlar uchiga tekkizasiz va tilning orqasini ko‘tarasiz.', 'Havo til va tish orasidan o‘tadi, bo‘g‘iz titraydi.', 'Shunda qalin, ovozli «ẓ» chiqadi.'],
+    'ع': ['«ʿAyn» uchun og‘izni ochasiz, til pastda. Ishlaydigan joy — bo‘g‘izning o‘rtasi.', 'Bo‘g‘iz o‘rtasini yutinayotgandek siqasiz va ovoz chiqarasiz.', 'Siqilgan bo‘g‘izdan bo‘g‘iqroq «ʿa» chiqadi.'],
+    'غ': ['«G‘ayn» uchun tilning orqasini kichik tilga yaqinlashtirasiz — «x» bilan bir joy.', 'Tor yo‘ldan havo o‘tadi, bo‘g‘iz titraydi.', 'Shunda o‘zbekchadagi kabi «g‘» chiqadi.'],
+    'ف': ['«F» uchun pastki labingizni yuqori old tishlaringiz uchiga tekkizasiz.', 'Havo lab bilan tish orasidan puflanib chiqadi. Bo‘g‘iz titramaydi.', 'Shunda «f» tovushi chiqadi.'],
+    'ق': ['«Q» uchun tilning eng orqa qismini kichik til — tilchaga tekkizasiz.', 'Havo o‘sha chuqur joyda to‘xtaydi. Bo‘g‘iz titramaydi.', 'Keskin ochasiz — chuqur, qalin «q» chiqadi.'],
+    'ك': ['«K» uchun tilning orqa qismini yumshoq tanglayga tekkizasiz — «q» dan biroz oldinroqda.', 'Havo to‘xtaydi, bo‘g‘iz titramaydi.', 'Ochib yuborasiz — ingichka «k» chiqadi.'],
+    'ل': ['«L» uchun til uchini yuqori tishlar milkiga qo‘yasiz, tilning yonlari pastda qoladi.', 'Havo tilning ikki yonidan oqib o‘tadi, bo‘g‘iz titraydi.', 'Shunda ingichka «l» chiqadi.'],
+    'م': ['«M» uchun ikki labni yopasiz.', 'Yumshoq tanglay pastga tushadi — ovoz burundan chiqadi.', 'Lablarni ochganda «ma» eshitiladi.'],
+    'ن': ['«N» uchun til uchini yuqori tishlar milkiga qo‘yasiz.', 'Og‘iz yo‘li yopiq — ovoz burun orqali chiqadi.', 'Tilni tushirganda «na» eshitiladi.'],
+    'ه': ['«H» uchun og‘izni ochasiz, bo‘g‘izni siqmaysiz — hammasi erkin.', 'Bo‘g‘izning eng ichidan yengil nafas chiqadi.', 'Shunda yumshoq, nafasli «h» chiqadi.'],
+    'و': ['«W» uchun lablarni yumaloqlab oldinga cho‘zasiz, tilning orqasi ozgina ko‘tariladi.', 'Ovoz bilan havo yumaloq lablardan chiqadi.', 'Lablarni ochasiz — «wa» eshitiladi. Tishni labga tekkizmang!'],
+    'ي': ['«Y» uchun tilning o‘rtasini qattiq tanglayga yaqinlashtirasiz, lablar ozgina yoyiq.', 'Ovoz bilan havo til va tanglay orasidan o‘tadi.', 'Shunda «ya» eshitiladi.']
+  };
+  Object.keys(NAR).forEach(function (k) { if (L[k]) L[k].nar = NAR[k]; });
+
   /* ---------- SVG animatsiya ---------- */
   var NS = 'http://www.w3.org/2000/svg';
   function el(name, attrs) {
@@ -234,6 +269,9 @@
     svg.appendChild(folds);
     var air = el('path', { class: 'mx-air', d: AIR.mouth, 'marker-end': 'url(#mxArr)' });
     svg.appendChild(air);
+    /* to'xtatilgan havo (b, t, d, q...): faqat chiqish joyigacha boradi */
+    var held = el('path', { class: 'mx-held', d: '' });
+    svg.appendChild(held);
     var glow = el('circle', { r: 18, fill: 'url(#mxGlow)', class: 'mx-glow' });
     var dot = el('circle', { r: 5.5, class: 'mx-dot' });
     svg.appendChild(glow); svg.appendChild(dot);
@@ -242,6 +280,13 @@
     tag(168, 86, 'burun'); tag(40, 186, 'bo‘g‘iz'); tag(150, 130, 'til');
     var lbl = el('text', { class: 'mx-lbl', x: 12, y: 280 });
     svg.appendChild(lbl);
+    /* ko'rsatkich: «Tish milki» → nuqta */
+    var callG = el('g', { class: 'mx-call' });
+    var callLine = el('path', { class: 'mx-call-line', d: '' });
+    var callBg = el('rect', { class: 'mx-call-bg', rx: 7, height: 22 });
+    var callTx = el('text', { class: 'mx-call-tx' });
+    callG.appendChild(callLine); callG.appendChild(callBg); callG.appendChild(callTx);
+    svg.appendChild(callG);
     box.appendChild(svg);
 
     var cur = { t: TONGUE.rest.map(function (p) { return p.slice(); }), jaw: 0.15, lab: LIPS.open, vel: 0 };
@@ -274,7 +319,7 @@
         if (k < 1) raf = requestAnimationFrame(f); else if (done) done();
       })(t0);
     }
-    function clear() { timers.forEach(clearTimeout); timers = []; ['mx-flow', 'mx-voice', 'mx-burst', 'mx-tap', 'mx-pt'].forEach(function (c) { svg.classList.remove(c); }); }
+    function clear() { timers.forEach(clearTimeout); timers = []; ['mx-flow', 'mx-voice', 'mx-burst', 'mx-tap', 'mx-pt', 'mx-hold'].forEach(function (c) { svg.classList.remove(c); }); }
     function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
     var info = null;
     function setPoint(id) {
@@ -282,7 +327,13 @@
       glow.setAttribute('cx', p[0]); glow.setAttribute('cy', p[1]);
       dot.setAttribute('cx', p[0]); dot.setAttribute('cy', p[1]);
       lbl.textContent = '● ' + (PT_UZ[id] || '');
+      var name = SHORT[id] || '', tx = 300 - name.length * 6.6 - 14, ty = 24;
+      callTx.textContent = name;
+      callTx.setAttribute('x', tx + 7); callTx.setAttribute('y', ty + 15);
+      callBg.setAttribute('x', tx); callBg.setAttribute('y', ty); callBg.setAttribute('width', name.length * 6.6 + 14);
+      callLine.setAttribute('d', 'M' + (tx + 20) + ' ' + (ty + 22) + ' Q' + ((tx + p[0]) / 2) + ' ' + (ty + 40) + ' ' + p[0] + ' ' + (p[1] - 7));
     }
+    var SHORT = { lips: 'Lablar', teeth: 'Tish uchi', ridge: 'Tish milki', palate: 'Qattiq tanglay', velum: 'Yumshoq tanglay', uvula: 'Kichik til', pharynx: 'Bo‘g‘iz o‘rtasi', glottis: 'Ovoz paychalari', molars: 'Jag‘ tishlari', nose: 'Burun' };
     function pose(x) {
       var closed = x.lab === 'closed' || x.lab === 'bite';
       return {
@@ -297,6 +348,11 @@
       show: function (ch) {
         clear(); info = L[ch] || L['ب'];
         setPoint(info.p);
+        var lipsOnly = info.p === 'lips' && info.t === 'rest';
+        tongue.classList.toggle('mx-act', !lipsOnly && info.p !== 'glottis' && info.p !== 'pharynx');
+        upLip.classList.toggle('mx-act', info.p === 'lips');
+        loLip.classList.toggle('mx-act', info.p === 'lips' || info.lab === 'bite');
+        folds.classList.toggle('mx-act', info.p === 'glottis' || info.p === 'pharynx');
         air.setAttribute('d', AIR[info.air] || AIR.mouth);
         tween({ t: TONGUE.rest, jaw: 0.15, lab: LIPS.open, vel: 0 }, 300);
         svg.classList.add('mx-pt');
@@ -310,8 +366,11 @@
         if (i === 1) {
           tween(ps, 200);
           air.setAttribute('d', AIR[info.air] || AIR.mouth);
-          if (info.kind === 'stop') { at(10, function () { svg.classList.add('mx-flow'); }); }
-          else svg.classList.add('mx-flow');
+          if (info.kind === 'stop') {
+            var q = PT[info.p] || PT.lips;
+            held.setAttribute('d', 'M112 248 C106 220 104 196 110 170 C126 152 ' + (q[0] - 40) + ' ' + (q[1] + 8) + ' ' + (q[0] - 8) + ' ' + (q[1] + 2));
+            svg.classList.add('mx-hold');
+          } else svg.classList.add('mx-flow');
           if (info.kind === 'tap') svg.classList.add('mx-tap');
           if (info.v) svg.classList.add('mx-voice');
           return;
@@ -330,13 +389,13 @@
         });
       },
       /* Ketma-ketlik o'z taymerlarida: step() ichidagi clear() ularni o'chirib yubormasin */
-      play: function (onStep, vowel) {
-        var self = this; clear(); seq.forEach(clearTimeout); seq = [];
+      play: function (onStep, vowel, stepMs) {
+        var self = this, D = stepMs || 1800; clear(); seq.forEach(clearTimeout); seq = [];
         svg.classList.add('mx-playing');
         [0, 1, 2, 3].forEach(function (s, k) {
-          seq.push(setTimeout(function () { self.step(s, vowel); if (onStep) onStep(s); }, k * 1800));
+          seq.push(setTimeout(function () { self.step(s, vowel); if (onStep) onStep(s); }, k * D));
         });
-        seq.push(setTimeout(function () { svg.classList.remove('mx-playing'); if (onStep) onStep(-1); }, 4 * 1800 + 600));
+        seq.push(setTimeout(function () { svg.classList.remove('mx-playing'); if (onStep) onStep(-1); }, 4 * D + 400));
       },
       /** ba / bi / bu: harf joyidan unliga o'tish */
       vowel: function (v) {

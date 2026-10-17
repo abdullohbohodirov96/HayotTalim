@@ -4336,3 +4336,25 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .mx-edge{fill:none;stroke:#c9a184;stroke-width:1.5}
 .mx-throat{fill:#c98a8f;opacity:.45}
 .mx-tag{font-size:10px;fill:#6b4a3a;font-weight:600;paint-order:stroke;stroke:#f3d9c4;stroke-width:3px}
+.mx-screen{position:relative;border-radius:16px;overflow:hidden;background:#0f2b20}
+.mx-screen .mx-stage{border:0;border-radius:0;padding:6px 6px 74px}
+.mx-cap{position:absolute;left:10px;right:10px;bottom:16px;display:flex;gap:10px;align-items:flex-start;background:rgba(10,32,24,.88);color:#fff;border-radius:12px;padding:10px 12px;font-size:15px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.mx-cap.in{animation:mxCap .35s ease-out}
+@keyframes mxCap{from{opacity:0;transform:translateY(8px)}}
+.mx-cap-n{flex:none;font-size:12px;font-weight:700;background:#ffb703;color:#2a1d00;border-radius:999px;padding:2px 8px;margin-top:2px}
+.mx-cap-t{flex:1}
+.mx-bars{position:absolute;left:10px;right:10px;bottom:6px;display:flex;gap:4px}
+.mx-bars i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}
+.mx-bars i b{display:block;height:100%;width:0;background:#ffb703}
+.mx-bars i.done b{width:100%}
+.mx-bars i.on b{animation:mxBar var(--d,4s) linear forwards}
+@keyframes mxBar{to{width:100%}}
+.mx-call-line{fill:none;stroke:#e08a00;stroke-width:1.6;stroke-dasharray:3 3}
+.mx-call-bg{fill:#fff7e0;stroke:#e08a00;stroke-width:1.2}
+.mx-call-tx{font-size:11.5px;font-weight:700;fill:#7a4b00}
+.mx-tongue.mx-act,.mx-lip.mx-act{stroke:#e08a00;stroke-width:2.6}
+.mx-folds.mx-act .mx-fold{stroke:#e08a00}
+.mx-playing .mx-tongue.mx-act,.mx-playing .mx-lip.mx-act{filter:drop-shadow(0 0 4px rgba(255,183,3,.9))}
+.mx-held{fill:none;stroke:#2f80ed;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:6 8;opacity:0}
+.mx-hold .mx-held{opacity:.9;animation:mxAir .7s linear infinite}
+.mx-hold .mx-dot{fill:#e0524a}
