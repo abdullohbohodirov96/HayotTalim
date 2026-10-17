@@ -245,7 +245,7 @@
     box.appendChild(svg);
 
     var cur = { t: TONGUE.rest.map(function (p) { return p.slice(); }), jaw: 0.15, lab: LIPS.open, vel: 0 };
-    var raf = null, timers = [];
+    var raf = null, timers = [], seq = [];
     function paintLips(lab, jy) {
       upLip.setAttribute('d', 'M238 124 C246 124 254 130 ' + (256 + lab.x) + ' ' + (140 + lab.up) + ' C' + (252 + lab.x) + ' ' + (146 + lab.up) + ' 244 ' + (146 + lab.up) + ' 236 ' + (145 + lab.up) + ' Z');
       var ly = 150 + lab.lo;
@@ -310,7 +310,7 @@
         if (i === 1) {
           tween(ps, 200);
           air.setAttribute('d', AIR[info.air] || AIR.mouth);
-          if (info.kind === 'stop') { svg.classList.add('mx-hold'); at(10, function () { svg.classList.add('mx-flow'); }); }
+          if (info.kind === 'stop') { at(10, function () { svg.classList.add('mx-flow'); }); }
           else svg.classList.add('mx-flow');
           if (info.kind === 'tap') svg.classList.add('mx-tap');
           if (info.v) svg.classList.add('mx-voice');
@@ -329,18 +329,21 @@
           at(1000, function () { svg.classList.remove('mx-flow', 'mx-voice'); air.setAttribute('d', AIR[info.air] || AIR.mouth); tween(pose(info), 500); });
         });
       },
+      /* Ketma-ketlik o'z taymerlarida: step() ichidagi clear() ularni o'chirib yubormasin */
       play: function (onStep, vowel) {
-        var self = this; clear();
+        var self = this; clear(); seq.forEach(clearTimeout); seq = [];
+        svg.classList.add('mx-playing');
         [0, 1, 2, 3].forEach(function (s, k) {
-          timers.push(setTimeout(function () { self.step(s, vowel); if (onStep) onStep(s); }, k * 1500));
+          seq.push(setTimeout(function () { self.step(s, vowel); if (onStep) onStep(s); }, k * 1800));
         });
+        seq.push(setTimeout(function () { svg.classList.remove('mx-playing'); if (onStep) onStep(-1); }, 4 * 1800 + 600));
       },
       /** ba / bi / bu: harf joyidan unliga o'tish */
       vowel: function (v) {
         if (!info) return; var self = this; clear(); svg.classList.add('mx-pt');
         tween(pose(info), 220, function () { self.step(3, v); });
       },
-      stop: function () { clear(); cancelAnimationFrame(raf); }
+      stop: function () { clear(); seq.forEach(clearTimeout); seq = []; cancelAnimationFrame(raf); }
     };
     draw();
     return api;

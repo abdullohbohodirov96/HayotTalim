@@ -538,7 +538,13 @@
         function mark(i) { stepEls.forEach(function (e, k) { e.classList.toggle('on', k === i); }); }
         var playBtn = h('button', { class: 'btn primary', type: 'button', onclick: function () {
           if (!stage) return;
-          stage.play(function (st) { mark(st); if (st === 3) alifSay(dr.open[0]); });
+          playBtn.disabled = true; playBtn.textContent = '⏳ Ko’rsatilmoqda…';
+          stage.play(function (st) {
+            if (st < 0) { playBtn.disabled = false; playBtn.textContent = '↻ Yana ko’rsat'; return; }
+            mark(st);
+            if (st === 0) alifSay(x.ch);
+            if (st === 3) alifSay(dr.open[0]);
+          });
         } }, '▶ Qanday chiqadi — ko’rsat');
         body.appendChild(sec(1, 'Harf va uning chiqish joyi (maxraj)', [
           h('div', { class: 'mx-top' }, [
