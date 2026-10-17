@@ -45,6 +45,18 @@
     { ch: 'و', name: 'Vāv', sound: 'v / ū', tip: 'Ulanmaydi. Cho‘ziq «u» ham bo‘ladi.', nc: true, ex: 'وَرْد', exUz: 'atirgul' },
     { ch: 'ي', name: 'Yā', sound: 'y / ī', tip: 'Ostida ikkita nuqta. Cho‘ziq «i» ham bo‘ladi.', ex: 'يَد', exUz: 'qo‘l' }
   ];
+  /* Muallimi soniy uslubida har harfdan keyin o'qiladigan so'zlar [arabcha, ma'nosi] */
+  var WORDS = [[["أَسَد", "sher"], ["أَرْض", "yer"], ["أَكَلَ", "yedi"]], [["بَحْر", "dengiz"], ["بَيْت", "uy"], ["بَلَغَ", "yetdi"]], [["تَمْر", "xurmo"], ["بِنْت", "qiz"], ["تَرَكَ", "qoldirdi"]], [["ثَلْج", "qor"], ["ثَوْب", "kiyim"], ["ثَبَتَ", "mustahkam turdi"]], [["جَمَل", "tuya"], ["جَبَل", "tog‘"], ["جَمَعَ", "yig‘di"]], [["حَبْل", "arqon"], ["لَحْم", "go‘sht"], ["حَمَلَ", "ko‘tardi"]], [["خُبْز", "non"], ["خَشَب", "yog‘och"], ["خَرَجَ", "chiqdi"]], [["دَرْس", "dars"], ["وَلَد", "o‘g‘il bola"], ["حَدَثَ", "sodir bo‘ldi"]], [["ذَهَب", "oltin"], ["ذِئْب", "bo‘ri"], ["أَخَذَ", "oldi"]], [["رَجُل", "erkak"], ["قَمَر", "oy"], ["رَكِبَ", "mindi"]], [["زَيْت", "yog‘"], ["زَمَن", "zamon, vaqt"], ["زَرَعَ", "ekdi"]], [["سَمَك", "baliq"], ["فَرَس", "ot"], ["سَمِعَ", "eshitdi"]], [["شَمْس", "quyosh"], ["شَجَر", "daraxtlar"], ["شَرِبَ", "ichdi"]], [["صَبْر", "sabr"], ["صَدْر", "ko‘krak"], ["صَبَرَ", "sabr qildi"]], [["ضَيْف", "mehmon"], ["أَرْض", "yer"], ["حَضَرَ", "keldi, qatnashdi"]], [["طَبْل", "nog‘ora"], ["مَطَر", "yomg‘ir"], ["طَلَبَ", "so‘radi"]], [["ظُهْر", "peshin"], ["حَظّ", "omad"], ["نَظَرَ", "qaradi"]], [["عَيْن", "ko‘z"], ["عِلْم", "ilm"], ["عَمِلَ", "ishladi"]], [["غَنَم", "qo‘ylar"], ["غَيْم", "bulut"], ["غَسَلَ", "yuvdi"]], [["فَم", "og‘iz"], ["فَرَس", "ot"], ["فَتَحَ", "ochdi"]], [["قَلَم", "qalam"], ["قَمَر", "oy"], ["قَعَدَ", "o‘tirdi"]], [["كَلْب", "it"], ["مَلِك", "podshoh"], ["كَتَبَ", "yozdi"]], [["لَيْل", "tun"], ["لَحْم", "go‘sht"], ["جَلَسَ", "o‘tirdi"]], [["مَطَر", "yomg‘ir"], ["قَلَم", "qalam"], ["مَسَحَ", "artdi"]], [["نَهْر", "daryo"], ["نَجْم", "yulduz"], ["نَزَلَ", "tushdi"]], [["هَرَم", "ehrom (piramida)"], ["نَهْر", "daryo"], ["ذَهَبَ", "ketdi"]], [["وَرْد", "atirgul"], ["وَلَد", "o‘g‘il bola"], ["وَقَفَ", "to‘xtadi"]], [["يَد", "qo‘l"], ["يَوْم", "kun"], ["يَكْتُبُ", "yozadi"]]];
+  LETTERS.forEach(function (x, i) { x.words = WORDS[i] || []; });
+  /** Harf mashqi: ba bi bu / ab ib ub */
+  function drill(x) {
+    var F = 'َ', K = 'ِ', D = 'ُ', S = 'ْ';
+    if (x.ch === 'ا') return { open: ['أَ', 'إِ', 'أُ'], closed: [] };
+    var c = x.ch;
+    if (c === 'و') return { open: [c + F, c + K, c + D], closed: ['أَوْ'] };
+    if (c === 'ي') return { open: [c + F, c + K, c + D], closed: ['أَيْ'] };
+    return { open: [c + F, c + K, c + D], closed: ['أَ' + c + S, 'إِ' + c + S, 'أُ' + c + S] };
+  }
   function L(ch) { return LETTERS.filter(function (x) { return x.ch === ch; })[0]; }
 
   /** Harfning to'rt shakli (tatvil bilan ulab ko'rsatamiz) */
@@ -145,7 +157,7 @@
   /** Darslar holati: done | open | locked. progress = { lessons: { id: { best, tries } }, unlocked:{} } */
   function statuses(progress, opts) {
     var pl = (progress && progress.lessons) || {};
-    var all = !!(opts && opts.allOpen);
+    var all = !(opts && opts.allOpen === false);   /* alifbo hammaga ochiq — xohlagan darsga o'tish mumkin */
     var manual = (progress && progress.unlocked) || {};
     var out = {}, prevDone = true;
     LESSONS.forEach(function (l, i) {
@@ -176,6 +188,8 @@
   var SYL_ALIAS = { 'بْ': 'أَبْ', 'تْ': 'أَتْ', 'سْ': 'أَسْ', 'مْ': 'أَمْ', 'نْ': 'أَنْ', 'بّ': 'أَبَّ', 'بَّ': 'أَبَّ', 'بً': 'بًا' };
   var HK_SYL = { fatha: 'بَ', kasra: 'بِ', damma: 'بُ', sukun: 'أَبْ', shadda: 'أَبَّ', tanvin: 'بًا' };
   var VOW = { a: 'َ', i: 'ِ', u: 'ُ' };
+  /* Qo'shimcha studiya yozuvlari (tekshirilgani qo'shiladi): matn → fayl nomi */
+  var STUDIO = {};
   /** Matn → ovoz fayli nomi (yoki null) */
   function audioKey(t) {
     t = String(t || '').replace(/ـ/g, '').trim();
@@ -189,7 +203,9 @@
     var hk = HARAKAT.filter(function (x) { return x.name === t; })[0];
     if (hk) t = HK_SYL[hk.id];
     k = SYL.indexOf(SYL_ALIAS[t] || t);
-    return k >= 0 ? 's' + k : null;
+    if (k === 30) return null;                       /* «بًا» yozuvi xato chiqqan — brauzer ovozi */
+    if (k >= 0) return 's' + k;
+    return STUDIO[t] || null;
   }
   /** Test variantining ovozi: q — savol, op — variant matni */
   function optionAudio(q, op) {
@@ -201,7 +217,7 @@
   }
 
   A.Alifbo = {
-    SYL: SYL, audioKey: audioKey, optionAudio: optionAudio,
+    SYL: SYL, audioKey: audioKey, optionAudio: optionAudio, drill: drill, STUDIO: STUDIO,
     PASS: PASS, LETTERS: LETTERS, HARAKAT: HARAKAT, LESSONS: LESSONS,
     byId: byId, letter: L, forms: forms, buildTest: buildTest, publicTest: publicTest,
     grade: grade, statuses: statuses, view: view

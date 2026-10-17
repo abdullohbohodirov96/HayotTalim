@@ -1171,7 +1171,9 @@ async function alifOpts(sid) {
       .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
   }
   const lv = code || (pl && String(pl.level).toUpperCase()) || '';
-  return { allOpen: !!lv && lv !== 'A0' };
+  /* Alifbo hammaga ochiq: istalgan darsga o'tish mumkin (daraja qanday bo'lmasin) */
+  void lv;
+  return { allOpen: true };
 }
 async function kabLogin(login, pw) {
   const raw = String(login || '').trim();
