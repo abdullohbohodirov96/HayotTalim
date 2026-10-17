@@ -554,17 +554,38 @@
         var playBtn = h('button', { class: 'btn primary', type: 'button', onclick: function () {
           if (!stage) return;
           playBtn.disabled = true; playBtn.textContent = '⏳ Ko’rsatilmoqda…';
-          stage.play(function (st) {
-            if (st < 0) {
+          var li = F.LETTERS.indexOf(x), run = (playBtn._run = (playBtn._run || 0) + 1);
+          /* Diktor ovozi bo'lsa — bosqich ovoz tugaguncha davom etadi; bo'lmasa — matn o'qish vaqti */
+          function narr(i, done) {
+            var key = i === 3 ? 'V' : 'L' + li + '-' + i;
+            if (!(F.NAR_READY || {})[key]) { setTimeout(done, STEP_MS); return 0; }
+            try {
+              if (alifCur) alifCur.pause();
+              var a = new Audio('assets/alif/nar/' + key + '.mp3'); alifCur = a;
+              var fin = false, end = function () { if (!fin) { fin = true; setTimeout(done, 500); } };
+              a.onended = end; a.onerror = function () { if (!fin) { fin = true; setTimeout(done, STEP_MS); } };
+              var pr = a.play(); if (pr && pr.catch) pr.catch(a.onerror);
+            } catch (e) { setTimeout(done, STEP_MS); }
+            return 1;
+          }
+          function go(i) {
+            if (run !== playBtn._run) return;
+            if (i > 3) {
               playBtn.disabled = false; playBtn.textContent = '↻ Yana ko’rsat';
               Array.prototype.forEach.call(bars.children, function (e) { e.className = 'done'; });
               return;
             }
-            mark(st);
-            if (st === 0) alifSay(x.ch);
-            if (st === 2) setTimeout(function () { alifSay(dr.open[0]); }, 600);
-            if (st === 3) { alifSay(dr.open[0]); setTimeout(function () { alifSay(dr.open[1]); }, 1300); setTimeout(function () { alifSay(dr.open[2]); }, 2500); }
-          }, 'a', STEP_MS);
+            stage.step(i, 'a'); mark(i);
+            var voiced = narr(i, function () {
+              if (i === 3) {
+                alifSay(dr.open[0]); setTimeout(function () { alifSay(dr.open[1]); }, 1200); setTimeout(function () { alifSay(dr.open[2]); }, 2400);
+                setTimeout(function () { go(4); }, 3600);
+              } else if (i === 2) { alifSay(dr.open[0]); setTimeout(function () { go(3); }, 1300); }
+              else go(i + 1);
+            });
+            if (!voiced && i === 0) alifSay(x.ch);
+          }
+          go(0);
         } }, '▶ Qanday chiqadi — ko’rsat va tushuntir');
         body.appendChild(sec(1, 'Harf va uning chiqish joyi (maxraj)', [
           h('div', { class: 'mx-top' }, [

@@ -190,6 +190,8 @@
   var VOW = { a: 'َ', i: 'ِ', u: 'ُ' };
   /* Qo'shimcha studiya yozuvlari (tekshirilgani qo'shiladi): matn → fayl nomi */
   var STUDIO = {};
+  /* Animatsiya diktori (o'zbekcha) — tayyor fayllar: assets/alif/nar/L{harf}-{bosqich}.mp3, V.mp3 */
+  var NAR_READY = {};
   /** Matn → ovoz fayli nomi (yoki null) */
   function audioKey(t) {
     t = String(t || '').replace(/ـ/g, '').trim();
@@ -217,7 +219,7 @@
   }
 
   A.Alifbo = {
-    SYL: SYL, audioKey: audioKey, optionAudio: optionAudio, drill: drill, STUDIO: STUDIO,
+    SYL: SYL, audioKey: audioKey, optionAudio: optionAudio, drill: drill, STUDIO: STUDIO, NAR_READY: NAR_READY,
     PASS: PASS, LETTERS: LETTERS, HARAKAT: HARAKAT, LESSONS: LESSONS,
     byId: byId, letter: L, forms: forms, buildTest: buildTest, publicTest: publicTest,
     grade: grade, statuses: statuses, view: view
