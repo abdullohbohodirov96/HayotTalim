@@ -4061,6 +4061,14 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .al-ex{display:flex;gap:8px;align-items:baseline;justify-content:center}
 .al-ex span{font-size:26px;font-family:'Amiri','Noto Naskh Arabic',serif;color:#0b4a2e}
 .al-ex small{color:#6b7a73}
+.al-tap{border:0;cursor:pointer;background:transparent;padding:0;transition:transform .12s,background .15s;-webkit-tap-highlight-color:transparent}
+.al-tap:hover{transform:scale(1.04)}
+.al-tap:active{transform:scale(.96)}
+.al-form.al-tap{background:#f6faf8;padding:6px 2px;width:100%}
+.al-form.al-tap:hover{background:#e8f4ee}
+.al-big.al-tap{display:block;margin:0 auto;width:100%}
+.al-ex.al-tap{margin:0 auto;padding:4px 10px;border-radius:10px}
+.al-ex.al-tap:hover{background:#f0f7f3}
 .al-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
 .al-syl{font-size:30px;min-width:64px;padding:6px 12px;border-radius:14px;border:1px solid #e3eee8;background:#f6faf8;cursor:pointer;font-family:'Amiri','Noto Naskh Arabic',serif;color:#0b4a2e}
 .al-syl:hover{background:#e3f6ee}

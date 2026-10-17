@@ -1158,6 +1158,21 @@ async function studentLevel(st) {
   const info = levels.levelInfo(code, 'uz');
   return { code: info.code, name: info.name };
 }
+/** Alifbo hamisha ochiq: o'quvchi A0 dan yuqori bosqichga o'tgan (yoki
+    keyin pastga tushirilgan) bo'lsa ham harflar va ovozlarni takrorlay oladi.
+    A0 dan yuqori darajada — barcha alifbo darslari ochiq. */
+async function alifOpts(sid) {
+  const st = await store.get('students/' + sid);
+  const code = String((st && st.level) || '').toUpperCase();
+  let pl = null;
+  if (!code) {
+    pl = (await store.list('placements/')).map(r => r.data)
+      .filter(p => p && p.studentId === sid && p.level)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+  }
+  const lv = code || (pl && String(pl.level).toUpperCase()) || '';
+  return { allOpen: !!lv && lv !== 'A0' };
+}
 async function kabLogin(login, pw) {
   const raw = String(login || '').trim();
   const digits = raw.replace(/\D/g, '');
@@ -1992,7 +2007,15 @@ async function handleApi(req, res, url) {
       const sid = String(url.searchParams.get('studentId') || mine[0] || '');
       if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
       const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
-      return send(res, 200, A.Alifbo.view(doc));
+      const ao = await alifOpts(sid);
+      /* Yuqori bosqichga o'tgan o'quvchida darslar ochilib qoladi — keyin
+         pastga (A0 ga) tushirilsa ham yopilmaydi. */
+      if (ao.allOpen && A.Alifbo.LESSONS.some(l => !(doc.unlocked || {})[l.id])) {
+        doc.unlocked = doc.unlocked || {};
+        A.Alifbo.LESSONS.forEach(l => { doc.unlocked[l.id] = true; });
+        await store.set('alifprog/' + sid, doc);
+      }
+      return send(res, 200, A.Alifbo.view(doc, ao));
     }
     if (sub === 'alif/start' && req.method === 'POST') {
       if (isParent) return send(res, 403, { error: 'Testni o’quvchining o’zi ishlaydi.' });
@@ -2001,7 +2024,7 @@ async function handleApi(req, res, url) {
       const lesson = A.Alifbo.byId(String(body.lessonId || ''));
       if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
       const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
-      if (A.Alifbo.statuses(doc)[lesson.id] === 'locked') return send(res, 403, { error: 'Bu dars hali yopiq: oldingi darsdan ' + A.Alifbo.PASS + '% to’plang.' });
+      if (A.Alifbo.statuses(doc, await alifOpts(sid))[lesson.id] === 'locked') return send(res, 403, { error: 'Bu dars hali yopiq: oldingi darsdan ' + A.Alifbo.PASS + '% to’plang.' });
       const seed = crypto.randomBytes(6).toString('hex');
       doc.sess = { id: 'as' + seed, lessonId: lesson.id, seed, at: Date.now() };
       await store.set('alifprog/' + sid, doc);
@@ -2023,7 +2046,7 @@ async function handleApi(req, res, url) {
       p.last = g.percent; p.tries = (p.tries || 0) + 1; p.at = stamp();
       if (p.best == null || g.percent > p.best) p.best = g.percent;
       await store.set('alifprog/' + sid, doc);
-      return send(res, 200, { ok: true, result: g, passed: g.percent >= A.Alifbo.PASS, view: A.Alifbo.view(doc) });
+      return send(res, 200, { ok: true, result: g, passed: g.percent >= A.Alifbo.PASS, view: A.Alifbo.view(doc, await alifOpts(sid)) });
     }
 
     /* ---- Ballarim va Top o'quvchilar ---- */

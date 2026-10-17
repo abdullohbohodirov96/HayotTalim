@@ -143,20 +143,21 @@
   }
 
   /** Darslar holati: done | open | locked. progress = { lessons: { id: { best, tries } }, unlocked:{} } */
-  function statuses(progress) {
+  function statuses(progress, opts) {
     var pl = (progress && progress.lessons) || {};
+    var all = !!(opts && opts.allOpen);
     var manual = (progress && progress.unlocked) || {};
     var out = {}, prevDone = true;
     LESSONS.forEach(function (l, i) {
       var p = pl[l.id];
       var done = !!(p && p.best != null && p.best >= PASS);
-      out[l.id] = done ? 'done' : ((i === 0 || prevDone || manual[l.id]) ? 'open' : 'locked');
+      out[l.id] = done ? 'done' : ((all || i === 0 || prevDone || manual[l.id]) ? 'open' : 'locked');
       prevDone = done;
     });
     return out;
   }
-  function view(progress) {
-    var st = statuses(progress);
+  function view(progress, opts) {
+    var st = statuses(progress, opts);
     var pl = (progress && progress.lessons) || {};
     var done = 0;
     var lessons = LESSONS.map(function (l) {
@@ -167,7 +168,40 @@
     return { pass: PASS, done: done, total: LESSONS.length, lessons: lessons };
   }
 
+  /* ---- Studiya ovozi (assets/alif): n0..n27 harf nomi, w0..w27 misol so'z,
+     s0..s30 bo'g'inlar (SYL tartibida). ---- */
+  var SYL = ['بَ', 'بِ', 'بُ', 'تَ', 'تِ', 'تُ', 'دَ', 'دِ', 'دُ', 'سَ', 'سِ', 'سُ', 'كَ', 'كِ', 'كُ', 'مَ', 'مِ', 'مُ', 'نَ', 'نِ', 'نُ', 'لَ', 'لِ', 'لُ',
+    'أَبْ', 'أَتْ', 'أَسْ', 'أَمْ', 'أَنْ', 'أَبَّ', 'بًا'];
+  /* Bitta harf + sukun/shadda/tanvin — yozuvdagi ko'rinishi → ovozdagi bo'g'in */
+  var SYL_ALIAS = { 'بْ': 'أَبْ', 'تْ': 'أَتْ', 'سْ': 'أَسْ', 'مْ': 'أَمْ', 'نْ': 'أَنْ', 'بّ': 'أَبَّ', 'بَّ': 'أَبَّ', 'بً': 'بًا' };
+  var HK_SYL = { fatha: 'بَ', kasra: 'بِ', damma: 'بُ', sukun: 'أَبْ', shadda: 'أَبَّ', tanvin: 'بًا' };
+  var VOW = { a: 'َ', i: 'ِ', u: 'ُ' };
+  /** Matn → ovoz fayli nomi (yoki null) */
+  function audioKey(t) {
+    t = String(t || '').replace(/ـ/g, '').trim();
+    if (!t) return null;
+    var k = LETTERS.map(function (x) { return x.ch; }).indexOf(t);
+    if (k >= 0) return 'n' + k;
+    k = LETTERS.map(function (x) { return x.ex; }).indexOf(t);
+    if (k >= 0) return 'w' + k;
+    k = LETTERS.map(function (x) { return x.name; }).indexOf(t);
+    if (k >= 0) return 'n' + k;
+    var hk = HARAKAT.filter(function (x) { return x.name === t; })[0];
+    if (hk) t = HK_SYL[hk.id];
+    k = SYL.indexOf(SYL_ALIAS[t] || t);
+    return k >= 0 ? 's' + k : null;
+  }
+  /** Test variantining ovozi: q — savol, op — variant matni */
+  function optionAudio(q, op) {
+    if (q && q.kind === 'read') {
+      var ch = String(q.show || '').charAt(0), v = String(op || '').slice(-1);
+      return VOW[v] ? audioKey(ch + VOW[v]) : null;
+    }
+    return audioKey(op);
+  }
+
   A.Alifbo = {
+    SYL: SYL, audioKey: audioKey, optionAudio: optionAudio,
     PASS: PASS, LETTERS: LETTERS, HARAKAT: HARAKAT, LESSONS: LESSONS,
     byId: byId, letter: L, forms: forms, buildTest: buildTest, publicTest: publicTest,
     grade: grade, statuses: statuses, view: view

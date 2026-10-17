@@ -289,7 +289,8 @@
     wrap.className = 'screen login-screen';
     UI.clear(wrap);
 
-    var fLogin = UI.field({ label: 'Login', id: 'login-user', required: true, autocomplete: 'username' });
+    var fLogin = UI.field({ label: D.mode === 'server' ? 'Login, telefon raqam yoki shaxsiy kod' : 'Login', id: 'login-user', required: true, autocomplete: 'username' });
+    if (D.mode === 'server') fLogin.input.placeholder = 'admin · +998 90 123 45 67 · 12345';
     var fPass = UI.field({ label: 'Parol', id: 'login-pass', type: 'password', required: true, autocomplete: 'current-password' });
     var err = h('div', { class: 'err-msg', hidden: true });
     var hint = null;   /* parol sahifada ko'rsatilmaydi */
@@ -300,7 +301,7 @@
         h('img', { class: 'logo', src: LOGO, alt: '' }),
         h('div', {}, [
           h('h1', { id: 'login-center' }, centerNameNow()),
-          h('div', { class: 'sub' }, 'O’quv markazi boshqaruv tizimi')
+          h('div', { class: 'sub' }, D.mode === 'server' ? 'Xodimlar, o’quvchilar va ota-onalar uchun kirish' : 'O’quv markazi boshqaruv tizimi')
         ])
       ]),
       msg ? h('div', { class: 'banner warn', style: 'margin:0' }, h('div', {}, msg)) : null,
@@ -310,13 +311,8 @@
         D.mode === 'local'
           ? 'Diqqat: baza ulanmadi, ma’lumotlar faqat shu brauzerda saqlanadi.'
           : 'Ma’lumotlar markaz bazasida saqlanadi.'),
-      D.mode === 'server' ? h('div', { class: 'login-alt' }, [
-        h('span', { class: 'small muted' }, 'O’quvchimisiz?'),
-        h('button', {
-          class: 'btn sm', type: 'button',
-          onclick: function () { location.hash = 'kabinet'; renderKabinet(); }
-        }, 'Shaxsiy kod bilan kirish')
-      ]) : null,
+      D.mode === 'server' ? h('div', { class: 'small muted', style: 'text-align:center' },
+        'O’quvchilar: login — telefon raqamingiz yoki shaxsiy kodingiz. Parolni markaz administratoridan olasiz.') : null,
       h('button', {
         class: 'btn sm ghost login-back', type: 'button',
         onclick: function () { location.hash = ''; renderLanding(); }
@@ -338,13 +334,28 @@
       if (!login || !pass) { err.hidden = false; err.textContent = 'Login va parolni kiriting.'; return; }
       UI.busy(btn, async function () {
         if (D.mode === 'server') {
-          try {
-            var su = await D.serverLogin(login, pass);
-            await startSession(su);
-          } catch (ex) {
-            err.hidden = false;
-            err.textContent = ex.message || 'Kirishda xatolik.';
+          /* Bitta kirish: xodim ham, o'quvchi/ota-ona ham shu yerdan kiradi.
+             Telefon yoki kod (faqat raqam) — avval o'quvchi kabineti,
+             harfli login — avval xodim. Bittasi o'tmasa ikkinchisi sinaladi. */
+          var raw = fLogin.input.value.trim();
+          var digitsOnly = /^[+\d\s()-]+$/.test(raw);
+          async function asStaff() { var su = await D.serverLogin(login, pass); await startSession(su); }
+          async function asStudent() {
+            var d = await D.api('POST', 'api/kabinet', { login: raw, password: pass });
+            D.kabCsrf = d.csrf || '';
+            location.hash = 'kabinet'; renderKabinet();
           }
+          var order = digitsOnly ? [asStudent, asStaff] : [asStaff, asStudent];
+          var firstErr = null;
+          for (var oi = 0; oi < order.length; oi++) {
+            try { await order[oi](); return; }
+            catch (ex) {
+              if (!firstErr) firstErr = ex;
+              if (ex && (ex.status === 429 || /ko.p urin|bloklan|kuting/i.test(ex.message || ''))) { firstErr = ex; break; }
+            }
+          }
+          err.hidden = false;
+          err.textContent = (firstErr && /ko.p urin|bloklan|kuting/i.test(firstErr.message || '')) ? firstErr.message : 'Login yoki parol noto’g’ri.';
           return;
         }
         var user = D.all('users').filter(function (u) { return String(u.login).toLowerCase() === login; })[0];
@@ -537,7 +548,7 @@
       } }, '👁');
       var btn = h('button', { id: 'kab-go', class: 'btn primary lg block', type: 'submit' }, 'Kirish');
       var form = h('form', { class: 'kab-form', onsubmit: function (e) { e.preventDefault(); go(); } }, [
-        h('label', { class: 'kab-lb', for: 'kab-login' }, 'Login — telefon raqamingiz yoki shaxsiy kodingiz'),
+        h('label', { class: 'kab-lb', for: 'kab-login' }, 'Login — telefon raqam, shaxsiy kod (xodimlar — o’z logini)'),
         login,
         h('label', { class: 'kab-lb', for: 'kab-pass' }, 'Parol'),
         h('div', { class: 'kab-passw' }, [pass, eye]),
@@ -556,7 +567,16 @@
           showInfo(localKab(lst)); return;
         }
         try {
-          var d = await D.api('POST', 'api/kabinet', { login: l, password: p });
+          var d;
+          try { d = await D.api('POST', 'api/kabinet', { login: l, password: p }); }
+          catch (ex0) {
+            /* Xodim ham shu oynadan kira oladi (harfli login) */
+            if (!/^[+\d\s()-]+$/.test(l) && ex0.status !== 429) {
+              var su = await D.serverLogin(l.toLowerCase(), p);
+              await startSession(su); return;
+            }
+            throw ex0;
+          }
           D.kabCsrf = d.csrf || '';
           showInfo(d);
         } catch (ex) {
@@ -1726,10 +1746,6 @@
           onclick: function () { location.hash = 'test'; renderTest(); }
         }, [UI.icon('task'), 'Daraja testi']),
         h('button', {
-          class: 'btn sm', type: 'button',
-          onclick: function () { location.hash = 'kabinet'; renderKabinet(); }
-        }, [UI.icon('card'), 'O’quvchi kabineti']),
-        h('button', {
           class: 'btn sm primary', type: 'button',
           onclick: function () { location.hash = 'kirish'; renderLogin(null); }
         }, [UI.icon('person'), 'Kirish'])
@@ -2269,12 +2285,8 @@
         h('div', { class: 'rowflex' }, [
           h('button', {
             class: 'btn sm ghost', type: 'button',
-            onclick: function () { location.hash = 'kabinet'; renderKabinet(); }
-          }, 'O’quvchi kabineti'),
-          h('button', {
-            class: 'btn sm ghost', type: 'button',
             onclick: function () { location.hash = 'kirish'; renderLogin(null); }
-          }, 'Xodimlar kirishi')
+          }, 'Kirish (xodim / o’quvchi)')
         ])
       ])
     ]);

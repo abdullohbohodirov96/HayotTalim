@@ -484,18 +484,20 @@
         h('b', {}, l.n + '-dars: ' + l.title), h('span', {}, 'A0 · Alifbo')
       ]));
       if (l.note) wrap.appendChild(h('p', { class: 'sp-lead' }, l.note));
+      wrap.appendChild(h('p', { class: 'sp-muted small', style: 'margin-top:-4px' }, '🔊 Harf, shakl yoki so’zni bossangiz — diktor o’qib beradi.'));
+      alifPreload(l.harakat ? F.SYL.map(function (x, i) { return 's' + i; }) : l.letters.reduce(function (acc, ch) { return acc.concat([F.audioKey(ch), F.audioKey(F.letter(ch).ex)]); }, []));
       if (l.harakat) {
         wrap.appendChild(h('div', { class: 'al-grid' }, F.HARAKAT.map(function (x) {
           var ex = x.id === 'tanvin' ? 'بً' : 'ب' + x.mark;
           return h('div', { class: 'al-card' }, [
-            h('div', { class: 'al-big', lang: 'ar', dir: 'rtl' }, ex),
+            h('button', { type: 'button', class: 'al-big al-tap', lang: 'ar', dir: 'rtl', onclick: function () { alifSay(ex); } }, ex),
             h('b', {}, x.name), h('span', { class: 'al-snd' }, x.sound), h('p', {}, x.tip),
-            h('button', { class: 'sp-csay', type: 'button', onclick: function () { sayAr(ex); } }, '🔊 Tinglash')
+            h('button', { class: 'sp-csay', type: 'button', onclick: function () { alifSay(ex); } }, '🔊 Tinglash')
           ]);
         })));
         var rows = ['ب', 'ت', 'س', 'م', 'ن'].map(function (c) {
           return h('div', { class: 'al-row', lang: 'ar', dir: 'rtl' }, ['َ', 'ِ', 'ُ', 'ْ'].map(function (m) {
-            return h('button', { type: 'button', class: 'al-syl', onclick: function () { sayAr(c + m); } }, c + m);
+            return h('button', { type: 'button', class: 'al-syl', onclick: function () { alifSay(c + m); } }, c + m);
           }));
         });
         wrap.appendChild(h('section', { class: 'sp-card' }, [h('div', { class: 'sp-card-h' }, h('h3', {}, 'Bo’g’in o’qish mashqi — bosib tinglang'))].concat(rows)));
@@ -503,16 +505,16 @@
         wrap.appendChild(h('div', { class: 'al-grid' }, l.letters.map(function (ch) {
           var x = F.letter(ch), f = F.forms(x);
           return h('div', { class: 'al-card' }, [
-            h('div', { class: 'al-big', lang: 'ar', dir: 'rtl' }, x.ch),
+            h('button', { type: 'button', class: 'al-big al-tap', lang: 'ar', dir: 'rtl', onclick: function () { alifSay(x.ch); } }, x.ch),
             h('b', {}, x.name), h('span', { class: 'al-snd' }, 'Tovushi: ' + x.sound),
             h('div', { class: 'al-forms', lang: 'ar', dir: 'rtl' }, [
               ['Yolg’iz', f.alone], ['Boshida', f.start], ['O’rtada', f.middle], ['Oxirida', f.end]
-            ].map(function (p) { return h('div', { class: 'al-form' }, [h('i', {}, p[1]), h('small', { dir: 'ltr' }, p[0])]); })),
+            ].map(function (p) { return h('button', { type: 'button', class: 'al-form al-tap', onclick: function () { alifSay(x.ch); } }, [h('i', {}, p[1]), h('small', { dir: 'ltr' }, p[0])]); })),
             h('p', {}, x.tip),
-            h('div', { class: 'al-ex' }, [h('span', { lang: 'ar', dir: 'rtl' }, x.ex), h('small', {}, '— ' + x.exUz)]),
+            h('button', { type: 'button', class: 'al-ex al-tap', onclick: function () { alifSay(x.ex); } }, [h('span', { lang: 'ar', dir: 'rtl' }, x.ex), h('small', {}, '— ' + x.exUz)]),
             h('div', { class: 'rowflex', style: 'gap:6px;justify-content:center' }, [
-              h('button', { class: 'sp-csay', type: 'button', onclick: function () { sayAr(x.ch); } }, '🔊 Harf'),
-              h('button', { class: 'sp-csay', type: 'button', onclick: function () { sayAr(x.ex); } }, '🔊 So’z')
+              h('button', { class: 'sp-csay', type: 'button', onclick: function () { alifSay(x.ch); } }, '🔊 Harf'),
+              h('button', { class: 'sp-csay', type: 'button', onclick: function () { alifSay(x.ex); } }, '🔊 So’z')
             ])
           ]);
         })));
@@ -542,11 +544,13 @@
           wrap.appendChild(h('div', { class: 'sp-opts' + (q.optionsAr ? ' ar' : '') }, q.options.map(function (op, k) {
             return h('button', { class: 'sp-opt', type: 'button', lang: q.optionsAr ? 'ar' : null, dir: q.optionsAr ? 'rtl' : null, onclick: function (e) {
               ans[i] = k;
+              alifPlay(F.optionAudio(q, op), q.optionsAr ? op : null);
               e.currentTarget.classList.add('pick');
               Array.prototype.forEach.call(e.currentTarget.parentNode.children, function (b) { b.disabled = true; });
-              setTimeout(function () { i++; draw(); }, 300);
+              setTimeout(function () { i++; draw(); }, 650);
             } }, op);
           })));
+          alifPreload(q.options.map(function (op) { return F.optionAudio(q, op); }));
         }
         function send() {
           wrap.appendChild(loading());
@@ -758,6 +762,20 @@
     /* ---------- 4. Lug'at yodlash ---------- */
     var vocabFilter = 'hammasi';
     function sayAr(t) { if (A.CourseSay) A.CourseSay(t, 0.75); }
+    /* Alifbo: studiya ovozi (assets/alif/*.mp3). Topilmasa — brauzer ovozi. */
+    var alifAud = {}, alifCur = null;
+    function alifPlay(key, fallback) {
+      if (!key) { if (fallback) sayAr(fallback); return; }
+      try {
+        if (alifCur) { alifCur.pause(); alifCur.currentTime = 0; }
+        var a = alifAud[key] || (alifAud[key] = new Audio('assets/alif/' + key + '.mp3'));
+        a.preload = 'auto'; alifCur = a; a.currentTime = 0;
+        var p = a.play();
+        if (p && p.catch) p.catch(function () { if (fallback) sayAr(fallback); });
+      } catch (e) { if (fallback) sayAr(fallback); }
+    }
+    function alifSay(t) { alifPlay(A.Alifbo && A.Alifbo.audioKey(t), t); }
+    function alifPreload(keys) { keys.forEach(function (k) { if (k && !alifAud[k]) { var a = alifAud[k] = new Audio('assets/alif/' + k + '.mp3'); a.preload = 'auto'; } }); }
     function boxDots(b) {
       return h('span', { class: 'sp-boxes', title: b == null ? 'hali ko’rilmagan' : (b + '/5 bosqich') },
         [0, 1, 2, 3, 4].map(function (k) { return h('i', { class: b != null && b > k ? 'on' : '' }); }));
