@@ -163,7 +163,7 @@
          fokusni birinchi maydonga qaytarib tortmaymiz */
       if (box.contains(document.activeElement)) return;
       var f = box.querySelector('input,select,textarea,button.primary');
-      if (f) try { f.focus(); } catch (e) { }
+      if (f) try { f.focus({ preventScroll: true }); } catch (e) { }
     }, 30);
     back.__isDirty = function () { return dirty; };
     return { close: close, body: body, box: box, markClean: markClean };
@@ -343,7 +343,7 @@
     }
     input.addEventListener('change', sync);
     input.addEventListener('input', sync);
-    input.addEventListener('focus', function () { btn.focus(); });
+    input.addEventListener("focus", function () { btn.focus({ preventScroll: true }); });
 
     function set(v) {
       input.value = v || '';
@@ -382,7 +382,7 @@
         window.removeEventListener('scroll', place, true);
         pop.remove();
         dpOpen = null;
-        try { btn.focus(); } catch (e) { }
+        try { btn.focus({ preventScroll: true }); } catch (e) { }
       }
       setTimeout(function () {
         document.addEventListener('mousedown', onDoc, true);
@@ -392,7 +392,7 @@
       }, 0);
       dpOpen = close;
       var f = pop.querySelector('.sel') || pop.querySelector('.today') || pop.querySelector('button:not(.dp-nav)');
-      if (f) try { f.focus(); } catch (e) { }
+      if (f) try { f.focus({ preventScroll: true }); } catch (e) { }
     }
 
     return box;

@@ -22,10 +22,13 @@
     _hashLock: false,
 
     go: function (name, params) {
+      var prev = App.route || {};
       App.route = Object.assign({ name: name }, params || {});
       App.pushHash(App.route);
+      /* Shu sahifaning filtri/tabi o'zgarsa — joyida qoladi; boshqa sahifa — tepadan */
+      var samePage = prev.name === name && String(prev.id || '') === String(App.route.id || '');
       App.render();
-      window.scrollTo(0, 0);
+      if (!samePage) window.scrollTo(0, 0);
     },
 
     /** Joriy sahifani manzil satriga yozish — Orqaga tugmasi va yangilash ishlaydi */
@@ -50,10 +53,19 @@
          qolmaydi (to'lov yozilgach darhol yangilanadi).            */
       if (A.Q && A.Q.resetCache) A.Q.resetCache();
       var view = document.getElementById('view');
+      /* Shu sahifaning o'zi qayta chizilsa (filtr, tanlov, tab, yuklanish) —
+         ekran tepaga sakramasin: oyna va ichki ro'yxatlarning aylantirilgan
+         joyi saqlanib, chizilgandan keyin qaytariladi. Boshqa sahifaga
+         o'tilganda (App.go) tepadan boshlanadi.                         */
+      var key = App.route.name + '|' + (App.route.id || '');
+      var same = App._renderKey === key;
+      App._renderKey = key;
+      var keep = same ? saveScroll(view) : null;
+      if (same) view.style.minHeight = view.offsetHeight + 'px';
       UI.clear(view);
       renderNav();
       var page = A.Pages[App.route.name];
-      if (!page) { view.appendChild(UI.empty({ title: 'Sahifa topilmadi' })); return; }
+      if (!page) { view.appendChild(UI.empty({ title: 'Sahifa topilmadi' })); view.style.minHeight = ''; return; }
       try {
         page(view, App.route, App);
       } catch (e) {
@@ -62,6 +74,8 @@
           h('div', {}, [h('b', {}, 'Sahifani ochib bo’lmadi. '), e.message || String(e)])
         ]));
       }
+      if (keep) restoreScroll(view, keep);
+      view.style.minHeight = '';
     },
     softRender: function () {
       clearTimeout(App._renderTimer);
@@ -69,6 +83,32 @@
     }
   };
 
+  /* Aylantirish holatini saqlash: oyna + view ichidagi aylantiriladigan bloklar */
+  function scrollables(view) {
+    return Array.prototype.filter.call(view.querySelectorAll('*'), function (el) {
+      return (el.scrollTop > 0 || el.scrollLeft > 0) && el.scrollHeight + el.scrollWidth > 0;
+    });
+  }
+  function elKey(el) {
+    var cls = typeof el.className === 'string' ? el.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.') : '';
+    return el.tagName + '.' + cls;
+  }
+  function saveScroll(view) {
+    var inner = {};
+    scrollables(view).forEach(function (el) {
+      var k = elKey(el); (inner[k] = inner[k] || []).push([el.scrollTop, el.scrollLeft]);
+    });
+    return { y: window.scrollY, x: window.scrollX, inner: inner };
+  }
+  function restoreScroll(view, s) {
+    window.scrollTo(s.x, s.y);
+    Object.keys(s.inner).forEach(function (k) {
+      var els = Array.prototype.filter.call(view.querySelectorAll('*'), function (el) { return elKey(el) === k; });
+      s.inner[k].forEach(function (v, i) { var el = els[i]; if (el) { el.scrollTop = v[0]; el.scrollLeft = v[1]; } });
+    });
+    /* sahifa ichidagi rasmlar/ma'lumot keyinroq kelsa ham joy saqlansin */
+    requestAnimationFrame(function () { if (Math.abs(window.scrollY - s.y) > 2) window.scrollTo(s.x, s.y); });
+  }
   function hidePreRender() {
     var initial = document.getElementById('seo-prerender');
     if (initial) initial.remove();
@@ -116,9 +156,10 @@
     }
     var r = hashToRoute();
     if (!r) return;
+    var prevName = App.route && App.route.name, prevId = App.route && App.route.id;
     App.route = r;
     App.render();
-    window.scrollTo(0, 0);
+    if (prevName !== r.name || String(prevId || '') !== String(r.id || '')) window.scrollTo(0, 0);
   }
 
   /* ---------- Menyu ---------- */
