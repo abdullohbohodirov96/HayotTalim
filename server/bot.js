@@ -957,6 +957,66 @@ async function handleRegistration(chatId, text, contact, from, st) {
   return false;
 }
 
+/* ---------------- Yangi odam: raqam orqali tanishish ----------------
+   /start bosgan har bir mehmondan raqam so'raladi (kontakt tugmasi).
+   - Raqam markazdagi BITTA o'quvchiga mos kelsa — o'sha o'quvchi sifatida
+     darhol ulanadi (raqam Telegram tomonidan tasdiqlangan, faqat o'ziniki).
+   - Mos kelmasa — ERP «Murojaatlar» bo'limiga yangi murojaat (lead) tushadi
+     va xodimlarga xabar boradi. Bir xil raqam qayta yuborilsa, yangi
+     murojaat ochilmaydi — mavjudi yangilanadi.                            */
+async function phoneOnboard(chatId, contact, from, st) {
+  const ask = [[{ text: REG_PHONE_BTN, request_contact: true }]].concat(GUEST_MENU);
+  if (!contact.user_id || !from || String(contact.user_id) !== String(from.id || '')) {
+    return sendMessage(chatId, 'Iltimos, «' + REG_PHONE_BTN + '» tugmasi orqali o’zingizning raqamingizni yuboring.', ask);
+  }
+  const phone = A.normPhone(String(contact.phone_number));
+  const ph = tail9(contact.phone_number);
+  const name = ([contact.first_name, contact.last_name].filter(Boolean).join(' ') || from.first_name || '').replace(/[<>]/g, '').trim().slice(0, 60) || 'Telegram foydalanuvchisi';
+  /* 1) O'quvchimi? */
+  const hits = ph ? (await listCol('students')).filter(s => s && s.status !== 'o’chirilgan' && s.status !== 'arxiv' &&
+    [s.phone, s.phone2, s.parentPhone, s.motherPhone, s.fatherPhone].map(tail9).filter(Boolean).indexOf(ph) >= 0) : [];
+  if (hits.length === 1) {
+    const at = await link.attach(store, { studentId: hits[0].id, chatId, from, stamp, via: 'raqam' });
+    if (at.ok) { await afterLink(chatId, at.student, st); return true; }
+    if (at.reason === 'band') {
+      return sendMessage(chatId, 'Bu raqamdagi o’quvchi boshqa Telegram profiliga ulangan. Administrator bilan bog’laning.', GUEST_MENU);
+    }
+  } else if (hits.length > 1) {
+    st.step = 'code'; st.studentMode = true; await setState(chatId, st);
+    return sendMessage(chatId, 'Bu raqamda bir nechta o’quvchi bor. Qaysi biri ekanini aniqlash uchun ustozingiz bergan ' +
+      '<b>guruh kodini</b> yozing (6 belgi) yoki administrator bergan havolani bosing.', GUEST_MENU);
+  }
+  /* 2) Yangi odam — murojaat (lead) */
+  const digits = A.phoneDigits(phone);
+  const leads = await listCol('leads');
+  let lead = leads.filter(l => l && (String(l.chatId || '') === String(chatId) || A.phoneDigits(l.phone) === digits))[0] || null;
+  const isNew = !lead;
+  if (lead) {
+    lead = Object.assign({}, lead, { chatId: String(chatId), phone: lead.phone || phone, phoneVerified: true,
+      tgUser: lead.tgUser || String(from.username || '').slice(0, 40) });
+  } else {
+    const funnels = await listCol('funnels');
+    const funnel = funnels.filter(f => f.isDefault)[0] || funnels[0];
+    const stages = funnel ? A.funnelStages(funnel) : [];
+    lead = {
+      id: 'led_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      funnelId: funnel ? funnel.id : '', name, phone, courseId: '', source: 'Bot', src: (st.reg && st.reg.src) || '',
+      region: '', district: '', ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
+      note: 'Telegram botga kirdi va raqamini qoldirdi', nextContact: A.today(), phoneVerified: true,
+      chatId: String(chatId), tgUser: String(from.username || '').slice(0, 40), createdAt: stamp(), viaBot: true
+    };
+  }
+  await store.set('leads/' + lead.id, lead);
+  st.leadId = lead.id; st.phone = phone; st.step = st.step === 'start' ? 'code' : st.step;
+  await setState(chatId, st);
+  if (isNew) {
+    notifyStaff('Yangi murojaat (bot)\nIsm: ' + name + '\nTelefon: ' + phone +
+      (from.username ? '\nTelegram: @' + from.username : '')).catch(() => { });
+  }
+  return sendMessage(chatId, 'Rahmat, ' + esc(name) + '! ✅ Raqamingiz qabul qilindi — administratorimiz tez orada bog’lanadi.\n\n' +
+    'Hozir savolingizni yozishingiz mumkin yoki pastdagi tugmalardan tanlang 👇', GUEST_MENU);
+}
+
 /* ---------------- Xabarlarni qayta ishlash ---------------- */
 /* ---------------- Administrator menyusi (botda) ----------------
    Sozlamadagi xodimlar chatiga /start bosilganda shu menyu chiqadi:
@@ -1229,12 +1289,16 @@ async function onMessage(msg) {
       conf.welcome + '\n\nMen ' + esc((await settings()).centerName || 'Sabo Academy') + ' yordamchisiman 🤖 ' +
       'Kurslar, darslar vaqti, tekin dars va daraja testi haqidagi <b>savolingizni yozing</b> — darhol javob beraman.\n\n' +
       '🎁 Birinchi dars tekin — «' + REG_BTN + '» tugmasini bosing.\n' +
-      '🎓 Markaz o’quvchisi bo’lsangiz — «' + STUDENT_BTN + '» (administrator bergan havola orqali ulanasiz).',
-      GUEST_MENU);
+      '🎓 Markaz o’quvchisi bo’lsangiz — «' + STUDENT_BTN + '» (administrator bergan havola orqali ulanasiz).' +
+      (st.leadId ? '' : '\n\n📱 Avval pastdagi «' + REG_PHONE_BTN + '» tugmasini bosing — o’quvchi bo’lsangiz darhol hisobingizga ulayman.'),
+      st.leadId ? GUEST_MENU : [[{ text: REG_PHONE_BTN, request_contact: true }]].concat(GUEST_MENU));
     return;
   }
 
   if (!student) {
+    if (msg.contact && msg.contact.phone_number && ['gjoin', 'ask_phone'].indexOf(String(st.step || '')) < 0) {
+      return phoneOnboard(chatId, msg.contact, msg.from || {}, st);
+    }
     if (text === FAQ_BTN) return sendMessage(chatId, faq.faqListText(), GUEST_MENU);
     if (text === SITE_BTN) {
       const a = faq.TOPICS.filter(t => t.id === 'sayt')[0];
