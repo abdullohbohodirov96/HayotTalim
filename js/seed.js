@@ -49,7 +49,7 @@
     else {
       /* Eski namoyish sozlamasi: yangi telefon va Instagram */
       var cs = D.settings, ch = false;
-      if (!cs.phone || cs.phone === '+998 55 999 97 33') { cs.phone = DEFAULT_SETTINGS.phone; ch = true; }
+      if (!cs.phone || /(55|50) ?999 ?97 ?33/.test(cs.phone)) { cs.phone = DEFAULT_SETTINGS.phone; ch = true; }
       if (!cs.instagram) { cs.instagram = DEFAULT_SETTINGS.instagram; ch = true; }
       if (!cs.tgChannel) { cs.tgChannel = DEFAULT_SETTINGS.tgChannel; ch = true; }
       if (ch) await D.saveSettings(A.clone(cs));

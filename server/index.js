@@ -493,6 +493,8 @@ async function ensureSeed() {
     if (!settings.workEnd || settings.workEnd === '20:00') { settings.workEnd = '22:00'; touched = true; }
     if (!settings.workStart) { settings.workStart = '08:00'; touched = true; }
     if (!settings.lessonMinutes) { settings.lessonMinutes = 90; touched = true; }
+    // Markaz raqami yangilandi: eski raqam (50/55 999 97 33) bazada qolgan bo'lsa — yangisiga
+    if (settings.phone && /(55|50) ?999 ?97 ?33/.test(String(settings.phone))) { settings.phone = SITE.PHONE; touched = true; }
     /* Bir martalik: sayt uchun markazning standart aloqalari va shiorlari.
        Faqat BO'SH maydonlar to'ldiriladi; keyin admin o'zgartirsa yoki
        o'chirsa — shu holicha qoladi (siteDefaults belgisi).            */
