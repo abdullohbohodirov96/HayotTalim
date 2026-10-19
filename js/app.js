@@ -1313,7 +1313,7 @@
     s = Object.assign({}, s, {
       instagram: s.instagram || df.instagram || '',
       tgChannel: s.tgChannel || df.tgChannel || '',
-      phone: (!s.phone || s.phone === '+998 55 999 97 33') ? (df.phone || s.phone || '') : s.phone
+      phone: (!s.phone || /(55|50) 999 97 33/.test(s.phone)) ? (df.phone || s.phone || '') : s.phone
     });
     function all(c) { try { return D.all(c) || []; } catch (e) { return []; } }
     function lines(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
@@ -1776,7 +1776,7 @@
       h('nav', { class: 'site-nav', id: 'site-nav' }, [
         navBtn('Darajalar', 'bosqichlar'),
         navBtn('Ustozlar', 'ustozlar'),
-        h('a', { class: 'site-phone', id: 'site-call', href: 'tel:+998509999733', onclick: function () { A.track('phone_click', { place: 'menu' }); } },
+        h('a', { class: 'site-phone', id: 'site-call', href: 'tel:+998951711616', onclick: function () { A.track('phone_click', { place: 'menu' }); } },
           [UI.icon('phone'), h('span', { id: 'site-call-text' }, 'Bog’lanish')]),
         h('button', {
           class: 'btn sm gold nav-free', type: 'button',
@@ -1852,7 +1852,7 @@
           h('span', { class: 'proof-text', id: 'hero-proof-text' }, '')
         ]),
         h('div', { class: 'hero-meta' }, [
-          h('a', { class: 'hero-tel', id: 'hero-tel', href: 'tel:+998509999733' },
+          h('a', { class: 'hero-tel', id: 'hero-tel', href: 'tel:+998951711616' },
             [UI.icon('phone'), h('span', { id: 'hero-tel-text' }, '')]),
           h('span', { class: 'hero-hours', id: 'hero-hours', hidden: true })
         ])
@@ -2495,7 +2495,7 @@
     function contactButtons(onlyTg) {
       var pub = A._pub || {};
       var df = (A.Seed && A.Seed.defaults) || {};
-      var phone = String(pub.phone || df.phone || '+998 50 999 97 33');
+      var phone = String(pub.phone || df.phone || '+998 95 171 16 16');
       var tg = String(pub.tgQabul || pub.tgChannel || df.tgChannel || 'https://t.me/SaboAcademy');
       if (!/^https?:/.test(tg)) tg = 'https://t.me/' + tg.replace(/^@/, '');
       var row = h('div', { class: 'lead-alt' }, []);

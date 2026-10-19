@@ -497,7 +497,7 @@ async function ensureSeed() {
        Faqat BO'SH maydonlar to'ldiriladi; keyin admin o'zgartirsa yoki
        o'chirsa — shu holicha qoladi (siteDefaults belgisi).            */
     if (!settings.siteDefaults) {
-      if (!settings.phone || settings.phone === '+998 55 999 97 33') settings.phone = SITE.PHONE;
+      if (!settings.phone || /(55|50) ?999 ?97 ?33/.test(settings.phone)) settings.phone = SITE.PHONE;
       if (!settings.instagram) settings.instagram = SITE.LINKS[0].url;
       if (!settings.tgChannel) settings.tgChannel = SITE.LINKS[1].url;
       if (!settings.taglines) settings.taglines = SITE.TAGLINES;

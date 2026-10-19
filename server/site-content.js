@@ -15,7 +15,7 @@
 const NAME = process.env.APP_NAME || 'Sabo Academy';
 
 /* Standart aloqa (statik sayt uchun; serverda Sozlamadagisi ishlatiladi) */
-const PHONE = process.env.SITE_PHONE || '+998 50 999 97 33';
+const PHONE = process.env.SITE_PHONE || '+998 95 171 16 16';
 const LINKS = [
   { label: 'Instagram — sabo.academy', url: 'https://www.instagram.com/sabo.academy/' },
   { label: 'Telegram kanal — SaboAcademy', url: 'https://t.me/SaboAcademy' },
