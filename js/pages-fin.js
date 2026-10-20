@@ -2588,7 +2588,20 @@
       if (Object.prototype.hasOwnProperty.call(perms, pid)) return perms[pid];
       return A.roleHas(f.get('role').input.value, pid);
     }
+    /* Qayta chizilganda modal oyna tepaga sakramasin: aylantirish
+       holatini saqlab, chizib bo'lgach qaytaramiz. */
+    function scroller(el) {
+      for (var n = el && el.parentNode; n && n !== document.body; n = n.parentNode) {
+        if (n.scrollHeight > n.clientHeight + 1) {
+          var oy = getComputedStyle(n).overflowY;
+          if (oy === 'auto' || oy === 'scroll') return n;
+        }
+      }
+      return document.scrollingElement || document.documentElement;
+    }
     function paintPerms() {
+      var sc = scroller(permBox), top = sc ? sc.scrollTop : 0;
+      permBox.style.minHeight = permBox.offsetHeight ? permBox.offsetHeight + 'px' : '';
       UI.clear(permBox);
       A.PERM_GROUPS.forEach(function (grp) {
         permBox.appendChild(h('div', { class: 'perm-row', style: 'background:var(--brand-soft);font-weight:700' },
@@ -2597,17 +2610,26 @@
           var on = effective(p.id);
           var custom = Object.prototype.hasOwnProperty.call(perms, p.id);
           var cb = h('input', { type: 'checkbox', checked: on ? true : null });
+          var pill = custom ? UI.pill('Alohida', 'info') : UI.pill('Rol bo’yicha', 'mute');
+          var txt = h('span', {}, on ? 'Ruxsat bor' : 'Ruxsat yo’q');
+          var row = h('div', { class: 'perm-row' }, [
+            h('div', { class: 'pname' }, p.label),
+            pill,
+            h('div', { class: 'popts' }, h('label', {}, [cb, txt]))
+          ]);
+          /* Bitta katakcha o'zgarsa — butun ro'yxat emas, faqat shu qator yangilanadi */
           cb.addEventListener('change', function () {
             perms[p.id] = cb.checked;
-            paintPerms();
+            var nt = h('span', {}, cb.checked ? 'Ruxsat bor' : 'Ruxsat yo’q');
+            txt.parentNode.replaceChild(nt, txt); txt = nt;
+            var np = UI.pill('Alohida', 'info');
+            row.replaceChild(np, pill); pill = np;
           });
-          permBox.appendChild(h('div', { class: 'perm-row' }, [
-            h('div', { class: 'pname' }, p.label),
-            custom ? UI.pill('Alohida', 'info') : UI.pill('Rol bo’yicha', 'mute'),
-            h('div', { class: 'popts' }, h('label', {}, [cb, h('span', {}, on ? 'Ruxsat bor' : 'Ruxsat yo’q')]))
-          ]));
+          permBox.appendChild(row);
         });
       });
+      permBox.style.minHeight = '';
+      if (sc) sc.scrollTop = top;
     }
     paintPerms();
     f.get('role').input.addEventListener('change', paintPerms);

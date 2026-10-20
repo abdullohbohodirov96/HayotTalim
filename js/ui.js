@@ -29,7 +29,42 @@
     })(Array.isArray(kids) ? kids : kids == null ? [] : [kids]);
     return el;
   }
-  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
+  /* Tozalash. Ichini qayta chizishda (filtr, katakcha, tab, ro'yxat)
+     oyna va modal tepaga SAKRAMASLIGI uchun: tozalashdan oldin
+     element balandligi vaqtincha ushlab turiladi va aylantiriladigan
+     ota-elementlarning (modal tanasi, jadval o'rami) holati saqlanadi;
+     yangi mazmun chizilgach (keyingi kadrda) hammasi qaytariladi.
+     Butun sahifa almashganda tepaga chiqish App.render o'zida qoladi. */
+  function scrollParents(node) {
+    var out = [];
+    for (var n = node.parentNode; n && n.nodeType === 1 && n !== document.body && n !== document.documentElement; n = n.parentNode) {
+      if (n.scrollHeight > n.clientHeight + 1) {
+        var oy = '';
+        try { oy = getComputedStyle(n).overflowY; } catch (e) { }
+        if (oy === 'auto' || oy === 'scroll') out.push([n, n.scrollTop]);
+      }
+    }
+    return out;
+  }
+  var raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : function (f) { return setTimeout(f, 16); };
+  function clear(node) {
+    if (node && node.isConnected && !node.__keep && node.firstChild) {
+      var hgt = node.offsetHeight;
+      if (hgt > 0) {
+        var prev = node.style.minHeight;
+        var saved = scrollParents(node);
+        node.__keep = true;
+        node.style.minHeight = hgt + 'px';
+        raf(function () {
+          node.style.minHeight = prev;
+          node.__keep = false;
+          saved.forEach(function (x) { if (x[0].isConnected) x[0].scrollTop = x[1]; });
+        });
+      }
+    }
+    while (node.firstChild) node.removeChild(node.firstChild);
+    return node;
+  }
 
   var ICONS = {
     key: 'M15 7a4 4 0 1 1-3.9 5H8v3H5v3H2v-3l6.1-6.1A4 4 0 0 1 15 7z',
