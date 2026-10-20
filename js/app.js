@@ -2080,6 +2080,75 @@
       ])
     ]);
 
+    /* ---------- Shaxsiy web kabinet: haqiqiy ekranlar + kattalashtirib ko'rish ---------- */
+    var KAB_SHOTS = [
+      ['bosh', 'Bosh sahifa', 'Joriy dars, vazifalar, keyingi jonli dars va to’lov — bir qarashda'],
+      ['darslar', 'Darslarim', 'Har bir dars: video → qissa → so’zlar → qoida → mashq → test'],
+      ['lugat', 'Lug’at yodlash', 'Kartochkalar bilan so’z yodlash — unutganingiz qayta chiqadi'],
+      ['vazifa', 'Uy vazifalari', 'Vazifani yuborasiz, ustoz tekshirib baho qo’yadi'],
+      ['alifbo', 'Alifbo', 'Har bir harf qayerdan chiqishi animatsiya bilan'],
+      ['reyting', 'Reyting va ballar', 'Ballaringiz va markazdagi o’rningiz']
+    ];
+    function kabLightbox(start) {
+      var i = start;
+      var img = h('img', { class: 'klb-img', alt: '' });
+      var cap = h('div', { class: 'klb-cap' });
+      var cnt = h('span', { class: 'klb-cnt' });
+      function show(n) {
+        i = (n + KAB_SHOTS.length) % KAB_SHOTS.length;
+        var s = KAB_SHOTS[i];
+        img.src = '/assets/kabinet/' + s[0] + '.webp';
+        img.alt = 'Shaxsiy kabinet — ' + s[1];
+        cap.textContent = '';
+        cap.appendChild(h('b', {}, s[1])); cap.appendChild(h('span', {}, s[2]));
+        cnt.textContent = (i + 1) + ' / ' + KAB_SHOTS.length;
+      }
+      function close() { document.removeEventListener('keydown', onKey); box.remove(); document.body.classList.remove('klb-lock'); }
+      function onKey(e) {
+        if (e.key === 'Escape') close();
+        else if (e.key === 'ArrowRight') show(i + 1);
+        else if (e.key === 'ArrowLeft') show(i - 1);
+      }
+      var x0 = null;
+      var box = h('div', { class: 'klb', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Shaxsiy kabinet ekranlari',
+        onclick: function (e) { if (e.target === box) close(); } }, [
+        h('button', { class: 'klb-x', type: 'button', 'aria-label': 'Yopish', onclick: close }, '×'),
+        h('button', { class: 'klb-nav klb-prev', type: 'button', 'aria-label': 'Oldingisi', onclick: function () { show(i - 1); } }, '‹'),
+        h('figure', { class: 'klb-fig',
+          ontouchstart: function (e) { x0 = e.touches[0].clientX; },
+          ontouchend: function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 40) show(i + (dx < 0 ? 1 : -1)); } }, [
+          h('div', { class: 'klb-phone' }, [img]), cap, cnt
+        ]),
+        h('button', { class: 'klb-nav klb-next', type: 'button', 'aria-label': 'Keyingisi', onclick: function () { show(i + 1); } }, '›')
+      ]);
+      show(start);
+      document.body.appendChild(box);
+      document.body.classList.add('klb-lock');
+      document.addEventListener('keydown', onKey);
+      box.querySelector('.klb-x').focus();
+    }
+    var kabSec = h('section', { class: 'site-sec reveal ks-sec', id: 'kabinet-haqida' }, [
+      h('div', { class: 'sec-mid' }, [
+        h('div', { class: 'sec-eyebrow center' }, 'Shaxsiy web kabinet'),
+        h('h2', {}, 'Har bir o’quvchiga — o’z kabineti'),
+        h('p', { class: 'sec-note center' },
+          'Yozilganingizdan so’ng sizga login beriladi. Darslar, video darsliklar, so’z yodlash, uy vazifalari, ' +
+          'reyting va to’lovlar — hammasi bitta joyda. Telefon yoki kompyuterdan, istalgan vaqtda kirasiz.')
+      ]),
+      h('div', { class: 'ks-shots' }, KAB_SHOTS.map(function (s, n) {
+        return h('button', { class: 'ks-shot', type: 'button', 'aria-label': s[1] + ' — kattalashtirish',
+          onclick: function () { kabLightbox(n); } }, [
+          h('span', { class: 'ks-phone' }, [h('img', { src: '/assets/kabinet/' + s[0] + '.webp', alt: 'Shaxsiy kabinet — ' + s[1],
+            loading: 'lazy', decoding: 'async', width: 585, height: 1266 })]),
+          h('b', {}, s[1]), h('small', {}, s[2])
+        ]);
+      })),
+      h('p', { class: 'ks-hint' }, 'Rasmni bosing — kattalashib ochiladi'),
+      h('div', { class: 'ks-cta' }, [
+        h('button', { class: 'btn', type: 'button', onclick: function () { location.hash = 'kabinet'; } }, 'Kabinetga kirish →')
+      ])
+    ]);
+
     /* ---------- Reyting: eng yaxshi o'quvchilarga mukofot ---------- */
     function prize(place, medal, title, text) {
       return h('div', { class: 'pz pz' + place }, [
@@ -2343,6 +2412,7 @@
         h('div', { class: 'foot-col' }, [
           h('b', {}, 'Bog’lanish'),
           h('a', { class: 'foot-link', id: 'foot-phone', href: '#ariza' }, ''),
+          h('a', { class: 'foot-link', id: 'foot-mail', href: 'mailto:saboacademyuz@gmail.com' }, 'saboacademyuz@gmail.com'),
           h('span', { class: 'foot-line', id: 'foot-addr' }, ''),
           h('span', { class: 'foot-line', id: 'foot-hours' }, '')
         ]),
@@ -2379,7 +2449,7 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, quickBand, promoBand, statsBand, revBand, sysSec, levelsSec, rewardSec, feats, howSec, teachers,
+      [hero, quickBand, promoBand, statsBand, revBand, sysSec, kabSec, levelsSec, rewardSec, feats, howSec, teachers,
         roadmap, timetable, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak

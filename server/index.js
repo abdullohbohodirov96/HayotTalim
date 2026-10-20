@@ -4085,7 +4085,7 @@ async function handleApi(req, res, url) {
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
   '.mp3': 'audio/mpeg', '.mp4': 'video/mp4'
@@ -4099,7 +4099,7 @@ const MIME = {
    (pastdagi yo'llarga qarang), shuning uchun bu ro'yxatda yo'q. */
 const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/qissa.html']);
 const PUBLIC_DIRS = ['/css/', '/js/', '/assets/'];
-const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.jpg', '.svg', '.ico', '.webmanifest',
+const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.jpg', '.webp', '.svg', '.ico', '.webmanifest',
   '.txt', '.xml', '.mp3', '.mp4']);
 
 /* Qidiruv tizimlarining tasdiqlash fayllari.

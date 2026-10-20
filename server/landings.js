@@ -214,7 +214,7 @@ function render(page, opts) {
       {
         '@type': 'Course', name: page.h1, description: page.desc, inLanguage: page.lang === 'ru' ? 'ru' : 'uz',
         url: url,
-        provider: { '@type': 'EducationalOrganization', name: CONTENT.NAME, url: base + '/', telephone: phone, sameAs: CONTENT.LINKS.map(l => l.url) },
+        provider: { '@type': 'EducationalOrganization', name: CONTENT.NAME, url: base + '/', telephone: phone, email: CONTENT.EMAIL, sameAs: CONTENT.LINKS.map(l => l.url) },
         hasCourseInstance: { '@type': 'CourseInstance', courseMode: 'online', courseSchedule: { '@type': 'Schedule', repeatFrequency: 'P1W', repeatCount: 3, duration: 'PT90M' } }
       },
       {
@@ -278,6 +278,7 @@ function render(page, opts) {
     others.map(p => '<li><a href="/' + esc(p.slug) + '">' + esc(p.h1) + '</a></li>').join('') +
     '<li><a href="/">' + esc(CONTENT.NAME) + '</a></li></ul></section>' +
     '</main><footer class="w">© ' + esc(CONTENT.NAME) + ' · ' + (tel ? '<a href="tel:' + esc(tel) + '">' + esc(phone) + '</a> · ' : '') +
+    '<a href="mailto:' + esc(CONTENT.EMAIL) + '">' + esc(CONTENT.EMAIL) + '</a> · ' +
     CONTENT.LINKS.map(l => '<a href="' + esc(l.url) + '" rel="noopener">' + esc(l.label.split(' — ')[0]) + '</a>').join(' · ') +
     '</footer></body></html>';
 }

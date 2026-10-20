@@ -149,6 +149,7 @@ function render(html, settings, host) {
     url,
     description,
     telephone: phone,
+    email: CONTENT.EMAIL,
     logo: { '@type': 'ImageObject', url: url + 'assets/icon-512.png', width: 512, height: 512 },
     image: url + 'assets/icon-512.png',
     address: {

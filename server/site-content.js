@@ -16,6 +16,7 @@ const NAME = process.env.APP_NAME || 'Sabo Academy';
 
 /* Standart aloqa (statik sayt uchun; serverda Sozlamadagisi ishlatiladi) */
 const PHONE = process.env.SITE_PHONE || '+998 95 171 16 16';
+const EMAIL = process.env.SITE_EMAIL || 'saboacademyuz@gmail.com';
 const LINKS = [
   { label: 'Instagram — sabo.academy', url: 'https://www.instagram.com/sabo.academy/' },
   { label: 'Telegram kanal — SaboAcademy', url: 'https://t.me/SaboAcademy' },
@@ -79,6 +80,7 @@ function seoText(o) {
   FAQ.forEach(f => parts.push('<h3>' + esc(f.q) + '</h3><p>' + esc(f.a) + '</p>'));
   parts.push('<h2>Bog‘lanish</h2>');
   if (phone) parts.push('<p>Telefon: <a href="tel:' + esc(tel) + '">' + esc(phone) + '</a></p>');
+  parts.push('<p>Email: <a href="mailto:' + esc(EMAIL) + '">' + esc(EMAIL) + '</a></p>');
   if (o.address) parts.push('<p>Manzil: ' + esc(o.address) + '</p>');
   (o.links || []).forEach(l => parts.push('<p><a href="' + esc(l.url) + '">' + esc(l.label) + '</a></p>'));
   parts.push('<h2>Kurslar</h2><ul>' + require('./landings').PAGES.map(pg => '<li><a href="/' + esc(pg.slug) + '">' + esc(pg.h1) + '</a></li>').join('') + '</ul>');
@@ -97,4 +99,4 @@ function faqLd() {
   };
 }
 
-module.exports = { NAME, PHONE, LINKS, FACEBOOK, TAGLINES, ALT_NAMES, TITLE, DESC, FAQ, seoText, faqLd };
+module.exports = { NAME, PHONE, EMAIL, LINKS, FACEBOOK, TAGLINES, ALT_NAMES, TITLE, DESC, FAQ, seoText, faqLd };
