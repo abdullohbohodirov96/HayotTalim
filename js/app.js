@@ -2080,6 +2080,60 @@
       ])
     ]);
 
+    /* ---------- Afzalliklarimiz: hamma imkoniyat bir joyda ---------- */
+    function afzBig(ico, title, text, steps) {
+      return h('div', { class: 'afz-big' }, [
+        h('span', { class: 'afz-ico' }, ico),
+        h('b', {}, title), h('p', {}, text),
+        h('div', { class: 'afz-steps' }, steps.map(function (t, n) {
+          return h('span', {}, [h('i', {}, String(n + 1)), t]);
+        }))
+      ]);
+    }
+    function afzCard(ico, title, text) {
+      return h('div', { class: 'afz-card' }, [h('span', { class: 'afz-ico sm' }, ico), h('div', {}, [h('b', {}, title), h('p', {}, text)])]);
+    }
+    var afzSec = h('section', { class: 'site-sec reveal afz-sec', id: 'afzalliklar' }, [
+      h('div', { class: 'sec-mid' }, [
+        h('div', { class: 'sec-eyebrow center' }, 'Afzalliklarimiz'),
+        h('h2', {}, 'Nega aynan Sabo Academy?'),
+        h('p', { class: 'sec-note center' },
+          'Darsda o’rgangan mavzungiz unutilmaydi: jonli darsdan keyin video darslik, interaktiv so’z yodlash ' +
+          'va uy vazifasi bilan har bir mavzu to’liq mustahkamlanadi.')
+      ]),
+      h('div', { class: 'afz-top' }, [
+        afzBig('🎬', 'Video orqali mavzuni to’liq mustahkamlash',
+          'Har bir jonli darsdan keyin shu mavzu kabinetingizda to’liq video darslik bilan qayta tushuntiriladi. ' +
+          'Tushunmagan joyingizni istalgancha qayta ko’rasiz.',
+          ['Video', 'Qissa', 'So’zlar', 'Qoida', 'Mashq', 'Test']),
+        afzBig('🧠', 'Interaktiv so’z yodlash',
+          'Har darsdagi yangi so’zlar kartochkalarga tushadi: so’zni ko’rasiz, tinglaysiz, ma’nosini eslaysiz. ' +
+          'Bilmagan so’zingiz kamroq oraliqda qayta chiqadi — shunday qilib so’zlar xotirada mustahkam qoladi.',
+          ['Ko’rish', 'Tinglash', 'Eslash', 'Takrorlash']),
+        afzBig('✍️', 'Interaktiv uy vazifasi',
+          'Vazifani kabinetda bajarasiz yoki rasm/PDF qilib yuborasiz. Ustoz tekshirib baho qo’yadi, ' +
+          'natijangiz reytingga qo’shiladi.',
+          ['Bajarish', 'Yuborish', 'Ustoz bahosi', 'Ball'])
+      ]),
+      h('div', { class: 'afz-grid' }, [
+        afzCard('🇪🇬', 'Misrlik ustoz', 'Arab tili — ona tili. Qohira universiteti Dor al-Ulum bitiruvchisi, 10 yildan ortiq tajriba. O’zbekcha ham tushuntiradi.'),
+        afzCard('🗣', 'Gapirishga urg’u', 'Arab metodikasi asosida: birinchi darsdan jonli muloqot, ustoz xatoingizni o’sha zahoti tuzatadi.'),
+        afzCard('🎥', 'Zoom’da jonli darslar', 'Ustozni ko’rasiz, savol berasiz, guruh bilan gapirasiz — uydan chiqmasdan.'),
+        afzCard('🔓', 'Bosqichma-bosqich o’qish', 'Test va uy vazifasini 60% dan yuqori bajarsangiz keyingi dars ochiladi — hech bir mavzu chala qolmaydi.'),
+        afzCard('🔤', 'Alifbo noldan', 'Har bir harf qayerdan chiqishi animatsiya bilan ko’rsatiladi, ba-bi-bu mashqlari va «eshitib tanla».'),
+        afzCard('📘', 'Maxsus darslik kitob', 'Har bir mavzu uchun mashqlar va o’qish matnlari bilan tuzilgan darslik.'),
+        afzCard('👤', 'Shaxsiy web kabinet', 'Darslar, vazifalar, lug’at, reyting va to’lovlar — telefon yoki kompyuterdan, istalgan vaqtda.'),
+        afzCard('🏆', 'Reyting va mukofotlar', '1-o’rin — tekin o’qiydi, 2-o’rin — 50%, 3-o’rin — 20% chegirma.'),
+        afzCard('👥', 'Alohida guruhlar', 'Ayollar, erkaklar va bolalar uchun alohida guruhlar — har kim o’zini erkin his qiladi.'),
+        afzCard('📼', 'Darslar yozib olinadi', 'Darsga kira olmasangiz — yozuvini keyin ko’rib, guruhdan orqada qolmaysiz.'),
+        afzCard('📊', 'Bepul daraja testi', 'Saytda 10 daqiqada darajangizni bilib oling — sizga mos guruhdan boshlaysiz.'),
+        afzCard('🎁', 'Birinchi dars — tekin', 'Avval sinab ko’ring: ustoz va dars uslubi yoqsa, keyin yozilasiz.')
+      ]),
+      h('div', { class: 'afz-cta' }, [
+        h('button', { class: 'btn primary lg', type: 'button', onclick: function () { scrollTo('ariza'); } }, ['Tekin darsga yozilish', goIcon()])
+      ])
+    ]);
+
     /* ---------- Shaxsiy web kabinet: haqiqiy ekranlar + kattalashtirib ko'rish ---------- */
     var KAB_SHOTS = [
       ['bosh', 'Bosh sahifa', 'Joriy dars, vazifalar, keyingi jonli dars va to’lov — bir qarashda'],
@@ -2392,6 +2446,8 @@
           h('b', {}, 'Bo’limlar'),
           h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('bosqichlar'); } }, 'Darajalar'),
           h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('ustozlar'); } }, 'Ustozlar'),
+          h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('afzalliklar'); } }, 'Afzalliklar'),
+          h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('kabinet-haqida'); } }, 'Shaxsiy kabinet'),
           h('button', { class: 'foot-link', type: 'button', onclick: function () { scrollTo('vaqt'); } }, 'Dars vaqtlari'),
           h('button', {
             class: 'foot-link', type: 'button',
@@ -2449,7 +2505,7 @@
     wrap.appendChild(siteBackdrop());
     wrap.appendChild(top);
     wrap.appendChild(h('div', { class: 'site-wrap' },
-      [hero, quickBand, promoBand, statsBand, revBand, sysSec, kabSec, levelsSec, rewardSec, feats, howSec, teachers,
+      [hero, quickBand, promoBand, statsBand, revBand, sysSec, afzSec, kabSec, levelsSec, rewardSec, feats, howSec, teachers,
         roadmap, timetable, apply, faq, ctaBand, foot]));
     wrap.appendChild(ctaBar);
     /* Hero'dagi "Darsga yozilish" ko'rinib turganda pastki tasma kerak
