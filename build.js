@@ -18,6 +18,14 @@ const body = src.replace(/^[\s\S]*?(?=<div id="boot")/, function (top) {
     if (/^<title>/i.test(tag.trim())) return '';
     if (/name=["']description["']/i.test(tag)) return '';
     if (/rel=["']apple-touch-icon["']/i.test(tag)) return '';
+    /* Google shriftlari sahifa chizilishini to'xtatmasin: ular skript
+       orqali (kutmasdan) ulanadi, shu paytgacha tizim shrifti ko'rinadi. */
+    var fm = /rel=["']stylesheet["'][^>]*href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["']/i.exec(tag);
+    if (fm) {
+      headTags.push('  <script>(function(){var l=document.createElement("link");l.rel="stylesheet";l.href=' +
+        JSON.stringify(fm[1].replace(/&amp;/g, '&')) + ';document.head.appendChild(l);})();</script>');
+      return '';
+    }
     headTags.push('  ' + tag.trim());
     return '';
   });

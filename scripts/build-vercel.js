@@ -28,8 +28,8 @@ if (!/src="js\/core\.js"/.test(html)) throw new Error('index.html da js/core.js 
 if (!process.env.SITE_URL) process.env.SITE_URL = 'https://saboacademy.uz';
 const API_BASE = String(process.env.API_BASE || process.env.SITE_URL).replace(/\/$/, '');
 if (!/^https:\/\/[a-z0-9.-]+$/i.test(API_BASE)) throw new Error('API_BASE noto‘g‘ri: ' + API_BASE);
-html = html.replace('<script src="js/core.js"></script>',
-  '<script>window.MARKAZ_DEMO = true; window.MARKAZ_API_BASE = ' + JSON.stringify(API_BASE) + ';</script>\n<script src="js/core.js"></script>');
+html = html.replace(/<script (defer )?src="js\/core\.js"><\/script>/,
+  function (tag) { return '<script>window.MARKAZ_DEMO = true; window.MARKAZ_API_BASE = ' + JSON.stringify(API_BASE) + ';</script>\n' + tag; });
 try { fs.rmSync(path.join(out, 'js/levels-local.js'), { force: true }); } catch (e) { }
 fs.writeFileSync(path.join(out, 'index.html'), html);
 /* sw.js: o'zini o'chiradigan bo'sh ishchi (keshda eski versiya qolmasin) */

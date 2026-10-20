@@ -161,7 +161,11 @@
   }
 
   function start() {
-    register();
+    /* Xizmat ishchisi fonda ko'p fayl yuklaydi — birinchi ochilishda
+       sahifa bilan internetni talashmasin: sahifa to'liq ochilgach. */
+    var later = function () { setTimeout(register, 3000); };
+    if (document.readyState === 'complete') later();
+    else global.addEventListener('load', later, { once: true });
     global.addEventListener('online', showOnline);
     global.addEventListener('offline', showOffline);
     if (!online()) showOffline();

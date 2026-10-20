@@ -74,7 +74,16 @@
     return rows;
   }
 
+  /* Excel o'quvchi (SheetJS) og'ir — faqat Excel fayl import qilinganda yuklanadi */
+  var XLSX_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  function ensureXlsx(name) {
+    if (global.XLSX || /\.(csv|txt|tsv)$/.test(name) || !A.loadScript) return Promise.resolve();
+    return A.loadScript(XLSX_CDN).catch(function (e) { console.warn(e); });
+  }
   function readFile(file) {
+    return ensureXlsx((file.name || '').toLowerCase()).then(function () { return readFileNow(file); });
+  }
+  function readFileNow(file) {
     return new Promise(function (resolve, reject) {
       var name = (file.name || '').toLowerCase();
       var isText = /\.(csv|txt|tsv)$/.test(name);

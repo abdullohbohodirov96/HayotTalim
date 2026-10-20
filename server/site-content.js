@@ -81,6 +81,7 @@ function seoText(o) {
   if (phone) parts.push('<p>Telefon: <a href="tel:' + esc(tel) + '">' + esc(phone) + '</a></p>');
   if (o.address) parts.push('<p>Manzil: ' + esc(o.address) + '</p>');
   (o.links || []).forEach(l => parts.push('<p><a href="' + esc(l.url) + '">' + esc(l.label) + '</a></p>'));
+  parts.push('<h2>Kurslar</h2><ul>' + require('./landings').PAGES.map(pg => '<li><a href="/' + esc(pg.slug) + '">' + esc(pg.h1) + '</a></li>').join('') + '</ul>');
   parts.push('</main></noscript>');
   return parts.join('');
 }

@@ -438,7 +438,25 @@
     return false;
   }
 
+  /* Kabinet va kurs skriptlari kerak bo'lganda yuklanadi (bosh sahifa tez ochilsin) */
+  function withBundle(name, fn) {
+    if (A.bundleReady && !A.bundleReady(name)) {
+      document.documentElement.style.cursor = 'progress';
+      A.loadBundle(name).then(function () {
+        document.documentElement.style.cursor = '';
+        fn();
+      }, function (e) {
+        document.documentElement.style.cursor = '';
+        console.error(e);
+        UI.toast('Sahifani yuklab bo’lmadi. Internetni tekshirib, qayta urinib ko’ring.', 'err');
+      });
+      return true;
+    }
+    return false;
+  }
+
   function renderKabinet(prefill) {
+    if (withBundle('course', function () { renderKabinet(prefill); })) return;
     if (dupView('kabinet')) return;
     leaveSite();
     hidePreRender();
@@ -917,6 +935,7 @@
   /* Onlayn kurs sahifasi (#kurs). Serverda — kabinet sessiyasi bilan.
      Demo (brauzer) rejimida — namunaviy o'quvchi nomidan. */
   function openCourse() {
+    if (withBundle('course', openCourse)) return;
     if (dupView('kurs')) return;
     leaveSite();
     if (!A.renderCourse) return;
@@ -2311,6 +2330,17 @@
           }, 'Daraja testi')
         ]),
         h('div', { class: 'foot-col' }, [
+          h('b', {}, 'Kurslar'),
+          h('a', { class: 'foot-link', href: '/arab-tili-kursi' }, 'Arab tili kursi'),
+          h('a', { class: 'foot-link', href: '/arab-tili-onlayn' }, 'Arab tili onlayn'),
+          h('a', { class: 'foot-link', href: '/arabcha-gapirish' }, 'Arabcha gapirish'),
+          h('a', { class: 'foot-link', href: '/arab-alifbosi' }, 'Arab alifbosi'),
+          h('a', { class: 'foot-link', href: '/arab-tili-ayollar-uchun' }, 'Ayollar uchun'),
+          h('a', { class: 'foot-link', href: '/arab-tili-bolalar-uchun' }, 'Bolalar uchun'),
+          h('a', { class: 'foot-link', href: '/misrlik-ustoz' }, 'Misrlik ustoz'),
+          h('a', { class: 'foot-link', href: '/ru/kursy-arabskogo-yazyka' }, 'Курсы арабского')
+        ]),
+        h('div', { class: 'foot-col' }, [
           h('b', {}, 'Bog’lanish'),
           h('a', { class: 'foot-link', id: 'foot-phone', href: '#ariza' }, ''),
           h('span', { class: 'foot-line', id: 'foot-addr' }, ''),
@@ -3444,6 +3474,11 @@
 
   async function startSession(user) {
     App.user = user;
+    /* Xodimlar paneli skriptlari — faqat kirgandan keyin */
+    if (A.bundleReady && !A.bundleReady('erp')) {
+      try { await A.loadBundle('erp'); }
+      catch (e) { console.error(e); UI.toast('Panelni yuklab bo’lmadi. Sahifani yangilang.', 'err'); }
+    }
     try { sessionStorage.setItem('albyana_session', user.id); } catch (e) { }
     if (restPromise) {
       document.getElementById('auth').hidden = true;

@@ -573,4 +573,59 @@
     COLLECTIONS: COLLECTIONS, MONTHLY: MONTHLY,
     Data: Data
   });
+
+  /* ---------------- Skriptlarni kerak bo'lganda yuklash ----------------
+     Ochiq sayt (bosh sahifa, daraja testi) faqat asosiy skriptlar bilan
+     ochiladi — telefonda tez chiqadi. Qolgan qism kerak bo'lganda keladi:
+       course — o'quvchi kabineti va onlayn kurs;
+       erp    — xodimlar paneli (kirgandan keyin), kursni ham o'z ichiga oladi.
+     Tartib saqlanadi (async=false), har bir to'plam bir marta yuklanadi.   */
+  var BUNDLES = {
+    course: ['speak.js', 'course-a1.js', 'alifbo.js', 'alif-mahraj.js', 'course-anim.js',
+      'qissa-video.js', 'course-ui.js', 'pages-course.js', 'kabinet-ui.js'],
+    erp: ['xlsx-lite.js', 'pages-core.js', 'pages-edu.js', 'pages-fin.js', 'pages-team.js',
+      'pages-lms.js', 'pages-forms.js', 'pages-zoom.js', 'bot.js', 'import.js']
+  };
+  var loadedSrc = {}, bundleP = {};
+  function scriptBase() {
+    if (typeof document === 'undefined') return 'js/';
+    var cur = document.querySelector('script[src*="core.js"]');
+    var src = cur ? cur.getAttribute('src') : 'js/core.js';
+    return src.replace(/core\.js.*$/, '');
+  }
+  function loadScript(src) {
+    if (loadedSrc[src]) return loadedSrc[src];
+    if (typeof document === 'undefined') return Promise.resolve();
+    if (document.querySelector('script[src="' + src + '"]')) return (loadedSrc[src] = Promise.resolve());
+    loadedSrc[src] = new Promise(function (resolve, reject) {
+      var el = document.createElement('script');
+      el.src = src; el.async = false;
+      el.onload = function () { resolve(); };
+      el.onerror = function () { delete loadedSrc[src]; reject(new Error('Yuklab bo’lmadi: ' + src)); };
+      document.head.appendChild(el);
+    });
+    return loadedSrc[src];
+  }
+  function loadBundle(name) {
+    if (bundleP[name]) return bundleP[name];
+    var base = scriptBase();
+    var list = name === 'erp' ? BUNDLES.course.concat(BUNDLES.erp) : (BUNDLES[name] || []);
+    if (bundleReady(name)) { done[name] = true; return (bundleP[name] = Promise.resolve()); }
+    bundleP[name] = Promise.all(list.map(function (f) { return loadScript(base + f); }))
+      .then(function () { done[name] = true; if (name === 'erp') done.course = true; })
+      .catch(function (e) { delete bundleP[name]; throw e; });
+    return bundleP[name];
+  }
+  var done = {};
+  function bundleReady(name) {
+    if (done[name]) return true;
+    /* Bitta faylda (artifact) hammasi oldindan ulangan bo'lishi mumkin */
+    var probe = name === 'erp' ? (global.A.Pages && global.A.Pages.dashboard) : (global.A.StudentPortal && global.A.renderCourse);
+    return !!probe;
+  }
+  global.A.Pages = global.A.Pages || {};
+  global.A.BUNDLES = BUNDLES;
+  global.A.loadScript = loadScript;
+  global.A.loadBundle = loadBundle;
+  global.A.bundleReady = bundleReady;
 })(typeof window !== 'undefined' ? window : globalThis);

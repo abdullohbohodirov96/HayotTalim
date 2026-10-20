@@ -61,7 +61,8 @@ assert.match(sm1, /<\/urlset>/);
 assert.doesNotMatch(sm1, /#/);            // # li manzil yo'q
 assert.doesNotMatch(sm1, /\/api\//);
 assert.doesNotMatch(sm1, /student|finance|staff|dashboard|kabinet/i);
-assert.equal((sm1.match(/<loc>/g) || []).length, 1);
+assert.equal((sm1.match(/<loc>/g) || []).length, 1 + require('../server/landings').PAGES.length);
+assert.match(sm1, /<loc>http:\/\/localhost:3300\/arab-tili-kursi<\/loc>/);
 
 /* ---- SITE_URL: o'z domeningiz qo'yilganda hamma narsa unga o'tadi ---- */
 {

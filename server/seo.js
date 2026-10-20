@@ -290,6 +290,10 @@ function sitemap(host) {
     '    <changefreq>weekly</changefreq>\n' +
     '    <priority>1.0</priority>\n' +
     '  </url>\n' +
+    require('./landings').PAGES.map(function (pg) {
+      return '  <url>\n    <loc>' + escapeHtml(base) + '/' + pg.slug + '</loc>\n    <lastmod>' + today +
+        '</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n';
+    }).join('') +
     '</urlset>\n';
 }
 

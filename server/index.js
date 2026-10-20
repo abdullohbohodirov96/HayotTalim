@@ -24,6 +24,7 @@ const lms = require('./lms');
 const quiz = require('./quiz');
 const progress = require('./progress');
 const seo = require('./seo');
+const landings = require('./landings');
 const SITE = require('./site-content');
 const parents = require('./parents');
 const course = require('./course');
@@ -4347,6 +4348,16 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
     if (req.method === 'GET' && url.pathname === '/sitemap.xml') {
       return send(res, 200, seo.sitemap(req.headers.host || 'localhost'),
         { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }, req);
+    }
+    /* SEO sahifalari: /arab-tili-kursi va boshqalar — yengil, serverda tayyor HTML */
+    const LP = req.method === 'GET' ? landings.find(url.pathname) : null;
+    if (LP) {
+      const s = (await store.get('meta/settings')) || {};
+      const html = landings.render(LP, { base: seo.origin(req.headers.host || 'localhost'), phone: s.phone || SITE.PHONE, gaId: process.env.GA_MEASUREMENT_ID || '' });
+      res.setHeader('Content-Security-Policy', pageCsp(inlineScriptHashes(html)));
+      return sendMaybeZip(req, res, 200, {
+        'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=600'
+      }, Buffer.from(html, 'utf8'));
     }
     return serveStatic(req, res, url.pathname);
   } catch (e) {
