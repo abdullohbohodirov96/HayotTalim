@@ -4414,3 +4414,51 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 @media (max-width:1000px){.afz-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){.afz-top{grid-template-columns:1fr}}
 @media (max-width:560px){.afz-grid{grid-template-columns:1fr}.afz-big{padding:20px}}
+
+/* ================= TELEFON: ixcham ko'rinish =================
+   Sahifa telefonda juda uzun bo'lib ketgan edi. Ma'lumot o'sha-o'sha,
+   faqat kartalar yonma-yon (surib ko'riladi) yoki ikki ustunda turadi. */
+@media (max-width:760px){
+  .site-sec{padding:30px 0 4px}
+  .site .sec-note{font-size:14px;line-height:1.5}
+  /* surib ko'riladigan qatorlar */
+  .afz-top,#auth.site .lvl-grid,.lvl-grid,.how-grid,.rm-line{display:grid;grid-template-columns:none;grid-auto-flow:column;
+    grid-auto-columns:84%;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    padding:4px 2px 14px;margin-right:-16px;padding-right:16px;scrollbar-width:none}
+  .afz-top::-webkit-scrollbar,.lvl-grid::-webkit-scrollbar,.how-grid::-webkit-scrollbar,.rm-line::-webkit-scrollbar{display:none}
+  .afz-top>*,.lvl-grid>*,.how-grid>*,.rm-line>*{scroll-snap-align:start}
+  .rm-line{grid-auto-columns:62%}
+  .rm-line::before,.rm-line::after{display:none}
+  .afz-big{padding:18px;gap:6px}.afz-big b{font-size:17px}.afz-big p{font-size:13.5px}
+  .afz-ico{width:44px;height:44px;font-size:23px}
+  /* 12 ta afzallik — 2 ustun, ixcham */
+  .afz-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+  .afz-card{flex-direction:column;gap:6px;padding:12px;border-radius:16px}
+  .afz-ico.sm{width:36px;height:36px;font-size:19px;border-radius:11px}
+  .afz-card b{font-size:14px;margin-bottom:1px}.afz-card p{font-size:12px;line-height:1.4}
+  .afz-cta{margin-top:16px}
+  /* surish mumkinligini bildiruvchi yozuv */
+  .afz-top::after,.lvl-grid::after{content:"";flex:none;width:1px}
+  /* reyting: uchta mukofot bir qatorda */
+  .pz-podium{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:8px !important;align-items:end}
+  .pz{padding:14px 6px 12px !important;border-radius:18px !important;gap:3px !important}
+  .pz .pz-medal{font-size:26px !important}.pz b{font-size:13.5px !important;line-height:1.25}.pz p{font-size:11px !important;margin:0}
+  .pz .pz-place{font-size:10px !important}
+  /* tekin dars arizasi: forma birinchi, ortiqcha matn yashirin */
+  .apply-left .ben-list,.apply-left>p{display:none}
+  /* pastki qism: «Bo'limlar» ustuni telefonda kerak emas */
+  .foot-cols{grid-template-columns:1fr 1fr !important;gap:18px !important}
+  .foot-cols>.foot-col:nth-child(1){grid-column:1 / -1}
+  .foot-cols>.foot-col:nth-child(2){display:none}
+}
+@media (max-width:760px){
+  .site-hero .hero-art{display:none !important}
+  .stat-band .hero-stats{grid-template-columns:1fr 1fr !important;gap:12px !important}
+  .stat-band .hero-stat{gap:9px !important}
+  .apply-left .site-contact,.apply-left .apply-soc{display:none !important}
+  .foot-cols>.foot-col:nth-child(3){grid-column:1 / -1;display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 8px;align-items:center}
+  .foot-cols>.foot-col:nth-child(3)>b{width:100%}
+  .foot-cols>.foot-col:nth-child(4){grid-column:1 / -1}
+  #foot-mail{word-break:normal !important;overflow-wrap:normal !important}
+  .foot-cols>.foot-col:nth-child(3) .foot-link{padding:5px 10px !important;border:1px solid #e1ece6;border-radius:999px;font-size:12.5px !important;margin:0 !important}
+}
