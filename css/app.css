@@ -4462,3 +4462,8 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
   #foot-mail{word-break:normal !important;overflow-wrap:normal !important}
   .foot-cols>.foot-col:nth-child(3) .foot-link{padding:5px 10px !important;border:1px solid #e1ece6;border-radius:999px;font-size:12.5px !important;margin:0 !important}
 }
+
+.afz-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:18px auto 0;max-width:980px}
+.afz-chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #e1ece6;border-radius:999px;padding:7px 14px 7px 8px;font-size:14px;font-weight:700;color:#0f241a}
+.afz-chip i{font-style:normal;width:26px;height:26px;border-radius:50%;background:#e2f4ec;display:grid;place-items:center;font-size:14px}
+@media (max-width:760px){.afz-chips{gap:6px;margin-top:12px}.afz-chip{font-size:12.5px;padding:5px 11px 5px 5px;gap:5px}.afz-chip i{width:22px;height:22px;font-size:12px}}

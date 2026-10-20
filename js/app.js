@@ -2090,9 +2090,6 @@
         }))
       ]);
     }
-    function afzCard(ico, title, text) {
-      return h('div', { class: 'afz-card' }, [h('span', { class: 'afz-ico sm' }, ico), h('div', {}, [h('b', {}, title), h('p', {}, text)])]);
-    }
     var afzSec = h('section', { class: 'site-sec reveal afz-sec', id: 'afzalliklar' }, [
       h('div', { class: 'sec-mid' }, [
         h('div', { class: 'sec-eyebrow center' }, 'Afzalliklarimiz'),
@@ -2111,20 +2108,12 @@
           'Kabinetda bajarasiz yoki rasm/PDF yuborasiz — ustoz tekshirib baho qo’yadi, ball reytingga qo’shiladi.',
           ['Bajarish', 'Yuborish', 'Ustoz bahosi', 'Ball'])
       ]),
-      h('div', { class: 'afz-grid' }, [
-        afzCard('🇪🇬', 'Misrlik ustoz', 'Ona tili arab, 10+ yil tajriba, o’zbekcha ham tushuntiradi'),
-        afzCard('🗣', 'Gapirishga urg’u', 'Arab metodikasi: birinchi darsdan jonli muloqot'),
-        afzCard('🎥', 'Zoom’da jonli dars', 'Uydan chiqmasdan, ustoz bilan yuzma-yuz'),
-        afzCard('🔓', 'Bosqichma-bosqich', '60% dan yuqori bajarsangiz keyingi dars ochiladi'),
-        afzCard('🔤', 'Alifbo noldan', 'Har harf talaffuzi animatsiya bilan'),
-        afzCard('📘', 'Darslik kitob', 'Mashq va o’qish matnlari bilan'),
-        afzCard('👤', 'Web kabinet', 'Darslar, vazifa, lug’at, reyting — telefonda'),
-        afzCard('🏆', 'Mukofotlar', '1-o’rin tekin, 2-o’rin 50%, 3-o’rin 20%'),
-        afzCard('👥', 'Alohida guruhlar', 'Ayollar, erkaklar, bolalar uchun'),
-        afzCard('📼', 'Dars yozuvi', 'Kira olmasangiz — keyin ko’rasiz'),
-        afzCard('📊', 'Bepul daraja testi', '10 daqiqada darajangizni bilasiz'),
-        afzCard('🎁', 'Birinchi dars tekin', 'Avval sinab ko’ring, keyin yoziling')
-      ]),
+      h('div', { class: 'afz-chips' }, [
+        ['🇪🇬', 'Misrlik ustoz'], ['🗣', 'Gapirishga urg’u'], ['🎥', 'Zoom’da jonli dars'],
+        ['🔤', 'Alifbo noldan'], ['📘', 'Darslik kitob'], ['👤', 'Web kabinet'],
+        ['🏆', '1-o’rin — tekin o’qiydi'], ['👥', 'Alohida guruhlar'], ['📼', 'Dars yozuvi saqlanadi'],
+        ['📊', 'Bepul daraja testi'], ['🎁', '1-dars tekin']
+      ].map(function (c) { return h('span', { class: 'afz-chip' }, [h('i', {}, c[0]), c[1]]); })),
       h('div', { class: 'afz-cta' }, [
         h('button', { class: 'btn primary lg', type: 'button', onclick: function () { scrollTo('ariza'); } }, ['Tekin darsga yozilish', goIcon()])
       ])
