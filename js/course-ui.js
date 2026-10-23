@@ -495,6 +495,7 @@
         var mp4 = null;
         if (D.mode === 'server') { try { var vi = await D.api('GET', 'api/lesson-video?l=' + encodeURIComponent(lesson.id) + '&info=1'); if (vi && vi.has) mp4 = 'api/lesson-video?l=' + encodeURIComponent(lesson.id); } catch (e) { } }
         var anim = h('div', {});
+        var qv = null;
         function mountAnim() {
           if (anim.firstChild) return;
           var have = { lines: [], words: [] };
@@ -505,7 +506,7 @@
               try { extra = ((await D.api('GET', 'api/qissa-q?l=' + encodeURIComponent(lesson.id))) || {}).items || []; } catch (e) { }
             }
             var sc = A.QissaVideo.scriptFor(lesson);
-            A.QissaVideo.mount(anim, lesson, {
+            qv = A.QissaVideo.mount(anim, lesson, {
               extraChecks: extra,
               audioUrl: function (i) { return have.lines.indexOf(i) >= 0 ? 'api/qissa-audio?l=' + lesson.id + '&i=' + i : null; },
               wordUrl: function (text) {
@@ -517,7 +518,15 @@
           })();
         }
         /* Asosiy — interaktiv dars (so'zma-so'z tarjima, savollar). Markaz yuklagan MP4 — qo'shimcha. */
-        if (A.QissaVideo) { vbox.appendChild(anim); mountAnim(); }
+        if (A.QissaVideo) {
+          vbox.appendChild(anim); mountAnim();
+          vbox.appendChild(h('div', { class: 'qv-ctrls', style: 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px' }, [
+            h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.prev(); } }, '⏪ Ortga'),
+            h('button', { class: 'btn sm', type: 'button', onclick: function (e) { if (!qv) return; if (qv.isPlaying()) { qv.pause(); e.currentTarget.textContent = '▶ Davom'; } else { qv.play(); e.currentTarget.textContent = '⏸ To’xtatish'; } } }, '⏸ To’xtatish'),
+            h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.next(); } }, 'Oldinga ⏩'),
+            h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.restart(); } }, '↺ Boshidan')
+          ]));
+        }
         if (mp4) {
           var vid = null;
           vbox.appendChild(h('button', { class: 'btn sm', type: 'button', style: 'margin-top:8px', onclick: function (e) {

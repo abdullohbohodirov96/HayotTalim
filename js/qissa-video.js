@@ -154,38 +154,7 @@
   /* ---------- Ssenariylar ----------
      Har gap uchun: kim gapiradi (A/B), harakatlar, suratda kim belgilanadi.
      at: gapning qaysi qismida (0..1) qo'shimcha harakat boshlanadi.          */
-  var SCRIPTS = {
-    'a1-01': {
-      title: 'صُورَةُ الْأُسْرَةِ', titleUz: '1-dars · Oila surati',
-      start: { A: { x: -160 }, B: { x: 690 } },
-      photo: {
-        title: 'أُسْرَتِي',
-        members: [
-          { key: 'jadd', x: 70, kind: 'oldman', ar: 'جَدِّي', uz: 'bobom' },
-          { key: 'jadda', x: 145, kind: 'oldwoman', ar: 'جَدَّتِي', uz: 'buvim' },
-          { key: 'ab', x: 225, kind: 'man', ar: 'أَبِي', uz: 'otam' },
-          { key: 'umm', x: 305, kind: 'woman', ar: 'أُمِّي', uz: 'onam' },
-          { key: 'akh', x: 385, kind: 'boy', s: 1, ar: 'أَخِي', uz: 'ukam' },
-          { key: 'ukht', x: 455, kind: 'girl', s: 1, ar: 'أُخْتِي', uz: 'singlim' }
-        ]
-      },
-      lines: [
-        { pre: 1.8, A: { x: 290, gest: 'wave' }, B: { gest: 'wave', at: .45 } },
-        { B: { gest: 'chest' }, then: { at: .45, B: { gest: 'point' }, photo: true, A: { x: 112 }, Bx: 850 } },
-        { A: { gest: 'up' }, then: { at: .5, A: { gest: 'point' }, ask: 'ab' } },
-        { B: { gest: 'point' }, hl: ['ab'], tags: ['ab'], then: { at: .55, hl: ['ab', 'jadd'], tags: ['jadd'] } },
-        { A: { gest: 'point' }, ask: 'umm' },
-        { B: { gest: 'point' }, hl: ['umm'], tags: ['umm'], then: { at: .55, hl: ['umm', 'jadda'], tags: ['jadda'] } },
-        { A: { gest: 'point' }, ask: 'akh' },
-        { B: { gest: 'point' }, hl: ['akh'], tags: ['akh'], then: { at: .55, hl: ['akh', 'ukht'], tags: ['ukht'] } }
-      ],
-      recap: {
-        title: 'Yangi so’zlar',
-        words: [['أَبِي', 'otam'], ['أُمِّي', 'onam'], ['جَدِّي', 'bobom'], ['جَدَّتِي', 'buvim'], ['أَخِي', 'ukam / akam'], ['أُخْتِي', 'singlim / opam']],
-        rule: { title: 'Qoida', rows: [['هَذَا', 'bu — erkak uchun', 'هَذَا أَبِي'], ['هَذِهِ', 'bu — ayol uchun', 'هَذِهِ أُمِّي']] }
-      }
-    }
-  };
+  var SCRIPTS = {};
   SCRIPTS['a1-02'] = {
     title: 'هُوَ مُهَنْدِسٌ', titleUz: '2-dars · Kim nima ish qiladi?',
     start: { A: { x: -160 }, B: { x: 690 } },
@@ -248,19 +217,6 @@
      g: har bir arabcha so'z ostida o'zbekcha ma'nosi (so'zlar soni bilan bir xil),
      tr: lotincha o'qilishi, note: shu gapdagi qoida, checks: video ichidagi savollar. */
   var EXTRA = {
-    'a1-01': {
-      tr: ['Assalaamu ‘alaykum, yaa Zaynab.', 'Wa ‘alaykumus-salaam. Unzurii, haazihi suuratu usratii.', 'Raa’i‘un! Man haazaa?', 'Haazaa abii, wa haazaa jaddii.',
-        'Wa man haazihi?', 'Haazihi ummii, wa haazihi jaddatii.', 'Wa man haazal-walad?', 'Haazaa axii Yuusuf, wa haazihi uxtii.'],
-      g: [['tinchlik', 'sizga', 'ey', 'Zaynab'], ['va sizga', 'tinchlik', 'qara', 'bu (ayol)', 'surati', 'oilamning'], ['ajoyib', 'kim', 'bu?'], ['bu', 'otam', 'va bu', 'bobom'],
-        ['va kim', 'bu (ayol)?'], ['bu (ayol)', 'onam', 'va bu (ayol)', 'buvim'], ['va kim', 'bu', 'bola?'], ['bu', 'ukam', 'Yusuf', 'va bu (ayol)', 'singlim']],
-      note: { 2: 'مَنْ؟ — «kim?» degan savol so’zi', 3: 'هَذَا — «bu» (erkak kishi uchun)', 5: 'هَذِهِ — «bu» (ayol kishi uchun)', 7: 'ـِي qo’shimchasi = «-im»: أَخٌ → أَخِي (ukam)' },
-      checks: [
-        { after: 3, type: 'tf', qa: 'أَبِي', q: '«otam» degani', a: true, why: 'أَبٌ — ota, أَبِي — otam.' },
-        { after: 5, type: 'choice', qa: 'هَذِهِ أُمِّي', q: 'Bu gap nima degani?', opts: ['Bu onam', 'Bu otam', 'Bu buvim'], a: 0, why: 'أُمِّي — onam.' },
-        { after: 7, type: 'listen', line: 3, q: 'Eshiting: Zaynab nima dedi?', opts: ['Bu otam, bu esa bobom', 'Bu onam, bu esa buvim', 'Bu ukam, bu esa singlim'], a: 0 },
-        { after: 7, type: 'tf', q: 'Yusuf — Zaynabning singlisi.', a: false, why: 'Yusuf — ukasi (أَخِي). Singlisi — أُخْتِي.' }
-      ]
-    },
     'a1-02': {
       tr: ['Man haazaa, yaa Zaynab?', 'Haazaa abii, huwa tabiib.', 'Wa haazihi ummuki? Hal hiya tabiibatun aydan?', 'Laa, hiya mu‘allima.',
         'Wa man haazaa?', 'Haazaa axii ‘Aliy, huwa muhandis.', 'Wa haazihil-bint?', 'Haazihi ibnatu axii, hiya taaliba.'],
@@ -289,7 +245,7 @@
     }
   };
   /* Tayyor studiya ovozlari (ElevenLabs, saytning o'zida): assets/qissa/<dars>/<gap>.mp3 */
-  var STATIC_AUDIO = { 'a1-01': 8, 'a1-02': 8, 'a1-03': 8 };
+  var STATIC_AUDIO = { 'a1-02': 8, 'a1-03': 8 };
   var EMO = { family: '👨‍👩‍👧', father: '👨', mother: '👩', brother: '👦', sister: '👧', grandpa: '👴', grandma: '👵', photo: '🖼️',
     doctor: '👨‍⚕️', doctorF: '👩‍⚕️', engineer: '👷', teacher: '👨‍🏫', teacherF: '👩‍🏫', student: '🧑‍🎓', studentF: '👩‍🎓', son: '👦', daughter: '👧',
     room: '🛏️', bathroom: '🛁', shop: '🏪', balcony: '🌿', coat: '🧥', glasses: '👓', tree: '🌳', here: '📍' };
@@ -787,7 +743,7 @@
       reset(); st.token++; st.playing = true; big.hidden = true;
       return run(0, st.token, timing);
     }
-    return { play: play, pause: pause, restart: restart, jump: jump, renderRun: renderRun, destroy: function () { pause(); root.remove(); } };
+    return { play: play, pause: pause, restart: restart, jump: jump, next: function () { jump((st.idx || 0) + 1); }, prev: function () { jump(Math.max(0, (st.idx || 0) - 1)); }, isPlaying: function () { return !!st.playing; }, renderRun: renderRun, destroy: function () { pause(); root.remove(); } };
   }
 
   /** MP4 uchun vaqt jadvali: ovoz fayllari davomiyligidan (soniya) */
