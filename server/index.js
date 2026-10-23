@@ -4097,7 +4097,7 @@ const MIME = {
  */
 /* robots.txt va sitemap.xml fayl emas — ular serverda tuziladi
    (pastdagi yo'llarga qarang), shuning uchun bu ro'yxatda yo'q. */
-const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/qissa.html']);
+const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/qissa.html', '/dars-sen-kimsan.html']);
 const PUBLIC_DIRS = ['/css/', '/js/', '/assets/'];
 const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.jpg', '.webp', '.svg', '.ico', '.webmanifest',
   '.txt', '.xml', '.mp3', '.mp4']);

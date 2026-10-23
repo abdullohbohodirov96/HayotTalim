@@ -345,6 +345,11 @@
     function paintSide() {
       UI.clear(side);
       var v = state.view;
+      /* Kirish darsi — «Sen kimsan?» (to'liq interaktiv dars, yangi qahramonlar) */
+      side.appendChild(h('a', { class: 'cr-lesson done', href: 'dars-sen-kimsan.html', target: '_blank', rel: 'noopener', style: 'text-decoration:none' }, [
+        h('span', { class: 'cr-lesson-ico' }, '⭐'),
+        h('span', { class: 'cr-lesson-t' }, [h('b', {}, 'Sen kimsan? — Kirish darsi'), ar('مَنْ أَنْتَ؟', 'sm')])
+      ]));
       C.UNITS.forEach(function (u) {
         side.appendChild(h('div', { class: 'cr-unit' }, [
           h('span', { class: 'cr-unit-n' }, u.n + '-bo’lim'),
