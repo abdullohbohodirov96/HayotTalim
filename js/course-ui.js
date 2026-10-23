@@ -345,11 +345,6 @@
     function paintSide() {
       UI.clear(side);
       var v = state.view;
-      /* Kirish darsi — «Sen kimsan?» (to'liq interaktiv dars, yangi qahramonlar) */
-      side.appendChild(h('a', { class: 'cr-lesson done', href: 'dars-sen-kimsan.html', target: '_blank', rel: 'noopener', style: 'text-decoration:none' }, [
-        h('span', { class: 'cr-lesson-ico' }, '⭐'),
-        h('span', { class: 'cr-lesson-t' }, [h('b', {}, 'Sen kimsan? — Kirish darsi'), ar('مَنْ أَنْتَ؟', 'sm')])
-      ]));
       C.UNITS.forEach(function (u) {
         side.appendChild(h('div', { class: 'cr-unit' }, [
           h('span', { class: 'cr-unit-n' }, u.n + '-bo’lim'),
@@ -401,7 +396,8 @@
     function lessonView(id) { return state.view.lessons.filter(function (l) { return l.id === id; })[0]; }
     function firstStepFor(lv) {
       if (lv.status === 'done') return 'video';
-      var order = C.STEPS.map(function (s) { return s.id; });
+      var L = C.byId(lv.id);
+      var order = C.STEPS.map(function (s) { return s.id; }).filter(function (id) { return !(id === 'grammar' && (!L || !L.grammar)); });
       for (var i = 0; i < order.length; i++) if (!lv.steps[order[i]]) return order[i];
       return 'homework';
     }
@@ -439,7 +435,7 @@
           onclick: function () { stopSpeech(); state.step = s.id; paintMain(); }
         }, [h('span', { class: 'cr-step-n' }, seen ? '✓' : String(i + 1)), h('span', {}, s.label)]);
       }
-      var inClass = C.STEPS.filter(function (s) { return s.part !== 'uyda'; });
+      var inClass = C.STEPS.filter(function (s) { return s.part !== 'uyda' && !(s.id === 'grammar' && !lesson.grammar); });
       var atHome = C.STEPS.filter(function (s) { return s.part === 'uyda'; });
       var stepper = h('nav', { class: 'cr-steps grouped' }, [
         h('div', { class: 'cr-stepgrp' }, [h('span', { class: 'cr-stepgrp-t' }, '📖 Darsda'), h('div', { class: 'cr-stepgrp-b' }, inClass.map(function (s) { return stepBtn(s, C.STEPS.indexOf(s)); }))]),
@@ -481,7 +477,7 @@
           sayBtn(wd.ar)
         ]);
       })));
-      body.appendChild(nextBtn('Qoidaga o’tish', function () { markStep('words'); goStep('grammar'); }));
+      body.appendChild(nextBtn(lesson.grammar ? 'Qoidaga o’tish' : 'Mashqqa o’tish', function () { markStep('words'); goStep(lesson.grammar ? 'grammar' : 'practice'); }));
     }
 
     /* ---- 2. Qissa: tinglash, o'zi o'qib tekshirish ---- */

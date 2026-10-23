@@ -39,66 +39,54 @@
     /* ===================== 2-BO'LIM: OILA ===================== */
     {
       id: 'a1-01', unit: 'u2', n: 1,
-      title: 'Bu kim?', titleAr: 'مَنْ هَذَا؟',
-      goal: 'Oila a’zolarini tanishtirish: «Bu — otam», «Bu — onam».',
+      title: 'Sen kimsan?', titleAr: 'مَنْ أَنْتَ؟',
+      goal: 'O’zini tanishtirish: ism, davlat/shahar, yosh.',
+      cast: { A: 'man', B: 'man' },
       words: [
-        w('أُسْرَةٌ', 'usratun', 'oila', 'family'),
-        w('أَبٌ', 'abun', 'ota', 'father'),
-        w('أُمٌّ', 'ummun', 'ona', 'mother'),
-        w('أَخٌ', 'axun', 'aka, uka', 'brother'),
-        w('أُخْتٌ', 'uxtun', 'opa, singil', 'sister'),
-        w('جَدٌّ', 'jaddun', 'bobo', 'grandpa'),
-        w('جَدَّةٌ', 'jaddatun', 'buvi', 'grandma'),
-        w('صُورَةٌ', 'suuratun', 'surat', 'photo')
+        w('اِسْمٌ', 'ismun', 'ism', 'name'),
+        w('أَهْلًا وَسَهْلًا', 'ahlan wa sahlan', 'xush kelibsiz', 'welcome'),
+        w('مِنْ أَيْنَ أَنْتَ؟', 'min ayna anta', 'qayerdansan?', 'where'),
+        w('قَطَرُ', 'qatar', 'Qatar', 'Qatar'),
+        w('الدَّوْحَةُ', 'ad-dawha', 'Doha', 'Doha'),
+        w('مِصْرُ', 'misr', 'Misr', 'Egypt'),
+        w('الْقَاهِرَةُ', 'al-qahira', 'Qohira', 'Cairo'),
+        w('كَمْ عُمْرُكَ؟', 'kam umruka', 'yoshing nechada?', 'age')
       ],
       dialog: {
-        title: 'Oila surati',
-        scene: 'Maryam dugonasi Zaynabning uyida. Zaynab oilaviy suratni ko’rsatyapti.',
+        title: 'Tanishuv',
+        scene: 'Ahmad va Yusuf birinchi marta uchrashib tanishadi.',
         lines: [
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'السَّلَامُ عَلَيْكُمْ يَا زَيْنَبُ.', uz: 'Assalomu alaykum, Zaynab.' },
-          { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'وَعَلَيْكُمُ السَّلَامُ. انْظُرِي، هَذِهِ صُورَةُ أُسْرَتِي.', uz: 'Va alaykum assalom. Qara, bu oilamning surati.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'رَائِعٌ! مَنْ هَذَا؟', uz: 'Ajoyib! Bu kim?' },
-          { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'هَذَا أَبِي، وَهَذَا جَدِّي.', uz: 'Bu otam, bu esa bobom.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'وَمَنْ هَذِهِ؟', uz: 'Bu (ayol) kim?' },
-          { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'هَذِهِ أُمِّي، وَهَذِهِ جَدَّتِي.', uz: 'Bu onam, bu esa buvim.' },
-          { who: 'مَرْيَمُ', whoUz: 'Maryam', ar: 'وَمَنْ هَذَا الْوَلَدُ؟', uz: 'Bu bola kim?' },
-          { who: 'زَيْنَبُ', whoUz: 'Zaynab', ar: 'هَذَا أَخِي يُوسُفُ، وَهَذِهِ أُخْتِي.', uz: 'Bu ukam Yusuf, bu esa singlim.' }
-        ]
-      },
-      grammar: {
-        title: 'هَذَا va هَذِهِ — «bu»',
-        points: [
-          {
-            rule: 'Erkak jinsidagi so’z uchun هَذَا, ayol jinsidagi so’z uchun هَذِهِ ishlatiladi.',
-            ex: [{ ar: 'هَذَا أَبٌ', uz: 'Bu — ota' }, { ar: 'هَذِهِ أُمٌّ', uz: 'Bu — ona' }]
-          },
-          {
-            rule: 'So’z oxiridagi ة (ta marbuta) ko’pincha ayol jinsini bildiradi.',
-            ex: [{ ar: 'هَذِهِ صُورَةٌ', uz: 'Bu — surat' }, { ar: 'هَذِهِ جَدَّةٌ', uz: 'Bu — buvi' }]
-          },
-          {
-            rule: 'So’z oxiriga ـِي qo’shilsa «mening» degan ma’no beradi.',
-            ex: [{ ar: 'أَبِي', uz: 'otam' }, { ar: 'أُمِّي', uz: 'onam' }, { ar: 'أُخْتِي', uz: 'singlim' }]
-          }
+          { who: 'أَحْمَدُ', whoUz: 'Ahmad', ar: 'السَّلَامُ عَلَيْكُمْ!', uz: 'Assalomu alaykum!' },
+          { who: 'يُوسُفُ', whoUz: 'Yusuf', ar: 'وَعَلَيْكُمُ السَّلَامُ! أَهْلًا وَسَهْلًا.', uz: 'Va alaykum assalom! Xush kelibsiz.' },
+          { who: 'أَحْمَدُ', whoUz: 'Ahmad', ar: 'اسْمِي أَحْمَدُ. مَا اسْمُكَ؟', uz: 'Mening ismim Ahmad. Isming nima?' },
+          { who: 'يُوسُفُ', whoUz: 'Yusuf', ar: 'اِسْمِي يُوسُفُ.', uz: 'Mening ismim Yusuf.' },
+          { who: 'أَحْمَدُ', whoUz: 'Ahmad', ar: 'يَا يُوسُفُ! مِنْ أَيْنَ أَنْتَ؟', uz: 'Yusuf! Qayerdansan?' },
+          { who: 'يُوسُفُ', whoUz: 'Yusuf', ar: 'أَنَا مِنْ قَطَرَ، مِنْ مَدِينَةِ الدَّوْحَةِ. وَأَنْتَ؟', uz: 'Men Qatardan, Doha shahridanman. Sen-chi?' },
+          { who: 'أَحْمَدُ', whoUz: 'Ahmad', ar: 'أَنَا مِنْ مِصْرَ، مِنَ الْقَاهِرَةِ.', uz: 'Men Misrdan, Qohiradanman.' },
+          { who: 'يُوسُفُ', whoUz: 'Yusuf', ar: 'كَمْ عُمْرُكَ يَا أَحْمَدُ؟', uz: 'Yoshing nechada, Ahmad?' },
+          { who: 'أَحْمَدُ', whoUz: 'Ahmad', ar: 'عُمْرِي ثَلَاثُونَ عَامًا. وَكَمْ عُمْرُكَ أَنْتَ؟', uz: 'Yoshim o’ttizda. Sening yoshing-chi?' },
+          { who: 'يُوسُفُ', whoUz: 'Yusuf', ar: 'عُمْرِي عِشْرُونَ عَامًا.', uz: 'Yoshim yigirmada.' }
         ]
       },
       practice: [
-        { type: 'choice', q: 'To’g’ri so’zni tanlang: ___ أُمِّي', options: ['هَذَا', 'هَذِهِ'], answer: 1 },
-        { type: 'choice', q: 'To’g’ri so’zni tanlang: ___ جَدِّي', options: ['هَذَا', 'هَذِهِ'], answer: 0 },
-        { type: 'choice', q: '«Bu kim?» arabchada qanday?', options: ['مَنْ هَذَا؟', 'أَيْنَ هَذَا؟', 'مَا هَذَا؟'], answer: 0 },
-        { type: 'choice', q: 'أُخْتِي so’zining ma’nosi:', options: ['ukam', 'singlim', 'onam'], answer: 1 },
-        { type: 'order', uz: 'Bu — mening oilamning surati.', words: ['هَذِهِ', 'صُورَةُ', 'أُسْرَتِي'] }
+        { type: 'choice', q: 'Bo’sh joyni to’ldiring:  مَا ___؟  (— اِسْمِي يَاسِرٌ)', options: ['اسْمُكَ', 'عُمْرِي', 'أَيْنَ'], answer: 0 },
+        { type: 'choice', q: 'Bo’sh joyni to’ldiring:  مِنْ ___ أَنْتَ؟', options: ['أَيْنَ', 'عُمْرِي', 'أَهْلًا'], answer: 0 },
+        { type: 'choice', q: 'To’g’ri so’roq:  ___ عُمْرُكَ؟', options: ['كَمْ', 'مَنْ', 'أَيْنَ'], answer: 0 },
+        { type: 'choice', q: 'Yusuf nechada?  (عُمْرُ يُوسُفَ)', options: ['20', '15', '10'], answer: 0 },
+        { type: 'choice', q: 'Ahmad qayerdan?  (أَحْمَدُ مِنْ)', options: ['مِصْرَ', 'الْمَغْرِبِ', 'السُّعُودِيَّةِ'], answer: 0 },
+        { type: 'order', uz: 'Men Misrdanman.', words: ['أَنَا', 'مِنْ', 'مِصْرَ'] },
+        { type: 'order', uz: 'Yoshim o’ttizda.', words: ['عُمْرِي', 'ثَلَاثُونَ', 'عَامًا'] }
       ],
       homework: {
         auto: [
-          { q: '___ صُورَةٌ', options: ['هَذَا', 'هَذِهِ'] },
-          { q: '___ أَخٌ', options: ['هَذَا', 'هَذِهِ'] },
-          { q: '___ جَدَّةٌ', options: ['هَذَا', 'هَذِهِ'] },
-          { q: '«otam» — arabchada:', options: ['أَبِي', 'أَخِي', 'جَدِّي'] },
-          { q: '«buvim» — arabchada:', options: ['أُمِّي', 'جَدَّتِي', 'أُخْتِي'] }
+          { q: 'أَنَا ___ قَطَرَ.', options: ['مِنْ', 'مَا', 'كَمْ'] },
+          { q: '___ اسْمُكَ؟', options: ['مَا', 'مِنْ', 'كَمْ'] },
+          { q: '«yoshing nechada?» — arabchada:', options: ['كَمْ عُمْرُكَ؟', 'مَا اسْمُكَ؟', 'مِنْ أَيْنَ أَنْتَ؟'] },
+          { q: 'عُمْرِي عِشْرُونَ ___.', options: ['عَامًا', 'اسْمِي', 'مِنْ'] },
+          { q: '«qayerdansan?» — arabchada:', options: ['مِنْ أَيْنَ أَنْتَ؟', 'كَمْ عُمْرُكَ؟', 'مَا اسْمُكَ؟'] }
         ],
         write: [
-          { prompt: 'Oilangizni 4 ta gap bilan tanishtiring.', hint: 'Masalan: هَذَا أَبِي. هَذِهِ أُمِّي.' }
+          { prompt: 'O’zingizni 3 ta gap bilan tanishtiring: ism, shahar/davlat, yosh.', hint: 'Masalan: اِسْمِي ... . أَنَا مِنْ ... . عُمْرِي ... عَامًا.' }
         ]
       }
     },

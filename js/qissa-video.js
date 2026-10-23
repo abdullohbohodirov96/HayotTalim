@@ -298,6 +298,7 @@
   function genericScript(lesson) {
     var words = (lesson.words || []).slice(0, 6).map(function (w) { return [w.ar, w.uz]; });
     return {
+      cast: lesson.cast,
       title: lesson.titleAr || '', titleUz: lesson.n + '-dars · ' + (lesson.dialog.title || lesson.title),
       start: { A: { x: -160 }, B: { x: 680 } },
       lines: lesson.dialog.lines.map(function (ln, i) {
