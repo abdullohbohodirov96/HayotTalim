@@ -4406,6 +4406,9 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   // Zoom: konferensiya, eslatmalar, davomat, dars yozuvi (ZOOM_* sozlansa)
   startZoom();
 
+  // Kunlik murojaat hisoboti — har kuni 19:00 (Toshkent) adminlarga Telegramga
+  require('./lead-report').start(store);
+
   /* Bot modulini doim tayyorlaymiz — token bo'lmasa ham ERP dan karta to'lovini tasdiqlash ishlaydi */
   require('./bot').init({ store, stamp, A, recordPayment: autoCardPayment });
   if (process.env.TELEGRAM_BOT_TOKEN) {
