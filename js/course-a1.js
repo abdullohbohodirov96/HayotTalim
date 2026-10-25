@@ -9,8 +9,9 @@
    markaz uchun alohida tuzilgan.
 
    Har bir dars bosqichlari:
-     1. so'zlar   — yangi so'zlar, animatsiya, talaffuz
-     2. dialog    — matn, tarjima, ovoz
+     1. so'zlar   — yangi so'zlarni yodlash: animatsiya, talaffuz
+     2. video     — qissa videoda (yodlangan so'zlar endi tanish)
+     3. dialog    — matn, tarjima, ovoz
      3. qoida     — grammatika va misollar
      4. mashq     — savol-javob (darhol tekshiriladi)
      5. test      — so'zlar bo'yicha, 60% dan o'tish kerak
@@ -330,9 +331,9 @@
 
   /* «Darsda» o'tiladigan bosqichlar va «Uyda» bajariladigan vazifa alohida guruh */
   var STEPS = [
+    { id: 'words', label: 'So’z yodlash', part: 'darsda' },
     { id: 'video', label: 'Video', part: 'darsda' },
     { id: 'dialog', label: 'Qissa', part: 'darsda' },
-    { id: 'words', label: 'So’zlar', part: 'darsda' },
     { id: 'grammar', label: 'Qoida', part: 'darsda' },
     { id: 'practice', label: 'Mashq', part: 'darsda' },
     { id: 'test', label: 'Test', part: 'darsda' },

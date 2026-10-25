@@ -19,6 +19,7 @@ const link = require('./link');
 const kabsess = require('./kabsess');
 const levels = require('./levels');
 const files = require('./files');
+const lessonVideo = require('./lesson-video');
 const curriculum = require('./curriculum');
 const lms = require('./lms');
 const quiz = require('./quiz');
@@ -1161,23 +1162,6 @@ async function studentLevel(st) {
   const info = levels.levelInfo(code, 'uz');
   return { code: info.code, name: info.name };
 }
-/** Alifbo hamisha ochiq: o'quvchi A0 dan yuqori bosqichga o'tgan (yoki
-    keyin pastga tushirilgan) bo'lsa ham harflar va ovozlarni takrorlay oladi.
-    A0 dan yuqori darajada — barcha alifbo darslari ochiq. */
-async function alifOpts(sid) {
-  const st = await store.get('students/' + sid);
-  const code = String((st && st.level) || '').toUpperCase();
-  let pl = null;
-  if (!code) {
-    pl = (await store.list('placements/')).map(r => r.data)
-      .filter(p => p && p.studentId === sid && p.level)
-      .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
-  }
-  const lv = code || (pl && String(pl.level).toUpperCase()) || '';
-  /* Alifbo hammaga ochiq: istalgan darsga o'tish mumkin (daraja qanday bo'lmasin) */
-  void lv;
-  return { allOpen: true };
-}
 async function kabLogin(login, pw) {
   const raw = String(login || '').trim();
   const digits = raw.replace(/\D/g, '');
@@ -2007,51 +1991,83 @@ async function handleApi(req, res, url) {
       : [String(ses.studentId)];
     function allowStudent(sid) { return mine.indexOf(String(sid)) >= 0; }
 
-    /* ---- A0: Alifbo (harf o'rgatish) — darslar va test ---- */
+    /* ---- A0: «Nabra» darsligi — 24 dars, KETMA-KET ochiladi ----
+       Har dars: yodlash → video → mashq → test (serverda baholanadi) → uy vazifasi.
+       Keyingi dars faqat test ≥ 60% va uy vazifasi topshirilgach ochiladi.        */
+    const F0 = A.Alifbo;
+    const alifDoc = async sid => (await store.get('alifprog/' + sid)) || { lessons: {} };
+    const alifLocked = (doc, lid) => F0.statuses(doc)[lid] === 'locked';
     if (sub === 'alif' && req.method === 'GET') {
       const sid = String(url.searchParams.get('studentId') || mine[0] || '');
       if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
-      const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
-      const ao = await alifOpts(sid);
-      /* Yuqori bosqichga o'tgan o'quvchida darslar ochilib qoladi — keyin
-         pastga (A0 ga) tushirilsa ham yopilmaydi. */
-      if (ao.allOpen && A.Alifbo.LESSONS.some(l => !(doc.unlocked || {})[l.id])) {
-        doc.unlocked = doc.unlocked || {};
-        A.Alifbo.LESSONS.forEach(l => { doc.unlocked[l.id] = true; });
-        await store.set('alifprog/' + sid, doc);
-      }
-      return send(res, 200, A.Alifbo.view(doc, ao));
+      return send(res, 200, F0.view(await alifDoc(sid)));
+    }
+    if (sub === 'alif/step' && req.method === 'POST') {
+      if (isParent) return send(res, 200, { ok: true });
+      const sid = String(mine[0]);
+      const body = await readBody(req);
+      const lesson = F0.byId(String(body.lessonId || ''));
+      const step = String(body.step || '');
+      if (!lesson || !F0.STEPS.some(x => x.id === step)) return send(res, 400, { error: 'Noma’lum bosqich.' });
+      const doc = await alifDoc(sid);
+      if (alifLocked(doc, lesson.id)) return send(res, 403, { error: 'Bu dars hali yopiq.' });
+      const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
+      p.steps = p.steps || {};
+      if (!p.steps[step]) { p.steps[step] = stamp(); await store.set('alifprog/' + sid, doc); }
+      return send(res, 200, { ok: true, view: F0.view(doc) });
     }
     if (sub === 'alif/start' && req.method === 'POST') {
       if (isParent) return send(res, 403, { error: 'Testni o’quvchining o’zi ishlaydi.' });
       const sid = String(mine[0]);
       const body = await readBody(req);
-      const lesson = A.Alifbo.byId(String(body.lessonId || ''));
+      const lesson = F0.byId(String(body.lessonId || ''));
       if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
-      const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
-      if (A.Alifbo.statuses(doc, await alifOpts(sid))[lesson.id] === 'locked') return send(res, 403, { error: 'Bu dars hali yopiq: oldingi darsdan ' + A.Alifbo.PASS + '% to’plang.' });
+      const doc = await alifDoc(sid);
+      if (alifLocked(doc, lesson.id)) return send(res, 403, { error: 'Bu dars hali yopiq: avval oldingi darsni tugating (test ' + F0.PASS + '% va uy vazifasi).' });
+      if (body.kind === 'hw') return send(res, 200, { questions: F0.publicTest(F0.buildHomework(lesson)), tasks: F0.hwTasks(lesson) });
       const seed = crypto.randomBytes(6).toString('hex');
       doc.sess = { id: 'as' + seed, lessonId: lesson.id, seed, at: Date.now() };
       await store.set('alifprog/' + sid, doc);
-      return send(res, 200, { sessId: doc.sess.id, questions: A.Alifbo.publicTest(A.Alifbo.buildTest(lesson, seed)) });
+      return send(res, 200, { sessId: doc.sess.id, questions: F0.publicTest(F0.buildTest(lesson, seed)) });
     }
     if (sub === 'alif/submit' && req.method === 'POST') {
       if (isParent) return send(res, 403, { error: 'Testni o’quvchining o’zi ishlaydi.' });
       const sid = String(mine[0]);
       const body = await readBody(req);
-      const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
+      const doc = await alifDoc(sid);
       const ses = doc.sess;
       if (!ses || ses.id !== String(body.sessId || '') || Date.now() - ses.at > 2 * 3600 * 1000) {
         return send(res, 409, { error: 'Test eskirgan. Qaytadan boshlang.' });
       }
-      const lesson = A.Alifbo.byId(ses.lessonId);
-      const g = A.Alifbo.grade(A.Alifbo.buildTest(lesson, ses.seed), Array.isArray(body.answers) ? body.answers.slice(0, 60) : []);
+      const lesson = F0.byId(ses.lessonId);
+      if (!lesson) return send(res, 409, { error: 'Test eskirgan. Qaytadan boshlang.' });
+      const g = F0.grade(F0.buildTest(lesson, ses.seed), Array.isArray(body.answers) ? body.answers.slice(0, 80) : []);
       delete doc.sess;
       const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
       p.last = g.percent; p.tries = (p.tries || 0) + 1; p.at = stamp();
       if (p.best == null || g.percent > p.best) p.best = g.percent;
+      p.steps = p.steps || {}; if (!p.steps.test) p.steps.test = stamp();
       await store.set('alifprog/' + sid, doc);
-      return send(res, 200, { ok: true, result: g, passed: g.percent >= A.Alifbo.PASS, view: A.Alifbo.view(doc, await alifOpts(sid)) });
+      return send(res, 200, { ok: true, result: g, passed: g.percent >= F0.PASS, view: F0.view(doc) });
+    }
+    if (sub === 'alif/hw' && req.method === 'POST') {
+      if (isParent) return send(res, 403, { error: 'Uy vazifasini o’quvchining o’zi topshiradi.' });
+      const sid = String(mine[0]);
+      const body = await readBody(req);
+      const lesson = F0.byId(String(body.lessonId || ''));
+      if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
+      const doc = await alifDoc(sid);
+      if (alifLocked(doc, lesson.id)) return send(res, 403, { error: 'Bu dars hali yopiq.' });
+      const g = F0.grade(F0.buildHomework(lesson), Array.isArray(body.answers) ? body.answers.slice(0, 40) : []);
+      const tasks = {};
+      F0.hwTasks(lesson).forEach(t => { if (body.tasks && body.tasks[t.id]) tasks[t.id] = true; });
+      const files = (Array.isArray(body.files) ? body.files : []).map(String).filter(x => /^f[a-f0-9]{16}$/.test(x)).slice(0, 6);
+      const p = doc.lessons[lesson.id] = doc.lessons[lesson.id] || {};
+      const prevBest = p.hw && p.hw.auto ? Number(p.hw.auto.percent) : -1;
+      if (!p.hw || g.percent >= prevBest) p.hw = { at: stamp(), auto: g, tasks, files: files.length ? files : ((p.hw && p.hw.files) || []), note: String(body.note || '').slice(0, 1000) };
+      p.steps = p.steps || {}; if (!p.steps.hw) p.steps.hw = stamp();
+      await store.set('alifprog/' + sid, doc);
+      return send(res, 200, { ok: true, result: g, passed: g.percent >= F0.PASS, view: F0.view(doc) });
     }
 
     /* ---- Ballarim va Top o'quvchilar ---- */
@@ -2413,23 +2429,7 @@ async function handleApi(req, res, url) {
   }
   /* Dars videosi (MP4) — markaz yuklagan bo'lsa, o'quvchi darsni shundan boshlaydi. Range qo'llab-quvvatlanadi. */
   if (route === 'lesson-video' && req.method === 'GET') {
-    const lid = String(url.searchParams.get('l') || '');
-    const doc = /^[a-z0-9-]{2,20}$/.test(lid) ? await store.get('lessonvideo/' + lid) : null;
-    if (url.searchParams.get('info')) return send(res, 200, { has: !!(doc && doc.fileId), name: doc ? doc.name : '', at: doc ? doc.at : null });
-    const rec = doc ? await files.meta(store, doc.fileId) : null;
-    const buf = rec ? await files.readBody(store, rec) : null;
-    if (!buf) return send(res, 404, { error: 'Video yo’q.' });
-    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
-    if (range) {
-      let a = range[1] === '' ? buf.length - Number(range[2]) : Number(range[1]);
-      let b = range[1] !== '' && range[2] !== '' ? Number(range[2]) : buf.length - 1;
-      a = Math.max(0, a); b = Math.min(buf.length - 1, b);
-      if (a > b) { res.writeHead(416, { 'Content-Range': 'bytes */' + buf.length }); return res.end(); }
-      res.writeHead(206, { 'Content-Type': rec.type, 'Content-Length': b - a + 1, 'Content-Range': 'bytes ' + a + '-' + b + '/' + buf.length, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600' });
-      return res.end(buf.subarray(a, b + 1));
-    }
-    res.writeHead(200, { 'Content-Type': rec.type, 'Content-Length': buf.length, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600' });
-    return res.end(buf);
+    return lessonVideo.serve(store, files, req, res, String(url.searchParams.get('l') || ''), !!url.searchParams.get('info'), send);
   }
   if (route === 'qissa-audio' && req.method === 'GET' && url.searchParams.get('f')) {
     const rec = await files.meta(store, String(url.searchParams.get('f')));
@@ -3089,22 +3089,24 @@ async function handleApi(req, res, url) {
     /* Dars videosini yuklash / o'chirish (MP4, 60 MB gacha) */
     if (route === 'course/video' && req.method === 'POST') {
       if (!A.can(user, 'settings.edit') && !A.can(user, 'curriculum.edit')) return nope();
-      const body = await readBody(req, Number(process.env.VIDEO_MAX_BODY || 85e6));
+      const body = await readBody(req, Number(process.env.VIDEO_MAX_BODY || 8e6));
       const lesson = A.Course.byId(String(body.lessonId || ''));
       if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
-      const old = await store.get('lessonvideo/' + lesson.id);
       if (body.remove) {
-        if (old) { try { await files.remove(store, old.fileId); } catch (e) { } if (store.del) await store.del('lessonvideo/' + lesson.id); }
+        const old = await lessonVideo.remove(store, lesson.id);
+        if (old && old.fileId) { try { await files.remove(store, old.fileId); } catch (e) { } }
+        await writeAudit(user, 'Dars videosi o’chirildi', lesson.id, old ? old.name : '');
         return send(res, 200, { ok: true });
       }
-      if (String(body.type || '') !== 'video/mp4') return send(res, 400, { error: 'Faqat MP4 video yuklang.' });
-      const sv = await files.save(store, { name: body.name || (lesson.id + '.mp4'), type: 'video/mp4', dataBase64: body.data,
-        purpose: 'dars-video', refPath: 'lessonvideo/' + lesson.id, byUserId: user.id, stamp, maxBytes: 60 * 1024 * 1024 });
-      if (!sv.ok) return send(res, 400, { error: sv.reason === 'kattaligi' ? 'Video juda katta (60 MB gacha).' : 'Video yuklanmadi.' });
-      if (old) { try { await files.remove(store, old.fileId); } catch (e) { } }
-      await store.set('lessonvideo/' + lesson.id, { lessonId: lesson.id, fileId: sv.file.id, name: sv.file.name, at: stamp(), by: user.name });
-      await writeAudit(user, 'Dars videosi yuklandi', lesson.id, sv.file.name);
-      return send(res, 200, { ok: true });
+      if (!body.part) return send(res, 400, { error: 'Sahifani yangilang (Ctrl+F5) va videoni qayta yuklang.' });
+      const r = await lessonVideo.upload(store, lesson, body, user, stamp);
+      if (body.part === 'end' && r.status === 200) {
+        const old = r.json.old; delete r.json.old;
+        if (old && old.fileId) { try { await files.remove(store, old.fileId); } catch (e) { } }
+        const doc = await store.get('lessonvideo/' + lesson.id);
+        await writeAudit(user, 'Dars videosi yuklandi', lesson.id, doc.name + ' · ' + Math.round(doc.size / 1048576) + ' MB');
+      }
+      return send(res, r.status, r.json);
     }
     if (route === 'course/files' && req.method === 'GET') {
       const scope = await scopeStudentIds();
@@ -3143,6 +3145,18 @@ async function handleApi(req, res, url) {
           });
           try { require('./bot').wake(); } catch (e) { }
         }
+        return send(res, 200, { ok: true });
+      }
+      /* A0 («Nabra») darsi tanlansa — shu darsgacha A0 darslari ochiladi */
+      if (/^a0-\d\d$/.test(String(body.lessonId || ''))) {
+        const idx = A.Alifbo.LESSONS.findIndex(x => x.id === String(body.lessonId));
+        if (idx < 0) return send(res, 404, { error: 'Dars topilmadi.' });
+        const sid = String(body.studentId);
+        const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
+        doc.unlocked = {};
+        for (let i = 0; i <= idx; i++) doc.unlocked[A.Alifbo.LESSONS[i].id] = true;
+        await store.set('alifprog/' + sid, doc);
+        await writeAudit(user, 'O’quvchi A0 darsiga o’tkazildi', sid, String(body.lessonId));
         return send(res, 200, { ok: true });
       }
       const r = await course.moveTo(A, store, body);
@@ -4117,7 +4131,7 @@ function isPublicPath(rel) {
   if (VERIFY_FILE.test(rel)) return true;
   if (PUBLIC_FILES.has(rel)) return true;
   if (!PUBLIC_DIRS.some(d => rel.indexOf(d) === 0)) return false;
-  if (rel.slice(1).split('/').length > 3) return false;         // chuqur joylashuv yo'q
+  if (rel.slice(1).split('/').length > 4) return false;         // chuqur joylashuv yo'q (assets/a0/ar/x.mp3 — 4 qavat)
   return ALLOWED_EXT.has(path.extname(rel).toLowerCase());
 }
 
@@ -4162,6 +4176,23 @@ function serveStatic(req, res, pathname) {
         'Cache-Control': codeFile ? 'no-cache' : 'public, max-age=86400'
       };
       if (tag) head.ETag = tag;
+      /* Audio/video: iPhone Safari faqat Range (206) qo'llansa ijro etadi */
+      if (ext === '.mp3' || ext === '.mp4') {
+        head['Accept-Ranges'] = 'bytes';
+        const rg = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+        if (rg && (rg[1] !== '' || rg[2] !== '')) {
+          const size = data.length;
+          let a = rg[1] === '' ? size - Number(rg[2]) : Number(rg[1]);
+          let b = rg[1] !== '' && rg[2] !== '' ? Number(rg[2]) : size - 1;
+          a = Math.max(0, a); b = Math.min(size - 1, b);
+          if (a > b) { res.writeHead(416, { 'Content-Range': 'bytes */' + size }); return res.end(); }
+          head['Content-Range'] = 'bytes ' + a + '-' + b + '/' + size;
+          head['Content-Length'] = b - a + 1;
+          res.writeHead(206, head); return res.end(data.subarray(a, b + 1));
+        }
+        head['Content-Length'] = data.length;
+        res.writeHead(200, head); return res.end(data);
+      }
       /* Matnli fayllar (js, css, html, svg) siqib yuboriladi —
          mazmuni o'zgarmaydi, faqat tarmoqdagi hajmi kamayadi. */
       return sendMaybeZip(req, res, 200, head, data);

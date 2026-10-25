@@ -5,6 +5,9 @@
 const path = require('path');
 const fs = require('fs');
 
+/* Dars videosi bo'laklari (har biri 2 MB) — all() ga kirmaydi: bootstrap, zaxira va
+   botlar butun bazani o'qiganda videolar xotiraga yuklanmasin. */
+const BLOB = 'vchunk/';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 
 /* Zaxira ombor: oddiy JSON fayl. Hech qanday qo'shimcha kutubxona talab qilmaydi.
@@ -38,7 +41,7 @@ function makeJsonFile() {
       return Object.keys(docs).filter(k => k.indexOf(prefix) === 0)
         .map(k => ({ path: k, data: docs[k] }));
     },
-    async all() { return Object.keys(docs).map(k => ({ path: k, data: docs[k] })); },
+    async all() { return Object.keys(docs).filter(k => k.indexOf(BLOB) !== 0).map(k => ({ path: k, data: docs[k] })); },
     async close() { await flush(); }
   };
 }
@@ -75,7 +78,7 @@ function makeSqlite() {
       return rows.map(r => ({ path: r.path, data: JSON.parse(r.data) }));
     },
     async all() {
-      const rows = db.prepare('SELECT path, data FROM docs').all();
+      const rows = db.prepare("SELECT path, data FROM docs WHERE path NOT LIKE 'vchunk/%'").all();
       return rows.map(r => ({ path: r.path, data: JSON.parse(r.data) }));
     },
     async close() { db.close(); }
@@ -207,7 +210,7 @@ function makePostgres(url) {
       return r.rows.map(x => ({ path: x.path, data: x.data }));
     },
     async all() {
-      const r = await q('SELECT path, data FROM docs');
+      const r = await q("SELECT path, data FROM docs WHERE path NOT LIKE 'vchunk/%'");
       return r.rows.map(x => ({ path: x.path, data: x.data }));
     },
     /** Bazaning hajmi va yozuvlar soni — sozlamalarda ko'rsatiladi */

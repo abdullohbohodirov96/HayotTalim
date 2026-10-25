@@ -395,7 +395,7 @@
     }
     function lessonView(id) { return state.view.lessons.filter(function (l) { return l.id === id; })[0]; }
     function firstStepFor(lv) {
-      if (lv.status === 'done') return 'video';
+      if (lv.status === 'done') return 'words';
       var L = C.byId(lv.id);
       var order = C.STEPS.map(function (s) { return s.id; }).filter(function (id) { return !(id === 'grammar' && (!L || !L.grammar)); });
       for (var i = 0; i < order.length; i++) if (!lv.steps[order[i]]) return order[i];
@@ -438,8 +438,8 @@
       var inClass = C.STEPS.filter(function (s) { return s.part !== 'uyda' && !(s.id === 'grammar' && !lesson.grammar); });
       var atHome = C.STEPS.filter(function (s) { return s.part === 'uyda'; });
       var stepper = h('nav', { class: 'cr-steps grouped' }, [
-        h('div', { class: 'cr-stepgrp' }, [h('span', { class: 'cr-stepgrp-t' }, '📖 Darsda'), h('div', { class: 'cr-stepgrp-b' }, inClass.map(function (s) { return stepBtn(s, C.STEPS.indexOf(s)); }))]),
-        h('div', { class: 'cr-stepgrp home' }, [h('span', { class: 'cr-stepgrp-t' }, '🏠 Uyda'), h('div', { class: 'cr-stepgrp-b' }, atHome.map(function (s) { return stepBtn(s, C.STEPS.indexOf(s)); }))])
+        h('div', { class: 'cr-stepgrp' }, [h('span', { class: 'cr-stepgrp-t' }, '📖 Darsda'), h('div', { class: 'cr-stepgrp-b' }, inClass.map(function (s, i) { return stepBtn(s, i); }))]),
+        h('div', { class: 'cr-stepgrp home' }, [h('span', { class: 'cr-stepgrp-t' }, '🏠 Uyda'), h('div', { class: 'cr-stepgrp-b' }, atHome.map(function (s, i) { return stepBtn(s, inClass.length + i); }))])
       ]);
       main.appendChild(stepper);
       /* Telefonda joriy bosqich ko'rinadigan joyga suriladi */
@@ -460,8 +460,9 @@
     /* ---- 1. So'zlar ---- */
     function stepWords(body, lesson) {
       body.appendChild(h('div', { class: 'cr-ph' }, [
-        h('h2', {}, 'Yangi so’zlar'),
-        h('p', {}, 'Har bir so’zni tinglang va animatsiyaga qarab ma’nosini eslab qoling.'),
+        h('span', { class: 'cr-eyebrow dark' }, 'Darsda · 1-qadam'),
+        h('h2', {}, '🧠 So’z yodlash'),
+        h('p', {}, 'Avval shu darsning yangi so’zlarini yodlang: har birini bosib tinglang, ovoz chiqarib takrorlang va ma’nosini eslab qoling. Keyin videoda bu so’zlarni tanib olasiz.'),
         h('button', { class: 'btn sm', type: 'button', onclick: function () {
           var i = 0; (function next() { if (i >= lesson.words.length) return; say(lesson.words[i].ar); i++; setTimeout(next, 1900); })();
         } }, [speakerSvg(), 'Hammasini tinglash'])
@@ -477,23 +478,22 @@
           sayBtn(wd.ar)
         ]);
       })));
-      body.appendChild(nextBtn(lesson.grammar ? 'Qoidaga o’tish' : 'Mashqqa o’tish', function () { markStep('words'); goStep(lesson.grammar ? 'grammar' : 'practice'); }));
+      body.appendChild(nextBtn('Yodladim — videoni ko’rish', function () { stopSpeech(); markStep('words'); goStep('video'); }));
     }
 
-    /* ---- 2. Qissa: tinglash, o'zi o'qib tekshirish ---- */
-    /* ---- 1. Video: darsga kirgan o'quvchi avval qissani videoda ko'radi ---- */
+    /* ---- 2. Video: so'zlarni yodlagan o'quvchi qissani videoda ko'radi ---- */
     function stepVideo(body, lesson) {
       body.appendChild(h('div', { class: 'cr-ph' }, [
-        h('span', { class: 'cr-eyebrow dark' }, 'Darsda · 1-qadam'),
+        h('span', { class: 'cr-eyebrow dark' }, 'Darsda · 2-qadam'),
         h('h2', {}, '🎬 ' + lesson.dialog.title + ' — videoni ko’ring'),
-        h('p', {}, 'Avval qissani videoda tomosha qiling: kim nima deyotganini harakatdan tushunasiz. Keyin qissani o’zingiz o’qiysiz.')
+        h('p', {}, 'Endi qissani videoda tomosha qiling: yodlagan so’zlaringizni eshitasiz va kim nima deyotganini harakatdan tushunasiz. Keyin qissani o’zingiz o’qiysiz va mashqlarda tekshirasiz.')
       ]));
       var vbox = h('div', { class: 'cr-video' });
       body.appendChild(vbox);
       (async function () {
         /* Markaz yuklagan MP4 bo'lsa — o'sha; bo'lmasa harakatli sahna (ovoz bilan) */
         var mp4 = null;
-        if (D.mode === 'server') { try { var vi = await D.api('GET', 'api/lesson-video?l=' + encodeURIComponent(lesson.id) + '&info=1'); if (vi && vi.has) mp4 = 'api/lesson-video?l=' + encodeURIComponent(lesson.id); } catch (e) { } }
+        if (D.mode === 'server') { try { var vi = await D.api('GET', 'api/lesson-video?l=' + encodeURIComponent(lesson.id) + '&info=1'); if (vi && vi.has) mp4 = 'api/lesson-video?l=' + encodeURIComponent(lesson.id) + '&v=' + encodeURIComponent(vi.at || ''); } catch (e) { } }
         var anim = h('div', {});
         var qv = null;
         function mountAnim() {
@@ -517,25 +517,41 @@
             });
           })();
         }
-        /* Asosiy — interaktiv dars (so'zma-so'z tarjima, savollar). Markaz yuklagan MP4 — qo'shimcha. */
-        if (A.QissaVideo) {
-          vbox.appendChild(anim); mountAnim();
-          vbox.appendChild(h('div', { class: 'qv-ctrls', style: 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px' }, [
+        /* Markaz MP4 yuklagan bo'lsa — dars SHU videodan boshlanadi; interaktiv sahna
+           (so'zma-so'z tarjima, savollar) pastda qo'shimcha. MP4 bo'lmasa yoki
+           ochilmasa — interaktiv sahna asosiy. */
+        function animCtrls() {
+          return h('div', { class: 'qv-ctrls', style: 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px' }, [
             h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.prev(); } }, '⏪ Ortga'),
             h('button', { class: 'btn sm', type: 'button', onclick: function (e) { if (!qv) return; if (qv.isPlaying()) { qv.pause(); e.currentTarget.textContent = '▶ Davom'; } else { qv.play(); e.currentTarget.textContent = '⏸ To’xtatish'; } } }, '⏸ To’xtatish'),
             h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.next(); } }, 'Oldinga ⏩'),
             h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.restart(); } }, '↺ Boshidan')
-          ]));
+          ]);
+        }
+        function showAnim(where) {
+          if (!A.QissaVideo || anim.parentNode) return;
+          where.appendChild(anim); mountAnim(); where.appendChild(animCtrls());
         }
         if (mp4) {
-          var vid = null;
-          vbox.appendChild(h('button', { class: 'btn sm', type: 'button', style: 'margin-top:8px', onclick: function (e) {
-            e.currentTarget.remove();
-            vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4 });
-            vid.addEventListener('ended', function () { markStep('video'); });
-            vbox.appendChild(vid);
-          } }, '🎞 Qo’shimcha video'));
-          if (!A.QissaVideo) vbox.lastChild.click();
+          var vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4,
+            style: 'width:100%;max-height:72vh;border-radius:16px;background:#000;display:block' });
+          var vmsg = h('p', { class: 'small muted', hidden: true });
+          vid.addEventListener('ended', function () { markStep('video'); });
+          vid.addEventListener('error', function () {
+            vid.remove(); vmsg.hidden = false;
+            vmsg.textContent = 'Video hozir ochilmadi (internetni tekshiring). Quyida darsning interaktiv videosi:';
+            showAnim(vbox);
+          });
+          vbox.appendChild(vid); vbox.appendChild(vmsg);
+          if (A.QissaVideo) {
+            var more = h('div', { style: 'margin-top:14px;text-align:center' });
+            more.appendChild(h('button', { class: 'btn sm', type: 'button', onclick: function (e) {
+              e.currentTarget.remove(); showAnim(more);
+            } }, '🎬 Interaktiv qissa (so’zma-so’z tarjima bilan)'));
+            vbox.appendChild(more);
+          }
+        } else {
+          showAnim(vbox);
         }
       })();
       body.appendChild(nextBtn('Qissani o’qishga o’tish', function () { stopSpeech(); markStep('video'); goStep('dialog'); }));
@@ -564,7 +580,7 @@
       });
       body.appendChild(panel);
       body.appendChild(sum);
-      body.appendChild(nextBtn('Yangi so’zlarga o’tish', function () { panel.stop(); markStep('dialog'); goStep('words'); }));
+      body.appendChild(nextBtn(lesson.grammar ? 'Qoidaga o’tish' : 'Tekshirish mashqlariga o’tish', function () { panel.stop(); markStep('dialog'); goStep(lesson.grammar ? 'grammar' : 'practice'); }));
     }
 
     /* ---- 3. Qoida ---- */
@@ -765,7 +781,7 @@
               h('button', { class: 'btn primary lg', type: 'button', onclick: function () { goReview(gateRv.id); } }, 'Takrorlash testiga o’tish →')
             ])
             : nv && nv.status !== 'locked'
-              ? nextBtn('Keyingi darsga o’tish', function () { openLesson(nxt, 'video'); })
+              ? nextBtn('Keyingi darsga o’tish', function () { openLesson(nxt, 'words'); })
               : h('p', { class: 'muted small' }, nxt ? 'Keyingi dars test ' + C.PASS + '% dan o’tilgach ochiladi.' : 'Bu bo’limdagi oxirgi dars. Barakalla!'));
           return;
         }

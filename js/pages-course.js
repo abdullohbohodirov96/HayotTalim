@@ -50,6 +50,7 @@
     },
     move: async function (body) {
       if (D.mode === 'server') return D.api('POST', 'api/course/move', body);
+      if (/^a0-/.test(body.lessonId)) return { ok: true };
       var doc = A.CourseLocal.doc(body.studentId);
       doc.unlocked = {};
       var idx = C.indexOf(body.lessonId);
@@ -171,7 +172,7 @@
             });
             return { l: l, reached: reached, done: done, avg: n ? Math.round(sum / n) : null, pass: n ? Math.round(ok * 100 / n) : null, n: n };
           });
-          body.appendChild(h('h3', { style: 'margin:22px 0 8px' }, 'A0 — Alifbo (harflar) bosqichlari'));
+          body.appendChild(h('h3', { style: 'margin:22px 0 8px' }, 'A0 — «Nabra» darslari (24 dars)'));
           body.appendChild(UI.card(null, UI.table([
             { label: 'Bosqich', render: function (x) { return h('b', {}, x.l.n + '. ' + x.l.title); } },
             { label: 'Yetib keldi', right: true, render: function (x) { return String(x.reached); } },
@@ -250,7 +251,7 @@
         x.best == null ? '—' : h('b', { class: x.best >= C.PASS ? 'cr-hwpass ok' : 'cr-hwpass bad' }, x.best + '%'), '  ·  ',
         x.status === 'done' ? UI.pill('O’tdi', 'ok') : (x.status === 'locked' ? UI.pill('Yopiq', 'mute') : UI.pill('Jarayonda', 'warn'))])]);
     });
-    UI.modal({ title: r.name + ' — bosqichlar', body: [h('p', { class: 'small muted' }, 'O’tish chegarasi: ' + C.PASS + '%')].concat(al.length ? [h('b', {}, 'A0 — Alifbo')].concat(al, [h('b', { style: 'display:block;margin-top:10px' }, 'A1 — darslar')]) : []).concat(list), actions: [{ label: 'Yopish' }] });
+    UI.modal({ title: r.name + ' — bosqichlar', body: [h('p', { class: 'small muted' }, 'O’tish chegarasi: ' + C.PASS + '%')].concat(al.length ? [h('b', {}, 'A0 — Nabra')].concat(al, [h('b', { style: 'display:block;margin-top:10px' }, 'A1 — darslar')]) : []).concat(list), actions: [{ label: 'Yopish' }] });
   }
 
   function fileLinks(p) {
@@ -369,18 +370,38 @@
       } }, 'O’chirish');
       file.addEventListener('change', function () {
         var f = file.files && file.files[0]; if (!f) return;
-        if (f.size > 60 * 1024 * 1024) { UI.toast('Video 60 MB dan katta.', 'bad'); return; }
-        vStat.textContent = 'Yuklanmoqda…';
-        var rd = new FileReader();
-        rd.onload = async function () {
-          try {
-            await D.api('POST', 'api/course/video', { lessonId: l.id, name: f.name, type: 'video/mp4', data: String(rd.result).split(',')[1] });
-            UI.toast('Video yuklandi.', 'ok'); refresh();
-          } catch (ex) { vStat.textContent = ex.message || 'Yuklanmadi'; }
-        };
-        rd.readAsDataURL(f);
         file.value = '';
+        if (!/mp4$/i.test(f.name) && f.type !== 'video/mp4') { UI.toast('Faqat MP4 video yuklang.', 'bad'); return; }
+        if (f.size > 60 * 1024 * 1024) { UI.toast('Video 60 MB dan katta (' + Math.round(f.size / 1048576) + ' MB). Siqib qayta yuklang.', 'bad'); return; }
+        uploadVideo(f);
       });
+      /* Video 2 MB lik bo'laklarda ketma-ket yuboriladi: katta video ham uzilmasdan
+         yetib boradi va server qayta ishga tushganda yo'qolmaydi (bazada saqlanadi). */
+      async function uploadVideo(f) {
+        vBtn.disabled = true; vDel.disabled = true;
+        var b64 = function (buf) {
+          var bin = '', u = new Uint8Array(buf), step = 0x8000;
+          for (var i = 0; i < u.length; i += step) bin += String.fromCharCode.apply(null, u.subarray(i, i + step));
+          return btoa(bin);
+        };
+        try {
+          vStat.textContent = 'Yuklash boshlandi…';
+          var st = await D.api('POST', 'api/course/video', { lessonId: l.id, part: 'begin', name: f.name, size: f.size, type: 'video/mp4' });
+          for (var i = 0; i < st.total; i++) {
+            var part = await f.slice(i * st.chunk, Math.min(f.size, (i + 1) * st.chunk)).arrayBuffer();
+            var data = b64(part), tries = 0;
+            for (;;) {
+              try { await D.api('POST', 'api/course/video', { lessonId: l.id, part: 'chunk', uploadId: st.uploadId, idx: i, data: data }); break; }
+              catch (ex) { if (++tries >= 3) throw ex; await new Promise(function (r) { setTimeout(r, 1500 * tries); }); }
+            }
+            vStat.textContent = 'Yuklanmoqda: ' + Math.round((i + 1) * 100 / st.total) + '% (' + Math.round(f.size / 1048576) + ' MB)';
+          }
+          await D.api('POST', 'api/course/video', { lessonId: l.id, part: 'end', uploadId: st.uploadId });
+          UI.toast('Video yuklandi.', 'ok');
+        } catch (ex) { vStat.textContent = 'Yuklanmadi: ' + (ex.message || 'xato'); UI.toast(ex.message || 'Video yuklanmadi', 'bad'); }
+        vBtn.disabled = false; vDel.disabled = false;
+        refresh();
+      }
       list.appendChild(h('div', { class: 'list-item', style: 'flex-wrap:wrap;gap:8px' }, [
         h('div', { class: 'main-col', style: 'min-width:200px' }, [h('b', {}, l.n + '. ' + l.title), h('span', {}, ['🎙 ', aStat]), h('span', {}, ['🎬 ', vStat])]),
         h('div', { class: 'rowflex', style: 'gap:6px;flex-wrap:wrap' }, [aBtn, vBtn, vDel, file,
@@ -395,8 +416,10 @@
           aBtn.textContent = st.items ? 'Qayta yaratish' : 'Ovoz yaratish';
         }).catch(function () { aStat.textContent = '—'; });
         D.api('GET', 'api/lesson-video?l=' + l.id + '&info=1').then(function (v) {
-          vStat.textContent = v.has ? '✓ ' + v.name + ' · ' + (v.at || '') : 'MP4 yo’q (harakatli sahna ko’rsatiladi)';
-          vDel.hidden = !v.has; vBtn.textContent = v.has ? 'Almashtirish' : 'MP4 yuklash';
+          if (vBtn.disabled) return;
+          vStat.textContent = v.has ? '✓ ' + v.name + (v.size ? ' · ' + Math.round(v.size / 1048576) + ' MB' : '') + ' · ' + (v.at || '')
+            : v.broken ? '⚠ Video fayli serverda yo’qolgan — qayta yuklang' : 'MP4 yo’q (harakatli sahna ko’rsatiladi)';
+          vDel.hidden = !(v.has || v.broken); vBtn.textContent = v.has ? 'Almashtirish' : 'MP4 yuklash';
         }).catch(function () { vStat.textContent = '—'; });
       }
       function watch() { refresh(); var t = setInterval(function () { refresh(); if (!aBtn.disabled) clearInterval(t); }, 2500); timers.push(t); }
@@ -472,7 +495,8 @@
   function moveForm(r, lessons, App) {
     var f = UI.field({
       label: 'Qaysi darsgacha ochilsin', type: 'select', value: r.current || (lessons[0] && lessons[0].id),
-      options: lessons.map(function (l) { return { value: l.id, label: l.n + '. ' + l.title }; })
+      options: (A.Alifbo ? A.Alifbo.LESSONS.map(function (l) { return { value: l.id, label: 'A0 · ' + l.n + '. ' + l.title }; }) : [])
+        .concat(lessons.map(function (l) { return { value: l.id, label: 'A1 · ' + l.n + '. ' + l.title }; }))
     });
     UI.modal({
       title: r.name + ' — darsga o’tkazish',

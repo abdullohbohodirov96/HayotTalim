@@ -73,6 +73,7 @@ function readBlocked(docPath, user) {
   if (col === 'botstate') return true;
   if (col === 'kabpass') return true;              // o'quvchi parollari (xesh) — hech kimga
   if (col === 'filebody') return true;             // fayl mazmuni faqat /api/file orqali
+  if (col === 'vchunk' || col === 'vupload') return true;   // dars videosi bo'laklari — faqat /api/lesson-video
   if (col === 'tgquiz' || col === 'tgquizlog') return true;  // kanal viktorinasi (javoblari bilan)
   if (col === 'photos') return true;
   if (col === 'formbg') return true;               // fon rasmi faqat /api/form-bg orqali
