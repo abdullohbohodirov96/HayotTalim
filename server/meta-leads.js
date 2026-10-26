@@ -117,7 +117,10 @@ async function saveLead(ctx, leadgenId) {
   const p = parseFields(L.field_data);
   const phone = A.normPhone(p.phone) || p.phone;
   const funnels = (await store.list('funnels/')).map(x => x.data).filter(Boolean);
-  const funnel = funnels.filter(f => f.id === process.env.META_FUNNEL_ID)[0] || funnels[0] || null;
+  /* Voronka: META_FUNNEL_ID → «Target» voronkasi (manbasi yoki nomi bo'yicha) → birinchisi */
+  const funnel = funnels.filter(f => f.id === process.env.META_FUNNEL_ID)[0] ||
+    funnels.filter(f => /target/i.test(String(f.autoSource || '')) || /target/i.test(String(f.name || '')) || f.id === 'fnl_target')[0] ||
+    funnels[0] || null;
   const stages = funnel ? A.funnelStages(funnel) : [];
   /* Shu raqam bilan murojaat bo'lsa — yangisini ochmaymiz, izoh qo'shamiz */
   const digits = A.phoneDigits(phone);
