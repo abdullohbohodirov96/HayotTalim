@@ -74,7 +74,7 @@ function parseFields(fd) {
 async function fetchLead(id) {
   const tok = process.env.META_PAGE_TOKEN;
   if (!tok) throw new Error('META_PAGE_TOKEN yo‘q');
-  const r = await fetch(GRAPH + encodeURIComponent(id) + '?fields=created_time,field_data,ad_name,adset_name,campaign_name,form_id,form_name,platform&access_token=' + encodeURIComponent(tok));
+  const r = await fetch(GRAPH + encodeURIComponent(id) + '?fields=created_time,field_data,ad_name,adset_name,campaign_name,form_id,platform&access_token=' + encodeURIComponent(tok));
   const j = await r.json();
   if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
   return j;
