@@ -28,6 +28,15 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓ ' + n); } else { f
   ok('Bir xil webhook ikki marta — bitta murojaat', (await store.list('leads/')).length === 1);
   await M.saveLead(ctx, '222');
   ok('Shu raqam qayta yozilsa — yangi murojaat ochilmaydi', (await store.list('leads/')).length === 1);
+  /* Polling: formalar → arizalar */
+  const calls = [];
+  global.fetch = async (u) => { calls.push(u); const j = /me\?fields=id/.test(u) ? { id: 'P1' } : /leadgen_forms/.test(u) ? { data: [{ id: 'F1' }] } : /\/leads\?/.test(u) ? { data: [{ id: '333' }, { id: '111' }] }
+    : { platform: 'fb', field_data: [{ name: 'full_name', values: ['Ali Valiyev'] }, { name: 'phone_number', values: ['+998935556677'] }] };
+    return { ok: true, json: async () => j }; };
+  const pr = await M.pollOnce(ctx);
+  ok('Polling: yangi ariza tortib olindi', pr.added === 2 && (await store.list('leads/')).length === 2, JSON.stringify(pr));
+  const pr2 = await M.pollOnce(ctx);
+  ok('Polling: qayta tekshiruvda takrorlanmaydi', pr2.added === 0 && (await store.list('leads/')).length === 2);
   console.log(fail ? '✗ ' + fail + ' xato' : '✓ HAMMASI O’TDI — ' + pass + ' ta');
   process.exit(fail ? 1 : 0);
 })();

@@ -147,4 +147,50 @@ async function saveLead(ctx, leadgenId) {
   if (ctx.notify) ctx.notify(text);
 }
 
-module.exports = { handle, parseFields, saveLead };
+/* ---------- Zaxira yo'l: arizalarni o'zimiz tortib olamiz (polling) ----------
+   Ilova «Live» bo'lmaguncha Meta webhook'ni yubormaydi. Lekin sahifa admini
+   tokeni bilan formalardagi arizalarni API orqali o'qish mumkin. Shuning uchun
+   har POLL daqiqada yangi arizalarni tekshiramiz. Bazaga faqat yangi ariza
+   bo'lsa tegamiz — bo'sh paytda baza uxlayveradi.                          */
+const POLL_MS = Number(process.env.META_POLL_MIN || 3) * 60 * 1000;
+let pollTimer = null, pageId = '', forms = [], formsAt = 0, since = 0;
+const seen = new Set();
+async function graph(pathQ) {
+  const tok = process.env.META_PAGE_TOKEN;
+  const r = await fetch(GRAPH + pathQ + (pathQ.indexOf('?') >= 0 ? '&' : '?') + 'access_token=' + encodeURIComponent(tok));
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+  return j;
+}
+async function pollOnce(ctx) {
+  if (!process.env.META_PAGE_TOKEN) return { off: true };
+  if (!pageId) pageId = (await graph('me?fields=id')).id;
+  if (!forms.length || Date.now() - formsAt > 60 * 60 * 1000) {
+    forms = ((await graph(pageId + '/leadgen_forms?fields=id,name,status&limit=100')).data || []).map(f => f.id);
+    formsAt = Date.now();
+  }
+  const from = Math.floor((since || Date.now() - 3 * 24 * 3600 * 1000) / 1000) - 120;
+  const startedAt = Date.now();
+  let added = 0;
+  for (const fid of forms) {
+    const filt = encodeURIComponent(JSON.stringify([{ field: 'time_created', operator: 'GREATER_THAN', value: from }]));
+    const j = await graph(fid + '/leads?fields=id&limit=100&filtering=' + filt);
+    for (const L of (j.data || [])) {
+      if (seen.has(L.id)) continue;
+      try { await saveLead(ctx, L.id); seen.add(L.id); added++; } catch (e) { console.error('meta poll ' + L.id + ':', e.message); }
+    }
+  }
+  since = startedAt;
+  return { forms: forms.length, added };
+}
+function startPoll(ctx) {
+  if (pollTimer || !process.env.META_PAGE_TOKEN || process.env.META_POLL === '0') return;
+  const tick = () => pollOnce(ctx).then(r => { if (r && r.added) console.log('  Target arizalari: ' + r.added + ' ta yangi'); })
+    .catch(e => console.error('meta poll:', e.message));
+  setTimeout(tick, 15 * 1000);
+  pollTimer = setInterval(tick, POLL_MS);
+  if (pollTimer.unref) pollTimer.unref();
+  console.log('  Target arizalari: har ' + Math.round(POLL_MS / 60000) + ' daqiqada tekshiriladi');
+}
+
+module.exports = { handle, parseFields, saveLead, pollOnce, startPoll };

@@ -4479,6 +4479,9 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   // Kunlik murojaat hisoboti — har kuni 19:00 (Toshkent) adminlarga Telegramga
   require('./lead-report').start(store);
 
+  // Target (Meta) arizalari: webhook kelmasa ham har 3 daqiqada tortib olinadi
+  metaLeads.startPoll({ store, A, stamp, notify: text => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text); } catch (e) { } } });
+
   /* Bot modulini doim tayyorlaymiz — token bo'lmasa ham ERP dan karta to'lovini tasdiqlash ishlaydi */
   require('./bot').init({ store, stamp, A, recordPayment: autoCardPayment });
   if (process.env.TELEGRAM_BOT_TOKEN) {
