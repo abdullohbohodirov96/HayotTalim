@@ -19,6 +19,7 @@
     },
     courseName: function (id) { var c = D.one('courses', id); return c ? c.name : '—'; },
     staffName: function (id) { var s = D.one('staff', id); return s ? s.name : '—'; },
+    ownerName: function (id) { var u = id && D.one('users', id); if (u) return u.name; var s = id && D.one('staff', id); return s ? s.name : '—'; },
     roomName: function (id) { var r = D.one('rooms', id); return r ? r.name : '—'; },
     membershipsOf: function (studentId) {
       return D.all('memberships').filter(function (m) { return m.studentId === studentId; });
@@ -595,7 +596,7 @@
         }
       },
       { label: 'Hudud', render: function (l) { return l.region ? (l.region + (l.district ? ', ' + l.district : '')) : h('span', { class: 'muted' }, '—'); } },
-      { label: 'Mas’ul', render: function (l) { return Q.staffName(l.ownerStaffId); } },
+      { label: 'Mas’ul', render: function (l) { return Q.ownerName(l.ownerStaffId); } },
       {
         label: 'Keyingi aloqa', render: function (l) {
           if (!l.nextContact) return h('span', { class: 'muted' }, '—');
@@ -759,9 +760,15 @@
       { name: 'district', label: 'Tuman / shahar (ixtiyoriy)', value: lead.district, placeholder: 'masalan: Yunusobod' },
 
       {
-        name: 'ownerStaffId', label: 'Mas’ul administrator', type: 'select', value: lead.ownerStaffId,
-        options: [{ value: '', label: '— tanlanmagan —' }].concat(D.all('staff').filter(function (s) { return s.status === 'faol'; })
-          .map(function (s) { return { value: s.id, label: s.name }; }))
+        /* Mas'ul — ERP hisobi bor xodimlar: menejer, administrator, direktor.
+           (O'qituvchilar murojaat bilan ishlamaydi.) Eski yozuvlardagi xodim ham ko'rinib turadi. */
+        name: 'ownerStaffId', label: 'Mas’ul xodim', type: 'select', value: lead.ownerStaffId,
+        options: [{ value: '', label: '— tanlanmagan —' }].concat(
+          D.all('users').filter(function (u) { return u.active !== false && ['menejer', 'admin', 'direktor'].indexOf(u.role) >= 0; })
+            .sort(function (a, b) { var o = { menejer: 0, admin: 1, direktor: 2 }; return (o[a.role] - o[b.role]) || String(a.name).localeCompare(String(b.name)); })
+            .map(function (u) { return { value: u.id, label: u.name + ' · ' + (A.ROLES[u.role] || u.role) }; }),
+          (lead.ownerStaffId && !D.one('users', lead.ownerStaffId) && D.one('staff', lead.ownerStaffId))
+            ? [{ value: lead.ownerStaffId, label: D.one('staff', lead.ownerStaffId).name }] : [])
       },
       { name: 'nextContact', label: 'Keyingi bog’lanish sanasi', type: 'date', value: lead.nextContact },
       {

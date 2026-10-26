@@ -4169,7 +4169,7 @@ async function handleApi(req, res, url) {
             (d.due ? '\nMuddat: ' + d.due : '') + '\nKimdan: ' + (user.name || user.login)).catch(() => { });
         }
         if (p.indexOf('leads/') === 0 && d.ownerStaffId && (!oldLead || oldLead.ownerStaffId !== d.ownerStaffId)) {
-          const owner = (await store.list('users/')).map(x => x.data).filter(u => u && u.staffId === d.ownerStaffId && u.id !== user.id)[0];
+          const owner = (await store.list('users/')).map(x => x.data).filter(u => u && (u.id === d.ownerStaffId || (u.staffId && u.staffId === d.ownerStaffId)) && u.id !== user.id)[0];
           if (owner) {
             bot.notifyUser(owner.id, '👤 Sizga murojaat biriktirildi\nIsm: ' + (d.name || '—') + '\nTelefon: ' + (d.phone || '—') +
               (d.source ? '\nManba: ' + d.source : '') + (d.note ? '\nIzoh: ' + String(d.note).slice(0, 400) : '') +

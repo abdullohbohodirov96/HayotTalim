@@ -423,7 +423,7 @@ async function notifyStaff(text, opts) {
     try {
       const lead = await store.get('leads/' + leadId);
       if (lead && lead.ownerStaffId) {
-        (await linkedUsers()).filter(u => u.staffId && u.staffId === lead.ownerStaffId)
+        (await linkedUsers()).filter(u => u.id === lead.ownerStaffId || (u.staffId && u.staffId === lead.ownerStaffId))
           .forEach(u => { if (ids.indexOf(String(u.telegram.id)) < 0) ids.push(String(u.telegram.id)); });
       }
     } catch (e) { }
@@ -515,7 +515,7 @@ async function remindTick(nowMs) {
       leadInfoText(lead) + '\n\nIltimos, hoziroq qo‘ng‘iroq qiling va «✅ Bog‘landim» ni bosing.';
     const ids = await staffChatIds();
     if (lead.ownerStaffId) {
-      (await linkedUsers()).filter(u => u.staffId && u.staffId === lead.ownerStaffId)
+      (await linkedUsers()).filter(u => u.id === lead.ownerStaffId || (u.staffId && u.staffId === lead.ownerStaffId))
         .forEach(u => { if (ids.indexOf(String(u.telegram.id)) < 0) ids.push(String(u.telegram.id)); });
     }
     for (const chatId of ids) {
@@ -1697,7 +1697,15 @@ async function ensureQuizBank() {
   for (let i = 0; i < QUIZ_BANK.length; i++) {
     const q = cleanQuiz(QUIZ_BANK[i], 1000 + i);
     if (!q) continue;
-    if (await store.get('tgquiz/' + q.id)) continue;
+    const old = await store.get('tgquiz/' + q.id);
+    if (old) {
+      /* Hali kanalga chiqmagan savol faylda tuzatilgan bo'lsa — yangilaymiz */
+      if (!old.sentAt && !old.custom && JSON.stringify([old.question, old.options, old.correct, old.explain]) !==
+        JSON.stringify([q.question, q.options, q.correct, q.explain])) {
+        await store.set('tgquiz/' + q.id, Object.assign({}, old, q, { updatedAt: stamp() }));
+      }
+      continue;
+    }
     await store.set('tgquiz/' + q.id, Object.assign(q, { createdAt: stamp() }));
     added++;
   }
