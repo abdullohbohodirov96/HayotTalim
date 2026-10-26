@@ -34,27 +34,47 @@ function sigOk(req, buf) {
   try { return got.length === want.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want)); } catch (e) { return false; }
 }
 
-/** Meta maydonlari → { name, phone, answers[] } */
+/** Meta maydonlari → ERP murojaati maydonlari.
+    Forma qanday tuzilganidan qat'i nazar: savol nomi (yoki matni) bo'yicha
+    mos joyga tushadi; tanilmagan savollar ham yo'qolmaydi — izohga yoziladi. */
+const MAP = [
+  ['name', /^(full_?name|name|ism|ismingiz|f\.?i\.?o|ism_?familiya)/i],
+  ['first', /first_?name|^ism$/i],
+  ['last', /last_?name|familiya/i],
+  ['phone', /phone|telefon|raqam|nomer|tel$/i],
+  ['email', /e-?mail|pochta/i],
+  ['region', /region|viloyat|shahar|city|manzil|hudud|province|state/i],
+  ['wantTime', /vaqt|qachon|soat|time|qulay/i],
+  ['startLevel', /daraja|level|bilasiz|bilim/i],
+  ['audience', /kim_?uchun|kim uchun|guruh|who|kimga|jins|gender/i],
+  ['age', /yosh|age|tug/i]
+];
+function keyOf(k) { for (const [f, re] of MAP) if (re.test(k)) return f; return ''; }
+function nice(v) { return String(v || '').replace(/_/g, ' ').trim(); }
 function parseFields(fd) {
-  let name = '', phone = '', first = '', last = '';
-  const answers = [];
+  const r = { name: '', phone: '', answers: [], fields: {} };
+  let first = '', last = '';
   (fd || []).forEach(f => {
-    const k = String(f.name || ''), v = (f.values || []).join(', ');
-    if (/^full_name$|^name$/i.test(k)) name = v;
-    else if (/first_name/i.test(k)) first = v;
-    else if (/last_name/i.test(k)) last = v;
-    else if (/phone/i.test(k)) phone = v;
-    else if (/email/i.test(k)) { if (v) answers.push('Email: ' + v); }
-    else answers.push(k.replace(/_/g, ' ').replace(/\?$/, '') + ': ' + v.replace(/_/g, ' '));
+    const k = String(f.name || ''), v = nice((f.values || []).join(', '));
+    if (!v) return;
+    const which = keyOf(k);
+    if (which === 'name') r.name = v;
+    else if (which === 'first') first = v;
+    else if (which === 'last') last = v;
+    else if (which === 'phone') r.phone = v;
+    else {
+      if (which && !r.fields[which]) r.fields[which] = v;
+      r.answers.push(nice(k).replace(/\?$/, '') + ': ' + v);
+    }
   });
-  if (!name) name = (first + ' ' + last).trim();
-  return { name, phone, answers };
+  if (!r.name) r.name = (first + ' ' + last).trim();
+  return r;
 }
 
 async function fetchLead(id) {
   const tok = process.env.META_PAGE_TOKEN;
   if (!tok) throw new Error('META_PAGE_TOKEN yo‘q');
-  const r = await fetch(GRAPH + encodeURIComponent(id) + '?fields=created_time,field_data,ad_name,adset_name,campaign_name,form_id,platform&access_token=' + encodeURIComponent(tok));
+  const r = await fetch(GRAPH + encodeURIComponent(id) + '?fields=created_time,field_data,ad_name,adset_name,campaign_name,form_id,form_name,platform&access_token=' + encodeURIComponent(tok));
   const j = await r.json();
   if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
   return j;
@@ -116,6 +136,8 @@ async function saveLead(ctx, leadgenId) {
       id, funnelId: funnel ? funnel.id : '', name: p.name || 'Noma’lum', phone,
       courseId: '', source: 'Target (' + (L.platform === 'ig' ? 'Instagram' : L.platform === 'fb' ? 'Facebook' : 'Meta') + ')',
       src: ad, ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
+      region: p.fields.region || '', wantTime: p.fields.wantTime || '', startLevel: p.fields.startLevel || '',
+      audience: p.fields.audience || '', email: p.fields.email || '', age: p.fields.age || '',
       note: note.slice(0, 1000), nextContact: A.today(), createdAt: stamp(), viaMeta: true, metaLeadId: leadgenId
     });
   }

@@ -22,6 +22,7 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓ ' + n); } else { f
   ok('Telefon to‘g‘ri', A.phoneDigits(ls[0].phone).slice(-9) === '901234567', ls[0].phone);
   ok('Manba: Target (Instagram), reklama nomi', ls[0].source === 'Target (Instagram)' && /noldan-A0/.test(ls[0].src));
   ok('Savollarga javoblar izohda', /Ayollar guruhiga/.test(ls[0].note) && /Kechqurun/.test(ls[0].note), ls[0].note);
+  ok('Savollar o‘z joyiga tushdi (kim uchun, vaqt)', ls[0].audience === 'Ayollar guruhiga' && ls[0].wantTime === 'Kechqurun', JSON.stringify([ls[0].audience, ls[0].wantTime]));
   ok('Xodimlarga xabar ketdi', sent.length === 1 && /Malika/.test(sent[0]));
   await M.saveLead(ctx, '111');
   ok('Bir xil webhook ikki marta — bitta murojaat', (await store.list('leads/')).length === 1);
