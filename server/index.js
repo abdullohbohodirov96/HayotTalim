@@ -21,6 +21,7 @@ const levels = require('./levels');
 const files = require('./files');
 const lessonVideo = require('./lesson-video');
 const quiet = require('./db-quiet');
+const metaLeads = require('./meta-leads');
 const curriculum = require('./curriculum');
 const lms = require('./lms');
 const quiz = require('./quiz');
@@ -2877,6 +2878,14 @@ async function handleApi(req, res, url) {
     return send(res, 200, { ok: true, id });
   }
 
+  /* --- Target (Meta Lead Ads) arizalari: webhook → murojaat --- */
+  if (route === 'meta-leads') {
+    return metaLeads.handle(req, res, url, {
+      store, A, stamp,
+      notify: text => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text); } catch (e) { } }
+    }, send);
+  }
+
   /* --- Tashqi murojaat qabul qilish (Instagram, target reklama, sayt formasi) --- */
   if (route.indexOf('intake/') === 0 && req.method === 'POST') {
     const key = route.slice('intake/'.length);
@@ -4133,7 +4142,7 @@ const MIME = {
  */
 /* robots.txt va sitemap.xml fayl emas — ular serverda tuziladi
    (pastdagi yo'llarga qarang), shuning uchun bu ro'yxatda yo'q. */
-const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/qissa.html', '/dars-sen-kimsan.html']);
+const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/qissa.html', '/dars-sen-kimsan.html', '/maxfiylik.html']);
 const PUBLIC_DIRS = ['/css/', '/js/', '/assets/'];
 const ALLOWED_EXT = new Set(['.html', '.js', '.css', '.png', '.jpg', '.webp', '.svg', '.ico', '.webmanifest',
   '.txt', '.xml', '.mp3', '.mp4']);
@@ -4363,6 +4372,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   if (url.pathname !== '/api/health' && (url.pathname.indexOf('/api/') === 0 || url.pathname === '/' || url.pathname === '/index.html')) quiet.human();
   try {
     if (url.pathname.indexOf('/api/') === 0) return await handleApi(req, res, url);
+    if (url.pathname === '/maxfiylik' || url.pathname === '/privacy') return serveStatic(req, res, '/maxfiylik.html');
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
       const html = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
       const settings = (await store.get('meta/settings')) || {};
