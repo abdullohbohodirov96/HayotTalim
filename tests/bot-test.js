@@ -252,6 +252,14 @@ function lastTo(chatId) {
   ok('Guruhga "ulandim" xabari bordi', /Ulandim/.test(lastTo(-100200)), lastTo(-100200).slice(0, 90));
   ok('Xabarda guruh nomi bor', /Kechki A1/.test(lastTo(-100200)));
   ok('Boshqa guruh tegilmadi', !(await store.get('groups/g1')).tgChat);
+  const nLinked = sent.length;
+  await B.linkGroupChat(-100200, 'Istalgan nom', '');          // bot admin qilindi / qayta qo'shildi
+  await B.onGroupUpdate(-100200, 'Istalgan nom', '/start');
+  ok('Ulangan guruhga «ulash kodi» yo‘riqnomasi qayta yuborilmaydi', sent.length === nLinked, String(sent.length - nLinked));
+  const nNew = sent.length;
+  await B.linkGroupChat(-100777, 'Yangi guruh', '');
+  await B.linkGroupChat(-100777, 'Yangi guruh', '');
+  ok('Ulanmagan guruhga yo‘riqnoma sutkada faqat bir marta', sent.length === nNew + 1, String(sent.length - nNew));
 
   await B.onGroupUpdate(-100300, 'Hujumchi guruhi', '/ulash ' + tk.token);
   ok('Ishlatilgan kod qayta ishlamaydi', String((await store.get('groups/g9')).tgChat) === '-100200');

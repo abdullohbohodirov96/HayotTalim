@@ -907,7 +907,18 @@ const GLINK_HELP = 'Bu guruhni markazga ulash uchun ERP’dagi guruh sahifasida 
 /** Guruhni shu Telegram suhbatiga bog'lash (faqat bir martalik kod bilan) */
 async function linkGroupChat(chatId, title, token) {
   const tok = String(token || '').trim().toUpperCase();
-  if (!tok) { await sendMessage(chatId, 'Assalomu alaykum! ' + GLINK_HELP); return null; }
+  if (!tok) {
+    /* Kodsiz chaqiruv (bot qo'shildi, admin qilindi, /start): guruh allaqachon
+       ulangan bo'lsa — jim turamiz. Ulanmagan bo'lsa yo'riqnoma sutkada bir marta. */
+    const linked = (await listCol('groups')).filter(g => String(g.tgChat || '') === String(chatId))[0];
+    if (linked) return null;
+    const hk = 'botstate/ghelp_' + String(chatId).replace(/[^0-9-]/g, '');
+    const last = await store.get(hk);
+    if (last && Date.now() - Number(last.at || 0) < 24 * 3600 * 1000) return null;
+    await store.set(hk, { at: Date.now() });
+    await sendMessage(chatId, 'Assalomu alaykum! ' + GLINK_HELP);
+    return null;
+  }
   const key = GLINK + glinkHash(tok);
   const rec0 = /^[A-Z0-9]{6,16}$/.test(tok) ? await store.get(key) : null;
   if (!rec0 || !(rec0.expiresAt > Date.now())) {
