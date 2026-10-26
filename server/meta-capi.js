@@ -17,7 +17,7 @@
 'use strict';
 const crypto = require('crypto');
 
-const GRAPH = 'https://graph.facebook.com/v21.0/';
+const GRAPH = 'https://graph.facebook.com/v26.0/';
 const MAX_AGE_MS = 6.5 * 24 * 3600e3;     // Meta 7 kundan eski hodisani qabul qilmaydi
 
 /* Bosqich id → Meta'dagi hodisa nomi (lotin, bo'shliqsiz — Meta shuni yaxshi ko'radi) */
