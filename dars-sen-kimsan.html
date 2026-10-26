@@ -18,6 +18,7 @@
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(3vmin)}}
 
   /* progress bar */
+  .backbtn{position:absolute;top:14px;left:14px;z-index:40;padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.35);color:#fff;text-decoration:none;font-weight:700;font-size:14px}
   .prog{position:absolute;top:0;left:0;right:0;height:6px;background:rgba(255,255,255,.12);z-index:30}
   .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--g2),var(--gold));transition:width .5s ease}
   .chip{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;
@@ -149,6 +150,7 @@
 </head>
 <body>
 <div id="app">
+  <a class="backbtn" id="backBtn" href="/#kurs" hidden>← Orqaga</a>
   <div class="blob b1"></div><div class="blob b2"></div>
   <div class="prog"><i id="progBar"></i></div>
   <div class="chip hidden" id="chip"><span class="d"></span><span id="chipTxt">Dars</span></div>
@@ -464,6 +466,9 @@ async function sceneDone(){
   try{ if(window.parent!==window) window.parent.postMessage({sabo:'lesson-done',score:score,max:maxScore},location.origin); }catch(e){}
 }
 
+/* Sahifa alohida (kabinetdan tashqarida) ochilgan bo'lsa — «Orqaga» tugmasi */
+if(window.parent===window){ const bb=document.getElementById('backBtn'); bb.hidden=false;
+  bb.addEventListener('click',e=>{ if(history.length>1&&document.referrer&&new URL(document.referrer).origin===location.origin){ e.preventDefault(); history.back(); } }); }
 async function run(){
   prep();
   window.__t0=performance.now();

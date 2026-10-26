@@ -706,11 +706,46 @@
         body.appendChild(ctr);
         var endBox = h('div', { hidden: true });
         body.appendChild(endBox);
+        var M = A.A0Motion, mo = M ? M.intro(F, l) : null, moK = -1;
+        /* Kirish: diktor qaysi gapni o'qiyotgan bo'lsa — o'sha gapga mos harakatli sahna */
+        function introScene(k, durMs) {
+          if (!mo || k === moK || k < 0 || k >= mo.list.length) return;
+          moK = k; mo.render(stage, k, durMs);
+          cap.textContent = mo.list[k].s; cap.classList.remove('mo-capon'); void cap.offsetWidth; cap.classList.add('mo-capon');
+        }
+        function syncIntro(au, g) {
+          if (!mo) return;
+          var est = l.intro.length * 75;
+          function at(frac, total) {
+            var acc = 0;
+            for (var k = 0; k < mo.list.length; k++) { acc += mo.list[k].w; if (frac < acc) return introScene(k, mo.list[k].w * total); }
+          }
+          if (!au) {   /* ovoz fayli yo'q — taxminiy vaqt bilan */
+            var t0 = Date.now();
+            (function tick() { if (g !== A0P.gen) return; var f = (Date.now() - t0) / est; if (f >= 1) return; at(f, est); setTimeout(tick, 200); })();
+            return;
+          }
+          au.addEventListener('timeupdate', function () {
+            if (g !== A0P.gen) return;
+            var dur = isFinite(au.duration) && au.duration > 0 ? au.duration * 1000 : est;
+            at(au.currentTime * 1000 / dur, dur);
+          });
+        }
         function draw(i) {
           var it = seq[i];
-          UI.clear(stage); UI.clear(cap);
+          UI.clear(stage); UI.clear(cap); moK = -1;
           stage.className = 'a0-stage' + (it.intro ? ' intro' : it.text ? ' text' : '');
-          if (it.intro) {
+          if (it.intro && mo) {
+            introScene(0, mo.list[0].w * l.intro.length * 75);
+          } else if (M && it.letter && !it.forms) {
+            var xm = F.letter(it.letter); M.letter(stage, xm); cap.textContent = xm.tip;
+          } else if (M && it.forms) {
+            var xf = F.letter(it.letter); M.forms(stage, xf, F.forms(xf)); cap.textContent = xf.name + ': alohida · boshida · o‘rtasida · oxirida';
+          } else if (M && !it.intro) {
+            var lng = !!(it.text || it.ar.length > 24);
+            M.word(stage, it.ar, lng ? null : F.translit(it.ar), lng);
+            if (it.text) { var txm = F.BOOK.texts.filter(function (t) { return t.ar === it.ar; })[0]; cap.textContent = txm ? txm.uz : ''; }
+          } else if (it.intro) {
             stage.appendChild(h('div', { class: 'a0-vlogo' }, [h('span', {}, 'SABO ACADEMY · A0'), h('b', {}, l.n + '-dars'), h('div', { lang: 'ar', dir: 'rtl' }, l.titleAr), h('em', {}, l.title)]));
             cap.textContent = l.intro;
           } else if (it.letter && !it.forms) {
@@ -734,7 +769,12 @@
         }
         function playOne(i) {
           var it = seq[i];
-          if (it.intro) return a0PlayUrl(F.uzUrl(l.id), null).then(function () { if (!F.uzUrl(l.id)) return new Promise(function (r) { setTimeout(r, 4000); }); });
+          if (it.intro) {
+            var url0 = F.uzUrl(l.id), g0 = A0P.gen;
+            var pr = a0PlayUrl(url0, null);
+            syncIntro(url0 ? A0P.cur : null, g0);
+            return pr.then(function () { if (!url0) return new Promise(function (r) { setTimeout(r, l.intro.length * 75); }); });
+          }
           if (it.letter && !it.forms && l.kind === 'letters') return a0SayLetter(it.letter, true);
           return a0Say(it.say || it.ar);
         }
@@ -1182,7 +1222,7 @@
           ws.forEach(function (w) {
             if (w.n !== lastN) { lastN = w.n; list.appendChild(h('div', { class: 'sp-wgroup' }, w.n + '-dars · ' + A.Course.byId(w.lessonId).title)); }
             list.appendChild(h('div', { class: 'sp-word' }, [
-              h('button', { class: 'sp-word-say', type: 'button', 'aria-label': 'Tinglash', onclick: function () { sayAr(w.ar); } }, '🔊'),
+              h('button', { class: 'sp-word-say', type: 'button', 'aria-label': 'Tinglash', onclick: function () { if (A.Speak && A.Speak.sayPair) A.Speak.sayPair(w.ar, w.uz, { rate: 0.75 }); else sayAr(w.ar); } }, '🔊'),
               h('b', { class: 'sp-word-ar', lang: 'ar', dir: 'rtl' }, w.ar),
               h('span', { class: 'sp-word-tr' }, w.tr),
               h('span', { class: 'sp-word-uz' }, w.uz),
@@ -1258,7 +1298,8 @@
           ]);
           function reveal() {
             if (shown) return; shown = true; back.hidden = false;
-            if (o.reverse) sayAr(w.ar);
+            /* Javob ochildi: arabcha old tomonda bo'lsa — endi o'zbekcha tarjimasi eshitiladi */
+            if (o.reverse) sayAr(w.ar); else if (A.Speak && A.Speak.sayUz) A.Speak.sayUz(w.uz);
             UI.clear(actions);
             actions.appendChild(h('button', { class: 'btn lg sp-no', type: 'button', onclick: function () { results.push({ key: w.key, ok: false }); i++; draw(); } }, '✗ Bilmadim'));
             actions.appendChild(h('button', { class: 'btn lg sp-yes', type: 'button', onclick: function () { results.push({ key: w.key, ok: true }); i++; draw(); } }, '✓ Bildim'));

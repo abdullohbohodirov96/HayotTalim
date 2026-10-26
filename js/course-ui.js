@@ -90,6 +90,12 @@
   function say(text, rate) {
     if (A.Speak) return A.Speak.say(text, { rate: rate || 0.8 });
   }
+  /* Lug'at: arabcha, keyin o'zbekcha (studiya fayli bo'lsa) */
+  var pairRun = 0;
+  function sayPair(arText, uzText) {
+    if (A.Speak && A.Speak.sayPair) return A.Speak.sayPair(arText, uzText, { rate: 0.8 });
+    return Promise.resolve(say(arText));
+  }
   function sayBtn(text, label) {
     return h('button', {
       class: 'cr-say', type: 'button', 'aria-label': label || 'Tinglash',
@@ -113,7 +119,7 @@
   function sayAsync(text, rate, who) {
     return A.Speak ? A.Speak.say(text, { rate: rate || 0.8, who: who }) : Promise.resolve(false);
   }
-  function stopSpeech() { if (A.Speak) A.Speak.stop(); }
+  function stopSpeech() { pairRun++; if (A.Speak) A.Speak.stop(); }
 
   /* ---- Nutqni tanish: o'quvchi o'zi o'qiydi, brauzer eshitib tekshiradi ---- */
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition || null;
@@ -464,18 +470,25 @@
         h('h2', {}, '🧠 So’z yodlash'),
         h('p', {}, 'Avval shu darsning yangi so’zlarini yodlang: har birini bosib tinglang, ovoz chiqarib takrorlang va ma’nosini eslab qoling. Keyin videoda bu so’zlarni tanib olasiz.'),
         h('button', { class: 'btn sm', type: 'button', onclick: function () {
-          var i = 0; (function next() { if (i >= lesson.words.length) return; say(lesson.words[i].ar); i++; setTimeout(next, 1900); })();
+          /* Har so'z: avval arabcha, keyin o'zbekcha tarjima, so'ng keyingisi */
+          var i = 0, tok = ++pairRun;
+          (function next() {
+            if (i >= lesson.words.length || tok !== pairRun) return;
+            var wd = lesson.words[i++];
+            sayPair(wd.ar, wd.uz).then(function () { setTimeout(next, 700); });
+          })();
         } }, [speakerSvg(), 'Hammasini tinglash'])
       ]));
       body.appendChild(h('div', { class: 'cr-words' }, lesson.words.map(function (wd) {
-        return h('div', { class: 'cr-word', tabindex: '0', onclick: function () { say(wd.ar); } }, [
+        return h('div', { class: 'cr-word', tabindex: '0', onclick: function () { pairRun++; sayPair(wd.ar, wd.uz); } }, [
           anim(wd.anim, wd.uz),
           h('div', { class: 'cr-word-txt' }, [
             ar(wd.ar, 'lg'),
             h('span', { class: 'cr-tr' }, wd.tr),
             h('b', { class: 'cr-uz' }, wd.uz)
           ]),
-          sayBtn(wd.ar)
+          h('button', { class: 'cr-say', type: 'button', 'aria-label': 'Tinglash',
+            onclick: function (e) { e.stopPropagation(); pairRun++; sayPair(wd.ar, wd.uz); } }, [speakerSvg()])
         ]);
       })));
       body.appendChild(nextBtn('Yodladim — videoni ko’rish', function () { stopSpeech(); markStep('words'); goStep('video'); }));
@@ -540,11 +553,19 @@
         if (ipage) {
           var fr = h('iframe', { class: 'cr-ivideo', src: ipage, title: lesson.dialog.title + ' — interaktiv dars',
             allow: 'autoplay; fullscreen', allowfullscreen: 'true', loading: 'eager' });
-          var wrap = h('div', { class: 'cr-ivideo-wrap' }, [fr]);
+          var closeBtn = h('button', { class: 'cr-ivideo-close', type: 'button', 'aria-label': 'Chiqish', onclick: function () {
+            if (document.fullscreenElement || document.webkitFullscreenElement) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { } }
+            pseudoFull(false);
+          } }, '← Orqaga');
+          var wrap = h('div', { class: 'cr-ivideo-wrap' }, [fr, closeBtn]);
+          function pseudoFull(on) { wrap.classList.toggle('cr-ivideo-full', !!on); document.documentElement.classList.toggle('cr-noscroll', !!on); }
           vbox.appendChild(wrap);
           vbox.appendChild(h('div', { style: 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px' }, [
             h('button', { class: 'btn sm', type: 'button', onclick: function () {
-              var el = wrap; try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch (e) { window.open(ipage, '_blank'); }
+              var el = wrap, fs = el.requestFullscreen || el.webkitRequestFullscreen;
+              /* iPhone'da element to'liq ekran bo'lmaydi — sahifani to'liq qoplaymiz (yopish tugmasi bilan) */
+              if (fs) { try { var pr = fs.call(el); if (pr && pr.catch) pr.catch(function () { pseudoFull(true); }); return; } catch (e) { } }
+              pseudoFull(true);
             } }, '⛶ To’liq ekran'),
             h('button', { class: 'btn sm', type: 'button', onclick: function () { try { fr.contentWindow.location.reload(); } catch (e) { fr.src = ipage; } } }, '↺ Boshidan')
           ]));
@@ -553,15 +574,6 @@
             if (!document.body.contains(fr)) { window.removeEventListener('message', onMsg); return; }
             markStep('video');
           });
-          if (mp4 || A.QissaVideo) {
-            var more0 = h('div', { style: 'margin-top:14px;text-align:center' });
-            more0.appendChild(h('button', { class: 'btn sm', type: 'button', onclick: function (e) {
-              e.currentTarget.remove();
-              if (mp4) more0.appendChild(h('video', { controls: true, playsinline: true, preload: 'metadata', src: mp4, style: 'width:100%;max-height:72vh;border-radius:16px;background:#000;display:block' }));
-              else showAnim(more0);
-            } }, mp4 ? '🎬 Qo’shimcha video' : '🎬 Animatsion qissa'));
-            vbox.appendChild(more0);
-          }
         } else if (mp4) {
           var vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4,
             style: 'width:100%;max-height:72vh;border-radius:16px;background:#000;display:block' });

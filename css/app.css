@@ -4617,3 +4617,100 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
 .cr-ivideo-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
 .cr-ivideo-wrap:fullscreen{max-height:none;border-radius:0}
 @media (max-width:640px){.cr-ivideo-wrap{aspect-ratio:auto;height:78vh;border-radius:14px}}
+
+/* Interaktiv dars: to'liq ekran va «Orqaga» tugmasi */
+.cr-ivideo-close{display:none;position:absolute;top:10px;left:10px;z-index:3;border:0;border-radius:999px;padding:8px 14px;font:600 14px/1 inherit;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;backdrop-filter:blur(4px)}
+.cr-ivideo-wrap:fullscreen .cr-ivideo-close,.cr-ivideo-wrap.cr-ivideo-full .cr-ivideo-close{display:block}
+.cr-ivideo-wrap.cr-ivideo-full{position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;height:100dvh;max-height:none;aspect-ratio:auto;border-radius:0}
+html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
+
+/* ===== A0 video: harakatli sahnalar (js/a0-motion.js) ===== */
+.a0-stage{position:relative;overflow:hidden}
+.a0-stage::before{content:'';position:absolute;inset:-20%;background:radial-gradient(circle at 30% 30%,rgba(143,217,189,.16),transparent 40%),radial-gradient(circle at 75% 70%,rgba(227,178,60,.12),transparent 38%);animation:moDrift 14s ease-in-out infinite alternate;pointer-events:none}
+@keyframes moDrift{from{transform:translate(-3%,-2%) scale(1)}to{transform:translate(3%,2%) scale(1.08)}}
+.mo-scene{position:relative;z-index:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;animation:moIn .5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes moIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.mo-scene [lang=ar]{font-family:var(--c-ar,'Amiri',serif)}
+.mo-pop{opacity:0;animation:moPop .55s cubic-bezier(.2,1.4,.4,1) forwards}
+@keyframes moPop{0%{opacity:0;transform:translateY(16px) scale(.6)}100%{opacity:1;transform:none}}
+.mo-fade{opacity:0;animation:moFade .6s ease .35s forwards}
+@keyframes moFade{to{opacity:1}}
+/* harf o'ngdan chapga «yoziladi» */
+.mo-writein{clip-path:inset(0 0 0 100%);animation:moWrite 1.1s cubic-bezier(.5,0,.3,1) .15s forwards}
+@keyframes moWrite{to{clip-path:inset(0 0 0 0)}}
+.mo-big{font-size:clamp(72px,14vw,130px);line-height:1.4;color:#fff;text-shadow:0 6px 24px rgba(0,0,0,.35)}
+.mo-long{font-size:clamp(20px,4vw,32px);line-height:2.1;text-align:justify;color:#fff}
+.mo-small{font-size:26px;color:#cfeee2}
+.mo-tr{font-size:22px;color:#8fd9bd;font-weight:700;letter-spacing:.02em}
+.mo-hello{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.mo-wave{font-size:48px;transform-origin:70% 80%;animation:moWave 1.2s ease-in-out 2}
+@keyframes moWave{0%,100%{transform:rotate(0)}20%{transform:rotate(18deg)}40%{transform:rotate(-10deg)}60%{transform:rotate(14deg)}80%{transform:rotate(-4deg)}}
+.mo-kicker{font-size:12px;letter-spacing:.22em;color:#8fd9bd;font-weight:800}
+.mo-num{font-size:52px;color:#e3b23c;animation:moPop .6s cubic-bezier(.2,1.4,.4,1) .2s both}
+.mo-titlear{font-size:clamp(28px,6vw,44px);color:#fff;clip-path:inset(0 0 0 100%);animation:moWrite 1.2s ease .5s forwards}
+.mo-hello em{font-style:normal;color:#cfeee2;font-size:18px}
+.mo-grid28{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;max-width:520px;width:100%}
+.mo-grid28 span{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:12px;background:rgba(255,255,255,.08);font-size:clamp(22px,5vw,34px);color:#fff}
+.mo-badge{padding:8px 16px;border-radius:999px;background:#e3b23c;color:#163b33;font-weight:800;font-size:15px}
+.mo-row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-width:100%}
+.mo-lt,.mo-ex,.mo-pair{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;min-width:74px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(143,217,189,.25)}
+.mo-ltc{font-size:clamp(44px,9vw,68px);line-height:1.3;color:#fff}
+.mo-ltc.hl{color:#e3b23c}
+.mo-exa{font-size:clamp(36px,8vw,60px);line-height:1.4;color:#fff}
+.mo-lt small,.mo-ex small{font-size:14px;color:#8fd9bd;font-weight:700}
+.mo-pair{flex-direction:row;gap:10px}
+.mo-eq{color:#8fd9bd;font-size:22px}
+.mo-ex:last-child:not(:first-child){animation-name:moPopGold}
+@keyframes moPopGold{0%{opacity:0;transform:scale(.6)}70%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:none;background:rgba(227,178,60,.18);border-color:#e3b23c}}
+.mo-rtl{display:flex;flex-direction:column;align-items:center;gap:16px}
+.mo-arrow{display:flex;align-items:center;gap:10px;color:#cfeee2;font-weight:700;opacity:0;animation:moFade .4s ease forwards}
+.mo-arrow i{display:block;width:150px;height:4px;border-radius:4px;background:#e3b23c;position:relative;transform-origin:right;animation:moArrow 1.4s ease .3s both}
+.mo-arrow i::before{content:'';position:absolute;left:-2px;top:-6px;border:8px solid transparent;border-right:12px solid #e3b23c;border-left:0}
+@keyframes moArrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.mo-write{font-size:clamp(56px,12vw,96px);color:#fff;clip-path:inset(0 0 0 100%);animation:moWrite 1.6s ease .2s forwards}
+.mo-scene.mo-mahraj,.mo-scene.mo-letter,div.mo-mahraj{flex-direction:row!important;flex-wrap:wrap;gap:22px;display:flex;align-items:center;justify-content:center}
+.mo-side .mo-big{font-size:clamp(64px,11vw,104px)}
+.mo-imgw{position:relative;width:min(220px,42vw)}
+.mo-imgw img{width:100%;border-radius:16px;background:#f6f3ee;display:block;animation:moZoom 6s ease-in-out infinite alternate}
+@keyframes moZoom{to{transform:scale(1.05)}}
+.mo-ping{position:absolute;width:30px;height:30px;margin:-15px;border-radius:50%;border:3px solid #e0564f;animation:moPing 1.4s ease-out infinite}
+@keyframes moPing{0%{transform:scale(.4);opacity:1}100%{transform:scale(2.6);opacity:0}}
+.mo-slidein{animation:moSlide .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes moSlide{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+.mo-side{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.mo-side b{font-size:20px}
+.mo-red{color:#ff8a84;font-weight:700;font-size:14px}
+.mo-place{font-size:14px;color:#cfeee2;max-width:260px}
+.mo-markw{display:flex;flex-direction:column;align-items:center;gap:10px}
+.mo-markstage{position:relative;height:150px;width:140px}
+.mo-base{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:110px;color:#fff}
+.mo-drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:110px;color:#e3b23c;animation:moDrop 1.2s cubic-bezier(.3,1.5,.5,1) .3s both}
+/* belgi harfga «tushadi»: ustki belgilar yuqoridan, kasra pastdan (harfning o'zi kesib tashlanadi) */
+.mo-drop.up{clip-path:inset(0 0 60% 0)}
+.mo-drop.down{clip-path:inset(66% 0 0 0);animation-name:moRise}
+@keyframes moDrop{0%{transform:translateY(-120px);opacity:0}60%{opacity:1}100%{transform:none;opacity:1}}
+@keyframes moRise{0%{transform:translateY(120px);opacity:0}60%{opacity:1}100%{transform:none;opacity:1}}
+.mo-cap2{font-size:22px;color:#e3b23c}
+.mo-heavy{animation:moHeavy 1.2s ease-in-out infinite}
+@keyframes moHeavy{0%,100%{transform:scale(1)}50%{transform:scale(1.14);background:rgba(227,178,60,.2)}}
+.mo-dotpulse{animation:moDot 1.5s ease-in-out infinite}
+@keyframes moDot{50%{text-shadow:0 0 18px #e3b23c;color:#ffe9b3}}
+.mo-sunmoon{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+.mo-orb{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 22px;border-radius:20px;background:rgba(255,255,255,.08)}
+.mo-orb span{font-size:56px;animation:moFloat 2.4s ease-in-out infinite}
+.mo-orb.sun span{animation-delay:-1.2s}
+@keyframes moFloat{50%{transform:translateY(-8px) rotate(6deg)}}
+.mo-listen{display:flex;align-items:center;gap:18px}
+.mo-ico{position:relative;font-size:60px;width:100px;height:100px;display:flex;align-items:center;justify-content:center}
+.mo-ico i{position:absolute;inset:6px;border-radius:50%;border:2px solid rgba(143,217,189,.7);animation:moPing 1.8s ease-out infinite}
+.mo-ico i.mo-w2{animation-delay:.9s}
+.mo-arrow2{font-size:30px;color:#e3b23c;animation:moNudge 1s ease-in-out infinite}
+@keyframes moNudge{50%{transform:translateX(6px)}}
+.mo-book{display:flex;flex-direction:column;align-items:center;gap:10px}
+.mo-bico{font-size:70px;animation:moFloat 2.6s ease-in-out infinite}
+.mo-kin{max-width:640px;text-align:center;font-size:clamp(20px,4vw,30px);font-weight:800;line-height:1.45;color:#fff}
+.mo-kin span{display:inline-block;margin:0 .14em}
+.mo-type{white-space:nowrap}
+.a0-cap.mo-capon{animation:moFade .4s ease both}
+@media (max-width:640px){.mo-grid28{gap:5px}.mo-lt,.mo-ex,.mo-pair{min-width:56px;padding:8px 10px}.mo-imgw{width:min(180px,60vw)}}
+@media (prefers-reduced-motion:reduce){.mo-scene *,.mo-scene{animation-duration:.01s!important;animation-delay:0s!important}}

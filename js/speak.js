@@ -25,6 +25,16 @@
   function norm(t) {
     return String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s]/g, ' ').replace(/\s+/g, ' ').trim();
   }
+  /* Saytga qo'shilgan studiya ovozlari (A1 so'zlari: arabcha + o'zbekcha tarjima).
+     Bular server xaritasidan USTUN — darsdagi videodagi ovoz bilan bir xil. */
+  function normUz(t) { return String(t || '').toLowerCase().replace(/[’'ʻʼ`‘]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  var W = 'assets/a1/w/';
+  var STATIC_AR = {}, STATIC_UZ = {};
+  [['اِسْمٌ', 'ar-w0', 'ism', 'uz-ism'], ['أَهْلًا وَسَهْلًا', 'ar-w1', 'xush kelibsiz', 'uz-ahlan'],
+   ['مِنْ أَيْنَ أَنْتَ؟', 'ar-w2', 'qayerdansan?', 'uz-minayna'], ['قَطَرُ', 'ar-w3', 'Qatar', 'uz-qatar'],
+   ['الدَّوْحَةُ', 'ar-doha', 'Doha', 'uz-doha'], ['مِصْرُ', 'ar-w4', 'Misr', 'uz-misr'],
+   ['الْقَاهِرَةُ', 'ar-qohira', 'Qohira', 'uz-qohira'], ['كَمْ عُمْرُكَ؟', 'ar-w5', 'yoshing nechada?', 'uz-kamumr']
+  ].forEach(function (r) { STATIC_AR[norm(r[0])] = W + r[1] + '.mp3'; STATIC_UZ[normUz(r[2])] = W + r[3] + '.mp3'; });
   function loadVoices() {
     try { voices = synth ? synth.getVoices() : []; } catch (e) { voices = []; }
   }
@@ -66,7 +76,7 @@
    */
   function say(text, opts) {
     opts = opts || {};
-    var url = opts.url || map[norm(text)] || null;
+    var url = opts.url || STATIC_AR[norm(text)] || map[norm(text)] || null;
     var wasBusy = !!current || (synth && (synth.speaking || synth.pending));
     stop();
     if (url) {
@@ -130,9 +140,31 @@
       .catch(function () { return map; });
   }
 
+  /** O'zbekcha tarjimani o'qish (faqat studiya fayli bo'lsa; aks holda jim) */
+  function sayUz(text) {
+    var url = STATIC_UZ[normUz(text)];
+    if (!url) return Promise.resolve(false);
+    return new Promise(function (resolve) {
+      var au = new Audio(url); current = au;
+      au.onended = function () { if (current === au) current = null; resolve(true); };
+      au.onerror = function () { resolve(false); };
+      au.play().catch(function () { resolve(false); });
+    });
+  }
+  /** Avval arabcha, keyin o'zbekcha (lug'at yodlash) */
+  var pairTok = 0;
+  function sayPair(ar, uz, opts) {
+    var tok = ++pairTok;
+    return say(ar, opts).then(function () {
+      if (tok !== pairTok || !uz || !STATIC_UZ[normUz(uz)]) return true;
+      return new Promise(function (r) { setTimeout(r, 300); }).then(function () { return tok === pairTok ? sayUz(uz) : true; });
+    });
+  }
+
   A.Speak = {
-    say: say, stop: stop, loadMap: loadMap, norm: norm,
-    hasStudio: function (t) { return !!map[norm(t)]; },
+    say: say, sayUz: sayUz, sayPair: sayPair, stop: function () { pairTok++; stop(); }, loadMap: loadMap, norm: norm,
+    hasUz: function (t) { return !!STATIC_UZ[normUz(t)]; },
+    hasStudio: function (t) { return !!(STATIC_AR[norm(t)] || map[norm(t)]); },
     hasArabicVoice: function () { if (!voices.length) loadVoices(); return arVoices().length > 0; },
     voices: function () { return arVoices().map(function (v) { return v.name + ' (' + v.lang + ')'; }); },
     logs: function () { return logs.slice(); }
