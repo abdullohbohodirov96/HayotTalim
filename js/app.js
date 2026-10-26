@@ -292,9 +292,64 @@
     ]);
     var m = UI.modal({
       title: 'Menyu', body: h('div', {}, [tools, list]),
-      actions: [{ label: 'Chiqish', cls: 'danger', onClick: function (c) { c(); logout(); } }]
+      actions: [
+        { label: '📲 Telegram', onClick: function (c) { c(); openTelegramLink(); } },
+        { label: 'Chiqish', cls: 'danger', onClick: function (c) { c(); logout(); } }
+      ]
     });
   }
+
+  /* ---------- Shaxsiy Telegram: yangi murojaatlar, eslatmalar, vazifalar ---------- */
+  async function openTelegramLink() {
+    var box = h('div', {}, [h('p', { class: 'muted' }, 'Yuklanmoqda…')]);
+    var m = UI.modal({ title: '📲 Telegram xabarnomalari', body: box, actions: [{ label: 'Yopish' }] });
+    async function draw() {
+      var st;
+      try { st = await D.api('GET', 'api/me/telegram'); }
+      catch (e) { box.innerHTML = ''; box.appendChild(h('p', { class: 'muted' }, e.message || 'Xatolik')); return; }
+      box.innerHTML = '';
+      var what = h('ul', { class: 'small', style: 'margin:.4em 0 1em;padding-left:1.2em;line-height:1.6' }, [
+        st.getsLeads ? h('li', {}, '🔔 Yangi murojaat tushsa — to‘liq ma’lumoti bilan darhol') : null,
+        st.getsLeads ? h('li', {}, '⏰ Mijoz bilan bog‘lanilmasa — har 15 daqiqada eslatma («✅ Bog‘landim» bosilguncha)') : null,
+        st.getsLeads ? h('li', {}, '📊 Har kuni 19:00 da kunlik hisobot (istalgan payt: /hisobot)') : null,
+        h('li', {}, '📋 Sizga berilgan vazifalar va biriktirilgan murojaatlar')
+      ]);
+      if (st.linked) {
+        box.appendChild(h('p', {}, ['✅ Telegram ulangan', st.username ? ': @' + st.username : (st.tgName ? ': ' + st.tgName : ''),
+          st.at ? h('span', { class: 'muted small' }, ' (' + st.at + ')') : null]));
+        box.appendChild(h('div', { class: 'small muted' }, 'Shu yerga keladi:'));
+        box.appendChild(what);
+        box.appendChild(h('button', {
+          class: 'btn danger', type: 'button', onclick: function (e) {
+            UI.busy(e.currentTarget, async function () {
+              await D.api('POST', 'api/me/telegram', { action: 'unlink' });
+              UI.toast('Telegram uzildi.', 'ok'); draw();
+            });
+          }
+        }, 'Uzish'));
+        return;
+      }
+      box.appendChild(h('p', {}, 'O‘z Telegramingizni ulang — xabarlar shaxsan sizga keladi:'));
+      box.appendChild(what);
+      var slot = h('div', {});
+      box.appendChild(slot);
+      slot.appendChild(h('button', {
+        class: 'btn primary', type: 'button', onclick: function (e) {
+          UI.busy(e.currentTarget, async function () {
+            var r = await D.api('POST', 'api/me/telegram', { action: 'link' });
+            slot.innerHTML = '';
+            slot.appendChild(h('a', { class: 'btn primary', href: r.url, target: '_blank', rel: 'noopener' }, 'Telegram’da ochish → «Start»'));
+            slot.appendChild(h('p', { class: 'small muted', style: 'margin-top:.6em' },
+              'Botda «Start» ni bosing — hisobingiz ulanadi. Havola 24 soat amal qiladi va faqat bir marta ishlaydi. Keyin shu oynada «Tekshirish» ni bosing.'));
+            slot.appendChild(h('button', { class: 'btn', type: 'button', onclick: function () { draw(); } }, 'Tekshirish'));
+          });
+        }
+      }, '📲 Telegram’ni ulash'));
+    }
+    draw();
+    return m;
+  }
+  A.openTelegramLink = openTelegramLink;
 
   /* ---------- Kirish ---------- */
   async function hashPass(login, pass, salt) {
@@ -3844,6 +3899,8 @@
       if (D.mode === 'server') {
         wireSearch();
         document.getElementById('logout').addEventListener('click', logout);
+      var tgb2 = document.getElementById('tg-link'); if (tgb2) tgb2.onclick = function () { openTelegramLink(); };
+        var tgb = document.getElementById('tg-link'); if (tgb) tgb.onclick = function () { openTelegramLink(); };
         D.onBusy = busyIndicator;
         if (D.currentServerUser) {
           try {

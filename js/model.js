@@ -7,6 +7,7 @@
   var ROLES = {
     direktor: 'Direktor',
     admin: 'Administrator',
+    menejer: 'Menejer (sotuv)',
     oqituvchi: 'O’qituvchi',
     buxgalter: 'Buxgalter'
   };
@@ -29,6 +30,13 @@
       'nav.curriculum', 'curriculum.view', 'curriculum.edit',
       'lesson.log', 'quiz.manage', 'qa.answer', 'feedback.view',
       'makeup.manage', 'holiday.manage', 'parent.manage'
+    ],
+    /* Sotuv menejeri: murojaatlar bilan ishlaydi, yangi lead haqida botdan xabar oladi */
+    menejer: [
+      'nav.dashboard', 'nav.leads', 'nav.students', 'nav.groups', 'nav.schedule', 'nav.chat', 'nav.tasks',
+      'lead.view', 'lead.edit', 'lead.import',
+      'student.view', 'group.view', 'schedule.view',
+      'chat.use', 'task.view'
     ],
     oqituvchi: [
       'nav.dashboard', 'nav.groups', 'nav.schedule', 'nav.attendance', 'nav.students',

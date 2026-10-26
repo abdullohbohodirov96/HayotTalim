@@ -147,7 +147,7 @@ async function saveLead(ctx, leadgenId) {
   await store.set(key, { leadId: id, at: stamp() });
   const text = 'Yangi murojaat (target)\nIsm: ' + (p.name || '—') + '\nTelefon: ' + (phone || '—') +
     (note ? '\n' + p.answers.join('\n') : '') + (ad ? '\nReklama: ' + ad : '') + (dup ? '\n(bu raqam avval ham yozilgan)' : '');
-  if (ctx.notify) ctx.notify(text);
+  if (ctx.notify) ctx.notify(text, id);
 }
 
 /* ---------- Zaxira yo'l: arizalarni o'zimiz tortib olamiz (polling) ----------

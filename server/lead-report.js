@@ -1,9 +1,9 @@
 'use strict';
 /* Kunlik murojaat hisoboti.
-   Har kuni soat 19:00 (Toshkent) da ADMINLARGA (bot.staffChats) Telegramga
-   umumiy hisobot yuboriladi: bugun nechta murojaat tushdi, manba bo'yicha
-   (Telegram bot, Instagram, Target/Meta, Sayt/forma, Daraja testi) nechtadan,
-   va so'nggi murojaatlar ro'yxati (ism, telefon, vaqt).
+   Har kuni soat 19:00 (Toshkent) da adminlar va botga ulangan xodimlarga
+   (direktor, admin, menejer) to'liq hisobot: bugun nechta murojaat tushdi,
+   nechtasi bilan bog'lanildi / bog'lanilmadi, holat bo'yicha (nima dedi),
+   manba, kim bog'landi, har bir murojaat izohi bilan va umumiy holat.
 
    Hech qanday yangi tizim emas — mavjud `leads/` (murojaatlar) ustidan ishlaydi
    va mavjud `bot.notifyStaff()` orqali yuboradi.
@@ -40,46 +40,101 @@ function classify(l) {
 }
 const ORDER = ['telegram', 'instagram', 'target', 'web', 'test', 'boshqa'];
 
-/** Berilgan kun uchun hisobot matni (oddiy matn — notifyStaff HTML-escape qiladi). */
+/* Holat turi: voronka bosqichlari bo'yicha (A.funnelStages bo'lmasa — nomidan) */
+function stageInfo(funnels, l) {
+  const f = funnels.filter(x => x.id === l.funnelId)[0];
+  const stages = f && Array.isArray(f.stages) && f.stages.length ? f.stages : null;
+  const st = stages ? stages.filter(x => x.id === l.stage)[0] : null;
+  const label = (st && (st.label || st.name)) || String(l.stage || 'yangi');
+  const first = stages ? stages[0].id : 'yangi';
+  const type = (st && st.type) || (/oquvchi|won/.test(String(l.stage)) ? 'won' : /rad|lost/.test(String(l.stage)) ? 'lost' : '');
+  return { label, isFirst: String(l.stage || first) === String(first), type };
+}
+function contacted(l, si) { return !!(l.contactedAt || l.studentId || !si.isFirst); }
+function cut(t, n) { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+/** Berilgan kun uchun to'liq hisobot (oddiy matn — notifyStaff HTML-escape qiladi). */
 async function buildReport(store, date) {
   date = date || todayStr();
-  const leads = (await store.list('leads/')).map(x => x.data).filter(Boolean)
-    .filter(l => String(l.createdAt || '').slice(0, 10) === date);
+  const funnels = (await store.list('funnels/')).map(x => x.data).filter(Boolean);
+  const all = (await store.list('leads/')).map(x => x.data).filter(Boolean);
+  const leads = all.filter(l => String(l.createdAt || '').slice(0, 10) === date)
+    .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
 
-  const lines = [];
-  lines.push('📊 Kunlik murojaat hisoboti — ' + date);
-  lines.push('Bugun jami: ' + leads.length + ' ta murojaat');
+  const L = [];
+  L.push('📊 KUNLIK HISOBOT — ' + date);
+  L.push('');
+  L.push('📥 Bugun tushgan murojaatlar: ' + leads.length + ' ta');
+  if (!leads.length) { L.push('Bugun murojaat tushmadi.'); return L.join('\n'); }
 
-  if (!leads.length) {
-    lines.push('');
-    lines.push('Bugun hali murojaat tushmadi.');
-    return lines.join('\n');
-  }
+  const info = leads.map(l => ({ l, si: stageInfo(funnels, l), c: classify(l) }));
+  const ok = info.filter(x => contacted(x.l, x.si));
+  const won = info.filter(x => x.si.type === 'won' || x.l.studentId);
+  const lost = info.filter(x => x.si.type === 'lost');
+  L.push('✅ Bog‘lanildi: ' + ok.length + ' ta');
+  L.push('⏳ Bog‘lanilmagan: ' + (leads.length - ok.length) + ' ta');
+  if (won.length) L.push('🎓 O‘quvchi bo‘ldi: ' + won.length + ' ta');
+  if (lost.length) L.push('❌ Rad etdi: ' + lost.length + ' ta');
 
-  const newN = leads.filter(l => !l.stage || String(l.stage) === 'yangi').length;
-  lines.push('Yangi (aloqa qilinmagan): ' + newN);
+  /* Holatlar bo'yicha: «shunchasi shunaqa dedi» */
+  const byStage = {};
+  info.forEach(x => { byStage[x.si.label] = (byStage[x.si.label] || 0) + 1; });
+  L.push('');
+  L.push('📌 Holat bo‘yicha:');
+  Object.keys(byStage).sort((a, b) => byStage[b] - byStage[a]).forEach(k => L.push('  • ' + k + ': ' + byStage[k]));
 
   const groups = {};
-  leads.forEach(l => {
-    const c = classify(l);
-    (groups[c.key] = groups[c.key] || { c, n: 0 }).n++;
+  info.forEach(x => { (groups[x.c.key] = groups[x.c.key] || { c: x.c, n: 0 }).n++; });
+  L.push('');
+  L.push('📣 Manba bo‘yicha:');
+  ORDER.forEach(k => { if (groups[k]) L.push('  ' + groups[k].c.icon + ' ' + groups[k].c.name + ': ' + groups[k].n); });
+
+  const byWho = {};
+  ok.forEach(x => { const w = x.l.contactedBy || '—'; byWho[w] = (byWho[w] || 0) + 1; });
+  if (ok.length && Object.keys(byWho).some(k => k !== '—')) {
+    L.push('');
+    L.push('👥 Kim bog‘landi:');
+    Object.keys(byWho).sort((a, b) => byWho[b] - byWho[a]).forEach(k => L.push('  • ' + k + ': ' + byWho[k]));
+  }
+
+  /* Har bir murojaat — izohi bilan */
+  L.push('');
+  L.push('📝 Murojaatlar (izohi bilan):');
+  info.forEach((x, i) => {
+    const l = x.l;
+    const t = String(l.createdAt || '').slice(11, 16);
+    L.push('');
+    L.push((i + 1) + '. ' + x.c.icon + ' ' + cut(l.name || '—', 40) + ' · ' + (l.phone || '—') + (t ? ' · ' + t : ''));
+    L.push('   Holat: ' + x.si.label + (contacted(l, x.si) ? (l.contactedBy ? ' (' + l.contactedBy + ')' : '') : ' — ⏳ bog‘lanilmagan'));
+    const extra = [l.src ? 'Reklama: ' + cut(l.src, 60) : '', l.region ? 'Hudud: ' + l.region : '', l.wantTime ? 'Vaqt: ' + l.wantTime : ''].filter(Boolean).join(' · ');
+    if (extra) L.push('   ' + extra);
+    if (l.note) L.push('   💬 ' + cut(l.note, 220));
   });
-  lines.push('');
-  lines.push('Manbalar bo‘yicha:');
-  ORDER.forEach(k => { if (groups[k]) lines.push('  ' + groups[k].c.icon + ' ' + groups[k].c.name + ': ' + groups[k].n); });
 
-  lines.push('');
-  lines.push('So‘nggi murojaatlar:');
-  leads.slice()
-    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
-    .slice(0, 15)
-    .forEach(l => {
-      const c = classify(l);
-      const t = String(l.createdAt || '').slice(11, 16);
-      lines.push('  ' + c.icon + ' ' + (l.name || '—') + ' · ' + (l.phone || '—') + (t ? ' · ' + t : ''));
-    });
+  /* Umumiy: shu kunga qadar ochiq qolgan, bog'lanilmagan murojaatlar */
+  const old = all.filter(l => String(l.createdAt || '').slice(0, 10) < date)
+    .map(l => ({ l, si: stageInfo(funnels, l) }))
+    .filter(x => !contacted(x.l, x.si) && x.si.type !== 'lost' && x.si.type !== 'won');
+  const dueToday = all.filter(l => l.nextContact && l.nextContact <= date)
+    .map(l => ({ l, si: stageInfo(funnels, l) })).filter(x => x.si.type !== 'won' && x.si.type !== 'lost' && !x.l.studentId);
+  L.push('');
+  L.push('📈 Umumiy:');
+  L.push('  • Konversiya bugun: ' + Math.round(100 * won.length / leads.length) + '% (' + won.length + '/' + leads.length + ')');
+  L.push('  • Avvalgi kunlardan bog‘lanilmagan: ' + old.length + ' ta');
+  L.push('  • Bugungacha qo‘ng‘iroq qilinishi kerak: ' + dueToday.length + ' ta');
+  return L.join('\n');
+}
 
-  return lines.join('\n');
+/** Telegram 4096 belgidan uzun xabarni qabul qilmaydi — qatorlar bo'yicha bo'lamiz */
+function splitText(text, max) {
+  max = max || 3500;
+  const parts = []; let cur = '';
+  String(text).split('\n').forEach(line => {
+    if ((cur + '\n' + line).length > max && cur) { parts.push(cur); cur = line; }
+    else cur = cur ? cur + '\n' + line : line;
+  });
+  if (cur) parts.push(cur);
+  return parts;
 }
 
 /** Vaqt kelganda bir marta yuboradi (kuniga bir marta). */
@@ -93,10 +148,16 @@ async function tick(store) {
     const text = await buildReport(store, today);
     let bot = null;
     try { bot = require('./bot'); } catch (e) { bot = null; }
-    let res = { off: true };
-    if (bot && typeof bot.notifyStaff === 'function') res = await bot.notifyStaff(text);
-    await store.set('meta/leadReport', { lastDate: today, at: stamp(), sent: (res && res.queued) || 0 });
-    if (res && res.queued) console.log('  Kunlik murojaat hisoboti yuborildi: ' + res.queued + ' adminga');
+    let sent = 0;
+    if (bot && typeof bot.notifyStaff === 'function') {
+      const parts = splitText(text);
+      for (let i = 0; i < parts.length; i++) {
+        const r = await bot.notifyStaff(parts.length > 1 ? parts[i] + (i < parts.length - 1 ? '\n…(davomi)' : '') : parts[i]);
+        sent = Math.max(sent, (r && r.queued) || 0);
+      }
+    }
+    await store.set('meta/leadReport', { lastDate: today, at: stamp(), sent });
+    if (sent) console.log('  Kunlik murojaat hisoboti yuborildi: ' + sent + ' xodimga');
   } catch (e) {
     console.error('lead-report:', e.message);
   }
@@ -111,4 +172,4 @@ function start(store) {
 }
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-module.exports = { start, stop, tick, buildReport, classify, REPORT_TIME };
+module.exports = { start, stop, tick, buildReport, classify, splitText, REPORT_TIME };

@@ -46,13 +46,14 @@ async function tg(method, params) {
   if (!data.ok) throw new Error(method + ': ' + (data.description || 'xato'));
   return data.result;
 }
-async function sendMessage(chatId, text, keyboard) {
-  if (transport) return transport(chatId, text, keyboard);
+async function sendMessage(chatId, text, keyboard, inline) {
+  if (transport) return transport(chatId, text, keyboard, inline);
   return tg('sendMessage', {
     chat_id: chatId,
     text: text,
     parse_mode: 'HTML',
-    reply_markup: keyboard ? { keyboard: keyboard, resize_keyboard: true } : { remove_keyboard: true }
+    reply_markup: inline ? { inline_keyboard: inline }
+      : keyboard ? { keyboard: keyboard, resize_keyboard: true } : { remove_keyboard: true }
   });
 }
 
@@ -324,7 +325,7 @@ async function flushQueue(now) {
     }
     m.tries = (m.tries || 0) + 1;
     try {
-      await sendMessage(m.chatId, m.text);
+      await sendMessage(m.chatId, m.text, null, m.buttons || null);
       m.status = 'sent';
       m.sentAt = stamp();
       m.error = '';
@@ -358,32 +359,227 @@ async function flushQueue(now) {
  * Chat ID lar sozlamada: bot.staffChats — vergul bilan yoki ro'yxat ko'rinishida.
  * Bot o'chiq bo'lsa yoki ID berilmagan bo'lsa — hech narsa qilinmaydi.
  */
-/** Sozlamadagi administrator chatlari (bot.staffChats) */
+/* ---------------- Xodimlarning shaxsiy Telegrami ----------------
+   Har bir xodim ERP dagi «📲 Telegram» tugmasi orqali o'z hisobini botga
+   ulaydi (bir martalik havola: /start st_<token>). Ulangan xodimlarga:
+     — yangi murojaat (lead) haqida to'liq ma'lumot + «✅ Bog'landim» tugmasi
+       (rollar: Sozlamalar → bot.leadRoles, standart: direktor, admin, menejer);
+     — mijoz bilan bog'lanilmaguncha har 15 daqiqada eslatma;
+     — o'ziga berilgan vazifalar.                                           */
+const LEAD_ROLES_DEFAULT = ['direktor', 'admin', 'menejer'];
+const REMIND_MS = 15 * 60 * 1000;
+const REMIND_MAX_MS = 24 * 3600 * 1000;
+let staffCache = null, staffCacheAt = 0;
+async function linkedUsers() {
+  if (staffCache && Date.now() - staffCacheAt < 10 * 60 * 1000) return staffCache;
+  staffCache = (await store.list('users/')).map(x => x.data)
+    .filter(u => u && u.active !== false && u.telegram && /^\d{3,20}$/.test(String(u.telegram.id || '')));
+  staffCacheAt = Date.now();
+  return staffCache;
+}
+function dropStaffCache() { staffCache = null; }
+function leadRolesOf(s) {
+  const r = s && s.bot && s.bot.leadRoles;
+  return Array.isArray(r) && r.length ? r : LEAD_ROLES_DEFAULT;
+}
+async function userByChat(chatId) {
+  return (await linkedUsers()).filter(u => String(u.telegram.id) === String(chatId))[0] || null;
+}
+
+/** Sozlamadagi administrator chatlari (bot.staffChats) + ulangan xodimlar (lead rollari) */
 async function staffChatIds() {
   const s = (await store.get('meta/settings')) || {};
   const raw = (s.bot && (s.bot.staffChats || s.bot.adminChatId)) || '';
-  return (Array.isArray(raw) ? raw : String(raw).split(/[,\s]+/))
+  const ids = (Array.isArray(raw) ? raw : String(raw).split(/[,\s]+/))
     .map(x => String(x).trim()).filter(x => /^-?\d{3,20}$/.test(x));
+  const roles = leadRolesOf(s);
+  (await linkedUsers()).forEach(u => {
+    if (roles.indexOf(u.role) >= 0 && ids.indexOf(String(u.telegram.id)) < 0) ids.push(String(u.telegram.id));
+  });
+  return ids;
 }
 async function isStaffChat(chatId) {
   return (await staffChatIds()).indexOf(String(chatId)) >= 0;
 }
 
-async function notifyStaff(text) {
+/**
+ * Xodimlarga xabar. opts.leadId berilsa — bu yangi murojaat: xabar oxiriga
+ * «15 daqiqada bog'laning» qo'shiladi, «✅ Bog'landim» tugmasi chiqadi va
+ * bog'lanilmaguncha har 15 daqiqada eslatma ketadi.
+ */
+async function notifyStaff(text, opts) {
   if (!store) return { queued: 0, off: true };
   /* Xabar Telegramga HTML rejimida ketadi. Ichida foydalanuvchi yozgan
      matn (ism, savol, izoh) bo'ladi — u HTML sifatida o'qilmasin. */
   text = esc(String(text == null ? '' : text));
+  const leadId = opts && opts.leadId ? String(opts.leadId) : '';
   const ids = await staffChatIds();
+  let buttons = null;
+  if (leadId) {
+    const nl = text.indexOf('\n');
+    text = '🔔 <b>' + (nl < 0 ? text + '</b>' : text.slice(0, nl) + '</b>' + text.slice(nl)) + '\n\n⏳ <b>15 daqiqa ichida bog‘laning!</b> Gaplashgach «✅ Bog‘landim» ni bosing.';
+    buttons = [[{ text: '✅ Bog‘landim', callback_data: 'lc:' + leadId }]];
+    /* Mas'ul xodim (lead.ownerStaffId) roli boshqacha bo'lsa ham xabar oladi */
+    try {
+      const lead = await store.get('leads/' + leadId);
+      if (lead && lead.ownerStaffId) {
+        (await linkedUsers()).filter(u => u.staffId && u.staffId === lead.ownerStaffId)
+          .forEach(u => { if (ids.indexOf(String(u.telegram.id)) < 0) ids.push(String(u.telegram.id)); });
+      }
+    } catch (e) { }
+    trackLead(leadId);
+  }
   let queued = 0;
   for (const chatId of ids) {
     const r = await enqueue({
-      kind: 'elon', chatId, text,
+      kind: 'elon', chatId, text, buttons,
       dedupeKey: 'staff:' + chatId + ':' + hash(String(text))
     }, 5 * 60 * 1000);
     if (!r.skipped) queued++;
   }
   return { queued };
+}
+
+/** Bitta xodimga shaxsiy xabar (masalan, unga vazifa berilganda) */
+async function notifyUser(userId, text) {
+  if (!store) return { queued: 0, off: true };
+  const u = (await linkedUsers()).filter(x => x.id === userId)[0];
+  if (!u) return { queued: 0, notLinked: true };
+  const r = await enqueue({ kind: 'elon', chatId: String(u.telegram.id), text: esc(String(text || '')),
+    dedupeKey: 'user:' + u.id + ':' + hash(String(text)) }, 5 * 60 * 1000);
+  return { queued: r.skipped ? 0 : 1 };
+}
+
+/* ---- Bog'lanilmagan murojaatlar: har 15 daqiqada eslatma ----
+   Ro'yxat xotirada; bo'sh bo'lsa baza umuman so'ralmaydi.            */
+const pendingLeads = new Map();          // leadId -> { at, last, n }
+let pendingLoaded = false;
+function trackLead(id) {
+  if (!id || pendingLeads.has(String(id))) return;
+  const now = Date.now();
+  pendingLeads.set(String(id), { at: now, last: now, n: 0 });
+}
+function stampMs(s) {
+  const t = Date.parse(String(s || '').replace(' ', 'T') + ':00+05:00');
+  return isNaN(t) ? 0 : t;
+}
+async function leadContacted(lead) {
+  if (!lead) return true;
+  if (lead.contactedAt || lead.studentId) return true;
+  const funnel = lead.funnelId ? await store.get('funnels/' + lead.funnelId) : null;
+  const stages = funnel ? A.funnelStages(funnel) : [];
+  const first = stages[0] ? stages[0].id : 'yangi';
+  return String(lead.stage || first) !== first;
+}
+async function loadPendingLeads() {
+  pendingLoaded = true;
+  const now = Date.now();
+  const leads = (await store.list('leads/')).map(x => x.data).filter(Boolean);
+  for (const l of leads) {
+    const at = stampMs(l.createdAt);
+    if (pendingLeads.has(l.id) || !at || now - at > REMIND_MAX_MS || l.contactedAt || l.studentId) continue;
+    if (await leadContacted(l)) continue;
+    pendingLeads.set(l.id, { at, last: Math.max(at, now - REMIND_MS + 60 * 1000), n: 0 });
+  }
+}
+function leadInfoText(l) {
+  const row = (k, v) => v ? '\n' + k + ': ' + esc(String(v)) : '';
+  return '👤 <b>' + esc(l.name || '—') + '</b>' +
+    row('📞 Telefon', l.phone) + row('Telegram', l.tgUser ? '@' + l.tgUser : '') +
+    row('Manba', l.source) + row('Reklama', l.src) + row('Hudud', l.region) +
+    row('Qulay vaqt', l.wantTime) + row('Daraja', l.startLevel) + row('Yosh', l.age) +
+    row('Kim uchun', l.audience) + (l.note ? '\n📝 ' + esc(String(l.note).slice(0, 400)) : '');
+}
+async function remindTick(nowMs) {
+  if (!store) return { sent: 0 };
+  if (!pendingLoaded) await loadPendingLeads();
+  if (!pendingLeads.size) return { sent: 0 };
+  const now = nowMs || Date.now();
+  const s = await settings();
+  const b = s.bot || {};
+  if (b.leadRemind === false) return { sent: 0, off: true };
+  const from = Number(b.remindFrom == null ? 8 : b.remindFrom) * 60, to = Number(b.remindTo == null ? 22 : b.remindTo) * 60;
+  const mins = tashkentNow(now).mins;
+  const night = !(mins >= from && mins < to);
+  let sent = 0;
+  for (const [id, p] of Array.from(pendingLeads.entries())) {
+    if (now - p.at > REMIND_MAX_MS) { pendingLeads.delete(id); continue; }
+    if (now - p.last < REMIND_MS - 30 * 1000) continue;
+    const lead = await store.get('leads/' + id);
+    if (await leadContacted(lead)) { pendingLeads.delete(id); continue; }
+    if (night) continue;                         // tunda bezovta qilmaymiz — ertalab davom etadi
+    p.last = now; p.n++;
+    const ago = Math.round((now - p.at) / 60000);
+    const agoTxt = ago >= 120 ? Math.floor(ago / 60) + ' soat' : ago + ' daqiqa';
+    const text = '⏰ <b>Eslatma: ' + agoTxt + ' o‘tdi — mijoz bilan hali bog‘lanilmadi!</b>\n\n' +
+      leadInfoText(lead) + '\n\nIltimos, hoziroq qo‘ng‘iroq qiling va «✅ Bog‘landim» ni bosing.';
+    const ids = await staffChatIds();
+    if (lead.ownerStaffId) {
+      (await linkedUsers()).filter(u => u.staffId && u.staffId === lead.ownerStaffId)
+        .forEach(u => { if (ids.indexOf(String(u.telegram.id)) < 0) ids.push(String(u.telegram.id)); });
+    }
+    for (const chatId of ids) {
+      const r = await enqueue({ kind: 'elon', chatId, text, buttons: [[{ text: '✅ Bog‘landim', callback_data: 'lc:' + id }]],
+        dedupeKey: 'leadrem:' + chatId + ':' + id + ':' + p.n }, 0);
+      if (!r.skipped) sent++;
+    }
+  }
+  return { sent };
+}
+
+/** «✅ Bog'landim» tugmasi */
+async function onCallback(cq) {
+  const data = String(cq.data || '');
+  const chatId = cq.message && cq.message.chat ? cq.message.chat.id : (cq.from && cq.from.id);
+  const answer = t => quizApi('answerCallbackQuery', { callback_query_id: cq.id, text: t || '' }).catch(() => { });
+  if (!/^lc:/.test(data)) return answer('');
+  if (!(await isStaffChat(chatId))) return answer('Ruxsat yo‘q.');
+  const id = data.slice(3);
+  const lead = await store.get('leads/' + id);
+  pendingLeads.delete(id);
+  if (!lead) return answer('Murojaat topilmadi (o‘chirilgan bo‘lishi mumkin).');
+  const u = await userByChat(chatId);
+  const who = (u && u.name) || [cq.from && cq.from.first_name, cq.from && cq.from.last_name].filter(Boolean).join(' ') || 'Xodim';
+  if (!lead.contactedAt) {
+    lead.contactedAt = stamp(); lead.contactedBy = who;
+    lead.note = [lead.note, 'Bog‘lanildi: ' + who + ' (' + lead.contactedAt + ')'].filter(Boolean).join(' · ').slice(0, 1500);
+    await store.set('leads/' + id, lead);
+  }
+  if (cq.message) {
+    quizApi('editMessageReplyMarkup', { chat_id: chatId, message_id: cq.message.message_id,
+      reply_markup: { inline_keyboard: [[{ text: '✅ ' + (lead.contactedBy || who) + ' bog‘landi', callback_data: 'ok' }]] } }).catch(() => { });
+  }
+  return answer(lead.contactedBy && lead.contactedBy !== who ? 'Allaqachon: ' + lead.contactedBy + ' bog‘langan.' : 'Belgilandi ✅ Rahmat!');
+}
+
+/** /start st_<token> — xodim o'z ERP hisobini botga ulaydi */
+async function staffLinkStart(chatId, token, from) {
+  const crypto = require('crypto');
+  const key = 'stafflink/' + crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 40);
+  const rec = await store.get(key);
+  if (!rec || !rec.userId || Date.now() > Number(rec.exp || 0)) {
+    return sendMessage(chatId, '❌ Havola eskirgan yoki noto‘g‘ri. ERP → «📲 Telegram» dan yangi havola oling.');
+  }
+  const user = await store.get('users/' + rec.userId);
+  if (!user || user.active === false) return sendMessage(chatId, '❌ Hisob topilmadi yoki o‘chirilgan.');
+  /* Bitta Telegram — bitta xodim: shu chat boshqa hisobga ulangan bo'lsa, u yerdan olinadi */
+  for (const o of (await store.list('users/')).map(x => x.data).filter(Boolean)) {
+    if (o.id !== user.id && o.telegram && String(o.telegram.id) === String(chatId)) {
+      delete o.telegram; await store.set('users/' + o.id, o);
+    }
+  }
+  user.telegram = { id: String(chatId), username: String((from && from.username) || '').slice(0, 40),
+    name: String((from && from.first_name) || '').slice(0, 60), at: stamp() };
+  await store.set('users/' + user.id, user);
+  await store.del(key);
+  dropStaffCache();
+  const s = await settings();
+  const getsLeads = leadRolesOf(s).indexOf(user.role) >= 0;
+  await sendMessage(chatId, '✅ <b>' + esc(user.name || user.login) + '</b>, hisobingiz botga ulandi!\n\n' +
+    (getsLeads ? '🔔 Yangi murojaatlar (to‘liq ma’lumot bilan) shu yerga keladi. Mijoz bilan bog‘lanilmaguncha har 15 daqiqada eslatma yuboriladi — gaplashgach «✅ Bog‘landim» ni bosing.\n' : '') +
+    '📋 Sizga berilgan vazifalar ham shu yerga keladi.\n' +
+    (getsLeads ? '📊 Har kuni 19:00 da kunlik hisobot keladi; istalgan payt — /hisobot\n' : '') + '\nUzish: ERP → «📲 Telegram» → «Uzish».',
+    getsLeads ? ADMIN_MENU : null);
 }
 
 /* ---------------- To'lov muddati eslatmasi ---------------- */
@@ -813,7 +1009,7 @@ async function saveGuestQuestion(chatId, st, from, q, phone) {
   await store.set('leads/' + lead.id, lead);
   st.leadId = lead.id;
   notifyStaff('Botga savol keldi\nIsm: ' + lead.name + (lead.phone ? '\nTelefon: ' + lead.phone : '') +
-    (lead.tgUser ? '\nTelegram: @' + lead.tgUser : '') + '\nSavol: ' + q).catch(() => { });
+    (lead.tgUser ? '\nTelegram: @' + lead.tgUser : '') + '\nSavol: ' + q, { leadId: lead.id }).catch(() => { });
   return lead;
 }
 
@@ -891,7 +1087,7 @@ async function finishRegistration(chatId, st, from) {
     '\n\nDarsdan oldin shu yerga eslatma yuboramiz.');
   if (!recent) {
     notifyStaff('Yangi ro’yxat (bot)\nIsm: ' + r.name + '\nTelefon: ' + r.phone +
-      (r.region ? '\nHudud: ' + r.region : '') + (r.src ? '\nReklama: ' + r.src : '')).catch(() => { });
+      (r.region ? '\nHudud: ' + r.region : '') + (r.src ? '\nReklama: ' + r.src : ''), { leadId: lead.id }).catch(() => { });
   }
 }
 /** Ro'yxat qadamlarini yuritadi. true qaytarsa — xabar shu yerda ko'rib chiqildi. */
@@ -1014,7 +1210,7 @@ async function phoneOnboard(chatId, contact, from, st) {
   await setState(chatId, st);
   if (isNew) {
     notifyStaff('Yangi murojaat (bot)\nIsm: ' + name + '\nTelefon: ' + phone +
-      (from.username ? '\nTelegram: @' + from.username : '')).catch(() => { });
+      (from.username ? '\nTelegram: @' + from.username : ''), { leadId: lead.id }).catch(() => { });
   }
   return sendMessage(chatId, 'Rahmat, ' + esc(name) + '! ✅ Raqamingiz qabul qilindi — administratorimiz tez orada bog’lanadi.\n\n' +
     'Hozir savolingizni yozishingiz mumkin yoki pastdagi tugmalardan tanlang 👇', GUEST_MENU);
@@ -1247,6 +1443,19 @@ async function onMessage(msg) {
     return sendMessage(chatId, 'Shu suhbat raqami (chat ID):\n<code>' + chatId + '</code>\n\n' +
       'Sozlamalar → Telegram bot bo’limiga shu raqamni yozsangiz, saytdagi ' +
       'formadan kelgan murojaatlar shu yerga tushadi.');
+  }
+
+  /* Xodim o'z hisobini ulayapti */
+  if (/^\/start\s+st_[A-Za-z0-9_-]{16,60}$/.test(text)) {
+    return staffLinkStart(chatId, text.replace(/^\/start\s+st_/, ''), msg.from || {});
+  }
+
+  /* Kunlik hisobot — xohlagan paytda: /hisobot */
+  if (/^\/(hisobot|report)\b/i.test(text) && await isStaffChat(chatId)) {
+    const rep = require('./lead-report');
+    const parts = rep.splitText(await rep.buildReport(store));
+    for (const part of parts) await sendMessage(chatId, esc(part));
+    return;
   }
 
   /* Administrator chati (Sozlamalar → Telegram bot → xodimlar chat ID) —
@@ -1703,11 +1912,15 @@ async function poll() {
   while (running) {
     try {
       const updates = await tg('getUpdates', {
-        offset, timeout: 25, allowed_updates: ['message', 'my_chat_member', 'channel_post']
+        offset, timeout: 25, allowed_updates: ['message', 'my_chat_member', 'channel_post', 'callback_query']
       });
       if (updates && updates.length) quiet.human();
       for (const u of updates) {
         offset = u.update_id + 1;
+        if (u.callback_query) {
+          try { await onCallback(u.callback_query); wake(); } catch (e) { console.error('bot tugma:', e.message); }
+          continue;
+        }
         // botni guruhga qo'shishdi — darhol ulashga urinamiz
         const cm = u.my_chat_member;
         /* Bank bildirishnomasi kanali */
@@ -1798,6 +2011,10 @@ function startReminders() {
   timers.push(tq);
   setTimeout(() => { quizTick().catch(() => { }); }, 20 * 1000);
   /* Kirim va da'volarni har 2 daqiqada solishtirish (kechikkan «To'ladim» uchun) */
+  /* Bog'lanilmagan murojaatlar eslatmasi (ro'yxat bo'sh bo'lsa baza so'ralmaydi) */
+  const tr = setInterval(() => { remindTick().catch(e => console.error('lead eslatma:', e.message)); }, 60 * 1000);
+  if (tr.unref) tr.unref();
+  timers.push(tr);
   const t2 = setInterval(() => { if (quiet.due('paybot', 60 * 60 * 1000, 2 * 60 * 1000)) paybot.reconcile(payCtx()).catch(e => console.error('paybot:', e.message)); }, 60 * 1000);
   if (t2.unref) t2.unref();
   timers.push(t2);
@@ -1876,7 +2093,8 @@ function _test(ctx) {
     onMessage, flushQueue, enqueue, remindDebtors, notifyApproved,
     normCode, shuffleQuiz, botConf, getState, setState,
     balanceText, attendanceText, scheduleText, daysBetween, KINDS, MAX_TRIES,
-    handleLinkFlow, findStudentByChat, notifyStaff,
+    handleLinkFlow, findStudentByChat, notifyStaff, notifyUser, remindTick, onCallback, staffLinkStart,
+    pendingLeads, trackLead, dropStaffCache, staffChatIds,
     startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, makeGroupLinkToken,
     wake, remindStudy, payStart, payPressed, onBankPost, confirmClaim, PAY_BTN, PAID_BTN,
@@ -1913,4 +2131,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

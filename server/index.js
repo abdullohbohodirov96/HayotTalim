@@ -2420,6 +2420,12 @@ async function handleApi(req, res, url) {
           note: 'Daraja: ' + r.level + ' (' + r.score + '/' + r.total + ')',
           level: r.level, createdAt: stamp()
         });
+        if (r.phone) {
+          try {
+            require('./bot').notifyStaff('Daraja testi topshirildi\nIsm: ' + (r.name || '—') + '\nTelefon: ' + r.phone +
+              '\nDaraja: ' + r.level + ' (' + r.score + '/' + r.total + ')', { leadId: lid }).catch(() => { });
+          } catch (e) { }
+        }
       } catch (e) { /* murojaat yozilmasa ham natija qoladi */ }
     }
     await writeAudit(null, 'Daraja testi topshirildi', r.level, r.score + '/' + r.total);
@@ -2753,12 +2759,18 @@ async function handleApi(req, res, url) {
     });
     await forms.recordEvent(store, f.id, 'submit', '', stamp().slice(0, 10));
     await writeAudit(null, 'Forma orqali ariza', f.title, (chk.name || '') + ' ' + (chk.phone || ''));
-    return { ok: true };
+    return { ok: true, lid };
     });
     if (result.limit) return send(res, 429, { error: 'Arizangiz qabul qilindi. Shoshilinch bo’lsa, telefon qiling.' });
     /* Asinxron: xato bo'lsa ham so'rovga va serverga ta'sir qilmasin
        (ushlanmagan rad Node 22 da butun jarayonni o'chiradi).        */
-    Promise.resolve().then(() => require('./bot').notifyStaff('Yangi ariza (' + f.title + '): ' + (chk.name || '—') + ' ' + (chk.phone || ''))).catch(() => { });
+    Promise.resolve().then(() => require('./bot').notifyStaff('Yangi ariza (' + f.title + ')\nIsm: ' + (chk.name || '—') + '\nTelefon: ' + (chk.phone || '—') +
+      (f.fields || []).filter(fl => fl.type !== 'phone').map(fl => {
+        const v = chk.answers && chk.answers[fl.id];
+        const t = Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v);
+        return t ? '\n' + fl.label + ': ' + t : '';
+      }).join('').slice(0, 1200),
+      result.lid ? { leadId: result.lid } : null)).catch(() => { });
     return send(res, 200, { ok: true });
   }
 
@@ -2873,7 +2885,7 @@ async function handleApi(req, res, url) {
       (course ? '\nKurs: ' + course.name : '') +
       (note ? '\nIzoh: ' + note : '');
     notifyDirectors(text).catch(() => { });
-    try { require('./bot').notifyStaff(text); } catch (e) { /* bot o'chiq bo'lsa muhim emas */ }
+    try { require('./bot').notifyStaff(text, { leadId: id }).catch(() => { }); } catch (e) { /* bot o'chiq bo'lsa muhim emas */ }
 
     return send(res, 200, { ok: true, id });
   }
@@ -2882,7 +2894,7 @@ async function handleApi(req, res, url) {
   if (route === 'meta-leads') {
     return metaLeads.handle(req, res, url, {
       store, A, stamp,
-      notify: text => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text); } catch (e) { } }
+      notify: (text, leadId) => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text, leadId ? { leadId } : null).catch(() => { }); } catch (e) { } }
     }, send);
   }
 
@@ -2922,6 +2934,10 @@ async function handleApi(req, res, url) {
       nextContact: new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10),
       createdAt: stamp(), viaIntake: true
     });
+    try {
+      require('./bot').notifyStaff('Yangi murojaat (' + String(body.source || funnel.autoSource || 'Webhook') + ')\nIsm: ' + (name || '—') +
+        '\nTelefon: ' + (phone || '—') + (text ? '\nIzoh: ' + text.slice(0, 500) : ''), { leadId: id }).catch(() => { });
+    } catch (e) { }
     return send(res, 200, { ok: true, id });
   }
 
@@ -2990,6 +3006,35 @@ async function handleApi(req, res, url) {
   if (!user) return send(res, 401, { error: 'Kirish talab qilinadi.' });
 
   if (route === 'me') return send(res, 200, { user: safeUser(user) });
+
+  /* --- Xodimning shaxsiy Telegrami: ulash / holat / uzish --- */
+  if (route === 'me/telegram') {
+    const s = (await store.get('meta/settings')) || {};
+    const botName = String((s.bot && s.bot.username) || '').replace(/^@/, '');
+    const fresh = await store.get('users/' + user.id) || user;
+    const roles = (s.bot && Array.isArray(s.bot.leadRoles) && s.bot.leadRoles.length) ? s.bot.leadRoles : ['direktor', 'admin', 'menejer'];
+    if (req.method === 'GET') {
+      return send(res, 200, {
+        linked: !!(fresh.telegram && fresh.telegram.id), username: fresh.telegram ? fresh.telegram.username || '' : '',
+        tgName: fresh.telegram ? fresh.telegram.name || '' : '', at: fresh.telegram ? fresh.telegram.at : '',
+        bot: botName, getsLeads: roles.indexOf(fresh.role) >= 0
+      });
+    }
+    if (req.method !== 'POST') return send(res, 405, { error: 'Faqat POST.' });
+    const body = await readBody(req);
+    if (body.action === 'unlink') {
+      delete fresh.telegram;
+      await store.set('users/' + user.id, fresh);
+      try { require('./bot').dropStaffCache(); } catch (e) { }
+      await writeAudit(user, 'Telegram uzildi', user.name || user.login, '');
+      return send(res, 200, { ok: true });
+    }
+    if (!botName) return send(res, 400, { error: 'Telegram bot hali ulanmagan (Sozlamalar → Telegram bot).' });
+    const token = crypto.randomBytes(18).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const key = 'stafflink/' + crypto.createHash('sha256').update(token).digest('hex').slice(0, 40);
+    await store.set(key, { userId: user.id, exp: Date.now() + 24 * 3600 * 1000, at: stamp() });
+    return send(res, 200, { url: 'https://t.me/' + botName + '?start=st_' + token });
+  }
   if (route === 'bootstrap') return send(res, 200, await apiBootstrap(user));
 
   /* ================= O'QUV QISMI (xodimlar tomoni) ================= */
@@ -4077,6 +4122,8 @@ async function handleApi(req, res, url) {
       if (p.indexOf('users/') === 0) {
         const old = await store.get(p);
         delete body.data.hash; delete body.data.salt; delete body.data.iter; delete body.data.algo;
+        /* Telegram ulanishini faqat xodimning o'zi (bot orqali) qiladi */
+        if (old && old.telegram) body.data.telegram = old.telegram; else delete body.data.telegram;
         const pass = String(body.password || '');
         if (pass) {
           if (pass.length < 8) return send(res, 400, { error: 'Parol kamida 8 belgidan iborat bo’lsin (tavsiya: 10+ belgi, harf va raqam).' });
@@ -4099,7 +4146,37 @@ async function handleApi(req, res, url) {
         }
       }
       const prevDoc = p.indexOf('memberships/') === 0 ? await store.get(p) : null;
+      /* Murojaat: xodim holatini/izohini o'zgartirdi — demak bog'landi (15 daqiqalik eslatma to'xtaydi) */
+      const oldLead = p.indexOf('leads/') === 0 ? await store.get(p) : null;
+      if (oldLead) {
+        if (oldLead.contactedAt && !body.data.contactedAt) {
+          body.data.contactedAt = oldLead.contactedAt; body.data.contactedBy = oldLead.contactedBy;
+        } else if (!oldLead.contactedAt && ['stage', 'note', 'nextContact'].some(k => String(oldLead[k] || '') !== String(body.data[k] || ''))) {
+          body.data.contactedAt = stamp(); body.data.contactedBy = user.name || user.login;
+        }
+      }
+      const oldTask = p.indexOf('tasks/') === 0 ? await store.get(p) : null;
       await store.set(p, body.data);
+      /* Shaxsiy Telegram xabarlari (xodim botga ulangan bo'lsa) */
+      try {
+        const bot = require('./bot');
+        if (p.indexOf('users/') === 0) bot.dropStaffCache();
+        const d = body.data;
+        if (p.indexOf('tasks/') === 0 && d.assigneeId && d.assigneeId !== user.id &&
+          (!oldTask || oldTask.assigneeId !== d.assigneeId) && d.status !== 'bajarildi') {
+          bot.notifyUser(d.assigneeId, '📋 Sizga yangi vazifa\n' + (d.title || '') +
+            (d.description ? '\n' + String(d.description).slice(0, 500) : '') +
+            (d.due ? '\nMuddat: ' + d.due : '') + '\nKimdan: ' + (user.name || user.login)).catch(() => { });
+        }
+        if (p.indexOf('leads/') === 0 && d.ownerStaffId && (!oldLead || oldLead.ownerStaffId !== d.ownerStaffId)) {
+          const owner = (await store.list('users/')).map(x => x.data).filter(u => u && u.staffId === d.ownerStaffId && u.id !== user.id)[0];
+          if (owner) {
+            bot.notifyUser(owner.id, '👤 Sizga murojaat biriktirildi\nIsm: ' + (d.name || '—') + '\nTelefon: ' + (d.phone || '—') +
+              (d.source ? '\nManba: ' + d.source : '') + (d.note ? '\nIzoh: ' + String(d.note).slice(0, 400) : '') +
+              '\nKim biriktirdi: ' + (user.name || user.login)).catch(() => { });
+          }
+        }
+      } catch (e) { /* bot ishlamasa muhim emas */ }
       await writeAudit(user, body.action || 'Ma’lumot saqlandi', body.entity || p, body.details || '');
       if (prevDoc) {
         try { await withLock('invoices', () => repriceMembership(prevDoc, Object.assign({ id: p.split('/')[1] }, body.data), user)); }
@@ -4480,7 +4557,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   require('./lead-report').start(store);
 
   // Target (Meta) arizalari: webhook kelmasa ham har 3 daqiqada tortib olinadi
-  metaLeads.startPoll({ store, A, stamp, notify: text => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text); } catch (e) { } } });
+  metaLeads.startPoll({ store, A, stamp, notify: (text, leadId) => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text, leadId ? { leadId } : null).catch(() => { }); } catch (e) { } } });
 
   /* Bot modulini doim tayyorlaymiz — token bo'lmasa ham ERP dan karta to'lovini tasdiqlash ishlaydi */
   require('./bot').init({ store, stamp, A, recordPayment: autoCardPayment });
