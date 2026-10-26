@@ -488,7 +488,20 @@ function leadInfoText(l) {
     row('📞 Telefon', l.phone) + row('Telegram', l.tgUser ? '@' + l.tgUser : '') +
     row('Manba', l.source) + row('Reklama', l.src) + row('Hudud', l.region) +
     row('Qulay vaqt', l.wantTime) + row('Daraja', l.startLevel) + row('Yosh', l.age) +
-    row('Kim uchun', l.audience) + (l.note ? '\n📝 ' + esc(String(l.note).slice(0, 400)) : '');
+    row('Kim uchun', l.audience) + (l.formText ? '\n' + esc(l.formText) : '') +
+    (l.note ? '\n📝 ' + esc(String(l.note).slice(0, 400)) : '');
+}
+/** Forma javoblarini «Savol: javob» qatorlariga aylantiradi (eslatma matni uchun) */
+async function withFormText(lead) {
+  if (!lead || !lead.formId || !lead.formAnswers) return lead;
+  try {
+    const f = await store.get('forms/' + lead.formId);
+    const lines = ((f && f.fields) || []).filter(fl => fl.type !== 'phone').map(fl => {
+      const v = lead.formAnswers[fl.id]; const t = Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v);
+      return t ? fl.label + ': ' + t : '';
+    }).filter(Boolean);
+    return Object.assign({}, lead, { formText: lines.join('\n').slice(0, 900) });
+  } catch (e) { return lead; }
 }
 async function remindTick(nowMs) {
   if (!store) return { sent: 0 };
@@ -512,12 +525,17 @@ async function remindTick(nowMs) {
     const ago = Math.round((now - p.at) / 60000);
     const agoTxt = ago >= 120 ? Math.floor(ago / 60) + ' soat' : ago + ' daqiqa';
     const text = '⏰ <b>Eslatma: ' + agoTxt + ' o‘tdi — mijoz bilan hali bog‘lanilmadi!</b>\n\n' +
-      leadInfoText(lead) + '\n\nIltimos, hoziroq qo‘ng‘iroq qiling va «✅ Bog‘landim» ni bosing.';
-    const ids = await staffChatIds();
-    if (lead.ownerStaffId) {
-      (await linkedUsers()).filter(u => u.id === lead.ownerStaffId || (u.staffId && u.staffId === lead.ownerStaffId))
-        .forEach(u => { if (ids.indexOf(String(u.telegram.id)) < 0) ids.push(String(u.telegram.id)); });
-    }
+      leadInfoText(await withFormText(lead)) + '\n\nIltimos, hoziroq qo‘ng‘iroq qiling va «✅ Bog‘landim» ni bosing.';
+    /* Eslatma faqat ishlaydiganlarga: mas'ul xodim bo'lsa — faqat unga,
+       aks holda menejer va administratorlarga (bot.remindRoles). Direktor
+       faqat yangi lead xabarini oladi. Hech kim ulanmagan bo'lsa — eski ro'yxatga. */
+    const linked = await linkedUsers();
+    const remRoles = (b.remindRoles && b.remindRoles.length) ? b.remindRoles : ['menejer', 'admin'];
+    let ids = [];
+    const add = u => { const c = String(u.telegram.id); if (ids.indexOf(c) < 0) ids.push(c); };
+    if (lead.ownerStaffId) linked.filter(u => u.id === lead.ownerStaffId || (u.staffId && u.staffId === lead.ownerStaffId)).forEach(add);
+    if (!ids.length) linked.filter(u => remRoles.indexOf(u.role) >= 0).forEach(add);
+    if (!ids.length) ids = await staffChatIds();
     for (const chatId of ids) {
       const r = await enqueue({ kind: 'elon', chatId, text, buttons: [[{ text: '✅ Bog‘landim', callback_data: 'lc:' + id }]],
         dedupeKey: 'leadrem:' + chatId + ':' + id + ':' + p.n }, 0);

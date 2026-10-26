@@ -73,16 +73,22 @@ const sent = [], calls = [];
   p.at = noon - 16 * 60e3; p.last = noon - 16 * 60e3;
   let t = await B.remindTick(noon);
   out = (await store.list('botout/')).map(x => x.data);
-  ok('16 daqiqadan keyin eslatma (3 xodimga)', t.sent === 3 && /hali bog‘lanilmadi/.test(out[0].text) && /Malika/.test(out[0].text), JSON.stringify(t));
+  ok('16 daqiqadan keyin eslatma — faqat admin va menejerga (direktorga emas)', t.sent === 2 && out.every(m => m.chatId !== '1001') && /hali bog‘lanilmadi/.test(out[0].text) && /Malika/.test(out[0].text), JSON.stringify(t));
   t = await B.remindTick(noon + 5 * 60e3);
   ok('5 daqiqadan keyin takrorlanmaydi', t.sent === 0);
   t = await B.remindTick(noon + 15 * 60e3);
-  ok('Yana 15 daqiqadan keyin — yana eslatma', t.sent === 3, JSON.stringify(t));
+  ok('Yana 15 daqiqadan keyin — yana eslatma', t.sent === 2, JSON.stringify(t));
   const night = Date.parse('2026-10-26T19:00:00Z');                // 00:00 Toshkent
   p.last = night - 20 * 60e3; p.at = night - 60 * 60e3;
   t = await B.remindTick(night);
   ok('Tunda bezovta qilinmaydi', t.sent === 0 && B.pendingLeads.has('L1'));
 
+  await store.set('leads/L1', Object.assign(await store.get('leads/L1'), { ownerStaffId: 'u_man' }));
+  for (const m of (await store.list('botout/')).map(x => x.data)) await store.del('botout/' + m.id);
+  p.at = noon - 60 * 60e3; p.last = noon - 20 * 60e3;
+  t = await B.remindTick(noon);
+  out = (await store.list('botout/')).map(x => x.data);
+  ok('Mas’ul tayinlansa — eslatma faqat unga', t.sent === 1 && out[0].chatId === '1003', JSON.stringify(out.map(m => m.chatId)));
   console.log('\n4. «✅ Bog‘landim»');
   await B.onCallback({ id: 'cq1', data: 'lc:L1', from: { id: 1003, first_name: 'V' }, message: { message_id: 5, chat: { id: 1003 } } });
   const L1 = await store.get('leads/L1');
