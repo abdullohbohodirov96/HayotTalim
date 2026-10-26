@@ -63,7 +63,7 @@ const sent = [], calls = [];
   let out = (await store.list('botout/')).map(x => x.data);
   const to = out.map(m => m.chatId).sort();
   ok('Direktor, admin, menejerga ketdi; o‘qituvchiga emas', JSON.stringify(to) === JSON.stringify(['1001', '1002', '1003']), JSON.stringify(to));
-  ok('«15 daqiqa» va «Bog‘landim» tugmasi', /15 daqiqa/.test(out[0].text) && out[0].buttons[0][0].callback_data === 'lc:L1');
+  ok('«15 daqiqa» (yoki ish vaqtidan tashqari) va «Bog‘landim» tugmasi', /15 daqiqa|Ish vaqtidan tashqari/.test(out[0].text) && out[0].buttons[0][0].callback_data === 'lc:L1');
   ok('Eslatma ro‘yxatiga tushdi', B.pendingLeads.has('L1'));
 
   console.log('\n3. 15 daqiqalik eslatma');
@@ -89,6 +89,26 @@ const sent = [], calls = [];
   t = await B.remindTick(noon);
   out = (await store.list('botout/')).map(x => x.data);
   ok('Mas’ul tayinlansa — eslatma faqat unga', t.sent === 1 && out[0].chatId === '1003', JSON.stringify(out.map(m => m.chatId)));
+  console.log('\n3b. Ish vaqti 9:00–19:00 va ertalabki ro‘yxat');
+  for (const m of (await store.list('botout/')).map(x => x.data)) await store.del('botout/' + m.id);
+  const eve = Date.parse('2026-10-26T15:30:00Z');                  // 20:30 Toshkent
+  p.at = eve - 60 * 60e3; p.last = eve - 20 * 60e3;
+  t = await B.remindTick(eve);
+  ok('19:00 dan keyin eslatma yo‘q', t.sent === 0);
+  await store.set('leads/L9', { id: 'L9', funnelId: 'f1', name: 'Kechki', phone: '+998901234500', stage: 'yangi', source: 'Target (Instagram)', createdAt: stamp() });
+  B.trackLead('L9'); B.pendingLeads.get('L9').at = eve; B.pendingLeads.get('L9').last = eve;
+  const morning = Date.parse('2026-10-27T04:05:00Z');             // 09:05 Toshkent
+  t = await B.remindTick(morning);
+  out = (await store.list('botout/')).map(x => x.data);
+  const dig = out.filter(m => /Xayrli tong/.test(m.text));
+  ok('09:05 — har xodimga bitta umumiy ro‘yxat (admin + menejer), lead-lead emas', dig.length === 2 && out.length === 2 && new Set(dig.map(m => m.chatId)).size === 2 && dig.every(m => m.chatId !== '1001') && /2 ta murojaat/.test(dig[0].text) && /Kechki/.test(dig[0].text), JSON.stringify(out.map(m => m.text.slice(0, 60))));
+  ok('Ro‘yxatda «Bog‘landim» tugmalari', dig[0] && dig[0].buttons.length === 2);
+  t = await B.remindTick(morning + 5 * 60e3);
+  ok('Ro‘yxat qayta ketmaydi, 15 daqiqa ham o‘tmagan', t.sent === 0);
+  t = await B.remindTick(morning + 16 * 60e3);
+  ok('09:21 — oddiy eslatmalar davom etadi', t.sent >= 1, JSON.stringify(t));
+  B.pendingLeads.delete('L9'); await store.del('leads/L9');
+
   console.log('\n4. «✅ Bog‘landim»');
   await B.onCallback({ id: 'cq1', data: 'lc:L1', from: { id: 1003, first_name: 'V' }, message: { message_id: 5, chat: { id: 1003 } } });
   const L1 = await store.get('leads/L1');

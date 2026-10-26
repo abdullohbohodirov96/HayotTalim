@@ -417,7 +417,13 @@ async function notifyStaff(text, opts) {
   let buttons = null;
   if (leadId) {
     const nl = text.indexOf('\n');
-    text = '🔔 <b>' + (nl < 0 ? text + '</b>' : text.slice(0, nl) + '</b>' + text.slice(nl)) + '\n\n⏳ <b>15 daqiqa ichida bog‘laning!</b> Gaplashgach «✅ Bog‘landim» ni bosing.';
+    const bs = ((await settings()).bot) || {};
+    const wf = Number(bs.remindFrom == null ? 9 : bs.remindFrom), wt = Number(bs.remindTo == null ? 19 : bs.remindTo);
+    const m = tashkentNow().mins, offHours = !(m >= wf * 60 && m < wt * 60);
+    const pad = h => (h < 10 ? '0' : '') + h + ':00';
+    text = '🔔 <b>' + (nl < 0 ? text + '</b>' : text.slice(0, nl) + '</b>' + text.slice(nl)) + (offHours
+      ? '\n\n🌙 Ish vaqtidan tashqari keldi — ertalab ' + pad(wf) + ' da ro‘yxatda birinchi bo‘lib eslatiladi. Imkon bo‘lsa, hozir ham yozib qo‘ying.'
+      : '\n\n⏳ <b>15 daqiqa ichida bog‘laning!</b> Gaplashgach «✅ Bog‘landim» ni bosing.');
     buttons = [[{ text: '✅ Bog‘landim', callback_data: 'lc:' + leadId }]];
     /* Mas'ul xodim (lead.ownerStaffId) roli boshqacha bo'lsa ham xabar oladi */
     try {
@@ -511,10 +517,14 @@ async function remindTick(nowMs) {
   const s = await settings();
   const b = s.bot || {};
   if (b.leadRemind === false) return { sent: 0, off: true };
-  const from = Number(b.remindFrom == null ? 8 : b.remindFrom) * 60, to = Number(b.remindTo == null ? 22 : b.remindTo) * 60;
-  const mins = tashkentNow(now).mins;
+  /* Ish vaqti (Toshkent): 9:00–19:00. Undan tashqari eslatma yo'q — ertalab
+     ish boshlanishida bitta umumiy «kechasi kelganlar» xabari ketadi. */
+  const from = Number(b.remindFrom == null ? 9 : b.remindFrom) * 60, to = Number(b.remindTo == null ? 19 : b.remindTo) * 60;
+  const tn = tashkentNow(now);
+  const mins = tn.mins;
   const night = !(mins >= from && mins < to);
   let sent = 0;
+  if (!night) sent += await morningDigest(now, tn, b, from);
   for (const [id, p] of Array.from(pendingLeads.entries())) {
     if (now - p.at > REMIND_MAX_MS) { pendingLeads.delete(id); continue; }
     if (now - p.last < REMIND_MS - 30 * 1000) continue;
@@ -529,13 +539,7 @@ async function remindTick(nowMs) {
     /* Eslatma faqat ishlaydiganlarga: mas'ul xodim bo'lsa — faqat unga,
        aks holda menejer va administratorlarga (bot.remindRoles). Direktor
        faqat yangi lead xabarini oladi. Hech kim ulanmagan bo'lsa — eski ro'yxatga. */
-    const linked = await linkedUsers();
-    const remRoles = (b.remindRoles && b.remindRoles.length) ? b.remindRoles : ['menejer', 'admin'];
-    let ids = [];
-    const add = u => { const c = String(u.telegram.id); if (ids.indexOf(c) < 0) ids.push(c); };
-    if (lead.ownerStaffId) linked.filter(u => u.id === lead.ownerStaffId || (u.staffId && u.staffId === lead.ownerStaffId)).forEach(add);
-    if (!ids.length) linked.filter(u => remRoles.indexOf(u.role) >= 0).forEach(add);
-    if (!ids.length) ids = await staffChatIds();
+    const ids = await remindTargets(lead, b);
     for (const chatId of ids) {
       const r = await enqueue({ kind: 'elon', chatId, text, buttons: [[{ text: '✅ Bog‘landim', callback_data: 'lc:' + id }]],
         dedupeKey: 'leadrem:' + chatId + ':' + id + ':' + p.n }, 0);
@@ -543,6 +547,60 @@ async function remindTick(nowMs) {
     }
   }
   return { sent };
+}
+
+/** Eslatma kimga: mas'ul xodim bo'lsa — faqat unga, aks holda menejer va
+    administratorlarga (bot.remindRoles). Direktor faqat yangi lead xabarini
+    oladi. Hech kim ulanmagan bo'lsa — eski ro'yxatga. */
+async function remindTargets(lead, b) {
+  const linked = await linkedUsers();
+  const remRoles = (b.remindRoles && b.remindRoles.length) ? b.remindRoles : ['menejer', 'admin'];
+  let ids = [];
+  const add = u => { const c = String(u.telegram.id); if (ids.indexOf(c) < 0) ids.push(c); };
+  if (lead && lead.ownerStaffId) linked.filter(u => u.id === lead.ownerStaffId || (u.staffId && u.staffId === lead.ownerStaffId)).forEach(add);
+  if (!ids.length) linked.filter(u => remRoles.indexOf(u.role) >= 0).forEach(add);
+  if (!ids.length) ids = await staffChatIds();
+  return ids;
+}
+
+/** Ertalab ish boshlanganda (kuniga bir marta): ish vaqtidan keyin kelgan,
+    hali bog'lanilmagan murojaatlar ro'yxati — eng eskisi birinchi.
+    Shundan so'ng har bir lead uchun 15 daqiqalik eslatma qaytadan sanaladi
+    (soat 9:00 da o'nlab xabar birdan yog'ilmasin). */
+async function morningDigest(now, tn, b, fromMins) {
+  if (tn.mins - fromMins > 3 * 60) return 0;                  // faqat ish boshlanishidan 3 soat ichida
+  const key = 'botstate/leaddigest_' + tn.date;
+  if (await store.get(key)) return 0;
+  const startMs = now - (tn.mins - fromMins) * 60e3;          // bugun ish boshlangan payt
+  const list = [];
+  for (const [id, p] of Array.from(pendingLeads.entries())) {
+    if (p.at >= startMs) continue;                              // ish vaqtida kelgan — oddiy eslatma
+    const lead = await store.get('leads/' + id);
+    if (!lead || await leadContacted(lead)) { pendingLeads.delete(id); continue; }
+    list.push({ id, p, lead });
+  }
+  await store.set(key, { at: new Date(now).toISOString(), n: list.length });
+  if (!list.length) return 0;
+  list.sort((x, y) => x.p.at - y.p.at);
+  const rows = list.slice(0, 25).map((x, i) => {
+    const l = x.lead;
+    const when = tashkentNow(x.p.at).hm;
+    return (i + 1) + '. <b>' + esc(l.name || '—') + '</b> — ' + esc(l.phone || '—') + ' · ' + when +
+      (l.source ? ' · ' + esc(String(l.source).slice(0, 40)) : '') + (l.audience ? '\n    ' + esc(String(l.audience).slice(0, 80)) : '');
+  });
+  const text = '🌅 <b>Xayrli tong! Ish vaqtidan keyin ' + list.length + ' ta murojaat keldi — hali hech kim bog‘lanmagan.</b>\n\n' +
+    rows.join('\n') + (list.length > 25 ? '\n… va yana ' + (list.length - 25) + ' ta (ERP → Murojaatlar)' : '') +
+    '\n\nBirinchi navbatda shularga qo‘ng‘iroq qiling. Gaplashgach tugmani bosing yoki ERP da holatini o‘zgartiring.';
+  const buttons = list.slice(0, 10).map(x => [{ text: '✅ ' + String(x.lead.name || x.lead.phone || 'Mijoz').slice(0, 24), callback_data: 'lc:' + x.id }]);
+  const ids = new Set();
+  for (const x of list) (await remindTargets(x.lead, b)).forEach(c => ids.add(c));
+  let sent = 0;
+  for (const chatId of ids) {
+    const r = await enqueue({ kind: 'elon', chatId, text, buttons, dedupeKey: 'leaddigest:' + chatId + ':' + tn.date }, 0);
+    if (!r.skipped) sent++;
+  }
+  for (const x of list) x.p.last = now;                         // keyingi eslatma 15 daqiqadan keyin
+  return sent;
 }
 
 /** «✅ Bog'landim» tugmasi */
