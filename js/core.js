@@ -191,6 +191,18 @@
   var AUTH_COLLECTIONS = ['users'];
   var MONTHLY = ['invoices', 'payments', 'expenses', 'payroll', 'audit'];
 
+  /* Foydalanuvchi faolmi? Sahifa ochiq qolib ketsa (masalan, qabulxona
+     kompyuterida tunda) — fon so'rovlari to'xtaydi, baza (Neon) uxlaydi. */
+  var lastInput = Date.now();
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (ev) {
+      document.addEventListener(ev, function () { lastInput = Date.now(); }, { passive: true, capture: true });
+    });
+  }
+  function isIdle() {
+    return (typeof document !== 'undefined' && document.hidden) || Date.now() - lastInput > 10 * 60 * 1000;
+  }
+
   var Data = {
     mode: 'local',          // 'cloud' | 'local'
     ready: false,
@@ -459,6 +471,7 @@
       var self = this;
       if (this.mode === 'server') {
         var timer = setInterval(async function () {
+          if (isIdle()) return;
           try {
             var r = await self.api('GET', 'api/collection?name=' + encodeURIComponent(name));
             if (r && r.items) { self.col[name] = r.items; if (cb) cb(); }
@@ -550,6 +563,7 @@
   };
 
   global.A = global.A || {};
+  global.A.isIdle = isIdle;
   Object.assign(global.A, {
     TZ_OFFSET_MIN: TZ_OFFSET_MIN,
     tzNow: tzNow, today: today, nowStamp: nowStamp, toISODate: toISODate,

@@ -20,6 +20,7 @@ const kabsess = require('./kabsess');
 const levels = require('./levels');
 const files = require('./files');
 const lessonVideo = require('./lesson-video');
+const quiet = require('./db-quiet');
 const curriculum = require('./curriculum');
 const lms = require('./lms');
 const quiz = require('./quiz');
@@ -1355,14 +1356,35 @@ async function ensureJoinCodes() {
   }
 }
 let zoomBusy = false;
+/* Bugungi onlayn darslar vaqti xotirada — dars oynasidan tashqarida zoom
+   tekshiruvi bazani uyg'otmaydi. Jadval soatda bir (yoki baza uyg'oq paytda
+   10 daqiqada) bir yangilanadi. */
+let zoomPlan = { date: '', wins: null };
+function zoomNear(nowMs) {
+  const d = new Date((nowMs || Date.now()) + 5 * 3600 * 1000);
+  const iso = d.toISOString().slice(0, 10), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  if (zoomPlan.date !== iso || !zoomPlan.wins) return true;            // jadval hali yo'q
+  /* konferensiya 2 soat oldin ochiladi; yozuv 6 soatgacha kutiladi */
+  return zoomPlan.wins.some(w => m >= w[0] - 125 && m <= w[1] + 365);
+}
 async function zoomTick() {
   if (zoomBusy || !zoom.configured()) return;
+  const refresh = quiet.due('zoomplan', 60 * 60 * 1000, 10 * 60 * 1000);
+  if (!refresh && !zoomNear()) return;
   zoomBusy = true;
-  try { await zoom.tick(store, A, zoomCtx()); } finally { zoomBusy = false; }
+  try {
+    if (refresh && zoom.todaysLessons) {
+      const iso = new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10);
+      const ls = await zoom.todaysLessons(store, A, iso);
+      zoomPlan = { date: iso, wins: ls.map(l => [l.start, l.end]) };
+      if (!zoomNear()) return;
+    }
+    await zoom.tick(store, A, zoomCtx());
+  } finally { zoomBusy = false; }
 }
 function startZoom() {
   ensureJoinCodes().catch(e => console.error('guruh kodi:', e.message));
-  const jc = setInterval(() => { ensureJoinCodes().catch(() => { }); }, 10 * 60 * 1000);
+  const jc = setInterval(() => { if (quiet.due('joincodes', 6 * 3600 * 1000, 10 * 60 * 1000)) ensureJoinCodes().catch(() => { }); }, 60 * 1000);
   if (jc.unref) jc.unref();
   const t = setInterval(() => { zoomTick().catch(e => console.error('zoom:', e.message)); }, Number(process.env.ZOOM_TICK_MS || 60 * 1000));
   if (t.unref) t.unref();
@@ -4163,7 +4185,12 @@ function serveStatic(req, res, pathname) {
       const tag = st ? '"' + st.size.toString(16) + '-' + Math.floor(st.mtimeMs).toString(16) + '"' : null;
       /* Har qanday HTML sahifaga (qissa.html, tasdiqlash fayllari, zaxira
          index.html) ham CSP: ichki skriptlar faqat xeshi mos kelsa ishlaydi. */
-      if (ext === '.html') res.setHeader('Content-Security-Policy', pageCsp(inlineScriptHashes(String(data || ''))));
+      if (ext === '.html') {
+        /* Interaktiv dars sahifalari kabinet ichida (iframe) ochiladi — faqat o'z saytimizda */
+        const framable = /^\/dars-[a-z0-9-]+\.html$/.test(rel);
+        if (framable) res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        res.setHeader('Content-Security-Policy', pageCsp(inlineScriptHashes(String(data || '')), framable));
+      }
       else if (ext === '.svg') res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:");
       // O'zgarmagan bo'lsa — qayta yubormaymiz
       if (tag && req.headers['if-none-match'] === tag) {
@@ -4256,7 +4283,7 @@ function inlineScriptHashes(page) {
   });
   return hashes;
 }
-function pageCsp(hashes) {
+function pageCsp(hashes, framable) {
   return [
     "default-src 'self'",
     "script-src 'self' " + hashes.join(' ') + " https://www.googletagmanager.com https://cdnjs.cloudflare.com",
@@ -4265,13 +4292,13 @@ function pageCsp(hashes) {
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob:",
     "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
-    "frame-src 'none'",
+    "frame-src 'self'",                     // faqat o'z interaktiv darslarimiz (dars-*.html)
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'"
+    framable ? "frame-ancestors 'self'" : "frame-ancestors 'none'"
   ].join('; ');
 }
 
@@ -4332,6 +4359,8 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
     try { res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Noto’g’ri so’rov'); } catch (x) { }
     return;
   }
+  /* Odam murojaati — baza hozir uyg'oq (orqa fon ishlari shundan foydalanadi) */
+  if (url.pathname !== '/api/health' && (url.pathname.indexOf('/api/') === 0 || url.pathname === '/' || url.pathname === '/index.html')) quiet.human();
   try {
     if (url.pathname.indexOf('/api/') === 0) return await handleApi(req, res, url);
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {

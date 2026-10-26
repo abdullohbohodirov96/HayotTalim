@@ -3639,7 +3639,7 @@
     return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest && a.closest('#view'));
   }
   async function checkLeads() {
-    if (!App.user || D.mode !== 'server' || document.hidden || !App.can('nav.leads')) return;
+    if (!App.user || D.mode !== 'server' || document.hidden || (A.isIdle && A.isIdle()) || !App.can('nav.leads')) return;
     var r;
     try { r = await D.api('GET', 'api/collection?name=leads'); } catch (e) { return; }
     if (!App.user) return;

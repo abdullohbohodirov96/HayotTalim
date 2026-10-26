@@ -457,8 +457,11 @@ async function sceneDone(){
     <h2 class="banner">Barakalla!</h2>
     <div class="banner-ar">أَحْسَنْتَ! بَارَكَ اللّٰهُ فِيكَ</div>
     <div class="score">Natija: <b>${score} / ${maxScore}</b> to'g'ri</div>
-    <button class="btn btn-go" onclick="location.reload()">↺  Qaytadan</button>
+    <button class="btn btn-go" id="againBtn">↺  Qaytadan</button>
   </div>`;
+  document.getElementById('againBtn').addEventListener('click',()=>location.reload());
+  /* Kabinet ichida ochilgan bo'lsa — dars tugaganini xabar qilamiz */
+  try{ if(window.parent!==window) window.parent.postMessage({sabo:'lesson-done',score:score,max:maxScore},location.origin); }catch(e){}
 }
 
 async function run(){

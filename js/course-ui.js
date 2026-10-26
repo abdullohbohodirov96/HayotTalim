@@ -482,6 +482,8 @@
     }
 
     /* ---- 2. Video: so'zlarni yodlagan o'quvchi qissani videoda ko'radi ---- */
+    /* Interaktiv dars sahifalari (iframe) */
+    var INTERACTIVE = { 'a1-01': 'dars-sen-kimsan.html' };
     function stepVideo(body, lesson) {
       body.appendChild(h('div', { class: 'cr-ph' }, [
         h('span', { class: 'cr-eyebrow dark' }, 'Darsda · 2-qadam'),
@@ -532,7 +534,35 @@
           if (!A.QissaVideo || anim.parentNode) return;
           where.appendChild(anim); mountAnim(); where.appendChild(animCtrls());
         }
-        if (mp4) {
+        /* Darsning interaktiv videosi (so'zlar → test → qissa → savollar, javob berib
+           boriladi) — tayyor bo'lsa, dars SHUNDAN boshlanadi */
+        var ipage = INTERACTIVE[lesson.id];
+        if (ipage) {
+          var fr = h('iframe', { class: 'cr-ivideo', src: ipage, title: lesson.dialog.title + ' — interaktiv dars',
+            allow: 'autoplay; fullscreen', allowfullscreen: 'true', loading: 'eager' });
+          var wrap = h('div', { class: 'cr-ivideo-wrap' }, [fr]);
+          vbox.appendChild(wrap);
+          vbox.appendChild(h('div', { style: 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px' }, [
+            h('button', { class: 'btn sm', type: 'button', onclick: function () {
+              var el = wrap; try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch (e) { window.open(ipage, '_blank'); }
+            } }, '⛶ To’liq ekran'),
+            h('button', { class: 'btn sm', type: 'button', onclick: function () { try { fr.contentWindow.location.reload(); } catch (e) { fr.src = ipage; } } }, '↺ Boshidan')
+          ]));
+          window.addEventListener('message', function onMsg(ev) {
+            if (ev.origin !== location.origin || !ev.data || ev.data.sabo !== 'lesson-done') return;
+            if (!document.body.contains(fr)) { window.removeEventListener('message', onMsg); return; }
+            markStep('video');
+          });
+          if (mp4 || A.QissaVideo) {
+            var more0 = h('div', { style: 'margin-top:14px;text-align:center' });
+            more0.appendChild(h('button', { class: 'btn sm', type: 'button', onclick: function (e) {
+              e.currentTarget.remove();
+              if (mp4) more0.appendChild(h('video', { controls: true, playsinline: true, preload: 'metadata', src: mp4, style: 'width:100%;max-height:72vh;border-radius:16px;background:#000;display:block' }));
+              else showAnim(more0);
+            } }, mp4 ? '🎬 Qo’shimcha video' : '🎬 Animatsion qissa'));
+            vbox.appendChild(more0);
+          }
+        } else if (mp4) {
           var vid = h('video', { class: 'cr-mp4', controls: true, playsinline: true, preload: 'metadata', src: mp4,
             style: 'width:100%;max-height:72vh;border-radius:16px;background:#000;display:block' });
           var vmsg = h('p', { class: 'small muted', hidden: true });

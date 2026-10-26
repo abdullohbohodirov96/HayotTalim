@@ -4611,3 +4611,9 @@ html,body{max-width:100%;overflow-x:clip}   /* clip: scroll-konteyner yaratmaydi
   .a0-sample{font-size:24px}
 }
 .a0-lsay{width:100%;justify-content:center;margin-top:auto}
+
+/* A1: interaktiv dars (iframe) — videodek, lekin savollarga javob beriladi */
+.cr-ivideo-wrap{position:relative;width:100%;aspect-ratio:1000/720;max-height:78vh;border-radius:18px;overflow:hidden;background:#0f4a40;box-shadow:0 10px 30px rgba(15,74,64,.25)}
+.cr-ivideo-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+.cr-ivideo-wrap:fullscreen{max-height:none;border-radius:0}
+@media (max-width:640px){.cr-ivideo-wrap{aspect-ratio:auto;height:78vh;border-radius:14px}}

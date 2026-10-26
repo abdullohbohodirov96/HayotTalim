@@ -23,6 +23,7 @@ const at = (date, hm) => Date.parse(date + 'T' + hm + ':00Z') - 5 * 3600 * 1000;
   ok('Standart boshlanish: 10-oktabr', (await B.quizConf()).start === '2026-10-10');
   ok('10-oktabrdan oldin yuborilmaydi', (await B.quizTick(at('2026-10-09', '09:05'))).sent === 0);
   await store.set('meta/settings', { bot: { quizStart: '2026-10-01' } });
+  require('../server/db-quiet').human();   // administrator sozlamani saqladi — baza uyg'oq
   /* Bank tekshiruvi */
   const bad = BANK.filter(q => !(q.question.length <= 300 && q.options.length >= 2 && q.options.length <= 10 &&
     q.options.every(o => o.length <= 100) && q.correct >= 0 && q.correct < q.options.length && (q.explain || '').length <= 200));

@@ -17,6 +17,7 @@ const API = 'https://api.telegram.org/bot' + TOKEN + '/';
 let store, stamp, A;
 let recordPayment = null;      // index.js beradi: karta to'lovini yozish
 const paybot = require('./paybot');
+const quiet = require('./db-quiet');
 const faq = require('./bot-faq');
 let offset = 0;
 let running = false;
@@ -281,7 +282,9 @@ async function enqueue(msg, windowMs) {
    wake() chaqiriladi; aks holda IDLE_MS da bir marta ehtiyot tekshiruvi bo'ladi. */
 let wakeup = null;          // kutayotgan va'dani uyg'otish
 let woken = false;          // kutish boshlanmasdan oldin kelgan uyg'otish
+let wakeN = 0;
 function wake() {
+  wakeN++;
   woken = true;
   if (wakeup) { const w = wakeup; wakeup = null; w(); }
 }
@@ -1518,17 +1521,30 @@ async function sendQuiz(q, channel) {
   return res;
 }
 /** Har 5 daqiqada: vaqti kelgan slot bo'lsa — bitta savol yuboradi */
+/* Yuborilgan (yoki tekshirilgan) slotlar xotirada — bazani har 5 daqiqada uyg'otmaslik uchun */
+const quizSeen = {};
 async function quizTick(nowMs) {
-  const conf = await quizConf();
-  if (!conf.on || !conf.channel) return { sent: 0 };
   const now = tashkentNow(nowMs);
-  if (conf.start && now.date < conf.start) return { sent: 0, waiting: conf.start };
+  /* Avval bazasiz: hozir birorta slot oynasi ochiqmi va u hali yuborilmaganmi */
+  const open = QUIZ_SLOTS.filter(slot => {
+    const sm = Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5));
+    const seen = quizSeen[now.date + '-' + slot];
+    /* 's' — viktorina o'chiq/boshlanmagan edi: sozlama o'zgargan bo'lishi mumkin,
+       lekin qayta tekshirish faqat baza baribir uyg'oq paytda (admin ishlayapti) */
+    return now.mins >= sm && now.mins - sm <= QUIZ_LATE_MIN && (!seen || (seen === 's' && quiet.awake()));
+  });
+  if (!open.length) return { sent: 0 };
+  const conf = await quizConf();
+  if (!conf.on || !conf.channel) { open.forEach(s => { quizSeen[now.date + '-' + s] = 's'; }); return { sent: 0 }; }
+  if (conf.start && now.date < conf.start) { open.forEach(s => { quizSeen[now.date + '-' + s] = 's'; }); return { sent: 0, waiting: conf.start }; }
   let sent = 0;
   for (const slot of conf.slots) {
     const sm = Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5));
     if (now.mins < sm || now.mins - sm > QUIZ_LATE_MIN) continue;
+    if (quizSeen[now.date + '-' + slot] === 1) continue;
     const key = 'tgquizlog/' + now.date + '-' + slot.replace(':', '');
-    if (await store.get(key)) continue;
+    if (await store.get(key)) { quizSeen[now.date + '-' + slot] = 1; continue; }
+    quizSeen[now.date + '-' + slot] = 1;
     const q = await nextQuiz();
     if (!q) return { sent };
     await store.set(key, { date: now.date, slot, quizId: q.id, at: stamp(), status: 'yuborilmoqda' });
@@ -1689,6 +1705,7 @@ async function poll() {
       const updates = await tg('getUpdates', {
         offset, timeout: 25, allowed_updates: ['message', 'my_chat_member', 'channel_post']
       });
+      if (updates && updates.length) quiet.human();
       for (const u of updates) {
         offset = u.update_id + 1;
         // botni guruhga qo'shishdi — darhol ulashga urinamiz
@@ -1741,14 +1758,19 @@ async function queueLoop(opts) {
   const idle = (opts && opts.idleMs) || IDLE_MS;
   while (running) {
     let nextAt = 0;
+    const n0 = wakeN;
     try {
       const r = await flushQueue();
       nextAt = r && r.nextAt ? r.nextAt : 0;
       await notifyApproved();
     } catch (e) { console.error('bot queue:', e.message); }
-    let waitMs = idle;
-    if (nextAt) waitMs = Math.max(500, Math.min(idle, nextAt - Date.now()));
-    await waitFor(waitMs);
+    if (nextAt) { await waitFor(Math.max(500, Math.min(idle, nextAt - Date.now()))); continue; }
+    /* Navbat bo'sh: uyg'otilmaguncha (yangi xabar) yoki ehtiyot tekshiruvi vaqti
+       kelguncha kutamiz. Baza uxlab turgan bo'lsa — faqat soatda bir. */
+    while (running) {
+      await waitFor(Math.min(60 * 1000, idle));
+      if (wakeN !== n0 || quiet.due('botq', 60 * 60 * 1000, idle)) break;
+    }
   }
 }
 
@@ -1776,7 +1798,7 @@ function startReminders() {
   timers.push(tq);
   setTimeout(() => { quizTick().catch(() => { }); }, 20 * 1000);
   /* Kirim va da'volarni har 2 daqiqada solishtirish (kechikkan «To'ladim» uchun) */
-  const t2 = setInterval(() => { paybot.reconcile(payCtx()).catch(e => console.error('paybot:', e.message)); }, 2 * 60 * 1000);
+  const t2 = setInterval(() => { if (quiet.due('paybot', 60 * 60 * 1000, 2 * 60 * 1000)) paybot.reconcile(payCtx()).catch(e => console.error('paybot:', e.message)); }, 60 * 1000);
   if (t2.unref) t2.unref();
   timers.push(t2);
 }
