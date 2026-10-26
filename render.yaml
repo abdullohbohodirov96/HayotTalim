@@ -43,5 +43,9 @@ services:
         sync: false
       - key: TELEGRAM_BOT_USERNAME
         sync: false
+      - key: META_DATASET_ID       # Events Manager → CRM dataset ID (Conversions API)
+        sync: false
+      - key: META_CAPI_TOKEN       # shu dataset uchun Conversions API tokeni
+        sync: false
       - key: ELEVENLABS_API_KEY    # ixtiyoriy
         sync: false

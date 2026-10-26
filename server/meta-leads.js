@@ -16,6 +16,7 @@
 const crypto = require('crypto');
 
 const GRAPH = 'https://graph.facebook.com/v21.0/';
+function capi() { return require('./meta-capi'); }
 
 function rawBody(req, max) {
   return new Promise((resolve, reject) => {
@@ -131,8 +132,12 @@ async function saveLead(ctx, leadgenId) {
   let id;
   if (dup) {
     id = dup.id;
+    const before = Object.assign({}, dup);
     dup.note = [dup.note, 'Target formasi qayta: ' + note].filter(Boolean).join(' · ').slice(0, 1500);
+    dup.metaLeadIds = [].concat(dup.metaLeadIds || [], [String(leadgenId)]).filter((x, i, a) => a.indexOf(x) === i).slice(-10);
+    if (!dup.metaLeadId) dup.metaLeadId = String(leadgenId);
     await store.set('leads/' + id, dup);
+    capi().onLeadSaved(before, dup).catch(() => { });
   } else {
     id = 'led_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
     await store.set('leads/' + id, {
@@ -144,6 +149,7 @@ async function saveLead(ctx, leadgenId) {
       note: note.slice(0, 1000), nextContact: A.today(), createdAt: stamp(), viaMeta: true, metaLeadId: leadgenId
     });
   }
+  if (!dup) capi().onLeadSaved(null, await store.get('leads/' + id)).catch(() => { });
   await store.set(key, { leadId: id, at: stamp() });
   const text = 'Yangi murojaat (target)\nIsm: ' + (p.name || '—') + '\nTelefon: ' + (phone || '—') +
     (note ? '\n' + p.answers.join('\n') : '') + (ad ? '\nReklama: ' + ad : '') + (dup ? '\n(bu raqam avval ham yozilgan)' : '');

@@ -22,6 +22,7 @@ const files = require('./files');
 const lessonVideo = require('./lesson-video');
 const quiet = require('./db-quiet');
 const metaLeads = require('./meta-leads');
+const metaCapi = require('./meta-capi');
 const curriculum = require('./curriculum');
 const lms = require('./lms');
 const quiz = require('./quiz');
@@ -3007,6 +3008,13 @@ async function handleApi(req, res, url) {
 
   if (route === 'me') return send(res, 200, { user: safeUser(user) });
 
+  /* --- Meta Conversions API (CRM) holati: sozlanganmi, nechta ketdi, xato bormi --- */
+  if (route === 'meta-capi') {
+    if (['direktor', 'admin'].indexOf(user.role) < 0) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    if (req.method === 'POST') await metaCapi.flush();
+    return send(res, 200, await metaCapi.status());
+  }
+
   /* --- Xodimning shaxsiy Telegrami: ulash / holat / uzish --- */
   if (route === 'me/telegram') {
     const s = (await store.get('meta/settings')) || {};
@@ -4157,6 +4165,8 @@ async function handleApi(req, res, url) {
       }
       const oldTask = p.indexOf('tasks/') === 0 ? await store.get(p) : null;
       await store.set(p, body.data);
+      /* Murojaat bosqichi o'zgardi → Meta'ga (Conversions API, CRM) */
+      if (p.indexOf('leads/') === 0) metaCapi.onLeadSaved(oldLead, Object.assign({ id: p.split('/')[1] }, body.data)).catch(() => { });
       /* Shaxsiy Telegram xabarlari (xodim botga ulangan bo'lsa) */
       try {
         const bot = require('./bot');
@@ -4555,6 +4565,9 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
 
   // Kunlik murojaat hisoboti — har kuni 19:00 (Toshkent) adminlarga Telegramga
   require('./lead-report').start(store);
+
+  // Meta Conversions API (CRM): murojaat bosqichlari → Meta (reklama sifatli leadga moslashadi)
+  metaCapi.start({ store });
 
   // Target (Meta) arizalari: webhook kelmasa ham har 3 daqiqada tortib olinadi
   metaLeads.startPoll({ store, A, stamp, notify: (text, leadId) => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text, leadId ? { leadId } : null).catch(() => { }); } catch (e) { } } });
