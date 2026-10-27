@@ -622,7 +622,8 @@ function trialMs(l) {
 function trackTrial(l) {
   if (!l || !l.id) return;
   const at = trialMs(l);
-  if (!at || l.studentId || l.trialPostAt) { trials.delete(String(l.id)); return; }
+  /* Faqat «sinov» holatidagilar; o'quvchiga o'tkazilgan bo'lsa ham holat «sinov» bo'lsa — eslatiladi */
+  if (!at || l.trialPostAt || (l.stage && l.stage !== 'sinov')) { trials.delete(String(l.id)); return; }
   trials.set(String(l.id), { at, pre: !!l.trialPreAt, end: /^\d{2}:\d{2}$/.test(l.trialEnd || '') ? l.trialEnd : '' });
 }
 async function loadTrials() {
@@ -650,7 +651,7 @@ async function trialTick(nowMs) {
       continue;
     }
     const lead = await store.get('leads/' + id);
-    if (!lead || lead.studentId || trialMs(lead) !== t.at) { trials.delete(id); if (lead) trackTrial(lead); continue; }
+    if (!lead || (lead.stage && lead.stage !== 'sinov') || trialMs(lead) !== t.at) { trials.delete(id); if (lead) trackTrial(lead); continue; }
     const g = lead.groupId ? await store.get('groups/' + lead.groupId) : null;
     const when = tashkentNow(t.at).hm;
     const ids = await remindTargets(lead, b);

@@ -89,7 +89,8 @@
         h('div', { class: 'rowflex small', style: 'justify-content:space-between' }, [
           h('span', {}, [members.length + (g.limit ? ' / ' + g.limit : '') + ' o’quvchi',
             trials.length ? h('span', { class: 'gtrial' }, ' + ' + trials.length + ' sinov') : null]),
-          h('span', { class: 'mono' }, A.som(A.feeForMonth(g, A.thisMonth())) + ' so’m/oy')
+          /* Rejalashtirilgan guruh: boshlanadigan oyning narxi (oldingi oylar ahamiyatsiz) */
+          h('span', { class: 'mono' }, A.som(A.feeForMonth(g, (g.startDate && String(g.startDate).slice(0, 7) > A.thisMonth()) ? String(g.startDate).slice(0, 7) : A.thisMonth())) + ' so’m/oy')
         ]),
         debt > 0 ? UI.pill('Qarzdorlik ' + A.som(debt), 'warn') : null
       ])));

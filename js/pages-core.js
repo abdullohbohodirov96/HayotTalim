@@ -736,7 +736,9 @@
   /** Guruhga sinov darsiga yozilgan murojaatlar (hali o'quvchi emas, rad etilmagan) */
   A.trialLeadsOf = function (groupId) {
     return D.all('leads').filter(function (l) {
-      if (l.groupId !== groupId || l.studentId) return false;
+      if (l.groupId !== groupId) return false;
+      /* O'quvchiga o'tkazilgan, lekin hali shu guruhga a'zo bo'lmagan — sinovchi sifatida sanaladi */
+      if (l.studentId && Q.membershipsOf(l.studentId).some(function (m) { return m.groupId === groupId && m.status === 'faol'; })) return false;
       var fn = D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS.filter(function (x) { return x.id === l.funnelId; })[0] || A.DEFAULT_FUNNELS[0];
       return isTrialStage(fn, l.stage);
     });
