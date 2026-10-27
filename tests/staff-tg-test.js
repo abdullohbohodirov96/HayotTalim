@@ -109,6 +109,31 @@ const sent = [], calls = [];
   ok('09:21 — oddiy eslatmalar davom etadi', t.sent >= 1, JSON.stringify(t));
   B.pendingLeads.delete('L9'); await store.del('leads/L9');
 
+  console.log('\n3c. Sinov darsi: 1 soat oldin va darsdan keyin');
+  for (const m of (await store.list('botout/')).map(x => x.data)) await store.del('botout/' + m.id);
+  await store.set('groups/g1', { id: 'g1', name: 'A0 ayollar', zoomLink: 'https://zoom.us/j/1' });
+  const TL = { id: 'T1', funnelId: 'f1', name: 'Sinovchi', phone: '+998901111111', stage: 'sinov', groupId: 'g1', trialDate: '2026-10-28', trialTime: '18:00', createdAt: stamp() };
+  await store.set('leads/T1', TL); B.trackTrial(TL);
+  const t18 = Date.parse('2026-10-28T13:00:00Z');                  // 18:00 Toshkent
+  t = await B.trialTick(t18 - 2 * 3600e3);
+  ok('2 soat oldin — hali hech narsa', t.sent === 0);
+  t = await B.trialTick(t18 - 50 * 60e3);
+  out = (await store.list('botout/')).map(x => x.data);
+  ok('1 soat ichida — «mijozga eslatma yuboring» (Zoom havolasi bilan)', t.sent >= 1 && /1 soatdan keyin sinov/.test(out[0].text) && /zoom\.us/.test(out[0].text), JSON.stringify(t));
+  t = await B.trialTick(t18 - 40 * 60e3);
+  ok('Takrorlanmaydi', t.sent === 0);
+  for (const m of out) await store.del('botout/' + m.id);
+  t = await B.trialTick(t18 + 60 * 60e3);
+  ok('Dars davom etayotganda — xabar yo‘q', t.sent === 0);
+  t = await B.trialTick(t18 + 95 * 60e3);
+  out = (await store.list('botout/')).map(x => x.data);
+  const T1 = await store.get('leads/T1');
+  ok('Dars tugagach — «hoziroq qo‘ng‘iroq qiling», keyingi aloqa bugun', t.sent >= 1 && /Sinov darsi tugadi/.test(out[0].text) && T1.nextContact === '2026-10-28' && T1.trialPostAt && !T1.studentId, JSON.stringify(T1));
+  t = await B.trialTick(t18 + 120 * 60e3);
+  ok('Darsdan keyingi xabar bir marta', t.sent === 0);
+  for (const m of out) await store.del('botout/' + m.id);
+  await store.del('leads/T1');
+
   console.log('\n4. «✅ Bog‘landim»');
   await B.onCallback({ id: 'cq1', data: 'lc:L1', from: { id: 1003, first_name: 'V' }, message: { message_id: 5, chat: { id: 1003 } } });
   const L1 = await store.get('leads/L1');

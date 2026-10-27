@@ -4714,3 +4714,73 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .a0-cap.mo-capon{animation:moFade .4s ease both}
 @media (max-width:640px){.mo-grid28{gap:5px}.mo-lt,.mo-ex,.mo-pair{min-width:56px;padding:8px 10px}.mo-imgw{width:min(180px,60vw)}}
 @media (prefers-reduced-motion:reduce){.mo-scene *,.mo-scene{animation-duration:.01s!important;animation-delay:0s!important}}
+
+/* ---------- Murojaat oynasi (telefon / planshet / noutbuk) ---------- */
+.lead-hero{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);
+  border-radius:14px;background:linear-gradient(180deg,var(--brand-soft),var(--surface) 70%)}
+.lead-hero .lh-top{display:flex;align-items:center;gap:12px;min-width:0}
+.lead-hero .lh-ava{flex:0 0 48px;height:48px;border-radius:50%;background:var(--brand);color:#fff;
+  display:flex;align-items:center;justify-content:center;font:700 20px var(--display)}
+.lead-hero .lh-id{min-width:0;display:flex;flex-direction:column;gap:2px}
+.lead-hero .lh-name{font:700 19px/1.2 var(--display);color:var(--ink);overflow-wrap:anywhere}
+.lead-hero .lh-phone{font:600 15px var(--mono);color:var(--brand);text-decoration:none}
+.lead-hero .lh-acts{display:flex;gap:8px;flex-wrap:wrap}
+.lead-hero .lh-acts .btn{flex:0 0 auto;min-height:40px}
+.lead-hero .lh-chips{display:flex;gap:6px;flex-wrap:wrap}
+.lh-chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface);
+  border:1px solid var(--line);color:var(--ink-2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lh-chip.ad{background:var(--info-soft);color:var(--info);border-color:transparent}
+.lh-chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.lh-chip.muted{color:var(--muted)}
+.lead-sec{display:flex;flex-direction:column;gap:8px}
+.lead-lbl{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.lead-stages{display:flex;gap:6px;flex-wrap:wrap}
+.ls-btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-2);border-radius:999px;
+  padding:8px 14px;font:600 13px var(--sans);cursor:pointer;min-height:38px;transition:background .12s,border-color .12s}
+.ls-btn:hover{border-color:var(--brand)}
+.ls-btn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.ls-btn.won.on{background:var(--ok);border-color:var(--ok)}
+.ls-btn.lost.on{background:var(--muted);border-color:var(--muted)}
+.lead-more{border:1px solid var(--line);border-radius:12px;padding:2px 14px}
+.lead-more>summary{cursor:pointer;font-weight:600;padding:11px 0;color:var(--ink-2);list-style:none;
+  display:flex;justify-content:space-between;align-items:center}
+.lead-more>summary::-webkit-details-marker{display:none}
+.lead-more>summary::after{content:"▾";color:var(--muted)}
+.lead-more[open]>summary::after{content:"▴"}
+.lead-more[open]{padding-bottom:14px}
+.modal .m-foot .btn.lead-del{margin-right:auto}
+.lead-src{display:flex;flex-direction:column;gap:2px;max-width:220px}
+.lead-src .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Planshet: 2 ustun saqlanadi, oyna ekranning ko'p qismini oladi */
+@media (min-width:561px) and (max-width:1024px){
+  .modal.wide{max-width:min(860px,calc(100vw - 32px))}
+}
+/* Telefon: holat tugmalari bir qatorda suriladi, tugmalar katta */
+@media (max-width:560px){
+  .lead-hero{padding:12px}
+  .lead-hero .lh-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
+  .lead-hero .lh-acts .btn span{font-size:13px}
+  .lead-stages{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;
+    margin-inline:-18px;padding-inline:18px;scrollbar-width:none}
+  .lead-stages::-webkit-scrollbar{display:none}
+  .ls-btn{flex:0 0 auto;min-height:42px}
+  .modal .m-foot .btn.lead-del{margin-right:0;flex:0 0 auto;min-width:0}
+  .lead-src{max-width:none}
+}
+.lead-hero .lh-acts .btn svg{flex-shrink:0}
+.modal:focus{outline:none}
+/* Meta formasi javoblari — tepada, savol/javob */
+.lead-hero .lh-ans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:0}
+.lead-hero .lh-qa{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:0}
+.lead-hero .lh-qa dt{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:none;margin:0 0 2px}
+.lead-hero .lh-qa dd{margin:0;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+/* Sinov darsi bloki */
+.lead-trial{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;
+  border:1px dashed color-mix(in srgb,var(--warn) 45%,var(--line));background:var(--warn-soft)}
+.lead-trial[hidden]{display:none}
+.lead-trial .form-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.trial-copy{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.trial-copy pre{margin:0;white-space:pre-wrap;font:500 13px/1.45 var(--sans);color:var(--ink)}
+.trial-copy .btn{align-self:flex-start}
+.lh-chip.trial{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.btn.trial-btn{background:var(--warn-soft);color:var(--warn);border-color:transparent;white-space:nowrap}

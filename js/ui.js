@@ -197,6 +197,8 @@
       /* Foydalanuvchi allaqachon oynadagi maydonga o'tgan bo'lsa,
          fokusni birinchi maydonga qaytarib tortmaymiz */
       if (box.contains(document.activeElement)) return;
+      /* Ko'rish uchun ochiladigan oynalarda telefon klaviaturasi o'zi chiqmasin */
+      if (opts.autofocus === false) { box.setAttribute('tabindex', '-1'); box.focus({ preventScroll: true }); return; }
       var f = box.querySelector('input,select,textarea,button.primary');
       if (f) try { f.focus({ preventScroll: true }); } catch (e) { }
     }, 30);

@@ -702,7 +702,8 @@
   }
 
   /* ---------- A'zolik shakli ---------- */
-  A.membershipForm = function (student, membership, App) {
+  A.membershipForm = function (student, membership, App, mopts) {
+    mopts = mopts || {};
     App.guard('student.edit');
     var isNew = !membership || !membership.id;
     var mem = membership || {};
@@ -868,7 +869,8 @@
                 }
               }
               c(); UI.toast('Saqlandi.', 'ok');
-              App.go('student', { id: student.id, tab: 'guruhlar' });
+              /* Murojaatdan kelgan bo'lsa — Murojaatlar sahifasida qolamiz */
+              if (mopts.stay) App.render(); else App.go('student', { id: student.id, tab: 'guruhlar' });
               /* Yangi o'quvchi qarzdor bo'lib qolmaydi: to'lovni shu yerda
                  qabul qilish mumkin (pul hisobga, ortig'i balansga yoziladi).
                  Hozir to'lamasa — "Bekor qilish", to'lov kuni kelguncha

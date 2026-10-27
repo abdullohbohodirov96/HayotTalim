@@ -4171,6 +4171,7 @@ async function handleApi(req, res, url) {
       try {
         const bot = require('./bot');
         if (p.indexOf('users/') === 0) bot.dropStaffCache();
+        if (p.indexOf('leads/') === 0) bot.trackTrial(Object.assign({ id: p.split('/')[1] }, body.data));
         const d = body.data;
         if (p.indexOf('tasks/') === 0 && d.assigneeId && d.assigneeId !== user.id &&
           (!oldTask || oldTask.assigneeId !== d.assigneeId) && d.status !== 'bajarildi') {

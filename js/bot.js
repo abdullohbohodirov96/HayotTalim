@@ -215,7 +215,7 @@
 
     var tabs = [{ id: 'holat', label: 'Holat' }];
     if (App.can('bot.broadcast')) tabs.push({ id: 'xabar', label: 'Xabar yuborish' });
-    tabs.push({ id: 'oquvchilar', label: 'Ulangan o’quvchilar' });
+    tabs.push({ id: 'oquvchilar', label: 'Botdagilar' });
     if (App.can('payment.create') && D.mode === 'server') tabs.push({ id: 'karta', label: 'Karta to’lovlari' });
     if (App.can('bot.manage') && D.mode === 'server') tabs.push({ id: 'viktorina', label: 'Kanal viktorinasi' });
     if (App.can('bot.manage')) tabs.push({ id: 'sozlama', label: 'Sozlamalar' });
@@ -224,6 +224,8 @@
     if (tab === 'holat') {
       view.appendChild(h('div', { class: 'tiles' }, [
         UI.tile({ label: 'Ulangan o’quvchilar', value: linked.length, hint: D.all('students').length + ' tadan' }),
+        UI.tile({ label: 'Ulangan xodimlar', value: D.all('users').filter(function (u) { return u.telegram && u.telegram.id; }).length }),
+        UI.tile({ label: 'Botda ro’yxatdan o’tgan', value: D.all('leads').filter(function (l) { return l.chatId; }).length }),
         UI.tile({ label: 'Ulash so’rovlari', value: pending.length, cls: pending.length ? 'alert' : '' }),
         UI.tile({ label: 'Navbatdagi xabarlar', value: queue.length }),
         UI.tile({ label: 'Bot manzili', value: conf.username ? '@' + conf.username.replace('@', '') : '—' })
@@ -431,7 +433,25 @@
     }
 
     if (tab === 'oquvchilar') {
-      view.appendChild(UI.card(null, linked.length ? UI.table([
+      /* Botdagi hamma: o'quvchilar (shaxsiy kod bilan ulangan), xodimlar
+         (ERP → «📲 Telegram» orqali), botda ro'yxatdan o'tgan murojaatlar. */
+      var staffTg = D.all('users').filter(function (u) { return u.telegram && u.telegram.id; });
+      var botLeads = A.sortBy(D.all('leads').filter(function (l) { return l.chatId; }), 'createdAt').reverse();
+      view.appendChild(UI.card('Xodimlar — ' + staffTg.length + ' ta', staffTg.length ? UI.table([
+        { label: 'Xodim', render: function (u) { return h('b', {}, u.name || u.login); } },
+        { label: 'Rol', render: function (u) { return (A.ROLES && A.ROLES[u.role]) || u.role; } },
+        { label: 'Telegram', render: function (u) { return h('span', { class: 'mono small' }, u.telegram.username ? '@' + u.telegram.username : (u.telegram.name || u.telegram.id)); } },
+        { label: 'Ulangan', render: function (u) { return h('span', { class: 'small muted' }, u.telegram.at || '—'); } }
+      ], staffTg) : UI.empty({ title: 'Ulangan xodim yo’q', text: 'Har bir xodim ERP dagi «📲 Telegram» tugmasi orqali o’z Telegramini ulaydi.' }), null, null, true));
+      view.appendChild(UI.card('Botda ro’yxatdan o’tganlar (murojaatlar) — ' + botLeads.length + ' ta', botLeads.length ? UI.table([
+        { label: 'Ism', render: function (l) { return h('b', {}, l.name || '—'); } },
+        { label: 'Telefon', render: function (l) { return l.phone ? UI.phoneLink(l.phone) : h('span', { class: 'muted' }, '—'); } },
+        { label: 'Telegram', render: function (l) { return h('span', { class: 'mono small' }, l.tgUser ? '@' + l.tgUser : '—'); } },
+        { label: 'Holat', render: function (l) { return A.stageLabel ? A.stageLabel(l.stage, D.one('funnels', l.funnelId)) : (l.stage || ''); } },
+        { label: 'Qachon', render: function (l) { return h('span', { class: 'small muted' }, String(l.createdAt || '').slice(0, 16)); } }
+      ], botLeads, { onRow: function (l) { if (A.leadForm && App.can('lead.edit')) A.leadForm(l, App); } })
+        : UI.empty({ title: 'Hali hech kim yo’q', text: 'Botga /start bosib ro’yxatdan o’tganlar shu yerda chiqadi.' }), null, null, true));
+      view.appendChild(UI.card('O’quvchilar — ' + linked.length + ' ta', linked.length ? UI.table([
         { label: 'O’quvchi', render: function (s) { return h('b', {}, s.lastName + ' ' + s.firstName); } },
         {
           label: 'Guruhlar', render: function (s) {
@@ -455,7 +475,7 @@
           }
         }
       ], linked, { onRow: function (s) { App.go('student', { id: s.id }); } })
-        : UI.empty({ title: 'Ulangan o’quvchi yo’q', text: 'O’quvchilar botga /start bosishi kerak.' }), null, null, true));
+        : UI.empty({ title: 'Ulangan o’quvchi yo’q', text: 'O’quvchi botda «🎓 Men o’quvchiman» ni bosib, o’zining 5 xonali shaxsiy kodini yozadi (kod o’quvchi kartasida). Shundan keyin u shu yerda chiqadi.' }), null, null, true));
     }
 
     if (tab === 'viktorina') {

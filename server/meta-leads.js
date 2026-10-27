@@ -129,11 +129,15 @@ async function saveLead(ctx, leadgenId) {
   const dup = digits ? leads.filter(l => A.phoneDigits(l.phone) === digits)[0] : null;
   const ad = [L.campaign_name, L.adset_name, L.ad_name].filter(Boolean).join(' › ');
   const note = p.answers.join(' · ');
+  /* Forma javoblari alohida saqlanadi (ERP da oynaning tepasida ko'rinadi);
+     «Izoh» maydoni menejerning o'z yozuvlari uchun bo'sh qoladi. */
+  const metaAnswers = p.answers.map(t => { const i = t.indexOf(': '); return i > 0 ? { q: t.slice(0, i), a: t.slice(i + 2) } : { q: '', a: t }; });
   let id;
   if (dup) {
     id = dup.id;
     const before = Object.assign({}, dup);
-    dup.note = [dup.note, 'Target formasi qayta: ' + note].filter(Boolean).join(' · ').slice(0, 1500);
+    dup.metaAnswers = metaAnswers;
+    dup.note = [dup.note, 'Target formasini qayta to‘ldirdi (' + stamp().slice(0, 10) + ')'].filter(Boolean).join('\n').slice(0, 1500);
     dup.metaLeadIds = [].concat(dup.metaLeadIds || [], [String(leadgenId)]).filter((x, i, a) => a.indexOf(x) === i).slice(-10);
     if (!dup.metaLeadId) dup.metaLeadId = String(leadgenId);
     await store.set('leads/' + id, dup);
@@ -146,7 +150,7 @@ async function saveLead(ctx, leadgenId) {
       src: ad, ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
       region: p.fields.region || '', wantTime: p.fields.wantTime || '', startLevel: p.fields.startLevel || '',
       audience: p.fields.audience || '', email: p.fields.email || '', age: p.fields.age || '',
-      note: note.slice(0, 1000), nextContact: A.today(), createdAt: stamp(), viaMeta: true, metaLeadId: leadgenId
+      note: '', metaAnswers, nextContact: A.today(), createdAt: stamp(), viaMeta: true, metaLeadId: leadgenId
     });
   }
   if (!dup) capi().onLeadSaved(null, await store.get('leads/' + id)).catch(() => { });

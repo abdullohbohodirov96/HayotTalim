@@ -191,7 +191,12 @@
   }
 
   function renderNav() {
-    var nav = UI.clear(document.getElementById('nav'));
+    /* Yon panel qayta chizilganda aylantirilgan joyi saqlanadi — pastdagi
+       bo'limni bosganda panel tepaga sakrab ketmasin. */
+    var navEl = document.getElementById('nav');
+    var navTop = navEl ? navEl.scrollTop : 0;
+    var nav = UI.clear(navEl);
+    var activeBtn = null;
     allowedNav().forEach(function (n) {
       var active = App.route.name === n.id ||
         (n.id === 'students' && App.route.name === 'student') ||
@@ -200,8 +205,15 @@
         type: 'button', 'aria-current': active ? 'page' : null,
         onclick: function () { App.go(n.id); }
       }, [UI.icon(n.icon), n.label]);
+      if (active) activeBtn = b;
       nav.appendChild(b);
     });
+    nav.scrollTop = navTop;
+    /* Faol bo'lim ko'rinmay qolgan bo'lsa (masalan, boshqa joydan o'tilganda) — faqat shunda ko'rsatamiz */
+    if (activeBtn) {
+      var nb = nav.getBoundingClientRect(), bb = activeBtn.getBoundingClientRect();
+      if (nb.height && (bb.top < nb.top || bb.bottom > nb.bottom)) activeBtn.scrollIntoView({ block: 'nearest' });
+    }
 
     var tabbar = UI.clear(document.getElementById('tabbar'));
     quickItems().forEach(function (n) {

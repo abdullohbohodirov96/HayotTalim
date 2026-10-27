@@ -495,6 +495,7 @@ function leadInfoText(l) {
     row('Manba', l.source) + row('Reklama', l.src) + row('Hudud', l.region) +
     row('Qulay vaqt', l.wantTime) + row('Daraja', l.startLevel) + row('Yosh', l.age) +
     row('Kim uchun', l.audience) + (l.formText ? '\n' + esc(l.formText) : '') +
+    (Array.isArray(l.metaAnswers) && l.metaAnswers.length ? '\n' + l.metaAnswers.map(x => '• ' + esc((x.q ? x.q + ': ' : '') + x.a)).join('\n') : '') +
     (l.note ? '\n📝 ' + esc(String(l.note).slice(0, 400)) : '');
 }
 /** Forma javoblarini «Savol: javob» qatorlariga aylantiradi (eslatma matni uchun) */
@@ -601,6 +602,77 @@ async function morningDigest(now, tn, b, fromMins) {
   }
   for (const x of list) x.p.last = now;                         // keyingi eslatma 15 daqiqadan keyin
   return sent;
+}
+
+/* ---- Sinov darsi: 1 soat oldin eslatma, darsdan keyin qayta aloqa ----
+   Murojaat «Sinov darsiga yozildi» holatida, sinov kuni va soati bilan
+   turadi (o'quvchi hisobi OCHILMAYDI). Dars boshlanishidan 1 soat oldin
+   menejerga «mijozga eslatma yuboring», dars tugagach (boshlanish + 90
+   daqiqa) «hozir qo'ng'iroq qiling — taassurot, guruhga yozish» xabari
+   ketadi; keyingi aloqa sanasi bugunga qo'yiladi. Ro'yxat xotirada —
+   bo'sh paytda baza bezovta qilinmaydi.                                  */
+const trials = new Map();          // leadId -> { at, pre, post }
+let trialsLoaded = false;
+function trialMs(l) {
+  if (!l || !l.trialDate) return 0;
+  const t = Date.parse(String(l.trialDate).slice(0, 10) + 'T' + (/^\d{2}:\d{2}$/.test(l.trialTime || '') ? l.trialTime : '09:00') + ':00+05:00');
+  return isNaN(t) ? 0 : t;
+}
+/** Murojaat saqlanganda chaqiriladi (index.js) */
+function trackTrial(l) {
+  if (!l || !l.id) return;
+  const at = trialMs(l);
+  if (!at || l.studentId || l.trialPostAt) { trials.delete(String(l.id)); return; }
+  trials.set(String(l.id), { at, pre: !!l.trialPreAt });
+}
+async function loadTrials() {
+  trialsLoaded = true;
+  for (const l of (await store.list('leads/')).map(x => x.data).filter(Boolean)) trackTrial(l);
+}
+async function trialTick(nowMs) {
+  if (!store) return { sent: 0 };
+  if (!trialsLoaded) await loadTrials();
+  if (!trials.size) return { sent: 0 };
+  const now = nowMs || Date.now();
+  const b = ((await settings()).bot) || {};
+  const len = Number(b.trialMinutes || 90) * 60e3;
+  const mins = tashkentNow(now).mins;
+  const from = Number(b.remindFrom == null ? 9 : b.remindFrom) * 60, to = Number(b.remindTo == null ? 19 : b.remindTo) * 60;
+  let sent = 0;
+  for (const [id, t] of Array.from(trials.entries())) {
+    const wantPre = !t.pre && now >= t.at - 60 * 60e3 && now < t.at;
+    const wantPost = now >= t.at + len && mins >= from && mins < to + 120;   // kechki dars tugasa ham shu kecha (21:00 gacha)
+    if (!wantPre && !wantPost) {
+      if (!t.pre && now >= t.at) t.pre = true;                                // o'tib ketgan «oldin» eslatmasi yuborilmaydi
+      continue;
+    }
+    const lead = await store.get('leads/' + id);
+    if (!lead || lead.studentId || trialMs(lead) !== t.at) { trials.delete(id); if (lead) trackTrial(lead); continue; }
+    const g = lead.groupId ? await store.get('groups/' + lead.groupId) : null;
+    const when = tashkentNow(t.at).hm;
+    const ids = await remindTargets(lead, b);
+    let text;
+    if (wantPre) {
+      t.pre = true; lead.trialPreAt = stamp();
+      text = '⏰ <b>1 soatdan keyin sinov darsi (soat ' + when + ')</b>\n\n' + leadInfoText(lead) +
+        (g ? '\n🎓 Guruh: ' + esc(g.name || '') + (g.zoomLink ? '\n💻 ' + esc(g.zoomLink) : '') : '') +
+        '\n\nMijozga eslatma yuboring: «1 soatdan keyin darsimiz boshlanadi' + (g && g.zoomLink ? ', havola: ' + esc(g.zoomLink) : '') + '. Kutib qolamiz!»';
+    } else {
+      trials.delete(id); lead.trialPostAt = stamp();
+      lead.nextContact = tashkentNow(now).date;
+      lead.note = [lead.note, 'Sinov darsi o‘tdi (' + String(lead.trialDate).slice(0, 10) + ' ' + when + ') — qayta aloqa'].filter(Boolean).join('\n').slice(0, 1500);
+      text = '🎓 <b>Sinov darsi tugadi — hoziroq qo‘ng‘iroq qiling!</b>\n\n' + leadInfoText(lead) +
+        (g ? '\n🎓 Guruh: ' + esc(g.name || '') : '') +
+        '\n\n1) Darsga keldimi? 2) Taassuroti qanday? 3) Guruhga yozish va to‘lov.\n' +
+        'To‘lov qilsa — ERP da «O‘quvchiga o‘tkazish». Kelmagan bo‘lsa — boshqa kunga ko‘chiring.';
+    }
+    await store.set('leads/' + id, lead);
+    for (const chatId of ids) {
+      const r = await enqueue({ kind: 'elon', chatId, text, dedupeKey: 'trial:' + (wantPre ? 'pre' : 'post') + ':' + chatId + ':' + id + ':' + t.at }, 0);
+      if (!r.skipped) sent++;
+    }
+  }
+  return { sent };
 }
 
 /** «✅ Bog'landim» tugmasi */
@@ -2107,7 +2179,10 @@ function startReminders() {
   setTimeout(() => { quizTick().catch(() => { }); }, 20 * 1000);
   /* Kirim va da'volarni har 2 daqiqada solishtirish (kechikkan «To'ladim» uchun) */
   /* Bog'lanilmagan murojaatlar eslatmasi (ro'yxat bo'sh bo'lsa baza so'ralmaydi) */
-  const tr = setInterval(() => { remindTick().catch(e => console.error('lead eslatma:', e.message)); }, 60 * 1000);
+  const tr = setInterval(() => {
+    remindTick().catch(e => console.error('lead eslatma:', e.message));
+    trialTick().catch(e => console.error('sinov darsi:', e.message));
+  }, 60 * 1000);
   if (tr.unref) tr.unref();
   timers.push(tr);
   const t2 = setInterval(() => { if (quiet.due('paybot', 60 * 60 * 1000, 2 * 60 * 1000)) paybot.reconcile(payCtx()).catch(e => console.error('paybot:', e.message)); }, 60 * 1000);
@@ -2189,6 +2264,7 @@ function _test(ctx) {
     normCode, shuffleQuiz, botConf, getState, setState,
     balanceText, attendanceText, scheduleText, daysBetween, KINDS, MAX_TRIES,
     handleLinkFlow, findStudentByChat, notifyStaff, notifyUser, remindTick, onCallback, staffLinkStart,
+    trialTick, trackTrial, trials,
     pendingLeads, trackLead, dropStaffCache, staffChatIds,
     startRegistration, handleRegistration, regSrc,
     linkGroupChat, onGroupUpdate, sendToGroup, makeGroupLinkToken,
@@ -2226,4 +2302,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

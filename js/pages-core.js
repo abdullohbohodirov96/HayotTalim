@@ -576,7 +576,7 @@
       { label: 'Ism', render: function (l) { return h('b', {}, l.name); } },
       /* Raqam bosilsa telefon o'zi teradi — qo'lda ko'chirish shart emas */
       { label: 'Telefon', render: function (l) { return UI.phoneLink(l.phone); } },
-      { label: 'Kurs', render: function (l) { return Q.courseName(l.courseId); } },
+      leads.some(function (l) { return l.groupId; }) ? { label: 'Guruh', render: function (l) { var g = l.groupId && D.one('groups', l.groupId); return g ? g.name : h('span', { class: 'muted' }, '—'); } } : null,
       {
         label: 'Manba', render: function (l) {
           /* Forma orqali kelgan bo'lsa — javoblari shu yerda ochiladi */
@@ -592,10 +592,13 @@
               }
             }, [UI.icon('task'), l.formTitle || 'Forma']);
           }
-          return h('span', {}, [l.source || '—', l.src ? h('span', { class: 'muted small' }, ' · ' + l.src) : null]);
+          /* Uzun «kampaniya › ad set › reklama» o'rniga faqat reklama nomi; to'liqi — ustiga borganda */
+          var ad = l.src ? String(l.src).split('›').pop().trim() : '';
+          return h('div', { class: 'lead-src', title: l.src || '' }, [
+            h('span', {}, l.source || '—'), ad ? h('span', { class: 'muted small' }, ad) : null]);
         }
       },
-      { label: 'Hudud', render: function (l) { return l.region ? (l.region + (l.district ? ', ' + l.district : '')) : h('span', { class: 'muted' }, '—'); } },
+      leads.some(function (l) { return l.region; }) ? { label: 'Hudud', render: function (l) { return l.region ? (l.region + (l.district ? ', ' + l.district : '')) : h('span', { class: 'muted' }, '—'); } } : null,
       { label: 'Mas’ul', render: function (l) { return Q.ownerName(l.ownerStaffId); } },
       {
         label: 'Keyingi aloqa', render: function (l) {
@@ -610,14 +613,20 @@
           if (!App.can('lead.edit')) return UI.contactBtns(l.phone, { small: true });
           return h('div', { class: 'rowflex', style: 'justify-content:flex-end;gap:6px;flex-wrap:nowrap' }, [
             UI.contactBtns(l.phone, { small: true }),
-            A.stageOf(funnel, l.stage).type !== 'won' ? h('button', {
+            /* Sinov darsiga yozilgan: dars o'tmaguncha o'quvchiga aylantirilmaydi —
+               tugma sinov vaqtini ko'rsatadi; dars o'tgach «O'quvchiga» chiqadi. */
+            (A.stageOf(funnel, l.stage).type !== 'won' && !l.studentId && isTrialStage(funnel, l.stage) && !trialDone(l)) ? h('button', {
+              class: 'btn sm trial-btn', title: 'Sinov darsi o’tgach o’quvchiga o’tkaziladi',
+              onclick: function (e) { e.stopPropagation(); leadForm(l, App); }
+            }, l.trialDate ? '📅 Sinov: ' + trialLabel(l) : '📅 Sinov vaqtini belgilang')
+            : (A.stageOf(funnel, l.stage).type !== 'won' && !l.studentId) ? h('button', {
               class: 'btn sm primary', onclick: function (e) { e.stopPropagation(); convertLead(l, App); }
             }, 'O’quvchiga') : null,
             h('button', { class: 'btn sm', onclick: function (e) { e.stopPropagation(); leadForm(l, App); } }, 'Ochish')
           ].filter(Boolean));
         }
       }
-    ], leads, { onRow: function (l) { if (App.can('lead.edit')) leadForm(l, App); }, page: 100 }), null, null, true));
+    ].filter(Boolean), leads, { onRow: function (l) { if (App.can('lead.edit')) leadForm(l, App); }, page: 100 }), null, null, true));
   };
 
   /* Manba va hudud bo'yicha qisqa hisobot: qaysi reklama ko'proq lid va
@@ -694,6 +703,22 @@
     });
   }
 
+  /* Sinov darsi bosqichi: id «sinov» yoki nomida «sinov» */
+  function isTrialStage(funnel, stageId) {
+    var st = A.stageOf(funnel, stageId) || {};
+    return stageId === 'sinov' || /sinov/i.test(st.label || '');
+  }
+  function trialAt(l) {
+    if (!l || !l.trialDate) return 0;
+    var t = Date.parse(String(l.trialDate).slice(0, 10) + 'T' + (/^\d{2}:\d{2}$/.test(l.trialTime || '') ? l.trialTime : '09:00') + ':00+05:00');
+    return isNaN(t) ? 0 : t;
+  }
+  /** Sinov darsi o'tdimi (boshlanish + 90 daqiqa) */
+  function trialDone(l) { var t = trialAt(l); return !!t && Date.now() >= t + 90 * 60000; }
+  function trialLabel(l) {
+    return l.trialDate ? A.dateLabel(String(l.trialDate).slice(0, 10)) + (l.trialTime ? ', ' + l.trialTime : '') : '';
+  }
+
   function isClosed(funnel, stageId) {
     var t = A.stageOf(funnel, stageId).type;
     return t === 'won' || t === 'lost';
@@ -711,6 +736,11 @@
     return UI.pill(stageLabel(id, funnel), cls);
   }
 
+  /* Murojaat oynasi — telefonda, planshetda va noutbukda bir xil qulay.
+     Tepada: ism, raqam (qo'ng'iroq / Telegram / SMS bir bosishda), manba.
+     Holat — bitta bosishda o'zgaradigan tugmalar qatori.
+     Asosiy maydonlar ochiq, kam o'zgaradiganlari «Qo'shimcha» ichida.
+     Pastda: «O'quvchiga o'tkazish» — shu yerdan, boshqa sahifaga o'tmasdan. */
   function leadForm(lead, App, defFunnelId) {
     App.guard('lead.edit');
     var isNew = !lead;
@@ -721,27 +751,64 @@
       funnelId: defFunnelId || funnels[0].id
     };
     var curFunnel = funnels.filter(function (x) { return x.id === (lead.funnelId || funnels[0].id); })[0] || funnels[0];
+    var owners = D.all('users').filter(function (u) { return u.active !== false && ['menejer', 'admin', 'direktor'].indexOf(u.role) >= 0; })
+      .sort(function (a, b) { var o = { menejer: 0, admin: 1, direktor: 2 }; return (o[a.role] - o[b.role]) || String(a.name).localeCompare(String(b.name)); });
+
+    /* --- Meta formasi javoblari: izohda emas, tepada ko'rinadi.
+       Eski yozuvlarda javoblar izohga yozilgan — ularni ajratib olamiz. --- */
+    var answers = Array.isArray(lead.metaAnswers) ? lead.metaAnswers.slice() : [];
+    var noteVal = lead.note || '';
+    var movedFromNote = false;
+    if (!answers.length && lead.viaMeta && noteVal) {
+      var keep = [];
+      noteVal.split(/\n| · /).forEach(function (seg) {
+        var t = seg.trim(); if (!t) return;
+        var m = /^([^:]{3,80}):\s*(.+)$/.exec(t);
+        if (m && !/^\d/.test(m[1]) && !keep.length) answers.push({ q: m[1].trim(), a: m[2].trim() });
+        else keep.push(t);
+      });
+      if (answers.length) { noteVal = keep.join('\n'); movedFromNote = true; }
+    }
+
+    /* --- asosiy maydonlar --- */
     var f = UI.form([
-      {
-        name: 'funnelId', label: 'Sotuv voronkasi', type: 'select', value: lead.funnelId || curFunnel.id,
-        options: funnels.map(function (x) { return { value: x.id, label: x.name }; }),
-        onchange: function (e) {
-          var fn = funnels.filter(function (x) { return x.id === e.target.value; })[0];
-          var sel = f.get('stage').input;
-          UI.clear(sel);
-          A.funnelStages(fn).forEach(function (s) {
-            sel.appendChild(h('option', { value: s.id }, s.label));
-          });
-        }
-      },
       { name: 'name', label: 'Ism', required: true, value: lead.name },
       {
         name: 'phone', label: 'Telefon', required: true, value: lead.phone, placeholder: '+998 90 123 45 67',
         validate: function (v) { return A.phoneDigits(v).length < 7 ? 'Telefon raqamni to’liq kiriting.' : null; }
       },
+      { name: 'nextContact', label: 'Keyingi bog’lanish', type: 'date', value: lead.nextContact },
       {
-        name: 'courseId', label: 'Qiziqqan kurs', type: 'select', value: lead.courseId,
-        options: [{ value: '', label: '— tanlanmagan —' }].concat(D.all('courses').map(function (c) { return { value: c.id, label: c.name }; }))
+        /* Qaysi guruhga yozilmoqchi — o'quvchiga o'tkazganda shu guruh o'zi tanlanadi */
+        name: 'groupId', label: 'Guruh', type: 'select', value: lead.groupId,
+        options: [{ value: '', label: '— tanlanmagan —' }].concat(D.all('groups').filter(function (g) { return g.status !== 'yakunlangan'; })
+          .map(function (g) { return { value: g.id, label: g.name }; }))
+      },
+      {
+        /* Mas'ul — ERP hisobi bor xodimlar: menejer, administrator, direktor. */
+        name: 'ownerStaffId', label: 'Mas’ul xodim', type: 'select', value: lead.ownerStaffId,
+        options: [{ value: '', label: '— tanlanmagan —' }].concat(
+          owners.map(function (u) { return { value: u.id, label: u.name + ' · ' + (A.ROLES[u.role] || u.role) }; }),
+          (lead.ownerStaffId && !D.one('users', lead.ownerStaffId) && D.one('staff', lead.ownerStaffId))
+            ? [{ value: lead.ownerStaffId, label: D.one('staff', lead.ownerStaffId).name }] : [])
+      },
+      {
+        name: 'note', label: 'Izoh', type: 'textarea', value: noteVal, full: true, rows: 3,
+        placeholder: 'Masalan: 27.10 — gaplashdik, kechki guruh kerak, ertaga sinovga keladi'
+      }
+    ]);
+
+    /* --- kam o'zgaradiganlar --- */
+    var fx = UI.form([
+      {
+        name: 'funnelId', label: 'Sotuv voronkasi', type: 'select', value: lead.funnelId || curFunnel.id,
+        options: funnels.map(function (x) { return { value: x.id, label: x.name }; }),
+        onchange: function (e) {
+          curFunnel = funnels.filter(function (x) { return x.id === e.target.value; })[0] || curFunnel;
+          var st = A.funnelStages(curFunnel);
+          if (!st.some(function (x) { return x.id === stage; })) stage = st[0] ? st[0].id : stage;
+          paintStages();
+        }
       },
       {
         name: 'source', label: 'Qayerdan kelgan', type: 'select', value: lead.source,
@@ -749,54 +816,118 @@
           .map(function (s) { return { value: s, label: s }; })
       },
       {
-        name: 'src', label: 'Reklama belgisi (ixtiyoriy)', value: lead.src,
-        placeholder: 'masalan: reels1, posev_kanal',
-        help: 'Bot yoki sayt havolasidagi belgi (?start= / ?src=) — qaysi reklama olib kelganini ko’rsatadi.'
+        name: 'src', label: 'Reklama belgisi', value: lead.src,
+        placeholder: 'masalan: reels1, posev_kanal'
       },
       {
         name: 'region', label: 'Hudud (viloyat)', type: 'select', value: lead.region,
         options: [{ value: '', label: '— tanlanmagan —' }].concat(A.REGIONS.map(function (r) { return { value: r, label: r }; }))
       },
-      { name: 'district', label: 'Tuman / shahar (ixtiyoriy)', value: lead.district, placeholder: 'masalan: Yunusobod' },
-
-      {
-        /* Mas'ul — ERP hisobi bor xodimlar: menejer, administrator, direktor.
-           (O'qituvchilar murojaat bilan ishlamaydi.) Eski yozuvlardagi xodim ham ko'rinib turadi. */
-        name: 'ownerStaffId', label: 'Mas’ul xodim', type: 'select', value: lead.ownerStaffId,
-        options: [{ value: '', label: '— tanlanmagan —' }].concat(
-          D.all('users').filter(function (u) { return u.active !== false && ['menejer', 'admin', 'direktor'].indexOf(u.role) >= 0; })
-            .sort(function (a, b) { var o = { menejer: 0, admin: 1, direktor: 2 }; return (o[a.role] - o[b.role]) || String(a.name).localeCompare(String(b.name)); })
-            .map(function (u) { return { value: u.id, label: u.name + ' · ' + (A.ROLES[u.role] || u.role) }; }),
-          (lead.ownerStaffId && !D.one('users', lead.ownerStaffId) && D.one('staff', lead.ownerStaffId))
-            ? [{ value: lead.ownerStaffId, label: D.one('staff', lead.ownerStaffId).name }] : [])
-      },
-      { name: 'nextContact', label: 'Keyingi bog’lanish sanasi', type: 'date', value: lead.nextContact },
-      {
-        name: 'stage', label: 'Holat', type: 'select', value: lead.stage,
-        options: A.funnelStages(curFunnel).map(function (s) { return { value: s.id, label: s.label }; })
-      },
-      { name: 'note', label: 'Izoh', type: 'textarea', value: lead.note, full: true }
+      { name: 'district', label: 'Tuman / shahar', value: lead.district, placeholder: 'masalan: Yunusobod' }
     ]);
 
-    /* Oyna ochilishi bilan qo'ng'iroq qilish mumkin bo'lsin —
-       raqamni qidirib, ko'chirib o'tirish shart emas.                  */
-    var callBox = h('div', { class: 'quick-contact' });
-    function paintContact() {
-      UI.clear(callBox);
-      var v = f.get('phone').input.value;
-      var btns = UI.contactBtns(v);
-      if (btns) callBox.appendChild(btns);
-      callBox.hidden = !btns;
+    /* --- holat: bir bosishda --- */
+    var stage = lead.stage || (A.funnelStages(curFunnel)[0] || {}).id || 'yangi';
+    var stageBox = h('div', { class: 'lead-stages', role: 'radiogroup', 'aria-label': 'Holat' });
+    function paintStages() {
+      UI.clear(stageBox);
+      A.funnelStages(curFunnel).forEach(function (s) {
+        var on = s.id === stage;
+        stageBox.appendChild(h('button', {
+          type: 'button', role: 'radio', 'aria-checked': on ? 'true' : 'false',
+          class: 'ls-btn' + (on ? ' on' : '') + (s.type === 'won' ? ' won' : (s.type === 'lost' ? ' lost' : '')),
+          onclick: function () { stage = s.id; paintStages(); if (trialBox) paintTrial(); stageBox.dispatchEvent(new Event('change', { bubbles: true })); }
+        }, s.label));
+      });
     }
+    paintStages();
+
+    /* --- sinov darsi: kuni va soati (faqat «Sinov darsiga yozildi» holatida) ---
+       Sinovga yozilgan odamga o'quvchi hisobi OCHILMAYDI: u birinchi
+       darsga bepul kiradi; dars tugagach menejerga qayta aloqa eslatmasi
+       keladi, to'lov qilsa — shundan keyin o'quvchiga o'tkaziladi. */
+    var ft = UI.form([
+      { name: 'trialDate', label: 'Sinov darsi kuni', type: 'date', value: lead.trialDate ? String(lead.trialDate).slice(0, 10) : '' },
+      { name: 'trialTime', label: 'Soati', type: 'time', value: lead.trialTime || '' }
+    ]);
+    var trialMsg = h('div', { class: 'trial-msg' });
+    var trialBox = h('div', { class: 'lead-trial' }, [
+      h('div', { class: 'lead-lbl' }, 'Bepul sinov darsi'),
+      ft.node, trialMsg,
+      h('p', { class: 'small muted', style: 'margin:0' },
+        'O’quvchi hisobi ochilmaydi. Darsdan 1 soat oldin va dars tugagach menejerga Telegram’da eslatma keladi.')
+    ]);
+    function paintTrial() {
+      trialBox.hidden = !isTrialStage(curFunnel, stage);
+      UI.clear(trialMsg);
+      var d = ft.get('trialDate').input.value, tm = ft.get('trialTime').input.value;
+      var gid = f.get('groupId') ? f.get('groupId').input.value : '';
+      var g = gid ? D.one('groups', gid) : null;
+      if (!d) return;
+      var nm = (f.get('name').input.value || '').split(/\s+/)[0];
+      var txt = nm + ', sizni bepul sinov darsiga yozib qo’ydim ✅\n📅 ' + A.dateLabel(d) + (tm ? ', soat ' + tm : '') +
+        (g && g.zoomLink ? '\n💻 Zoom havolasi: ' + g.zoomLink : '') + '\nDars oldidan yana eslatib qo’yaman. Savol bo’lsa, shu yerga yozing.';
+      trialMsg.appendChild(h('div', { class: 'trial-copy' }, [
+        h('pre', {}, txt),
+        h('button', { class: 'btn sm', type: 'button', onclick: function () { UI.copy(txt); } }, [UI.icon('link'), 'Xabarni nusxalash'])
+      ]));
+    }
+    ft.get('trialDate').input.addEventListener('change', paintTrial);
+    ft.get('trialTime').input.addEventListener('change', paintTrial);
+    if (f.get('groupId')) f.get('groupId').input.addEventListener('change', paintTrial);
+
+    /* --- tepa qism: kim, raqam, qayerdan --- */
+    var student = lead.studentId ? D.one('students', lead.studentId) : null;
+    var hero = h('div', { class: 'lead-hero' });
+    function paintHero() {
+      UI.clear(hero);
+      var nm = f.get('name').input.value || 'Yangi murojaat';
+      var ph = f.get('phone').input.value;
+      var digits = A.phoneDigits(ph);
+      var chips = [];
+      if (lead.source) chips.push(h('span', { class: 'lh-chip' }, lead.source));
+      if (lead.src) {
+        var ad = String(lead.src).split('›').pop().trim();
+        chips.push(h('span', { class: 'lh-chip ad', title: lead.src }, ad));
+      }
+      if (lead.createdAt && !isNew) chips.push(h('span', { class: 'lh-chip muted' }, 'Keldi: ' + String(lead.createdAt).slice(0, 16)));
+      if (lead.contactedBy) chips.push(h('span', { class: 'lh-chip ok' }, 'Bog’landi: ' + lead.contactedBy));
+      if (lead.trialDate) chips.push(h('span', { class: 'lh-chip trial' }, (trialDone(lead) ? 'Sinov o’tdi: ' : 'Sinov: ') + trialLabel(lead)));
+      if (student) chips.push(h('span', { class: 'lh-chip ok' }, 'O’quvchi: ' + student.lastName + ' ' + student.firstName));
+      hero.appendChild(h('div', { class: 'lh-top' }, [
+        h('div', { class: 'lh-ava', 'aria-hidden': 'true' }, String(nm).trim().charAt(0).toUpperCase() || '?'),
+        h('div', { class: 'lh-id' }, [
+          h('div', { class: 'lh-name' }, nm),
+          ph ? h('a', { class: 'lh-phone', href: 'tel:+' + (digits.length === 9 ? '998' + digits : digits) }, ph) : h('span', { class: 'muted small' }, 'Raqam kiritilmagan')
+        ])
+      ]));
+      if (digits.length >= 9) {
+        var full = digits.length === 9 ? '998' + digits : digits;
+        hero.appendChild(h('div', { class: 'lh-acts' }, [
+          h('a', { class: 'btn primary lh-call', href: 'tel:+' + full }, [UI.icon('phone'), h('span', {}, 'Qo’ng’iroq')]),
+          h('a', { class: 'btn', href: 'https://t.me/+' + full, target: '_blank', rel: 'noopener' }, [UI.icon('chat'), h('span', {}, 'Telegram')]),
+          h('a', { class: 'btn', href: 'sms:+' + full }, [UI.icon('chat'), h('span', {}, 'SMS')])
+        ]));
+      }
+      if (chips.length) hero.appendChild(h('div', { class: 'lh-chips' }, chips));
+      if (answers.length) {
+        hero.appendChild(h('dl', { class: 'lh-ans' }, answers.map(function (x) {
+          return h('div', { class: 'lh-qa' }, [h('dt', {}, x.q || 'Javob'), h('dd', {}, x.a)]);
+        })));
+      }
+    }
+    f.get('name').input.addEventListener('input', paintHero);
+    f.get('phone').input.addEventListener('input', paintHero);
+    paintHero();
+    paintTrial();
 
     var dupBox = h('div');
     function checkDup() {
-      paintContact();
       UI.clear(dupBox);
       var d = A.phoneDigits(f.get('phone').input.value);
       if (d.length < 7) return;
       var sameStudents = D.all('students').filter(function (s) {
-        return A.phoneDigits(s.phone) === d || A.phoneDigits(s.parentPhone) === d;
+        return s.id !== lead.studentId && (A.phoneDigits(s.phone) === d || A.phoneDigits(s.parentPhone) === d);
       });
       var sameLeads = D.all('leads').filter(function (l) { return l.id !== lead.id && A.phoneDigits(l.phone) === d; });
       if (sameStudents.length || sameLeads.length) {
@@ -809,18 +940,58 @@
       }
     }
     f.get('phone').input.addEventListener('blur', checkDup);
-    f.get('phone').input.addEventListener('input', paintContact);
     checkDup();
 
-    var m = UI.modal({
-      title: isNew ? 'Yangi murojaat' : 'Murojaat: ' + lead.name,
-      body: [callBox, (lead.formAnswers && A.formAnswersBlock) ? h('details', { class: 'lead-ans', open: true }, [
-        h('summary', {}, 'Forma javoblari' + (lead.formTitle ? ' — ' + lead.formTitle : '')),
-        A.formAnswersBlock(lead)
-      ]) : null, f.node, dupBox].filter(Boolean),
+    var extra = h('details', { class: 'lead-more' + (isNew ? '' : '') }, [
+      h('summary', {}, 'Qo’shimcha: voronka, manba, hudud'), fx.node
+    ]);
+    if (isNew) extra.open = true;
+
+    function collect() {
+      if (!f.validate() || !fx.validate()) { if (!fx.validate()) extra.open = true; return null; }
+      var v = Object.assign({}, fx.values(), f.values(), { stage: stage });
+      var g = v.groupId ? D.one('groups', v.groupId) : null;
+      if (g && g.courseId) v.courseId = g.courseId;
+      if (movedFromNote) v.metaAnswers = answers;
+      var tv = ft.values();
+      if (isTrialStage(curFunnel, stage)) {
+        if (!tv.trialDate) { UI.toast('Sinov darsi kunini belgilang.', 'warn'); ft.get('trialDate').input.focus(); return null; }
+        v.trialDate = tv.trialDate; v.trialTime = tv.trialTime || '';
+        /* Sana o'zgarsa eslatmalar qaytadan ishlaydi */
+        if (v.trialDate !== String(lead.trialDate || '').slice(0, 10) || v.trialTime !== (lead.trialTime || '')) {
+          v.trialPreAt = ''; v.trialPostAt = '';
+          if (!v.nextContact || v.nextContact < v.trialDate) v.nextContact = v.trialDate;
+        }
+      }
+      return Object.assign({}, lead, v, { phone: A.normPhone(v.phone) });
+    }
+    async function persist(rec) {
+      if (isNew) { rec.id = A.uid('led'); rec.createdAt = A.nowStamp(); }
+      await D.save('leads', rec);
+      var fn = funnels.filter(function (x) { return x.id === rec.funnelId; })[0];
+      await A.Ops.audit(App.user, isNew ? 'Murojaat qo’shildi' : 'Murojaat o’zgartirildi', rec.name, stageLabel(rec.stage, fn));
+      return rec;
+    }
+
+    var won = A.stageOf(curFunnel, lead.stage).type === 'won';
+    var canConvert = App.can('student.edit') && !student;
+
+    UI.modal({
+      title: isNew ? 'Yangi murojaat' : 'Murojaat',
+      wide: true, autofocus: isNew,
+      body: [
+        hero,
+        h('div', { class: 'lead-sec' }, [h('div', { class: 'lead-lbl' }, 'Holat'), stageBox]),
+        trialBox,
+        (lead.formAnswers && A.formAnswersBlock) ? h('details', { class: 'lead-ans', open: true }, [
+          h('summary', {}, 'Forma javoblari' + (lead.formTitle ? ' — ' + lead.formTitle : '')),
+          A.formAnswersBlock(lead)
+        ]) : null,
+        f.node, dupBox, extra
+      ].filter(Boolean),
       actions: [
-        !isNew && App.can('lead.edit') ? {
-          label: 'O’chirish', cls: 'danger', onClick: async function (c) {
+        !isNew ? {
+          label: 'O’chirish', cls: 'danger lead-del', onClick: async function (c) {
             if (await UI.confirm('Murojaatni o’chirish', 'Bu yozuv butunlay o’chiriladi.', 'O’chirish', true)) {
               await D.remove('leads', lead.id);
               await A.Ops.audit(App.user, 'Murojaat o’chirildi', lead.name, '');
@@ -828,40 +999,97 @@
             }
           }
         } : null,
-        { label: 'Bekor qilish' },
         {
-          label: 'Saqlash', cls: 'primary', onClick: function (c, btn) {
-            if (!f.validate()) return;
+          label: 'Saqlash', cls: canConvert && !won ? '' : 'primary', onClick: function (c, btn) {
+            var rec = collect(); if (!rec) return;
             UI.busy(btn, async function () {
-              var v = f.values();
-              var rec = Object.assign({}, lead, v, { phone: A.normPhone(v.phone) });
-              if (isNew) { rec.id = A.uid('led'); rec.createdAt = A.nowStamp(); }
-              await D.save('leads', rec);
-              var fn = funnels.filter(function (x) { return x.id === rec.funnelId; })[0];
-              await A.Ops.audit(App.user, isNew ? 'Murojaat qo’shildi' : 'Murojaat o’zgartirildi',
-                rec.name, stageLabel(rec.stage, fn));
+              await persist(rec);
               c(); UI.toast('Saqlandi.', 'ok'); App.render();
             });
           }
-        }
+        },
+        student ? {
+          label: 'O’quvchi kartasi', cls: 'primary', onClick: function (c) { c(); App.go('student', { id: student.id }); }
+        } : null,
+        canConvert ? {
+          label: '🎓 O’quvchiga o’tkazish', cls: 'primary', onClick: async function (c, btn) {
+            if (isTrialStage(curFunnel, stage) && !trialDone(lead)) {
+              var ok = await UI.confirm('Sinov darsi hali o’tmagan',
+                'O’quvchiga sinov darsidan keyin, to’lov qilganda o’tkaziladi. Hozir o’tkazilsa, o’quvchi hisobi ochiladi. Baribir o’tkazilsinmi?',
+                'Ha, o’tkazilsin', false);
+              if (!ok) return;
+            }
+            var rec = collect(); if (!rec) return;
+            UI.busy(btn, async function () {
+              await persist(rec);
+              c(true);
+              convertLead(rec, App);
+            });
+          }
+        } : null
       ]
     });
-    void m;
   }
 
+  /* Murojaatni o'quvchiga aylantirish — shu sahifadan chiqmasdan:
+     o'quvchi kartasi → (tanlansa) guruhga yozish → to'lov. Tugagach
+     Murojaatlar ro'yxatiga qaytiladi.                                    */
   async function convertLead(lead, App) {
-    // murojaatni o'quvchiga aylantirish
     App.guard('student.edit');
+    var parts = String(lead.name || '').trim().split(/\s+/);
     A.studentForm({
-      firstName: (lead.name || '').split(' ')[1] || lead.name,
-      lastName: (lead.name || '').split(' ')[0] || '',
+      firstName: parts.length > 1 ? parts.slice(1).join(' ') : (parts[0] || ''),
+      lastName: parts.length > 1 ? parts[0] : '',
       phone: lead.phone,
-      parentName: '', parentPhone: lead.phone,
+      parentName: '', parentPhone: '',
       region: lead.region || '', district: lead.district || '',
-      note: 'Murojaatdan: ' + (lead.source || '') + (lead.note ? ' · ' + lead.note : ''),
+      note: 'Murojaatdan: ' + (lead.source || '') +
+        ((lead.metaAnswers || []).length ? ' · ' + lead.metaAnswers.map(function (x) { return (x.q ? x.q + ': ' : '') + x.a; }).join(' · ') : '') +
+        (lead.note ? ' · ' + lead.note : ''),
       _fromLead: lead,
-      _courseId: lead.courseId
+      _courseId: lead.courseId,
+      _groupId: lead.groupId,
+      _stay: true
     }, App);
+  }
+
+  /* O'quvchini o'chirish. To'lovi bor o'quvchi o'chirilmaydi (moliya
+     hisobotlari buzilmasin) — uni arxivlash taklif qilinadi. To'lovsiz
+     bo'lsa: a'zoliklari va to'lanmagan hisoblari bilan birga o'chadi;
+     murojaatdan kelgan bo'lsa, murojaat avvalgi holatiga qaytadi.        */
+  async function deleteStudent(s, App) {
+    var name = s.lastName + ' ' + s.firstName;
+    var pays = D.all('payments').filter(function (p) { return p.studentId === s.id && !p.voided; });
+    if (pays.length) {
+      var arch = await UI.confirm('O’chirib bo’lmaydi',
+        name + ' bo’yicha ' + pays.length + ' ta to’lov bor. Moliya hisobotlari buzilmasligi uchun bunday o’quvchi o’chirilmaydi. Uning o’rniga arxivlaymizmi? (ro’yxatlarda ko’rinmaydi, tarix saqlanadi)',
+        'Arxivlash', false);
+      if (!arch) return;
+      await D.save('students', Object.assign({}, s, { status: 'arxiv' }));
+      Q.membershipsOf(s.id).filter(function (m) { return m.status === 'faol'; }).forEach(function (m) {
+        D.save('memberships', Object.assign({}, m, { status: 'chiqgan', leftAt: A.today() }));
+      });
+      await A.Ops.audit(App.user, 'O’quvchi arxivlandi', name, '');
+      UI.toast('Arxivlandi.', 'ok'); App.go('students');
+      return;
+    }
+    var ok = await UI.confirm('O’quvchini o’chirish',
+      name + ' butunlay o’chiriladi: guruhlardagi a’zoligi, to’lanmagan hisoblari va kabinetga kirish huquqi ham. Bu amalni qaytarib bo’lmaydi.',
+      'O’chirish', true);
+    if (!ok) return;
+    var mems = D.all('memberships').filter(function (m) { return m.studentId === s.id; });
+    var invs = D.all('invoices').filter(function (i) { return i.studentId === s.id; });
+    for (var i = 0; i < invs.length; i++) { try { await D.remove('invoices', invs[i].id); } catch (e) { } }
+    for (var j = 0; j < mems.length; j++) { try { await D.remove('memberships', mems[j].id); } catch (e) { } }
+    D.all('leads').filter(function (l) { return l.studentId === s.id; }).forEach(function (l) {
+      var back = Object.assign({}, l, { stage: l.prevStage || 'qiziqdi', studentId: '' });
+      delete back.prevStage;
+      D.save('leads', back);
+    });
+    await D.remove('students', s.id);
+    await A.Ops.audit(App.user, 'O’quvchi o’chirildi', name, mems.length + ' a’zolik, ' + invs.length + ' hisob');
+    UI.toast(name + ' o’chirildi.', 'ok');
+    App.go('students');
   }
 
   /* ================= O'QUVCHILAR ================= */
@@ -1272,7 +1500,10 @@
         }, [UI.icon('person'), 'Login / parol']) : null,
         // Asosiy amallar pastdagi tezkor kartada — bu yerda faqat tahrirlash
         App.can('student.edit') ? h('button', { class: 'btn', onclick: function () { A.studentForm(s, App); } },
-          [UI.icon('edit'), 'Tahrirlash']) : null
+          [UI.icon('edit'), 'Tahrirlash']) : null,
+        (App.can('student.edit') && ['direktor', 'admin'].indexOf(App.user.role) >= 0) ? h('button', {
+          class: 'btn danger', onclick: function () { deleteStudent(s, App); }
+        }, 'O’chirish') : null
       ]));
 
     /* --- Tezkor karta: eng kerakli ma'lumot va uchta amal --- */
@@ -1526,7 +1757,7 @@
     var fromLead = student && student._fromLead;
     var draft = student || {};
     var f = UI.form([
-      { name: 'lastName', label: 'Familiya', required: true, value: draft.lastName },
+      { name: 'lastName', label: fromLead ? 'Familiya (ixtiyoriy)' : 'Familiya', required: !fromLead, value: draft.lastName },
       { name: 'firstName', label: 'Ism', required: true, value: draft.firstName },
       {
         name: 'phone', label: 'Telefon', required: true, value: draft.phone, placeholder: '+998 90 123 45 67',
@@ -1586,7 +1817,7 @@
         }));
       groupPick = UI.field({ label: 'Darhol guruhga yozish', type: 'select', options: opts, full: true });
       if (draft._groupId) groupPick.input.value = draft._groupId;
-      if (draft._courseId) {
+      if (draft._courseId && !draft._groupId) {
         var cand = D.all('groups').filter(function (g) { return g.courseId === draft._courseId && g.status !== 'yakunlangan'; })[0];
         if (cand) groupPick.input.value = cand.id;
       }
@@ -1628,14 +1859,17 @@
                 code: String(v.code || '').replace(/\D/g, '')
               });
               if (!rec.code) delete rec.code;
-              delete rec._fromLead; delete rec._courseId; delete rec._groupId;
+              delete rec._fromLead; delete rec._courseId; delete rec._groupId; delete rec._stay;
               if (isNew) { rec.id = A.uid('stu'); rec.createdAt = A.nowStamp(); }
               await D.save('students', rec);
               await A.Ops.audit(App.user, isNew ? 'O’quvchi qo’shildi' : 'O’quvchi tahrirlandi', rec.lastName + ' ' + rec.firstName, '');
               if (fromLead) {
-                fromLead.stage = 'oquvchi';
-                fromLead.studentId = rec.id;
-                await D.save('leads', fromLead);
+                /* Voronkadagi «yutuq» bosqichi (odatda «O'quvchi bo'ldi») — Meta'ga ham shu ketadi */
+                var lf = D.one('funnels', fromLead.funnelId) || A.DEFAULT_FUNNELS.filter(function (x) { return x.id === fromLead.funnelId; })[0];
+                var wonSt = lf ? A.funnelStages(lf).filter(function (x) { return x.type === 'won'; })[0] : null;
+                var fresh = D.one('leads', fromLead.id) || fromLead;
+                fresh = Object.assign({}, fresh, { prevStage: fresh.stage, stage: wonSt ? wonSt.id : 'oquvchi', studentId: rec.id });
+                await D.save('leads', fresh);
               }
               var gid = groupPick && groupPick.input.value;
               c();
@@ -1644,8 +1878,12 @@
               if (isNew && D.mode === 'server') {
                 try { A.kabCreds(D.one('students', rec.id) || rec, { isNew: true }); } catch (e) { }
               }
+              var stay = !!(draft && draft._stay);
               if (gid) {
-                A.membershipForm(rec, { groupId: gid, joinedAt: rec.joinDate }, App);
+                A.membershipForm(rec, { groupId: gid, joinedAt: rec.joinDate }, App, stay ? { stay: true } : null);
+              } else if (stay) {
+                App.render();
+                UI.toast((rec.firstName || '') + ' o’quvchilar ro’yxatiga qo’shildi.', 'ok');
               } else {
                 App.go('student', { id: rec.id });
               }
