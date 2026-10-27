@@ -111,7 +111,7 @@ const sent = [], calls = [];
 
   console.log('\n3c. Sinov darsi: 1 soat oldin va darsdan keyin');
   for (const m of (await store.list('botout/')).map(x => x.data)) await store.del('botout/' + m.id);
-  await store.set('groups/g1', { id: 'g1', name: 'A0 ayollar', zoomLink: 'https://zoom.us/j/1' });
+  await store.set('groups/g1', { id: 'g1', name: 'A0 ayollar', zoomLink: 'https://zoom.us/j/1', tgInvite: 'https://t.me/+abc' });
   const TL = { id: 'T1', funnelId: 'f1', name: 'Sinovchi', phone: '+998901111111', stage: 'sinov', groupId: 'g1', trialDate: '2026-10-28', trialTime: '18:00', createdAt: stamp() };
   await store.set('leads/T1', TL); B.trackTrial(TL);
   const t18 = Date.parse('2026-10-28T13:00:00Z');                  // 18:00 Toshkent
@@ -119,7 +119,7 @@ const sent = [], calls = [];
   ok('2 soat oldin — hali hech narsa', t.sent === 0);
   t = await B.trialTick(t18 - 50 * 60e3);
   out = (await store.list('botout/')).map(x => x.data);
-  ok('1 soat ichida — «mijozga eslatma yuboring» (Zoom havolasi bilan)', t.sent >= 1 && /1 soatdan keyin sinov/.test(out[0].text) && /zoom\.us/.test(out[0].text), JSON.stringify(t));
+  ok('1 soat ichida — «mijozga eslatma yuboring» (Telegram guruh havolasi, Zoom emas)', t.sent >= 1 && /1 soatdan keyin sinov/.test(out[0].text) && /t\.me\/\+abc/.test(out[0].text) && !/zoom/.test(out[0].text), JSON.stringify(t));
   t = await B.trialTick(t18 - 40 * 60e3);
   ok('Takrorlanmaydi', t.sent === 0);
   for (const m of out) await store.del('botout/' + m.id);

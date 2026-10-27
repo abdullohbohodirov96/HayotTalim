@@ -3008,6 +3008,15 @@ async function handleApi(req, res, url) {
 
   if (route === 'me') return send(res, 200, { user: safeUser(user) });
 
+  /* --- Guruhning Telegram taklif havolasi (sinov xabari uchun) --- */
+  if (route === 'group-invite') {
+    if (!(A.can(user, 'lead.edit') || A.can(user, 'group.view'))) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    const gid = String(url.searchParams.get('id') || '');
+    let link = '';
+    try { link = await require('./bot').ensureGroupInvite(gid); } catch (e) { }
+    return send(res, 200, { link });
+  }
+
   /* --- Meta Conversions API (CRM) holati: sozlanganmi, nechta ketdi, xato bormi --- */
   if (route === 'meta-capi') {
     if (['direktor', 'admin'].indexOf(user.role) < 0) return send(res, 403, { error: 'Ruxsat yo’q.' });

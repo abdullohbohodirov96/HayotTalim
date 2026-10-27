@@ -658,8 +658,8 @@ async function trialTick(nowMs) {
     if (wantPre) {
       t.pre = true; lead.trialPreAt = stamp();
       text = '⏰ <b>1 soatdan keyin sinov darsi (soat ' + when + ')</b>\n\n' + leadInfoText(lead) +
-        (g ? '\n🎓 Guruh: ' + esc(g.name || '') + (g.zoomLink ? '\n💻 ' + esc(g.zoomLink) : '') : '') +
-        '\n\nMijozga eslatma yuboring: «1 soatdan keyin darsimiz boshlanadi' + (g && g.zoomLink ? ', havola: ' + esc(g.zoomLink) : '') + '. Kutib qolamiz!»';
+        (g ? '\n🎓 Guruh: ' + esc(g.name || '') + (g.tgInvite ? '\n👥 ' + esc(g.tgInvite) : '') : '') +
+        '\n\nMijozga eslatma yuboring: «1 soatdan keyin darsimiz boshlanadi' + (g && g.tgInvite ? '. Telegram guruhimiz: ' + esc(g.tgInvite) : '') + '. Kutib qolamiz!»';
     } else {
       trials.delete(id); lead.trialPostAt = stamp();
       lead.nextContact = tashkentNow(now).date;
@@ -1081,12 +1081,32 @@ async function linkGroupChat(chatId, title, token) {
   if (!g) { await sendMessage(chatId, 'Guruh topilmadi.'); return null; }
   const already = String(g.tgChat || '') === String(chatId);
   const rec = Object.assign({}, g, { tgChat: String(chatId), tgTitle: String(title || ''), tgAt: stamp() });
+  if (!already) delete rec.tgInvite;
   await store.set('groups/' + g.id, rec);
+  ensureGroupInvite(g.id).catch(() => { });
   await sendMessage(chatId,
     (already ? '✅ Bog’lanish yangilandi' : '✅ Ulandim!') + '\n\n' +
     'Bu guruh <b>' + esc(g.name || g.id) + '</b> guruhiga bog’landi.\n' +
     'Endi shu yerga e’lon, dars va to’lov xabarlarini yubora olaman.');
   return rec;
+}
+
+/** Telegram guruhining doimiy taklif havolasi (sinovga yozilganlarga yuborish uchun).
+    Bot guruhda admin bo'lishi kerak; bo'lmasa — bo'sh qaytadi. */
+async function ensureGroupInvite(groupId) {
+  const g = await store.get('groups/' + groupId);
+  if (!g || !g.tgChat) return '';
+  if (g.tgInvite) return g.tgInvite;
+  try {
+    const r = await quizApi('createChatInviteLink', { chat_id: g.tgChat, name: 'Sabo — sinov va yangi o‘quvchilar' });
+    if (r && r.invite_link) {
+      const fresh = (await store.get('groups/' + groupId)) || g;
+      fresh.tgInvite = r.invite_link;
+      await store.set('groups/' + groupId, fresh);
+      return r.invite_link;
+    }
+  } catch (e) { /* admin emas */ }
+  return '';
 }
 
 /** Guruhdan kelgan xabar/hodisa */
@@ -2305,4 +2325,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

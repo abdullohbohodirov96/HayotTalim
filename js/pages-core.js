@@ -898,6 +898,7 @@
       var nl = groupNextLesson(g);
       return nl ? { date: nl.date, time: nl.time, end: nl.end, auto: true, g: g } : { g: g };
     }
+    var invCache = {};
     function paintTrial() {
       trialBox.hidden = !isTrialStage(curFunnel, stage);
       UI.clear(trialMsg);
@@ -914,8 +915,16 @@
           h('b', {}, wd + ', ' + A.dateLabel(d) + ', ' + tm + (et.end ? '–' + et.end : '')), ' — shu kuni eslatiladi.']));
       }
       var nm = (f.get('name').input.value || '').split(/\s+/)[0];
+      /* Zoom havolasi yuborilmaydi; guruh Telegramga ulangan bo'lsa — guruh havolasi */
+      var inv = g && (g.tgInvite || invCache[g.id]);
+      if (g && g.tgChat && !inv && invCache[g.id] === undefined && D.mode === 'server') {
+        invCache[g.id] = '';
+        fetch('/api/group-invite?id=' + encodeURIComponent(g.id), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { if (j && j.link) { invCache[g.id] = j.link; paintTrial(); } }).catch(function () { });
+      }
       var txt = nm + ', sizni bepul sinov darsiga yozib qo’ydim ✅\n📅 ' + A.dateLabel(d) + (tm ? ', soat ' + tm : '') +
-        (g && g.zoomLink ? '\n💻 Zoom havolasi: ' + g.zoomLink : '') + '\nDars oldidan yana eslatib qo’yaman. Savol bo’lsa, shu yerga yozing.';
+        (inv ? '\n👥 Telegram guruhimiz havolasi: ' + inv : '') + '\nDars oldidan yana eslatib qo’yaman. Savol bo’lsa, shu yerga yozing.';
       trialMsg.appendChild(h('div', { class: 'trial-copy' }, [
         h('pre', {}, txt),
         h('button', { class: 'btn sm', type: 'button', onclick: function () { UI.copy(txt); } }, [UI.icon('link'), 'Xabarni nusxalash'])
