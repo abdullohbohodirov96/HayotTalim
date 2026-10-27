@@ -715,6 +715,22 @@
   }
   /** Sinov darsi o'tdimi (boshlanish + 90 daqiqa) */
   function trialDone(l) { var t = trialAt(l); return !!t && Date.now() >= t + 90 * 60000; }
+  /** Guruh jadvalidan keyingi dars (Toshkent vaqti): {date, time, end} yoki null.
+      g.days: 1 = dushanba … 7 = yakshanba. Bugungi dars hali boshlanmagan bo'lsa — bugun. */
+  function groupNextLesson(g, fromMs) {
+    if (!g || !(g.days || []).length || !g.startTime) return null;
+    var now = fromMs || Date.now();
+    for (var off = 0; off < 15; off++) {
+      var d = new Date(now + 5 * 3600000 + off * 86400000);
+      var iso = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
+      if (g.days.indexOf(iso) < 0) continue;
+      var date = d.toISOString().slice(0, 10);
+      var t = Date.parse(date + 'T' + g.startTime + ':00+05:00');
+      if (t > now) return { date: date, time: g.startTime, end: g.endTime || '' };
+    }
+    return null;
+  }
+  A.groupNextLesson = groupNextLesson;
   function trialLabel(l) {
     return l.trialDate ? A.dateLabel(String(l.trialDate).slice(0, 10)) + (l.trialTime ? ', ' + l.trialTime : '') : '';
   }
@@ -847,23 +863,40 @@
        darsga bepul kiradi; dars tugagach menejerga qayta aloqa eslatmasi
        keladi, to'lov qilsa — shundan keyin o'quvchiga o'tkaziladi. */
     var ft = UI.form([
-      { name: 'trialDate', label: 'Sinov darsi kuni', type: 'date', value: lead.trialDate ? String(lead.trialDate).slice(0, 10) : '' },
-      { name: 'trialTime', label: 'Soati', type: 'time', value: lead.trialTime || '' }
+      { name: 'trialDate', label: 'Sinov darsi kuni (ixtiyoriy)', type: 'date', value: (lead.trialDate && !lead.trialAuto) ? String(lead.trialDate).slice(0, 10) : '' },
+      { name: 'trialTime', label: 'Soati', type: 'time', value: (lead.trialTime && !lead.trialAuto) ? lead.trialTime : '' }
     ]);
     var trialMsg = h('div', { class: 'trial-msg' });
     var trialBox = h('div', { class: 'lead-trial' }, [
       h('div', { class: 'lead-lbl' }, 'Bepul sinov darsi'),
       ft.node, trialMsg,
       h('p', { class: 'small muted', style: 'margin:0' },
-        'O’quvchi hisobi ochilmaydi. Darsdan 1 soat oldin va dars tugagach menejerga Telegram’da eslatma keladi.')
+        'Kunni bilmasangiz — bo’sh qoldiring va faqat guruhni tanlang: sinov guruhning keyingi darsiga belgilanadi. O’quvchi hisobi ochilmaydi. Darsdan 1 soat oldin va dars tugagach menejerga Telegram’da eslatma keladi.')
     ]);
-    function paintTrial() {
-      trialBox.hidden = !isTrialStage(curFunnel, stage);
-      UI.clear(trialMsg);
+    /* Sinov vaqti: qo'lda kiritilgan bo'lsa — o'sha; bo'lmasa tanlangan guruhning keyingi darsi */
+    function effTrial() {
       var d = ft.get('trialDate').input.value, tm = ft.get('trialTime').input.value;
       var gid = f.get('groupId') ? f.get('groupId').input.value : '';
       var g = gid ? D.one('groups', gid) : null;
-      if (!d) return;
+      if (d) return { date: d, time: tm || (g && g.startTime) || '', end: '', auto: false, g: g };
+      var nl = groupNextLesson(g);
+      return nl ? { date: nl.date, time: nl.time, end: nl.end, auto: true, g: g } : { g: g };
+    }
+    function paintTrial() {
+      trialBox.hidden = !isTrialStage(curFunnel, stage);
+      UI.clear(trialMsg);
+      var et = effTrial(), g = et.g, d = et.date, tm = et.time;
+      if (!d) {
+        trialMsg.appendChild(h('div', { class: 'small muted' }, g
+          ? 'Bu guruhning dars kunlari belgilanmagan — sinov kunini qo’lda kiriting.'
+          : 'Guruh yoki sinov kunini tanlang — shunda eslatmalar o’z vaqtida keladi.'));
+        return;
+      }
+      if (et.auto) {
+        var wd = A.WEEKDAYS[(new Date(Date.parse(d + 'T12:00:00Z')).getUTCDay() + 6) % 7] || '';
+        trialMsg.appendChild(h('div', { class: 'trial-auto' }, ['📅 Guruh jadvali bo’yicha keyingi dars: ',
+          h('b', {}, wd + ', ' + A.dateLabel(d) + ', ' + tm + (et.end ? '–' + et.end : '')), ' — shu kuni eslatiladi.']));
+      }
       var nm = (f.get('name').input.value || '').split(/\s+/)[0];
       var txt = nm + ', sizni bepul sinov darsiga yozib qo’ydim ✅\n📅 ' + A.dateLabel(d) + (tm ? ', soat ' + tm : '') +
         (g && g.zoomLink ? '\n💻 Zoom havolasi: ' + g.zoomLink : '') + '\nDars oldidan yana eslatib qo’yaman. Savol bo’lsa, shu yerga yozing.';
@@ -955,8 +988,8 @@
       if (movedFromNote) v.metaAnswers = answers;
       var tv = ft.values();
       if (isTrialStage(curFunnel, stage)) {
-        if (!tv.trialDate) { UI.toast('Sinov darsi kunini belgilang.', 'warn'); ft.get('trialDate').input.focus(); return null; }
-        v.trialDate = tv.trialDate; v.trialTime = tv.trialTime || '';
+        var et = effTrial();
+        v.trialDate = et.date || ''; v.trialTime = et.time || ''; v.trialEnd = et.end || ''; v.trialAuto = !!et.auto;
         /* Sana o'zgarsa eslatmalar qaytadan ishlaydi */
         if (v.trialDate !== String(lead.trialDate || '').slice(0, 10) || v.trialTime !== (lead.trialTime || '')) {
           v.trialPreAt = ''; v.trialPostAt = '';

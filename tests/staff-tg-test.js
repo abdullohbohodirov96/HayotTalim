@@ -133,6 +133,15 @@ const sent = [], calls = [];
   ok('Darsdan keyingi xabar bir marta', t.sent === 0);
   for (const m of out) await store.del('botout/' + m.id);
   await store.del('leads/T1');
+  /* Guruh jadvalidan: 18:00–19:00 dars — eslatma 19:10 da (90 daqiqa emas) */
+  const T2 = { id: 'T2', funnelId: 'f1', name: 'Guruhdan', phone: '+998902222222', stage: 'sinov', groupId: 'g1', trialDate: '2026-10-28', trialTime: '18:00', trialEnd: '19:00', trialAuto: true, trialPreAt: 'x', createdAt: stamp() };
+  await store.set('leads/T2', T2); B.trackTrial(T2);
+  t = await B.trialTick(t18 + 65 * 60e3);
+  ok('Guruh jadvali: dars tugashidan 10 daqiqa o‘tib eslatma (19:05 — hali yo‘q)', t.sent === 0);
+  t = await B.trialTick(t18 + 71 * 60e3);
+  ok('19:11 — «Sinov darsi tugadi»', t.sent >= 1, JSON.stringify(t));
+  for (const m of (await store.list('botout/')).map(x => x.data)) await store.del('botout/' + m.id);
+  await store.del('leads/T2');
 
   console.log('\n4. «✅ Bog‘landim»');
   await B.onCallback({ id: 'cq1', data: 'lc:L1', from: { id: 1003, first_name: 'V' }, message: { message_id: 5, chat: { id: 1003 } } });

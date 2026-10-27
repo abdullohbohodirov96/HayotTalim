@@ -193,6 +193,20 @@
       ]));
 
     view.appendChild(tgGroupCard(g, App));
+    /* Shu guruhga sinov darsiga keladiganlar (murojaatlardan, o'quvchi hisobi yo'q) */
+    (function () {
+      var today = A.today();
+      var tl = D.all('leads').filter(function (l) {
+        return l.groupId === g.id && !l.studentId && l.trialDate && String(l.trialDate).slice(0, 10) >= today &&
+          A.stageOf(D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0], l.stage).type !== 'lost';
+      }).sort(function (a, b) { return String(a.trialDate + a.trialTime).localeCompare(String(b.trialDate + b.trialTime)); });
+      if (!tl.length) return;
+      view.appendChild(UI.card('Sinov darsiga keladiganlar — ' + tl.length + ' ta', UI.table([
+        { label: 'Ism', render: function (l) { return h('b', {}, l.name || '—'); } },
+        { label: 'Telefon', render: function (l) { return UI.phoneLink(l.phone); } },
+        { label: 'Sinov', render: function (l) { return A.dateLabel(String(l.trialDate).slice(0, 10)) + (l.trialTime ? ', ' + l.trialTime : ''); } }
+      ], tl, { onRow: function (l) { if (A.leadForm && App.can('lead.edit')) A.leadForm(l, App); } }), null, null, true));
+    })();
     /* Guruh kodi: o'quvchi botga yozsa — raqami tasdiqlanib darhol ulanadi */
     if (g.joinCode && (App.can('group.edit') || App.can('attendance.mark'))) {
       var jcB = h('b', { class: 'jc-code' }, g.joinCode);

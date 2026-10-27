@@ -623,7 +623,7 @@ function trackTrial(l) {
   if (!l || !l.id) return;
   const at = trialMs(l);
   if (!at || l.studentId || l.trialPostAt) { trials.delete(String(l.id)); return; }
-  trials.set(String(l.id), { at, pre: !!l.trialPreAt });
+  trials.set(String(l.id), { at, pre: !!l.trialPreAt, end: /^\d{2}:\d{2}$/.test(l.trialEnd || '') ? l.trialEnd : '' });
 }
 async function loadTrials() {
   trialsLoaded = true;
@@ -641,7 +641,10 @@ async function trialTick(nowMs) {
   let sent = 0;
   for (const [id, t] of Array.from(trials.entries())) {
     const wantPre = !t.pre && now >= t.at - 60 * 60e3 && now < t.at;
-    const wantPost = now >= t.at + len && mins >= from && mins < to + 120;   // kechki dars tugasa ham shu kecha (21:00 gacha)
+    /* Dars davomiyligi: guruh jadvalidan olingan bo'lsa — tugash vaqti, aks holda 90 daqiqa */
+    const endAt = t.end ? Date.parse(new Date(t.at + 5 * 3600e3).toISOString().slice(0, 10) + 'T' + t.end + ':00+05:00') : 0;
+    const doneAt = endAt && endAt > t.at ? endAt + 10 * 60e3 : t.at + len;
+    const wantPost = now >= doneAt && mins >= from && mins < to + 120;   // kechki dars tugasa ham shu kecha (21:00 gacha)
     if (!wantPre && !wantPost) {
       if (!t.pre && now >= t.at) t.pre = true;                                // o'tib ketgan «oldin» eslatmasi yuborilmaydi
       continue;
