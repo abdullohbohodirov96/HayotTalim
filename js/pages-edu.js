@@ -61,7 +61,10 @@
     var grid = h('div', { class: 'grid cols-3' });
     list.forEach(function (g) {
       var members = Q.membersOf(g.id);
+      /* Sinov darsiga yozilganlar ham joy egallaydi — sariq rangda */
+      var trials = A.trialLeadsOf ? A.trialLeadsOf(g.id) : [];
       var fill = g.limit ? Math.min(100, Math.round(members.length / g.limit * 100)) : 0;
+      var tfill = g.limit ? Math.min(100 - fill, Math.round(trials.length / g.limit * 100)) : 0;
       /* Qarz bitta o'tishda tayyorlangan xaritadan olinadi */
       var debt = App.can('finance.debts') ? Q.groupDebt(g.id) : 0;
       grid.appendChild(h('button', {
@@ -79,9 +82,13 @@
         h('div', { class: 'small muted' }, Q.courseName(g.courseId) + ' · ' + Q.staffName(g.teacherId)),
         h('div', { class: 'small' }, (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join(', ') +
           ' · ' + g.startTime + '–' + g.endTime + ' · ' + Q.roomName(g.roomId)),
-        h('div', { class: 'bar' + (fill > 90 ? ' warn' : '') }, h('i', { style: 'width:' + fill + '%' })),
+        h('div', { class: 'bar gbar' + (fill + tfill > 90 ? ' full' : '') }, [
+          h('i', { style: 'width:' + fill + '%' }),
+          tfill ? h('i', { class: 'trial', style: 'width:' + tfill + '%' }) : null
+        ]),
         h('div', { class: 'rowflex small', style: 'justify-content:space-between' }, [
-          h('span', {}, members.length + (g.limit ? ' / ' + g.limit : '') + ' o’quvchi'),
+          h('span', {}, [members.length + (g.limit ? ' / ' + g.limit : '') + ' o’quvchi',
+            trials.length ? h('span', { class: 'gtrial' }, ' + ' + trials.length + ' sinov') : null]),
           h('span', { class: 'mono' }, A.som(A.feeForMonth(g, A.thisMonth())) + ' so’m/oy')
         ]),
         debt > 0 ? UI.pill('Qarzdorlik ' + A.som(debt), 'warn') : null

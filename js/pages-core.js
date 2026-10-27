@@ -618,7 +618,7 @@
             (A.stageOf(funnel, l.stage).type !== 'won' && !l.studentId && isTrialStage(funnel, l.stage) && !trialDone(l)) ? h('button', {
               class: 'btn sm trial-btn', title: 'Sinov darsi o’tgach o’quvchiga o’tkaziladi',
               onclick: function (e) { e.stopPropagation(); leadForm(l, App); }
-            }, l.trialDate ? '📅 Sinov: ' + trialLabel(l) : '📅 Sinov vaqtini belgilang')
+            }, l.trialDate ? '📅 Sinov: ' + trialLabel(l) : '📅 Guruhni tanlang')
             : (A.stageOf(funnel, l.stage).type !== 'won' && !l.studentId) ? h('button', {
               class: 'btn sm primary', onclick: function (e) { e.stopPropagation(); convertLead(l, App); }
             }, 'O’quvchiga') : null,
@@ -720,6 +720,8 @@
   function groupNextLesson(g, fromMs) {
     if (!g || !(g.days || []).length || !g.startTime) return null;
     var now = fromMs || Date.now();
+    /* Rejalashtirilgan guruh: darslar boshlanish sanasidan */
+    if (g.startDate) { var sd = Date.parse(String(g.startDate).slice(0, 10) + 'T00:00:00+05:00'); if (!isNaN(sd) && sd > now) now = sd - 1; }
     for (var off = 0; off < 15; off++) {
       var d = new Date(now + 5 * 3600000 + off * 86400000);
       var iso = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
@@ -731,6 +733,14 @@
     return null;
   }
   A.groupNextLesson = groupNextLesson;
+  /** Guruhga sinov darsiga yozilgan murojaatlar (hali o'quvchi emas, rad etilmagan) */
+  A.trialLeadsOf = function (groupId) {
+    return D.all('leads').filter(function (l) {
+      if (l.groupId !== groupId || l.studentId) return false;
+      var fn = D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS.filter(function (x) { return x.id === l.funnelId; })[0] || A.DEFAULT_FUNNELS[0];
+      return isTrialStage(fn, l.stage);
+    });
+  };
   function trialLabel(l) {
     return l.trialDate ? A.dateLabel(String(l.trialDate).slice(0, 10)) + (l.trialTime ? ', ' + l.trialTime : '') : '';
   }
@@ -796,9 +806,20 @@
       { name: 'nextContact', label: 'Keyingi bog’lanish', type: 'date', value: lead.nextContact },
       {
         /* Qaysi guruhga yozilmoqchi — o'quvchiga o'tkazganda shu guruh o'zi tanlanadi */
-        name: 'groupId', label: 'Guruh', type: 'select', value: lead.groupId,
-        options: [{ value: '', label: '— tanlanmagan —' }].concat(D.all('groups').filter(function (g) { return g.status !== 'yakunlangan'; })
-          .map(function (g) { return { value: g.id, label: g.name }; }))
+        name: 'groupId', label: 'Guruh (sinov darsi shu guruhda)', type: 'select', value: lead.groupId,
+        options: [{ value: '', label: '— tanlanmagan —' }].concat(D.all('groups').filter(function (g) {
+          return g.id === lead.groupId || g.status === 'rejalashtirilgan' || g.status === 'faol';
+        }).map(function (g) {
+          var n = Q.membersOf(g.id).length + A.trialLeadsOf(g.id).filter(function (x) { return x.id !== lead.id; }).length,
+            lim = Number(g.limit) || 0, full = lim && n >= lim && g.id !== lead.groupId;
+          var days = (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join('/');
+          return {
+            value: g.id, disabled: !!full,
+            label: g.name + (days ? ' · ' + days + ' ' + (g.startTime || '') : '') +
+              (g.status === 'rejalashtirilgan' && g.startDate ? ' · ' + A.dateLabel(String(g.startDate).slice(0, 10)) + 'dan' : '') +
+              (lim ? ' · ' + (full ? 'to’la' : (lim - n) + ' joy') : '')
+          };
+        }))
       },
       {
         /* Mas'ul — ERP hisobi bor xodimlar: menejer, administrator, direktor. */
@@ -862,23 +883,18 @@
        Sinovga yozilgan odamga o'quvchi hisobi OCHILMAYDI: u birinchi
        darsga bepul kiradi; dars tugagach menejerga qayta aloqa eslatmasi
        keladi, to'lov qilsa — shundan keyin o'quvchiga o'tkaziladi. */
-    var ft = UI.form([
-      { name: 'trialDate', label: 'Sinov darsi kuni (ixtiyoriy)', type: 'date', value: (lead.trialDate && !lead.trialAuto) ? String(lead.trialDate).slice(0, 10) : '' },
-      { name: 'trialTime', label: 'Soati', type: 'time', value: (lead.trialTime && !lead.trialAuto) ? lead.trialTime : '' }
-    ]);
+    /* Sinov darsi = tanlangan guruhning keyingi darsi (kun va soat guruh jadvalidan) */
     var trialMsg = h('div', { class: 'trial-msg' });
     var trialBox = h('div', { class: 'lead-trial' }, [
       h('div', { class: 'lead-lbl' }, 'Bepul sinov darsi'),
-      ft.node, trialMsg,
+      trialMsg,
       h('p', { class: 'small muted', style: 'margin:0' },
-        'Kunni bilmasangiz — bo’sh qoldiring va faqat guruhni tanlang: sinov guruhning keyingi darsiga belgilanadi. O’quvchi hisobi ochilmaydi. Darsdan 1 soat oldin va dars tugagach menejerga Telegram’da eslatma keladi.')
+        'O’quvchi hisobi ochilmaydi. Darsdan 1 soat oldin va dars tugagach menejerga Telegram’da eslatma keladi — darsdan keyin yana qo’ng’iroq qilasiz.')
     ]);
     /* Sinov vaqti: qo'lda kiritilgan bo'lsa — o'sha; bo'lmasa tanlangan guruhning keyingi darsi */
     function effTrial() {
-      var d = ft.get('trialDate').input.value, tm = ft.get('trialTime').input.value;
       var gid = f.get('groupId') ? f.get('groupId').input.value : '';
       var g = gid ? D.one('groups', gid) : null;
-      if (d) return { date: d, time: tm || (g && g.startTime) || '', end: '', auto: false, g: g };
       var nl = groupNextLesson(g);
       return nl ? { date: nl.date, time: nl.time, end: nl.end, auto: true, g: g } : { g: g };
     }
@@ -888,8 +904,8 @@
       var et = effTrial(), g = et.g, d = et.date, tm = et.time;
       if (!d) {
         trialMsg.appendChild(h('div', { class: 'small muted' }, g
-          ? 'Bu guruhning dars kunlari belgilanmagan — sinov kunini qo’lda kiriting.'
-          : 'Guruh yoki sinov kunini tanlang — shunda eslatmalar o’z vaqtida keladi.'));
+          ? 'Bu guruhning dars kunlari yoki vaqti belgilanmagan — Guruhlar bo’limida jadvalini kiriting.'
+          : '👇 Pastda guruhni tanlang — sinov darsi shu guruhning keyingi darsiga qo’yiladi.'));
         return;
       }
       if (et.auto) {
@@ -905,8 +921,6 @@
         h('button', { class: 'btn sm', type: 'button', onclick: function () { UI.copy(txt); } }, [UI.icon('link'), 'Xabarni nusxalash'])
       ]));
     }
-    ft.get('trialDate').input.addEventListener('change', paintTrial);
-    ft.get('trialTime').input.addEventListener('change', paintTrial);
     if (f.get('groupId')) f.get('groupId').input.addEventListener('change', paintTrial);
 
     /* --- tepa qism: kim, raqam, qayerdan --- */
@@ -986,7 +1000,6 @@
       var g = v.groupId ? D.one('groups', v.groupId) : null;
       if (g && g.courseId) v.courseId = g.courseId;
       if (movedFromNote) v.metaAnswers = answers;
-      var tv = ft.values();
       if (isTrialStage(curFunnel, stage)) {
         var et = effTrial();
         v.trialDate = et.date || ''; v.trialTime = et.time || ''; v.trialEnd = et.end || ''; v.trialAuto = !!et.auto;

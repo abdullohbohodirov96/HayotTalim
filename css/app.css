@@ -4784,3 +4784,9 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .trial-copy .btn{align-self:flex-start}
 .lh-chip.trial{background:var(--warn-soft);color:var(--warn);border-color:transparent}
 .btn.trial-btn{background:var(--warn-soft);color:var(--warn);border-color:transparent;white-space:nowrap}
+/* Guruh to'lishi: o'quvchilar (yashil) + sinovga yozilganlar (sariq) */
+.bar.gbar{display:flex}
+.bar.gbar>i{flex:none;border-radius:0}
+.bar.gbar>i.trial{background:#e8b33a}
+.bar.gbar.full>i:not(.trial){background:var(--warn)}
+.gtrial{color:#b7791f;font-weight:700}

@@ -288,7 +288,7 @@
     if (o.type === 'select') {
       input = h('select', { id: id });
       (o.options || []).forEach(function (op) {
-        input.appendChild(h('option', { value: op.value }, op.label));
+        input.appendChild(h('option', { value: op.value, disabled: op.disabled ? true : null }, op.label));
       });
       if (o.value != null && String(o.value) !== '') input.value = String(o.value);
       // qiymat ro'yxatda bo'lmasa yoki berilmagan bo'lsa — birinchi variant tanlanadi
