@@ -355,7 +355,9 @@
   var AUDIO = {};      /* kalit → 1 (assets/a0/ar/<kalit>.mp3 bor) */
   var AUDIO_UZ = {};   /* nom → 1 (assets/a0/uz/<nom>.mp3 bor) */
   /** Matn → ovoz fayli (yoki null) */
-  function audioUrl(t) { var k = akey(t); return AUDIO[k] ? 'assets/a0/ar/' + k + '.mp3' : null; }
+  /* AV — ovozlar yangilanganda oshiriladi (brauzer keshidagi eski fayl qolmasin) */
+  var AV = '2';
+  function audioUrl(t) { var k = akey(t); return AUDIO[k] ? 'assets/a0/ar/' + k + '.mp3?v=' + AV : null; }
   function uzUrl(name) { return AUDIO_UZ[name] ? 'assets/a0/uz/' + name + '.mp3' : null; }
   /** Eski kabinet kodi bilan moslik */
   function audioKey(t) { var u = audioUrl(t); return u; }
