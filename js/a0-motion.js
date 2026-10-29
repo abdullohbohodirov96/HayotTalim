@@ -77,7 +77,7 @@
   var MARKS = [
     [/fatha/, 'ـَ', 'Fatha · «a»', 'بَ'], [/damma/, 'ـُ', 'Damma · «u»', 'بُ'], [/kasra/, 'ـِ', 'Kasra · «i»', 'بِ'],
     [/sukun/, 'ـْ', 'Sukun', 'بْ'], [/shadda/, 'ـّ', 'Shadda', 'بّ'], [/tanvin/, 'ـٌ', 'Tanvin · «n»', 'بٌ'],
-    [/toi marbuta/, 'ة', 'Toi marbuta', 'ة'], [/hamza/, 'ء', 'Hamza', 'ء'], [/alif maqsura/, 'ى', 'Alif maqsura', 'ى']
+    [/toi marbuta/, 'ـة', 'Toi marbuta', 'ـة'], [/hamza/, 'ء', 'Hamza', 'ء'], [/alif maqsura/, 'ى', 'Alif maqsura', 'ى']
   ];
 
   /** Gap → sahna turi */
@@ -175,7 +175,10 @@
       case 'mark':
         var mk = sc.mark, standalone = /[ةءى]/.test(mk[1]);
         box.appendChild(h('div', { class: 'mo-markw' }, standalone
-          ? [arEl(mk[1], 'mo-big mo-writein'), h('b', { class: 'mo-cap2' }, mk[2])]
+          ? (/ة/.test(mk[1])
+            /* Toi marbuta faqat so'z oxirida keladi — oxirgi shakli va so'z ichida ko'rsatamiz */
+            ? [h('div', { class: 'mo-row', dir: 'rtl' }, [arEl('ـة', 'mo-big mo-writein'), arEl('مَدْرَسَة', 'mo-big mo-writein')]), h('b', { class: 'mo-cap2' }, mk[2] + ' · so‘z oxirida')]
+            : [arEl(mk[1], 'mo-big mo-writein'), h('b', { class: 'mo-cap2' }, mk[2])])
           : [h('div', { class: 'mo-markstage' }, [arEl('ب', 'mo-base'), arEl(mk[3], 'mo-drop ' + (/ِ|ٍ/.test(mk[3]) ? 'down' : 'up'))]), h('b', { class: 'mo-cap2' }, mk[2])]));
         break;
       case 'heavy':

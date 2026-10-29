@@ -8,7 +8,7 @@
   var A = global.A;
   var UI = A.UI, h = UI.h, D = A.Data;
 
-  var NAV = [
+  var NAV_ALL = [
     { id: 'asosiy', label: 'Asosiy', icon: 'home', mob: true },
     { id: 'alifbo', label: 'A0 — o‘qish va yozish', short: 'A0', icon: 'edit' },
     { id: 'darslar', label: 'Darslarim', icon: 'play', mob: true },
@@ -21,6 +21,17 @@
     { id: 'savol', label: 'Savol-javob', icon: 'chat' },
     { id: 'profil', label: 'Profil', icon: 'person' }
   ];
+  var NAV = NAV_ALL;
+  /* A0 guruhidagi o'quvchi: A1 bo'limlari (darslar, vazifalar, lug'at) yashiriladi,
+     «Alifbo» esa asosiy bo'lim bo'ladi — telefonning pastki menyusida ham. */
+  function navFor(level) {
+    if (!(level && level.code === 'A0')) return NAV_ALL;
+    return NAV_ALL.filter(function (n) { return !/^(darslar|vazifalar|lugat)$/.test(n.id); }).map(function (n) {
+      if (n.id === 'alifbo') return { id: 'alifbo', label: 'Alifbo darslari', short: 'Alifbo', icon: 'play', mob: true };
+      if (n.id === 'reyting' || n.id === 'jadval') return Object.assign({}, n, { mob: true });
+      return n;
+    });
+  }
   var DAYS = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'];
   var DAYS_SHORT = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
   var MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
@@ -194,6 +205,8 @@
     var src = makeSource(d);
     if (A.Speak) A.Speak.loadMap();
     var st = d.student, fin = d.finance || {}, att = d.attendance || {};
+    var isA0 = !!(d.level && d.level.code === 'A0');
+    NAV = navFor(d.level);
     var groups = d.groups || [];
     var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
     var cache = {};
@@ -347,8 +360,8 @@
       var nx = upcoming(groups, 1)[0];
       var tiles = h('div', { class: 'sp-tiles' });
       el.appendChild(tiles);
-      var tLessons = tile('play', 'Darslar', '…', 'darslar');
-      var tHw = tile('task', 'Vazifalar', '…', 'vazifalar');
+      var tLessons = tile('play', isA0 ? 'Alifbo darslari' : 'Darslar', '…', isA0 ? 'alifbo' : 'darslar');
+      var tHw = tile('task', isA0 ? 'Uy vazifasi' : 'Vazifalar', '…', isA0 ? 'alifbo' : 'vazifalar');
       var tNext = tile('calendar', 'Keyingi dars', nx ? whenLabel(nx).split(' · ')[0] : '—', 'jadval', nx ? (nx.g.startTime || '') : 'jadval yo’q');
       var tPay = fin.debt > 0
         ? tile('wallet', 'To’lov', som(fin.debt), 'tolov', (fin.overdue > 0 ? 'qarz' : 'to’lov kuni') + (fin.next && fin.next.dueDate ? ' · ' + dateLabel(fin.next.dueDate) + (fin.overdue > 0 ? ' edi' : ' gacha') : ''), fin.overdue > 0 ? 'bad' : '')
@@ -384,6 +397,40 @@
           h('div', { class: 'gm-rank' }, [h('b', {}, t.me.rank + '-o’rin'), h('span', {}, t.me.count + ' o’quvchi orasida')])
         ]));
       }).catch(function () { ptsCard.remove(); });
+
+      if (isA0) { homeA0(); return; }
+      function homeA0() {
+        load('alif').then(function (v) {
+          var ls = v.lessons || [];
+          var curL = ls.filter(function (l) { return l.status === 'open'; })[0];
+          var pct = v.total ? Math.round(v.done * 100 / v.total) : 0;
+          tLessons.set(v.done + ' / ' + v.total, curL ? 'joriy: ' + curL.n + '-dars' : 'alifbo tugadi');
+          var hwNeed = ls.filter(function (l) { return l.status === 'open' && l.testOk && !(l.hw && l.hw.ok); });
+          tHw.set(String(hwNeed.length), hwNeed.length ? 'bajarish kerak' : 'hammasi bajarilgan', hwNeed.length ? 'warn' : '');
+          UI.clear(heroR);
+          heroR.appendChild(h('div', { class: 'sp-ring', style: '--p:' + pct }, [h('b', {}, pct + '%'), h('span', {}, v.done + '/' + v.total + ' dars')]));
+          var L0 = curL ? A.Alifbo.byId(curL.id) : null;
+          heroR.appendChild(h('div', { class: 'sp-hero-next' }, [
+            h('span', {}, curL ? 'Joriy dars · ' + curL.week + '-hafta' : 'Tabriklaymiz!'),
+            h('b', {}, curL ? curL.n + '. ' + curL.title : 'Alifbo kursi tugadi'),
+            L0 && L0.titleAr ? h('span', { class: 'sp-ar' }, L0.titleAr) : null,
+            h('button', { class: 'btn sp-cta', type: 'button', onclick: function () { if (curL) openAlif(curL.id); else go('alifbo'); } }, curL ? 'Darsni davom ettirish →' : 'Darslarni ko’rish →')
+          ]));
+          UI.clear(todo);
+          var items = [];
+          if (nx) items.push(todoItem('calendar', nx.live ? 'Dars hozir ketmoqda!' : 'Keyingi jonli dars', whenLabel(nx) + ' · ' + nx.g.name,
+            nx.g.zoomLink ? h('a', { class: 'btn sm primary', href: nx.g.zoomLink, target: '_blank', rel: 'noopener' }, 'Zoom') : null));
+          if (curL) {
+            var stp = curL.steps || {}, nS = A.Alifbo.STEPS.filter(function (s) { return stp[s.id]; }).length;
+            items.push(todoItem('play', curL.n + '-dars: ' + curL.title, nS + ' / ' + A.Alifbo.STEPS.length + ' bosqich bajarildi',
+              h('button', { class: 'btn sm primary', onclick: function () { openAlif(curL.id); } }, 'Davom etish')));
+          }
+          if (fin.debt > 0) items.push(todoItem('wallet', 'To’lov', som(fin.debt) + (fin.next && fin.next.dueDate ? ' · ' + dateLabel(fin.next.dueDate) + ' gacha' : ''),
+            h('button', { class: 'btn sm', onclick: function () { go('tolov'); } }, 'To’lash'), 'bad'));
+          if (!items.length) items.push(h('p', { class: 'sp-muted' }, 'Hammasi bajarilgan. Barakalla!'));
+          items.forEach(function (x) { todo.appendChild(x); });
+        }).catch(function (e) { fail(heroR, e); UI.clear(todo); });
+      }
 
       load('course').then(function (cv) {
         var ls = cv.lessons || [];
@@ -1599,8 +1646,8 @@
     }
 
     paintNav(); paintTop(); paintView();
-    /* Badge uchun kurs ma'lumotini oldindan yuklaymiz */
-    load('course').then(function (cv) {
+    /* Badge uchun kurs ma'lumotini oldindan yuklaymiz (A0 o'quvchida A1 kursi yo'q) */
+    if (!isA0) load('course').then(function (cv) {
       badges.vazifalar = cv.lessons.filter(function (l) { return hwState(l).id === 'qayta'; }).length;
       badges.lugat = (cv.vocab ? cv.vocab.due + cv.vocab.fresh : 0) + (cv.reviews || []).filter(function (r) { return r.status === 'open'; }).length;
       paintBadges();

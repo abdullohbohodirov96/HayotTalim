@@ -1151,7 +1151,26 @@ async function kabPassOk(student, pw) {
 /** O'quvchining darajasi: qo'lda belgilangan → daraja testi → A0 (alifbo tugamagan bo'lsa) */
 async function studentLevel(st) {
   if (!st) return null;
-  let code = String(st.level || '').toUpperCase();
+  /* 1) Guruh darajasi: o'quvchi A0 guruhida bo'lsa — kabinetda A0 (alifbo) ochiladi.
+     Daraja guruhning o'zida, kursida yoki nomining boshida («A0 | …») bo'ladi.
+     Bir nechta faol guruh bo'lsa — eng yuqori daraja. */
+  let code = '';
+  try {
+    const ORDER = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    const mem = (await store.list('memberships/')).map(r => r.data)
+      .filter(m => m && m.studentId === st.id && m.status !== 'chiqdi');
+    let best = -1;
+    for (const m of mem) {
+      const g = await store.get('groups/' + m.groupId);
+      if (!g) continue;
+      let lv = String(await curriculum.levelOfGroup(store, g) || '').toUpperCase();
+      if (!lv) { const mm = /^\s*(A0|A1|A2|B1|B2|C1|C2)\b/i.exec(String(g.name || '')); if (mm) lv = mm[1].toUpperCase(); }
+      const i = ORDER.indexOf(lv);
+      if (i > best) best = i;
+    }
+    if (best >= 0) code = ORDER[best];
+  } catch (e) { /* guruh topilmasa — oddiy tartib */ }
+  if (!code) code = String(st.level || '').toUpperCase();
   if (!code) {
     const pl = (await store.list('placements/')).map(r => r.data)
       .filter(p => p && p.studentId === st.id)
