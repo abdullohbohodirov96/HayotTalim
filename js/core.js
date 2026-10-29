@@ -292,22 +292,34 @@
     async initAuth() {
       COLLECTIONS.forEach(function (c) { Data.col[c] = {}; });
 
-      // Avval o'z serverimiz bormi tekshiramiz
-      try {
-        var ctrl = new AbortController();
-        var t = setTimeout(function () { ctrl.abort(); }, 2500);
-        var res = await fetch('api/health', { signal: ctrl.signal, credentials: 'same-origin' });
-        clearTimeout(t);
-        if (res.ok) {
-          this.mode = 'server';
-          this.authReady = true;
-          try {
-            var me = await this.api('GET', 'api/me');
-            this.currentServerUser = me.user;
-          } catch (e) { this.currentServerUser = null; }
-          return;
-        }
-      } catch (e) { /* server yo'q — davom etamiz */ }
+      // Avval o'z serverimiz bormi tekshiramiz.
+      // Sayt serverdan ochilgan bo'lsa (http/https), server uxlab qolgan bo'lishi mumkin
+      // (Render bepul tarifi ~30-60 soniyada uyg'onadi) — darrov "brauzer rejimi"ga
+      // o'tib ketmaymiz, bir necha marta uzoqroq kutib qayta urinamiz.
+      var isArtifact = !!(global.claude && typeof global.claude.use === 'function');
+      var isWeb = typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && !isArtifact;
+      var waits = isWeb ? [4000, 10000, 20000, 30000] : [2500];
+      for (var wi = 0; wi < waits.length; wi++) {
+        try {
+          var ctrl = new AbortController();
+          var t = setTimeout(function () { ctrl.abort(); }, waits[wi]);
+          var res = await fetch('api/health?t=' + Date.now(), { signal: ctrl.signal, credentials: 'same-origin', cache: 'no-store' });
+          clearTimeout(t);
+          if (res.ok) {
+            this.mode = 'server';
+            this.authReady = true;
+            try {
+              var me = await this.api('GET', 'api/me');
+              this.currentServerUser = me.user;
+            } catch (e) { this.currentServerUser = null; }
+            return;
+          }
+        } catch (e) { /* javob kelmadi — yana urinamiz */ }
+        if (wi < waits.length - 1) await new Promise(function (r) { setTimeout(r, 1500); });
+      }
+      // Sayt serverdan ochilgan, lekin server javob bermadi — soxta "brauzer rejimi"ga
+      // o'tmaymiz (u yerda login ishlamaydi), aniq xato ko'rsatamiz.
+      if (isWeb) throw new Error('Server hozir javob bermayapti. Bir daqiqadan so‘ng «Qayta urinish»ni bosing.');
 
       var db = null;
       try {
