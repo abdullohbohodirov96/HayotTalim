@@ -259,7 +259,7 @@ async function writeState(store, patch) {
 }
 
 /** Kunlik avtomatik zaxira. Har soatda tekshiradi; kuniga bir marta oladi. */
-function startSchedule(store, onFail) {
+function startSchedule(store, onFail, onOk) {
   let timer = null;
   async function tick() {
     try {
@@ -273,6 +273,7 @@ function startSchedule(store, onFail) {
         lastError: '', lastErrorAt: ''
       });
       console.log('  Zaxira olindi: ' + r.name + ' (' + r.count + ' yozuv)');
+      if (onOk) { try { await onOk(r); } catch (x) { console.error('  Zaxira nusxasini yuborish:', x.message); } }
     } catch (e) {
       await writeState(store, { lastError: String(e.message || e), lastErrorAt: tzStamp() })
         .catch(() => { });

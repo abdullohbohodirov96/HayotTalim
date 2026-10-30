@@ -2006,6 +2006,31 @@
       ], entries, { page: 50 }) : h('p', { class: 'muted' }, 'Hozircha yozuv yo’q.'), null, null, true));
       view.appendChild(h('p', { class: 'small muted', style: 'margin-top:10px' },
         'Parollar va maxfiy ma’lumotlar tarixga yozilmaydi.'));
+      /* Savatcha: o'chirilgan yozuvlar (murojaat, o'quvchi, guruh, to'lov hisobi…) — tiklash mumkin */
+      if (D.mode === 'server' && App.can('settings.edit')) {
+        var trashBox = h('div', {}, h('p', { class: 'muted small' }, 'Yuklanmoqda…'));
+        view.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('🗑 O‘chirilganlar (tiklash mumkin)', trashBox, null, true)));
+        D.api('GET', 'api/trash').then(function (r) {
+          UI.clear(trashBox);
+          if (!r.items.length) { trashBox.appendChild(h('p', { class: 'muted' }, 'O‘chirilgan yozuv yo‘q.')); return; }
+          trashBox.appendChild(h('p', { class: 'small muted' }, 'O‘chirilgan yozuvlar ' + r.keepDays + ' kun saqlanadi.'));
+          trashBox.appendChild(UI.table([
+            { label: 'Qachon', render: function (t) { return h('span', { class: 'mono small' }, t.at); } },
+            { label: 'Kim o‘chirdi', render: function (t) { return t.by || '—'; } },
+            { label: 'Yozuv', render: function (t) { return t.title || t.path; } },
+            { label: '', render: function (t) {
+              if (t.exists) return h('span', { class: 'small muted' }, 'mavjud');
+              return h('button', { class: 'btn sm', onclick: function (e) {
+                UI.busy(e.currentTarget, async function () {
+                  await D.api('POST', 'api/trash/restore', { id: t.id });
+                  UI.toast('Tiklandi. Sahifa yangilanmoqda…', 'ok');
+                  setTimeout(function () { location.reload(); }, 800);
+                });
+              } }, '↩ Tiklash');
+            } }
+          ], r.items, { page: 30 }));
+        }).catch(function (e) { UI.clear(trashBox); trashBox.appendChild(h('p', { class: 'muted' }, e.message)); });
+      }
     }
   };
 
@@ -2167,7 +2192,7 @@
   }
 
   function restoreDialog(App, done) {
-    var fileInput = h('input', { type: 'file', accept: '.json,application/json' });
+    var fileInput = h('input', { type: 'file', accept: '.json,.gz,application/json,application/gzip' });
     var serverPick = h('select', { class: 'inp' }, [h('option', { value: '' }, 'Serverdagi zaxiralardan tanlang…')]);
     var result = h('div', { style: 'margin-top:12px' });
     var chosen = null;           // {dump, name}
@@ -2195,6 +2220,14 @@
     fileInput.onchange = function () {
       var f = fileInput.files[0];
       if (!f) return;
+      /* Telegramga kelgan siqilgan zaxira (.json.gz) — brauzerning o'zida ochiladi */
+      if (/\.gz$/i.test(f.name) && typeof DecompressionStream !== 'undefined') {
+        new Response(f.stream().pipeThrough(new DecompressionStream('gzip'))).text().then(function (t) {
+          try { chosen = { dump: JSON.parse(t), name: f.name }; } catch (e) { chosen = null; UI.toast('Fayl ochilmadi.', 'bad'); }
+          show();
+        }, function () { chosen = null; UI.toast('Siqilgan fayl ochilmadi.', 'bad'); show(); });
+        return;
+      }
       var fr = new FileReader();
       fr.onload = function () {
         try { chosen = { dump: JSON.parse(String(fr.result)), name: f.name }; }

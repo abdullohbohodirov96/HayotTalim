@@ -282,4 +282,62 @@
         .then(function () { UI.toast('Baho saqlandi', 'ok'); close(); done(); }).catch(function (e) { btn.disabled = false; err(e); });
     } }] });
   }
+
+  /* ================= VIDEO DARSLIKLAR ================= */
+  /* Hamma yuklangan videolar bir joyda: dars videolari (A1), o'quvchilarga
+     yuborilgan va o'quvchilar yuklagan video fayllar. Har birini shu yerda
+     ko'rib tekshirish mumkin. */
+  A.Pages.videoLib = function (view, route, App) {
+    if (!App.can('curriculum.view')) return App.guard('curriculum.view');
+    view.appendChild(UI.pageHead('Video darsliklar', 'O‘quvchilarga yuklangan barcha videolar — bosib ko‘ring va tekshiring', []));
+    var box = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
+    view.appendChild(box);
+    function mb(b) { return b ? (b / 1048576).toFixed(1) + ' MB' : '—'; }
+    function play(title, url) {
+      var v = h('video', { src: url, controls: true, playsinline: true, preload: 'metadata', style: 'width:100%;max-height:70vh;border-radius:12px;background:#000' });
+      var info = h('p', { class: 'small muted', style: 'margin-top:6px' }, 'Yuklanmoqda…');
+      v.addEventListener('loadedmetadata', function () {
+        var d = Math.round(v.duration || 0);
+        info.textContent = '✓ Video ochildi · davomiyligi ' + Math.floor(d / 60) + ':' + ('0' + d % 60).slice(-2) + ' · ' + v.videoWidth + '×' + v.videoHeight;
+      });
+      v.addEventListener('error', function () { info.textContent = '⚠ Video ochilmadi — fayl buzilgan yoki serverda yo‘q. Qayta yuklang.'; info.className = 'small err-msg'; });
+      UI.modal({ title: title, wide: true, body: [v, info], actions: [{ label: 'Yopish', onClick: function (c) { try { v.pause(); } catch (e) { } c(); } }] });
+    }
+    D.api('GET', 'api/videos').then(function (r) {
+      UI.clear(box);
+      var ok = r.lessons.filter(function (l) { return l.state === 'ok'; }).length;
+      var bad = r.lessons.filter(function (l) { return l.state === 'broken'; }).length;
+      box.appendChild(h('p', { style: 'margin:0 2px 12px' }, [
+        h('b', {}, 'Dars videolari: ' + ok + ' / ' + r.lessons.length), '  ·  ',
+        bad ? h('b', { style: 'color:var(--bad,#c0392b)' }, '⚠ buzilgan: ' + bad) : 'buzilgan yo‘q', '  ·  ',
+        'boshqa video fayllar: ' + r.files.length
+      ]));
+      box.appendChild(UI.card('🎬 Dars videolari (A1 kursi)', UI.table([
+        { label: 'Dars', render: function (l) { return h('b', {}, l.n + '. ' + l.title); } },
+        { label: 'Holat', render: function (l) {
+          return l.state === 'ok' ? h('span', { class: 'pill ok' }, '✓ yuklangan')
+            : l.state === 'broken' ? h('span', { class: 'pill bad' }, '⚠ buzilgan — qayta yuklang')
+              : h('span', { class: 'pill muted' }, 'video yo‘q');
+        } },
+        { label: 'Fayl', render: function (l) { return l.name ? h('div', { class: 'small' }, [l.name, h('div', { class: 'muted' }, mb(l.size))]) : '—'; } },
+        { label: 'Kim / qachon', render: function (l) { return l.at ? h('span', { class: 'small' }, (l.by || '—') + ' · ' + l.at) : '—'; } },
+        { label: '', render: function (l) {
+          return l.state === 'none' ? null : h('button', { class: 'btn sm primary', onclick: function () { play(l.n + '. ' + l.title, 'api/lesson-video?l=' + encodeURIComponent(l.id) + '&v=' + encodeURIComponent(l.at || '')); } }, '▶ Ko‘rish');
+        } }
+      ], r.lessons, { page: 40 }), null, true));
+      box.appendChild(h('p', { class: 'small muted', style: 'margin:6px 2px 16px' }, 'Video yuklash yoki almashtirish: O‘quv dasturi → «Dars ovozlari va videolari».'));
+      box.appendChild(UI.card('📁 Boshqa video fayllar (materiallar, o‘quvchi yuklaganlari)', r.files.length ? UI.table([
+        { label: 'Fayl', render: function (f) { return h('div', { class: 'small' }, [h('b', {}, f.name), h('div', { class: 'muted' }, mb(f.size))]); } },
+        { label: 'Kimniki', render: function (f) { return h('span', { class: 'small' }, (f.student ? '👤 ' + f.student + ' · ' : '') + (f.byKind === 'oquvchi' ? 'o‘quvchi yukladi' : (f.owner || '—'))); } },
+        { label: 'Turi', render: function (f) { return h('span', { class: 'small muted' }, f.purpose || '—'); } },
+        { label: 'Qachon', render: function (f) { return h('span', { class: 'mono small' }, f.at || ''); } },
+        { label: '', render: function (f) { return h('button', { class: 'btn sm', onclick: function () { play(f.name, 'api/file?id=' + encodeURIComponent(f.id)); } }, '▶ Ko‘rish'); } }
+      ], r.files, { page: 30 }) : h('p', { class: 'muted' }, 'Boshqa video fayl yo‘q.'), null, true));
+      if (r.pending.length) {
+        box.appendChild(h('div', { style: 'margin-top:14px' }, UI.card('⏳ Chala qolgan yuklashlar', h('div', {}, r.pending.map(function (p) {
+          return h('p', { class: 'small' }, p.name + ' · ' + mb(p.size) + ' · ' + (p.by || '—') + ' · ' + p.at + ' — yuklash tugamagan, qayta yuklang');
+        })), null, true)));
+      }
+    }).catch(function (e) { UI.clear(box); box.appendChild(h('p', { class: 'err-msg' }, e.message || 'Yuklanmadi.')); });
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

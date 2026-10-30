@@ -48,7 +48,7 @@ const at = (date, hm) => Date.parse(date + 'T' + hm + ':00Z') - 5 * 3600 * 1000;
   r = await B.quizTick(at('2026-10-09', '09:07'));
   ok('Shu slot ikkinchi marta ketmaydi', r.sent === 0 && calls.length === 1);
   r = await B.quizTick(at('2026-10-09', '14:01'));
-  ok('14:00 slotida keyingi savol', r.sent === 1 && calls[1].params.question === BANK[1].question);
+  ok('14:00 slotida o‘rgatuvchi jumla (Jumla) savoli', r.sent === 1 && calls[1].params.question === BANK.filter(q => q.kind === 'Jumla')[0].question);
   r = await B.quizTick(at('2026-10-09', '23:30'));
   ok('20:00 slot 3 soatdan kech bo‘lsa o‘tkaziladi', r.sent === 0, JSON.stringify(r));
   r = await B.quizTick(at('2026-10-10', '20:10'));

@@ -53,6 +53,40 @@ function stageInfo(funnels, l) {
 function contacted(l, si) { return !!(l.contactedAt || l.studentId || !si.isFirst); }
 function cut(t, n) { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
 
+function addDays(d, n) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+/* «Ko'tarmadi» urinishlari: tugma bilan qayd etilgani yoki (eski yozuvlar) izohdagi so'zlar */
+const NOANS_RE = /ko.?tarma(di|yapti|gan|yap)|javob berma|o.?chirilgan|o.?chiq ekan|недоступ|не отвеч|не бер[её]т|trubka olma|aloqa yo.?q/gi;
+function noAnswerCount(l) {
+  const legacy = (String(l.note || '').match(NOANS_RE) || []).length;
+  return Math.max(Number(l.noAnswer) || 0, legacy);
+}
+function lastNoAnsAt(l) { const g = Array.isArray(l.noAnswerLog) ? l.noAnswerLog : []; return g.length ? String(g[g.length - 1].at || '') : ''; }
+/* Oxirgi «ko'tarmadi»dan keyin gaplashilgan bo'lsa (bosqich «yangi/bog'lanildi» dan oldinga siljigan) — ochiq emas */
+function reachedAfter(l) {
+  const t = lastNoAnsAt(l);
+  return (Array.isArray(l.stageLog) ? l.stageLog : []).some(e => (!t || String(e.at) > t) && e.to && !/^(yangi|boglanildi)$/.test(String(e.to)) && e.from);
+}
+function touchedOn(l, date) {
+  const on = x => String(x || '').slice(0, 10) === date;
+  return on(l.contactedAt) || on(l.trialBookedAt) ||
+    (Array.isArray(l.stageLog) && l.stageLog.some(e => on(e.at))) ||
+    (Array.isArray(l.noAnswerLog) && l.noAnswerLog.some(e => on(e.at)));
+}
+function whatToday(funnels, l, date) {
+  const on = x => String(x || '').slice(0, 10) === date;
+  const parts = [];
+  const moves = (Array.isArray(l.stageLog) ? l.stageLog : []).filter(e => on(e.at) && e.from);
+  if (moves.length) {
+    const f = funnels.filter(x => x.id === l.funnelId)[0];
+    const lab = id => { const st = f && Array.isArray(f.stages) ? f.stages.filter(x => x.id === id)[0] : null; return (st && (st.label || st.name)) || id; };
+    parts.push(lab(moves[0].from) + ' → ' + lab(moves[moves.length - 1].to));
+  }
+  const na = (Array.isArray(l.noAnswerLog) ? l.noAnswerLog : []).filter(e => on(e.at)).length;
+  if (na) parts.push('📵 ko‘tarmadi ×' + na + ' (jami ' + noAnswerCount(l) + ')');
+  if (l.by || (moves.length && moves[moves.length - 1].by)) parts.push('(' + (moves.length ? moves[moves.length - 1].by : '') + ')');
+  return parts.length ? ' · ' + parts.join(' ').replace(/ \(\)$/, '') : '';
+}
+
 /** Berilgan kun uchun to'liq hisobot (oddiy matn — notifyStaff HTML-escape qiladi). */
 async function buildReport(store, date) {
   date = date || todayStr();
@@ -65,7 +99,57 @@ async function buildReport(store, date) {
   L.push('📊 KUNLIK HISOBOT — ' + date);
   L.push('');
   L.push('📥 Bugun tushgan murojaatlar: ' + leads.length + ' ta');
-  if (!leads.length) { L.push('Bugun murojaat tushmadi.'); return L.join('\n'); }
+
+  const X = [];
+  /* --- Sinov darsiga yozilganlar (qachon tushganidan qat'i nazar) --- */
+  const booked = all.filter(l => String(l.trialBookedAt || '').slice(0, 10) === date)
+    .sort((a, b) => String(a.trialBookedAt).localeCompare(String(b.trialBookedAt)));
+  X.push('🎯 Bugun sinov darsiga yozildi: ' + booked.length + ' ta');
+  const week = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = addDays(date, -i);
+    week.push(d.slice(8, 10) + '.' + d.slice(5, 7) + ': ' + all.filter(l => String(l.trialBookedAt || '').slice(0, 10) === d).length);
+  }
+  X.push('   7 kun: ' + week.join(' · '));
+  booked.forEach((l, i) => {
+    const when = l.trialDate ? String(l.trialDate).slice(0, 10).split('-').reverse().slice(0, 2).join('.') + (l.trialTime ? ' ' + l.trialTime : '') : 'sana yo‘q';
+    X.push('   ' + (i + 1) + '. ' + cut(l.name || '—', 30) + ' · ' + (l.phone || '—') + ' · dars: ' + when + (l.trialBookedBy ? ' (' + l.trialBookedBy + ')' : ''));
+  });
+  const tmr = addDays(date, 1);
+  const tomorrow = all.filter(l => String(l.trialDate || '').slice(0, 10) === tmr && !l.studentId && /sinov/i.test(String(l.stage || '')));
+  if (tomorrow.length) X.push('🗓 Ertaga sinov darsi: ' + tomorrow.length + ' ta — bugun kechqurun eslatma yuboring');
+
+  /* --- Bugun ishlangan (oldingi kunlardan) murojaatlar: holati va raqami --- */
+  const worked = all.filter(l => String(l.createdAt || '').slice(0, 10) !== date && touchedOn(l, date));
+  if (worked.length) {
+    X.push('');
+    X.push('🔄 Bugun ishlangan murojaatlar (oldingi kunlardan): ' + worked.length + ' ta');
+    worked.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach((l, i) => {
+      const si = stageInfo(funnels, l);
+      X.push('   ' + (i + 1) + '. ' + cut(l.name || '—', 30) + ' · ' + (l.phone || '—') + ' — ' + si.label + whatToday(funnels, l, date));
+    });
+  }
+
+  /* --- Telefonni ko'tarmaganlar (ochiq) --- */
+  const silent = all.map(l => ({ l, si: stageInfo(funnels, l), n: noAnswerCount(l) }))
+    .filter(x => x.n > 0 && x.si.type !== 'won' && x.si.type !== 'lost' && !x.l.studentId && !/sinov/i.test(String(x.l.stage || '')) && !reachedAfter(x.l));
+  if (silent.length) {
+    X.push('');
+    X.push('📵 Telefonni ko‘tarmaganlar (ochiq): ' + silent.length + ' ta');
+    const grp = [['1 marta', x => x.n === 1], ['2 marta', x => x.n === 2], ['3–5 marta', x => x.n >= 3 && x.n <= 5], ['6+ marta', x => x.n >= 6]];
+    grp.forEach(([name, f]) => {
+      const g = silent.filter(f);
+      if (!g.length) return;
+      X.push('  ▸ ' + name + ': ' + g.length + ' ta');
+      g.slice(0, 25).forEach(x => X.push('     • ' + cut(x.l.name || '—', 28) + ' · ' + (x.l.phone || '—') + (x.l.nextContact ? ' · keyingi: ' + String(x.l.nextContact).slice(5).split('-').reverse().join('.') : '')));
+      if (g.length > 25) X.push('     … yana ' + (g.length - 25) + ' ta');
+    });
+    X.push('  👉 1–2 marta: bugun boshqa soatda yana qo‘ng‘iroq + Telegram xabar.');
+    X.push('  👉 3–5 marta: ertalab/kechqurun (boshqa vaqt), boshqa xodim nomidan yozish.');
+    X.push('  👉 6+ marta: oxirgi Telegram xabar → «Rad etdi: aloqa yo‘q», «yangi guruh ochilganda» ro‘yxatiga.');
+  }
+
+  if (!leads.length) { L.push('Bugun yangi murojaat tushmadi.'); L.push(''); L.push(...X); return L.join('\n'); }
 
   const info = leads.map(l => ({ l, si: stageInfo(funnels, l), c: classify(l) }));
   const ok = info.filter(x => contacted(x.l, x.si));
@@ -75,6 +159,7 @@ async function buildReport(store, date) {
   L.push('⏳ Bog‘lanilmagan: ' + (leads.length - ok.length) + ' ta');
   if (won.length) L.push('🎓 O‘quvchi bo‘ldi: ' + won.length + ' ta');
   if (lost.length) L.push('❌ Rad etdi: ' + lost.length + ' ta');
+  L.push(...X);
 
   /* Holatlar bo'yicha: «shunchasi shunaqa dedi» */
   const byStage = {};
@@ -105,7 +190,8 @@ async function buildReport(store, date) {
     const t = String(l.createdAt || '').slice(11, 16);
     L.push('');
     L.push((i + 1) + '. ' + x.c.icon + ' ' + cut(l.name || '—', 40) + ' · ' + (l.phone || '—') + (t ? ' · ' + t : ''));
-    L.push('   Holat: ' + x.si.label + (contacted(l, x.si) ? (l.contactedBy ? ' (' + l.contactedBy + ')' : '') : ' — ⏳ bog‘lanilmagan'));
+    const nn = noAnswerCount(l);
+    L.push('   Holat: ' + x.si.label + (contacted(l, x.si) ? (l.contactedBy ? ' (' + l.contactedBy + ')' : '') : ' — ⏳ bog‘lanilmagan') + (nn ? ' · 📵 ko‘tarmadi ×' + nn : ''));
     const extra = [l.src ? 'Reklama: ' + cut(l.src, 60) : '', l.region ? 'Hudud: ' + l.region : '', l.wantTime ? 'Vaqt: ' + l.wantTime : ''].filter(Boolean).join(' · ');
     if (extra) L.push('   ' + extra);
     if (l.note) L.push('   💬 ' + cut(l.note, 220));

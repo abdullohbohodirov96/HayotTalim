@@ -4977,3 +4977,10 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .sp-remember span{font-family:var(--c-ar,'Amiri',serif);font-size:26px}
 .sp-cdone-emoji{font-size:52px;animation:spPop .5s cubic-bezier(.3,1.6,.5,1) both}
 @media (prefers-reduced-motion:reduce){.sp-pop,.sp-rise,.sp-rise2,.sp-bigsay,.sp-shake,.sp-combo,.sp-cdone-emoji,.sp-remember{animation:none}}
+
+/* O'zgarishlar tarixi (murojaat oynasi) */
+.hist-box .hist-list{display:flex;flex-direction:column;gap:8px;padding:8px 0}
+.hist-i{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border:1px solid var(--line,#e5e7eb);border-radius:10px}
+.hist-i .btn{align-self:flex-start;margin-top:4px}
+.hist-tl{display:flex;flex-direction:column;gap:4px;padding:6px 10px;border-left:3px solid var(--brand,#0e6b55);margin-bottom:6px}
+.lead-noans{white-space:nowrap}

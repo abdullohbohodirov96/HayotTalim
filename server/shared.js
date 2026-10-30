@@ -76,6 +76,7 @@ function readBlocked(docPath, user) {
   if (col === 'vchunk' || col === 'vupload' || col === 'metalead' || col === 'stafflink' || col === 'capiq' || col === 'capisent') return true;   // ichki: video bo'laklari, target arizalari jurnali
   if (col === 'tgquiz' || col === 'tgquizlog') return true;  // kanal viktorinasi (javoblari bilan)
   if (col === 'photos') return true;
+  if (col === 'hist' || col === 'trash') return true;    // tarix va savatcha faqat /api/history, /api/trash orqali
   if (col === 'formbg') return true;               // fon rasmi faqat /api/form-bg orqali
   if (col === 'tglink' || col === 'linktokens' || col === 'kabsess' || col === 'staffsess') return true;   // tokenlar               // rasm faqat /api/photo orqali beriladi
   /* Daraja testi: savollar ichida TO'G'RI JAVOB bor — hech kimga berilmaydi.

@@ -709,6 +709,68 @@ function withLock(name, fn) {
 }
 
 /* ---------------- Tarix: faqat server yozadi ---------------- */
+/* ---------------- O'zgarishlar tarixi va savatcha ----------------
+   — Har saqlashda eski holat `hist/` ga yoziladi (nima o'zgargani bilan) —
+     kerak bo'lsa avvalgi holatga qaytarish mumkin.
+   — O'chirilgan yozuv `trash/` ga tushadi — tiklash mumkin.
+   Ikkalasi ham faqat serverniki (mijoz yozolmaydi va to'g'ridan o'qiy olmaydi). */
+const HIST_RE = /^(leads|students|memberships|groups|courses|rooms|invoices|expenses|staff|teachers|funnels|tasks|lessons|modules|topics|materials|homework|reviews|parents|holidays|pauses|makeups)\//;
+const NO_TRASH_RE = /^(vchunk|vupload|filebody|botout|botin|botreq|botstate|chats|audit|hist|trash|kabsess|staffsess|tglink|linktokens|testsess|quizsess)\//;
+const HIST_KEEP_DAYS = Number(process.env.HIST_KEEP_DAYS || 60);
+const TRASH_KEEP_DAYS = Number(process.env.TRASH_KEEP_DAYS || 90);
+const DIFF_SKIP = new Set(['contactedAt', 'contactedBy', 'trialBookedAt', 'trialBookedBy', 'createdAt', 'updatedAt', 'stageLog', 'noAnswerLog', 'salt', 'hash', 'iter', 'algo', 'password', 'token', 'trialPreAt', 'trialPostAt', 'id']);
+const FIELD_UZ = { name: 'Ism', firstName: 'Ism', lastName: 'Familiya', phone: 'Telefon', stage: 'Holat', note: 'Izoh', nextContact: 'Keyingi aloqa', status: 'Holat', groupId: 'Guruh', courseId: 'Kurs', teacherId: 'Ustoz', amount: 'Summa', fee: 'Narx', trialDate: 'Sinov sanasi', trialTime: 'Sinov vaqti', ownerStaffId: 'Mas’ul', source: 'Manba', funnelId: 'Voronka', noAnswer: 'Ko‘tarmadi', days: 'Kunlar', startTime: 'Boshlanish', endTime: 'Tugash', title: 'Nomi', due: 'Muddat', month: 'Oy', discount: 'Chegirma', leftAt: 'Chiqqan sana', joinedAt: 'Qo‘shilgan sana' };
+const STAGE_UZ = { yangi: 'Yangi', boglanildi: 'Bog‘lanildi', qiziqdi: 'Qiziqdi', sinov: 'Sinov darsiga yozildi', oquvchi: 'O‘quvchi bo‘ldi', rad: 'Rad etdi' };
+function shortVal(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  if (typeof v === 'object') return Array.isArray(v) ? '[' + v.length + ']' : '{…}';
+  const t = String(v).replace(/\s+/g, ' ');
+  return t.length > 40 ? t.slice(0, 39) + '…' : t;
+}
+function docDiff(a, b) {
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return '';
+  const out = [];
+  new Set(Object.keys(a).concat(Object.keys(b))).forEach(k => {
+    if (DIFF_SKIP.has(k)) return;
+    const x = a[k], y = b[k];
+    if (JSON.stringify(x === undefined ? null : x) === JSON.stringify(y === undefined ? null : y)) return;
+    if ((x === undefined || x === '' || x === null) && (y === undefined || y === '' || y === null)) return;
+    const name = FIELD_UZ[k] || k;
+    if (k === 'note') {
+      const xs = String(x || ''), ys = String(y || '');
+      out.push(ys.indexOf(xs) === 0 && ys.length > xs.length ? 'Izohga qo‘shildi: «' + shortVal(ys.slice(xs.length).replace(/^[\s·\n]+/, '')) + '»' : 'Izoh o‘zgardi');
+      return;
+    }
+    const lab = v => k === 'stage' && STAGE_UZ[v] ? STAGE_UZ[v] : shortVal(v);
+    out.push(typeof x === 'object' || typeof y === 'object' ? name + ' o‘zgardi' : name + ': ' + lab(x) + ' → ' + lab(y));
+  });
+  return out.join('; ').slice(0, 420);
+}
+function docTitle(p, d) {
+  d = d || {};
+  const n = d.name || [d.lastName, d.firstName].filter(Boolean).join(' ') || d.title || d.code || '';
+  return (n ? String(n).slice(0, 60) + ' · ' : '') + p;
+}
+function stripSecrets(p, d) {
+  if (!d || typeof d !== 'object') return d;
+  const c = Object.assign({}, d);
+  ['salt', 'hash', 'iter', 'algo', 'password', 'token'].forEach(k => { delete c[k]; });
+  return c;
+}
+let histSince = 1000, trashSince = 1000;
+async function sweepOld(prefix, days) {
+  const lim = new Date(Date.now() + 5 * 3600e3 - days * 86400e3).toISOString().slice(0, 16).replace('T', ' ');
+  for (const r of await store.list(prefix)) if (r.data && String(r.data.at || '') < lim) { try { await store.del(r.path); } catch (e) { } }
+}
+async function saveHist(p, before, user, change) {
+  try {
+    const id = 'h_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+    await store.set('hist/' + id, { id, path: p, at: stamp(), by: user ? (user.name || user.login) : 'tizim', change, data: stripSecrets(p, before) });
+    if (++histSince >= 200) { histSince = 0; sweepOld('hist/', HIST_KEEP_DAYS).catch(() => { }); }
+  } catch (e) { /* tarix yozilmasa ham asosiy saqlash bajarildi */ }
+}
+function trashSweep() { if (++trashSince >= 50) { trashSince = 0; sweepOld('trash/', TRASH_KEEP_DAYS).catch(() => { }); } }
+
 async function writeAudit(user, action, entity, details) {
   const id = 'log_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
   await store.set('audit/' + id, {
@@ -718,7 +780,7 @@ async function writeAudit(user, action, entity, details) {
     role: user ? user.role : '',
     action: String(action || '').slice(0, 120),
     entity: String(entity || '').slice(0, 120),
-    details: String(details || '').slice(0, 300)
+    details: String(details || '').slice(0, 600)
   });
   /* Tarix cheksiz o'smasin.
 
@@ -1107,6 +1169,32 @@ async function autoInvoiceTick() {
 }
 
 /** Direktorga ichki suhbat orqali xabar */
+/* Kunlik zaxiraning server tashqarisidagi nusxasi: Render'ning diski har
+   deploy/qayta ishga tushishda tozalanadi — shuning uchun siqilgan zaxira
+   botga ulangan DIREKTOR(lar)ning Telegramiga fayl bo'lib yuboriladi.
+   Bot tokeni olib tashlanadi (sanitizeForExport). O'chirish: BACKUP_TG=0. */
+async function sendBackupOffsite(r) {
+  if (String(process.env.BACKUP_TG || '1') === '0') return;
+  const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
+  if (!tokenTg || !r || !r.file) return;
+  const dirs = (await store.list('users/')).map(x => x.data)
+    .filter(u => u && u.role === 'direktor' && u.active !== false && u.telegram && /^\d{3,20}$/.test(String(u.telegram.id || '')));
+  if (!dirs.length) return;
+  const dump = backup.sanitizeForExport(JSON.parse(fs.readFileSync(r.file, 'utf8')));
+  const gz = require('zlib').gzipSync(Buffer.from(JSON.stringify(dump)), { level: 9 });
+  if (gz.length > 45 * 1024 * 1024) { await notifyDirectors('Zaxira juda katta (' + Math.round(gz.length / 1048576) + ' MB) — Telegramga yuborilmadi.'); return; }
+  for (const d of dirs) {
+    const fd = new FormData();
+    fd.append('chat_id', String(d.telegram.id));
+    fd.append('caption', '🗄 Kunlik zaxira nusxa · ' + r.count + ' yozuv · ' + stamp() + '\nSaqlab qo‘ying. Tiklash: Sozlamalar → Zaxira → Fayldan tiklash.');
+    fd.append('disable_notification', 'true');
+    fd.append('document', new Blob([gz], { type: 'application/gzip' }), r.name.replace(/\.json$/, '') + '.json.gz');
+    const res = await fetch('https://api.telegram.org/bot' + tokenTg + '/sendDocument', { method: 'POST', body: fd });
+    const j = await res.json().catch(() => ({}));
+    if (!j.ok) console.error('  Zaxira Telegramga ketmadi:', j.description || res.status);
+  }
+}
+
 async function notifyDirectors(text) {
   try {
     const users = (await store.list('users/')).map(x => x.data);
@@ -1794,6 +1882,27 @@ const COLLECTIONS = ['users', 'staff', 'teachers', 'courses', 'rooms', 'students
   'reviews',
   /* Formalar va kelgan arizalar */
   'forms', 'formsub', 'formstat'];
+
+/* Murojaat tarixi (server yuritadi — mijoz o'zgartira olmaydi):
+   stageLog — bosqich o'zgarishlari; trialBookedAt — sinov darsiga yozilgan vaqt
+   (kunlik hisobot uchun); noAnswer/noAnswerLog — «ko'tarmadi» urinishlari. */
+function leadTrack(oldLead, d, user, noAnsTap) {
+  const who = String(user.name || user.login || '').slice(0, 60), now = stamp();
+  ['stageLog', 'trialBookedAt', 'trialBookedBy', 'noAnswer', 'noAnswerLog'].forEach(k => {
+    if (oldLead && oldLead[k] !== undefined) d[k] = oldLead[k]; else delete d[k];
+  });
+  delete d.noAnswerAdd;
+  const from = oldLead ? String(oldLead.stage || '') : '';
+  const to = String(d.stage || '');
+  if (!oldLead || from !== to) {
+    d.stageLog = (Array.isArray(d.stageLog) ? d.stageLog : []).concat([{ at: now, from, to, by: who }]).slice(-30);
+    if (/sinov/i.test(to)) { d.trialBookedAt = now; d.trialBookedBy = who; }
+  }
+  if (noAnsTap) {
+    d.noAnswer = (Number(d.noAnswer) || 0) + 1;
+    d.noAnswerLog = (Array.isArray(d.noAnswerLog) ? d.noAnswerLog : []).concat([{ at: now, by: who }]).slice(-20);
+  }
+}
 
 async function apiBootstrap(user) {
   const all = await store.all({ light: true });
@@ -4263,6 +4372,89 @@ async function handleApi(req, res, url) {
     return send(res, 200, { items: v.col[name] || {} });
   }
 
+  /* ---- Video darsliklar: hamma yuklangan videolar bir joyda (ko'rish va tekshirish) ---- */
+  if (route === 'videos' && req.method === 'GET') {
+    if (!A.can(user, 'curriculum.view')) return nope();
+    const L = ((A.Course && A.Course.LESSONS) || []).map(l => ({ id: l.id, n: l.n, title: l.title }));
+    (await store.list('lessonvideo/')).forEach(r => {
+      const id = r.path.split('/')[1];
+      if (!L.some(l => l.id === id)) L.push({ id, n: L.length + 1, title: (r.data && r.data.name) || id });
+    });
+    const lessons = [];
+    for (const l of L) {
+      const d = await store.get('lessonvideo/' + l.id);
+      let state = 'none';
+      if (d && d.up) {
+        state = (await store.get('vchunk/' + l.id + '/' + d.up + '/0')) && (await store.get('vchunk/' + l.id + '/' + d.up + '/' + Math.max(0, (d.chunks || 1) - 1))) ? 'ok' : 'broken';
+      } else if (d && d.fileId) state = (await files.meta(store, d.fileId)) ? 'ok' : 'broken';
+      else if (d) state = 'broken';
+      lessons.push({ id: l.id, n: l.n, title: l.title, state, name: d ? d.name : '', size: d ? (d.size || 0) : 0, at: d ? d.at : '', by: d ? (d.by || '') : '' });
+    }
+    const users = {}; (await store.list('users/')).forEach(r => { if (r.data) users[r.data.id] = r.data.name || r.data.login; });
+    const studs = {}; (await store.list('students/')).forEach(r => { if (r.data) studs[r.data.id] = ((r.data.lastName || '') + ' ' + (r.data.firstName || '')).trim(); });
+    const vfiles = (await store.list('files/')).map(r => r.data)
+      .filter(f => f && /^video\//.test(String(f.type || '')))
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+      .map(f => {
+        const ref = String(f.refPath || '');
+        const sid = ref.indexOf('students/') === 0 ? ref.split('/')[1] : '';
+        return { id: f.id, name: f.name, size: f.bytes || 0, at: f.at, purpose: f.purpose || '', ref,
+          owner: f.byKind === 'oquvchi' ? (studs[f.by] || 'o‘quvchi') : (users[f.by] || f.by || ''), byKind: f.byKind || '', student: sid ? (studs[sid] || sid) : '' };
+      });
+    const pending = (await store.list('vupload/')).map(r => r.data).filter(Boolean)
+      .map(v => ({ name: v.name, size: v.size, at: v.at, by: v.by || '' }));
+    return send(res, 200, { lessons, files: vfiles, pending });
+  }
+
+  /* ---- O'zgarishlar tarixi va savatcha (o'chirilganlar) ---- */
+  if (route === 'trash' && req.method === 'GET') {
+    if (!A.can(user, 'settings.edit')) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    const items = (await store.list('trash/')).map(r => r.data).filter(Boolean)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 300)
+      .map(t => ({ id: t.id, path: t.path, title: t.title, at: t.at, by: t.by, exists: false }));
+    for (const t of items) t.exists = !!(await store.get(t.path));
+    return send(res, 200, { items, keepDays: TRASH_KEEP_DAYS });
+  }
+  if (route === 'trash/restore' && req.method === 'POST') {
+    if (!A.can(user, 'settings.edit')) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    const body = await readBody(req);
+    const id = String(body.id || '');
+    if (!/^tr_[a-z0-9]+$/.test(id)) return send(res, 400, { error: 'Noto’g’ri.' });
+    const t = await store.get('trash/' + id);
+    if (!t || !t.path) return send(res, 404, { error: 'Topilmadi.' });
+    if (await store.get(t.path)) return send(res, 409, { error: 'Bu yozuv allaqachon mavjud.' });
+    await store.set(t.path, t.data);
+    await store.del('trash/' + id);
+    await writeAudit(user, 'O‘chirilgan yozuv tiklandi', t.title || t.path, 'O‘chirgan: ' + (t.by || '—') + ' · ' + (t.at || ''));
+    return send(res, 200, { ok: true, path: t.path });
+  }
+  if (route === 'history' && req.method === 'GET') {
+    const hp = String(url.searchParams.get('path') || '');
+    if (!HIST_RE.test(hp) || !/^[A-Za-z0-9_\-./~:@+]+$/.test(hp)) return send(res, 400, { error: 'Noto’g’ri yo’l.' });
+    const perm = writePermFor(hp);
+    if (!(A.can(user, 'settings.edit') || (perm !== '__server__' && A.can(user, perm)))) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    const items = (await store.list('hist/')).map(r => r.data).filter(x => x && x.path === hp)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
+      .map(x => ({ id: x.id, at: x.at, by: x.by, change: x.change }));
+    return send(res, 200, { items });
+  }
+  if (route === 'history/restore' && req.method === 'POST') {
+    const body = await readBody(req);
+    const id = String(body.id || '');
+    if (!/^h_[a-z0-9]+$/.test(id)) return send(res, 400, { error: 'Noto’g’ri.' });
+    const x = await store.get('hist/' + id);
+    if (!x || !x.path || !HIST_RE.test(x.path)) return send(res, 404, { error: 'Topilmadi.' });
+    const perm = writePermFor(x.path);
+    if (!(A.can(user, 'settings.edit') || (perm !== '__server__' && A.can(user, perm)))) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    const cur = await store.get(x.path);
+    const data = Object.assign({}, x.data);
+    if (cur) ['salt', 'hash', 'iter', 'algo', 'stageLog', 'noAnswerLog', 'noAnswer', 'trialBookedAt', 'trialBookedBy'].forEach(k => { if (cur[k] !== undefined) data[k] = cur[k]; });
+    if (cur) await saveHist(x.path, cur, user, 'Avvalgi holatga qaytarildi (' + x.at + ')');
+    await store.set(x.path, data);
+    await writeAudit(user, 'Avvalgi holatga qaytarildi', docTitle(x.path, data), x.at + ' dagi holat · ' + (cur ? docDiff(cur, data) : ''));
+    return send(res, 200, { ok: true, data });
+  }
+
   if (route === 'doc') {
     const p = String(url.searchParams.get('path') || '');
     if (!/^[A-Za-z0-9_\-./~:@+]+$/.test(p) || p.split('/').length % 2 !== 0) {
@@ -4315,15 +4507,18 @@ async function handleApi(req, res, url) {
         }
       }
       const prevDoc = p.indexOf('memberships/') === 0 ? await store.get(p) : null;
+      const beforeDoc = HIST_RE.test(p) ? await store.get(p) : null;
       /* Murojaat: xodim holatini/izohini o'zgartirdi — demak bog'landi (15 daqiqalik eslatma to'xtaydi) */
       const oldLead = p.indexOf('leads/') === 0 ? await store.get(p) : null;
+      const noAnsTap = p.indexOf('leads/') === 0 && body.data && body.data.noAnswerAdd === true;
       if (oldLead) {
         if (oldLead.contactedAt && !body.data.contactedAt) {
           body.data.contactedAt = oldLead.contactedAt; body.data.contactedBy = oldLead.contactedBy;
-        } else if (!oldLead.contactedAt && ['stage', 'note', 'nextContact'].some(k => String(oldLead[k] || '') !== String(body.data[k] || ''))) {
+        } else if (!noAnsTap && !oldLead.contactedAt && ['stage', 'note', 'nextContact'].some(k => String(oldLead[k] || '') !== String(body.data[k] || ''))) {
           body.data.contactedAt = stamp(); body.data.contactedBy = user.name || user.login;
         }
       }
+      if (p.indexOf('leads/') === 0 && body.data && typeof body.data === 'object') leadTrack(oldLead, body.data, user, noAnsTap);
       const oldTask = p.indexOf('tasks/') === 0 ? await store.get(p) : null;
       await store.set(p, body.data);
       /* Murojaat bosqichi o'zgardi → Meta'ga (Conversions API, CRM) */
@@ -4349,7 +4544,10 @@ async function handleApi(req, res, url) {
           }
         }
       } catch (e) { /* bot ishlamasa muhim emas */ }
-      await writeAudit(user, body.action || 'Ma’lumot saqlandi', body.entity || p, body.details || '');
+      const chg = beforeDoc ? docDiff(beforeDoc, body.data) : '';
+      if (beforeDoc && chg) await saveHist(p, beforeDoc, user, chg);
+      await writeAudit(user, body.action || 'Ma’lumot saqlandi', body.entity || docTitle(p, body.data),
+        [body.details || '', chg].filter(Boolean).join(' · '));
       if (prevDoc) {
         try { await withLock('invoices', () => repriceMembership(prevDoc, Object.assign({ id: p.split('/')[1] }, body.data), user)); }
         catch (e) { console.error('reprice:', e.message); }
@@ -4366,8 +4564,14 @@ async function handleApi(req, res, url) {
       }
       const gd = await guardWrite(user, p, 'DELETE', null);
       if (gd.error) return send(res, gd.code || 403, { error: gd.error });
+      const gone = await store.get(p);
+      if (gone && !NO_TRASH_RE.test(p)) {
+        const tid = 'tr_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+        await store.set('trash/' + tid, { id: tid, path: p, title: docTitle(p, gone), at: stamp(), by: user.name || user.login, data: stripSecrets(p, gone) });
+        trashSweep();
+      }
       await store.del(p);
-      await writeAudit(user, 'Yozuv o’chirildi', p, '');
+      await writeAudit(user, 'Yozuv o’chirildi', docTitle(p, gone), gone && !NO_TRASH_RE.test(p) ? 'Savatchada saqlandi — Sozlamalar → Tarix → O‘chirilganlar dan tiklash mumkin' : p);
       return send(res, 200, { ok: true });
     }
   }
@@ -4714,7 +4918,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   // Kunlik avtomatik zaxira; xato bo'lsa direktorga xabar qoldiriladi
   backup.startSchedule(store, async (err) => {
     await notifyDirectors('Diqqat: kunlik zaxira nusxa olinmadi. Sabab: ' + String(err.message || err));
-  });
+  }, sendBackupOffsite);
 
   // Oylik hisoblarni avtomatik yaratish (sozlamalarda yoqilsa)
   startAutoInvoice();

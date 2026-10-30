@@ -471,7 +471,7 @@ function stampMs(s) {
 }
 async function leadContacted(lead) {
   if (!lead) return true;
-  if (lead.contactedAt || lead.studentId) return true;
+  if (lead.contactedAt || lead.studentId || lead.noAnswer) return true;
   const funnel = lead.funnelId ? await store.get('funnels/' + lead.funnelId) : null;
   const stages = funnel ? A.funnelStages(funnel) : [];
   const first = stages[0] ? stages[0].id : 'yangi';
@@ -1888,10 +1888,12 @@ async function quizList() {
     .sort((a, b) => (a.order - b.order) || String(a.id).localeCompare(String(b.id)));
 }
 /** Navbatdagi savol: hali yuborilmagani; hammasi ketgan bo'lsa — eng uzoq vaqt oldin ketgani */
-async function nextQuiz() {
+async function nextQuiz(prefer) {
   const all = await quizList();
   if (!all.length) return null;
   const fresh = all.filter(q => !q.sentAt);
+  /* Kunduzgi slot — o'rgatuvchi jumlalar (tugaguncha), qolganlari — oddiy navbat */
+  if (prefer) { const p = fresh.filter(q => prefer.test(q.kind || '')); if (p.length) return p[0]; }
   if (fresh.length) return fresh[0];
   return all.slice().sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)))[0];
 }
@@ -1945,7 +1947,7 @@ async function quizTick(nowMs) {
     const key = 'tgquizlog/' + now.date + '-' + slot.replace(':', '');
     if (await store.get(key)) { quizSeen[now.date + '-' + slot] = 1; continue; }
     quizSeen[now.date + '-' + slot] = 1;
-    const q = await nextQuiz();
+    const q = await nextQuiz(slot === conf.slots[1] ? /^(Jumla|Suhbat)$/ : null);
     if (!q) return { sent };
     await store.set(key, { date: now.date, slot, quizId: q.id, at: stamp(), status: 'yuborilmoqda' });
     try {

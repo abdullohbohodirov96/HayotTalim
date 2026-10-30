@@ -181,6 +181,7 @@
     { id: 'progress', label: 'O’quv natijalari', icon: 'chart', perm: 'reports.learning' },
     { id: 'studentProgress', label: 'O’quvchilar rivojlanishi', icon: 'chart', perm: 'lesson.log' },
     { id: 'vocabAdmin', label: 'Lug’at bazasi', icon: 'award', perm: 'curriculum.view' },
+    { id: 'videoLib', label: 'Video darsliklar', icon: 'play', perm: 'curriculum.view' },
     { id: 'rating', label: 'Reyting', icon: 'award', perm: 'nav.students' },
     { id: 'chat', label: 'Suhbat', icon: 'chat', perm: 'nav.chat' },
     { id: 'tasks', label: 'Vazifalar', icon: 'task', perm: 'nav.tasks' },

@@ -704,6 +704,55 @@
   }
 
   /* Sinov darsi bosqichi: id «sinov» yoki nomida «sinov» */
+  /* O'zgarishlar tarixi: kim, qachon, nima o'zgartirdi + avvalgi holatga qaytarish */
+  function historyBlock(path, App, onRestored, extraRows) {
+    var box = h('div', { class: 'hist-list' }, h('p', { class: 'small muted' }, 'Yuklanmoqda…'));
+    var det = h('details', { class: 'lead-more hist-box' }, [h('summary', {}, '🕘 O‘zgarishlar tarixi'), box]);
+    var loaded = false;
+    det.addEventListener('toggle', function () {
+      if (!det.open || loaded) return; loaded = true;
+      if (D.mode !== 'server') { UI.clear(box); box.appendChild(h('p', { class: 'small muted' }, 'Tarix server rejimida yuritiladi.')); return; }
+      D.api('GET', 'api/history?path=' + encodeURIComponent(path)).then(function (r) {
+        UI.clear(box);
+        (extraRows || []).forEach(function (x) { box.appendChild(x); });
+        if (!r.items.length && !(extraRows || []).length) { box.appendChild(h('p', { class: 'small muted' }, 'Hozircha o‘zgarish yo‘q.')); return; }
+        r.items.forEach(function (it) {
+          box.appendChild(h('div', { class: 'hist-i' }, [
+            h('div', { class: 'small' }, [h('b', {}, it.at), ' · ', it.by || '—']),
+            h('div', { class: 'small muted' }, it.change || '—'),
+            App && App.can && (App.can('settings.edit') || App.can('lead.edit')) ? h('button', { class: 'btn sm', type: 'button', onclick: function (e) {
+              UI.confirm('Avvalgi holatga qaytarish', it.at + ' dagi o‘zgarishdan OLDINGI holatga qaytariladi. Hozirgi holat ham tarixda saqlanadi.', 'Qaytarish').then(function (ok) {
+                if (!ok) return;
+                UI.busy(e.currentTarget, async function () {
+                  var res = await D.api('POST', 'api/history/restore', { id: it.id });
+                  var col = path.split('/')[0];
+                  if (D.col[col]) { D.col[col][path.split('/')[1]] = res.data; D._emit && D._emit(); }
+                  UI.toast('Qaytarildi.', 'ok');
+                  if (onRestored) onRestored(res.data);
+                });
+              });
+            } }, '↩ Shu o‘zgarishdan oldingi holat') : null
+          ]));
+        });
+      }).catch(function (e) { UI.clear(box); box.appendChild(h('p', { class: 'small muted' }, e.message || 'Yuklanmadi.')); });
+    });
+    return det;
+  }
+  A.historyBlock = historyBlock;
+  function leadLogRows(lead, funnel) {
+    var ev = [];
+    (lead.stageLog || []).forEach(function (e) { if (e.from) ev.push({ at: e.at, t: '📌 ' + A.stageOf(funnel, e.from).label + ' → ' + A.stageOf(funnel, e.to).label, by: e.by }); });
+    (lead.noAnswerLog || []).forEach(function (e, i) { ev.push({ at: e.at, t: '📵 Ko‘tarmadi (' + (i + 1) + '-urinish)', by: e.by }); });
+    if (lead.trialBookedAt) ev.push({ at: lead.trialBookedAt, t: '🎯 Sinov darsiga yozildi' + (lead.trialDate ? ' (' + lead.trialDate + (lead.trialTime ? ' ' + lead.trialTime : '') + ')' : ''), by: lead.trialBookedBy });
+    if (lead.contactedAt) ev.push({ at: lead.contactedAt, t: '✅ Birinchi aloqa', by: lead.contactedBy });
+    if (lead.createdAt) ev.push({ at: lead.createdAt, t: '📥 Murojaat tushdi' + (lead.source ? ' (' + lead.source + ')' : ''), by: '' });
+    ev.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+    if (!ev.length) return [];
+    return [h('div', { class: 'hist-tl' }, ev.map(function (e) {
+      return h('div', { class: 'small' }, [h('span', { class: 'mono muted' }, String(e.at || '').slice(0, 16) + ' '), e.t, e.by ? h('span', { class: 'muted' }, ' · ' + e.by) : null]);
+    }))];
+  }
+
   function isTrialStage(funnel, stageId) {
     var st = A.stageOf(funnel, stageId) || {};
     return stageId === 'sinov' || /sinov/i.test(st.label || '');
@@ -1044,7 +1093,8 @@
           h('summary', {}, 'Forma javoblari' + (lead.formTitle ? ' — ' + lead.formTitle : '')),
           A.formAnswersBlock(lead)
         ]) : null,
-        f.node, dupBox, extra
+        f.node, dupBox, extra,
+        !isNew ? historyBlock('leads/' + lead.id, App, function () { App.render(); }, leadLogRows(lead, curFunnel)) : null
       ].filter(Boolean),
       actions: [
         !isNew ? {
@@ -1054,6 +1104,26 @@
               await A.Ops.audit(App.user, 'Murojaat o’chirildi', lead.name, '');
               c(); UI.toast('O’chirildi.', 'ok'); App.render();
             }
+          }
+        } : null,
+        /* «Ko'tarmadi»: urinish sanaladi, keyingi qo'ng'iroq sanasi kadens bo'yicha
+           qo'yiladi (1–2: bugun yana, 3: ertaga, 4: +2 kun, 5: +4 kun, 6+: +7 kun) */
+        !isNew && !won && A.stageOf(curFunnel, lead.stage).type !== 'lost' ? {
+          label: '📵 Ko’tarmadi' + (lead.noAnswer ? ' (' + lead.noAnswer + ')' : ''), cls: 'lead-noans', onClick: function (c, btn) {
+            var rec = collect(); if (!rec) return;
+            var n = (Number(lead.noAnswer) || 0) + 1;
+            var add = n <= 2 ? 0 : n === 3 ? 1 : n === 4 ? 2 : n === 5 ? 4 : 7;
+            rec.noAnswerAdd = true;
+            rec.noAnswer = n;
+            rec.noAnswerLog = (lead.noAnswerLog || []).concat([{ at: A.nowStamp(), by: App.user.name || App.user.login }]).slice(-20);
+            rec.nextContact = A.addDays(A.today(), add);
+            rec.note = [rec.note, '📵 Ko’tarmadi (' + n + '-urinish, ' + A.nowStamp().slice(5) + ')'].filter(Boolean).join('\n').slice(0, 1500);
+            UI.busy(btn, async function () {
+              await persist(rec);
+              delete rec.noAnswerAdd;
+              c(); UI.toast(n >= 6 ? n + '-urinish. Endi Telegram’da yozing yoki «Rad etdi» (aloqa yo‘q) qiling.' : 'Qayd etildi: ' + n + '-urinish. Keyingi qo‘ng‘iroq: ' + A.dateLabel(rec.nextContact), n >= 6 ? 'warn' : 'ok');
+              App.render();
+            });
           }
         } : null,
         {
