@@ -3009,7 +3009,9 @@ async function handleApi(req, res, url) {
        xato) — shu login uchun 30 soniyada faqat bitta urinish. Haqiqiy
        egasi baribir kira oladi, hujum esa amalda imkonsiz bo'ladi.    */
     const ac = acctLoginTries.get(login);
-    if (ac && Date.now() - ac.first < IP_WINDOW_MS && ac.n >= ACCT_SLOW_AT && Date.now() - ac.last < 30000) {
+    /* Faqat TARQOQ hujumda (3+ turli IP) — bitta IP dan hujumni IP cheklovi to'xtatadi,
+       shunda hujumchi o'z IP sidan haqiqiy egani bloklab qo'ya olmaydi. */
+    if (ac && Date.now() - ac.first < IP_WINDOW_MS && ac.n >= ACCT_SLOW_AT && (ac.ips ? ac.ips.size : 0) >= 3 && Date.now() - ac.last < 30000) {
       return send(res, 429, { error: 'Juda ko’p urinish. 30 soniyadan keyin qayta urinib ko’ring.' });
     }
     if (!gate.ok || !ipg.ok) {
@@ -3022,8 +3024,10 @@ async function handleApi(req, res, url) {
       loginFail(req, login);
       {
         const r0 = acctLoginTries.get(login);
-        const rec = (!r0 || Date.now() - r0.first > IP_WINDOW_MS) ? { n: 0, first: Date.now(), last: 0 } : r0;
+        const rec = (!r0 || Date.now() - r0.first > IP_WINDOW_MS) ? { n: 0, first: Date.now(), last: 0, ips: new Set() } : r0;
         rec.n++; rec.last = Date.now();
+        if (!rec.ips) rec.ips = new Set();
+        if (rec.ips.size < 100) rec.ips.add(clientIp(req));
         acctLoginTries.set(login, rec);
         if (acctLoginTries.size > 20000) acctLoginTries.clear();
         if (rec.n === ACCT_SLOW_AT && u) {
