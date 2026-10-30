@@ -1904,6 +1904,17 @@ function leadTrack(oldLead, d, user, noAnsTap) {
   }
 }
 
+/* To'liq dostup: o'quvchining kurs va alifbo progressiga `all` belgisi —
+   statuses() hamma darsni ochiq ko'rsatadi (js/course-a1.js, js/alifbo.js). */
+async function setFullAccess(sid, on) {
+  if (!/^[A-Za-z0-9_\-.]+$/.test(String(sid || ''))) return;
+  for (const [key, empty] of [['courseprog/' + sid, { studentId: sid, lessons: {}, unlocked: {}, reviews: {}, vocab: {} }], ['alifprog/' + sid, { lessons: {} }]]) {
+    const d = (await store.get(key)) || empty;
+    if (on) d.all = true; else delete d.all;
+    await store.set(key, d);
+  }
+}
+
 async function apiBootstrap(user) {
   const all = await store.all({ light: true });
   const v = visibleData(user, all);
@@ -4520,6 +4531,12 @@ async function handleApi(req, res, url) {
       }
       if (p.indexOf('leads/') === 0 && body.data && typeof body.data === 'object') leadTrack(oldLead, body.data, user, noAnsTap);
       const oldTask = p.indexOf('tasks/') === 0 ? await store.get(p) : null;
+      /* O'quvchi: «to'liq dostup» faqat direktor/admin (settings.edit) qo'ya oladi */
+      if (p.indexOf('students/') === 0 && body.data && typeof body.data === 'object') {
+        const oldSt = beforeDoc || await store.get(p);
+        if (!A.can(user, 'settings.edit')) { if (oldSt && oldSt.fullAccess) body.data.fullAccess = true; else delete body.data.fullAccess; }
+        if (!!(oldSt && oldSt.fullAccess) !== !!body.data.fullAccess) await setFullAccess(p.split('/')[1], !!body.data.fullAccess);
+      }
       await store.set(p, body.data);
       /* Murojaat bosqichi o'zgardi → Meta'ga (Conversions API, CRM) */
       if (p.indexOf('leads/') === 0) metaCapi.onLeadSaved(oldLead, Object.assign({ id: p.split('/')[1] }, body.data)).catch(() => { });

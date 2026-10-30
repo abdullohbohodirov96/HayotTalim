@@ -265,6 +265,7 @@ async function summary(store, student) {
       name: ((student.lastName || '') + ' ' + (student.firstName || '')).trim(),
       status: student.status || 'faol'
     },
+    fullAccess: !!student.fullAccess,
     center: { name: settings.centerName || (process.env.APP_NAME || 'Sabo Academy'), phone: settings.phone || '' },
     groups: groupList,
     finance: {

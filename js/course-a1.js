@@ -204,7 +204,7 @@
       /* Har REVIEW_EVERY darsdan keyin takrorlash testi bor: undan o'tmaguncha keyingi dars yopiq */
       var gate = i > 0 ? reviewAfter(LESSONS[i - 1].id) : null;
       var gateOk = !gate || reviewPassed(progress, gate.id);
-      var open = i === 0 || (prevDone && gateOk) || !!manual[l.id];
+      var open = i === 0 || (prevDone && gateOk) || !!manual[l.id] || !!(progress && progress.all);   // all — to'liq dostup (ko'rish/test hisobi)
       out[l.id] = done ? 'done' : (open ? 'open' : 'locked');
       prevDone = done;
     });

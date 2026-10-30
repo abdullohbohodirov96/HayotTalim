@@ -675,7 +675,7 @@
     LESSONS.forEach(function (l, i) {
       var p = pl[l.id];
       var done = isDone(p);
-      out[l.id] = done ? 'done' : ((i === 0 || prevDone || manual[l.id]) ? 'open' : 'locked');
+      out[l.id] = done ? 'done' : ((i === 0 || prevDone || manual[l.id] || (progress && progress.all)) ? 'open' : 'locked');
       prevDone = done;
     });
     return out;

@@ -223,8 +223,8 @@
     });
     if (A.Speak) A.Speak.loadMap();
     var st = d.student, fin = d.finance || {}, att = d.attendance || {};
-    var isA0 = !!(d.level && d.level.code === 'A0');
-    NAV = navFor(d.level);
+    var isA0 = !!(d.level && d.level.code === 'A0') && !d.fullAccess;
+    NAV = d.fullAccess ? NAV_ALL : navFor(d.level);
     var groups = d.groups || [];
     var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
     var cache = {};

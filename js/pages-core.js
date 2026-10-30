@@ -1933,8 +1933,13 @@
         name: 'status', label: 'Holat', type: 'select', value: draft.status || 'faol',
         options: [{ value: 'faol', label: 'Faol' }, { value: 'toxtatgan', label: 'Vaqtincha to’xtatgan' }, { value: 'arxiv', label: 'Arxivlangan' }]
       },
+      App.can('settings.edit') ? {
+        name: 'fullAccess', label: 'Kabinetda dostup', type: 'select', value: draft.fullAccess ? '1' : '',
+        options: [{ value: '', label: 'Oddiy — darslar ketma-ket ochiladi' }, { value: '1', label: 'To‘liq — hamma darslar ochiq (ko‘rish/tekshirish hisobi)' }],
+        help: 'To‘liq dostupda A0 va A1 ning barcha darslari, videolari va bo‘limlari birdaniga ochiq bo‘ladi.'
+      } : null,
       { name: 'note', label: 'Izoh', type: 'textarea', value: draft.note, full: true }
-    ]);
+    ].filter(Boolean));
 
     var groupPick = null;
     if (isNew) {
@@ -1985,6 +1990,7 @@
                 /* Kod faqat raqam; bo'sh bo'lsa serverga qoldiriladi */
                 code: String(v.code || '').replace(/\D/g, '')
               });
+              if (v.fullAccess !== undefined) { if (v.fullAccess === '1') rec.fullAccess = true; else delete rec.fullAccess; }
               if (!rec.code) delete rec.code;
               delete rec._fromLead; delete rec._courseId; delete rec._groupId; delete rec._stay;
               if (isNew) { rec.id = A.uid('stu'); rec.createdAt = A.nowStamp(); }
