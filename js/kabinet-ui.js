@@ -12,8 +12,10 @@
     { id: 'asosiy', label: 'Asosiy', icon: 'home', mob: true },
     { id: 'alifbo', label: 'A0 — o‘qish va yozish', short: 'A0', icon: 'edit' },
     { id: 'darslar', label: 'Darslarim', icon: 'play', mob: true },
-    { id: 'vazifalar', label: 'Uy vazifalarim', short: 'Vazifalar', icon: 'task', mob: true },
-    { id: 'lugat', label: 'Lug’at yodlash', short: 'Lug’at', icon: 'award', mob: true },
+    { id: 'kunlik', label: 'Kunlik mashqlar', short: 'Kunlik', icon: 'check', mob: true },
+    { id: 'lugat', label: 'Mening lug’atim', short: 'Lug’at', icon: 'award', mob: true },
+    { id: 'rivoj', label: 'Mening rivojlanishim', short: 'Rivojlanish', icon: 'chart' },
+    { id: 'vazifalar', label: 'Uy vazifalarim', short: 'Vazifalar', icon: 'task' },
     { id: 'reyting', label: 'Reyting va ballarim', short: 'Reyting', icon: 'award' },
     { id: 'jadval', label: 'Dars jadvali', icon: 'calendar' },
     { id: 'tolov', label: 'To’lovlarim', short: 'To’lov', icon: 'wallet' },
@@ -29,7 +31,7 @@
     return NAV_ALL.filter(function (n) { return !/^(darslar|vazifalar)$/.test(n.id); }).map(function (n) {
       if (n.id === 'lugat') return { id: 'lugat', label: 'Lug’at yodlash · yopiq', short: 'Lug’at', icon: 'award' };
       if (n.id === 'alifbo') return { id: 'alifbo', label: 'Alifbo darslari', short: 'Alifbo', icon: 'play', mob: true };
-      if (n.id === 'reyting' || n.id === 'jadval') return Object.assign({}, n, { mob: true });
+      if (n.id === 'jadval') return Object.assign({}, n, { mob: true });
       return n;
     });
   }
@@ -50,6 +52,16 @@
         course: function () { return D.api('GET', 'api/kabinet/course'); },
         review: function (rid, answers) { return D.kabPost('api/kabinet/course/review', { reviewId: rid, answers: answers }); },
         vocab: function (items) { return D.kabPost('api/kabinet/course/vocab', { items: items }); },
+        /* Aqlli lug'at, kunlik mashqlar, rivojlanish (server/learning.js) */
+        lvocab: function () { return D.api('GET', 'api/kabinet/vocab'); },
+        ldeck: function (extra) { return D.api('GET', 'api/kabinet/vocab/deck' + (extra ? '?extra=1' : '')); },
+        lreview: function (items) { return D.kabPost('api/kabinet/vocab/review', { items: items }); },
+        ldaily: function () { return D.api('GET', 'api/kabinet/daily'); },
+        lqStart: function () { return D.kabPost('api/kabinet/daily/quiz/start', {}); },
+        lqAnswer: function (quizId, i, pick) { return D.kabPost('api/kabinet/daily/quiz/answer', { quizId: quizId, i: i, pick: pick }); },
+        lrlStart: function () { return D.kabPost('api/kabinet/daily/rl/start', {}); },
+        lrlSubmit: function (rlId, answers) { return D.kabPost('api/kabinet/daily/rl/submit', { rlId: rlId, answers: answers }); },
+        lprogress: function () { return D.api('GET', 'api/kabinet/progress'); },
         payments: function () { return D.api('GET', 'api/kabinet/payments'); },
         top: function () { return D.api('GET', 'api/kabinet/top'); },
         alif: function () { return D.api('GET', 'api/kabinet/alif'); },
@@ -204,6 +216,10 @@
   function render(root, d, opts) {
     opts = opts || {};
     var src = makeSource(d);
+    /* Namoyish (serversiz) rejimida yangi bo'limlar ishlamaydi — tushunarli xabar */
+    ['lvocab', 'ldeck', 'lreview', 'ldaily', 'lqStart', 'lqAnswer', 'lrlStart', 'lrlSubmit', 'lprogress'].forEach(function (k) {
+      if (!src[k]) src[k] = function () { return Promise.reject(new Error('Bu bo‘lim serverga ulangan kabinetda ishlaydi.')); };
+    });
     if (A.Speak) A.Speak.loadMap();
     var st = d.student, fin = d.finance || {}, att = d.attendance || {};
     var isA0 = !!(d.level && d.level.code === 'A0');
@@ -320,7 +336,7 @@
     function paintView() {
       UI.clear(view);
       if (cur === 'lugat' && isA0) { vVocabLocked(view); return; }
-      var fn = { asosiy: vHome, alifbo: vAlif, reyting: vRating, darslar: vLessons, vazifalar: vHomework, lugat: vVocab, jadval: vSchedule, tolov: vPay, fayllar: vFiles, savol: vAsk, profil: vProfile }[cur];
+      var fn = { kunlik: vDaily, rivoj: vProgress, asosiy: vHome, alifbo: vAlif, reyting: vRating, darslar: vLessons, vazifalar: vHomework, lugat: vVocab, jadval: vSchedule, tolov: vPay, fayllar: vFiles, savol: vAsk, profil: vProfile }[cur];
       fn(view);
       if (A.I18N && A.I18N.apply) { try { A.I18N.apply(view); } catch (e) { } }
     }
@@ -442,6 +458,7 @@
             h('button', { class: 'btn sm', onclick: function () { go('tolov'); } }, 'To’lash'), 'bad'));
           if (!items.length) items.push(h('p', { class: 'sp-muted' }, 'Hammasi bajarilgan. Barakalla!'));
           items.forEach(function (x) { todo.appendChild(x); });
+          dailyTodo(todo);
         }).catch(function (e) { fail(heroR, e); UI.clear(todo); });
       }
 
@@ -481,14 +498,26 @@
         var openRv = (cv.reviews || []).filter(function (r) { return r.status === 'open'; })[0];
         if (openRv) items.push(todoItem('award', openRv.title + ' testi', openRv.sub + ' — o’tsangiz keyingi dars ochiladi',
           h('button', { class: 'btn sm primary', onclick: function () { go('lugat'); startReview(openRv.id); } }, 'Boshlash'), 'warn'));
-        var vdue = cv.vocab ? cv.vocab.due + cv.vocab.fresh : 0;
-        if (vdue) items.push(todoItem('award', 'Lug’at yodlash', vdue + ' ta so’z bugun takrorlanadi',
-          h('button', { class: 'btn sm', onclick: function () { go('lugat'); startCards(); } }, 'Kartochkalar')));
         if (fin.debt > 0) items.push(todoItem('wallet', 'To’lov', som(fin.debt) + (fin.next && fin.next.dueDate ? ' · ' + dateLabel(fin.next.dueDate) + ' gacha' : ''),
           h('button', { class: 'btn sm', onclick: function () { go('tolov'); } }, 'To’lash'), 'bad'));
         if (!items.length) items.push(h('p', { class: 'sp-muted' }, 'Hammasi bajarilgan. Barakalla!'));
         items.forEach(function (x) { todo.appendChild(x); });
+        dailyTodo(todo);
       }).catch(function (e) { fail(heroR, e); UI.clear(todo); });
+    }
+    /** «Bugungi ishlar»ga kunlik mashqlar holati (serverdan) */
+    function dailyTodo(todo) {
+      load('ldaily').then(function (dy) {
+        var g = dy.day.goals, dn = dy.day.done;
+        var ks = Object.keys(g).filter(function (k) { return g[k] > 0; });
+        var left = ks.filter(function (k) { return (dn[k] || 0) < g[k]; }).length;
+        if (!ks.length) return;
+        var empty0 = todo.querySelector('.sp-muted'); if (empty0 && !left) return;
+        if (empty0) empty0.remove();
+        todo.appendChild(todoItem('award', left ? 'Kunlik mashqlar' : 'Kunlik mashqlar bajarildi ✓',
+          left ? left + ' ta topshiriq qoldi · bugun +' + dy.day.xp + ' XP · 🔥 ' + dy.streak.current : 'Bugun +' + dy.day.xp + ' XP · 🔥 ' + dy.streak.current + ' kun',
+          left ? h('button', { class: 'btn sm primary', onclick: function () { go('kunlik'); } }, 'Boshlash') : null, left ? 'warn' : ''));
+      }).catch(function () { });
     }
     function tile(icon, label, value, target, hint, cls) {
       var v = h('b', {}, value), hn = h('span', {}, hint || '');
@@ -1256,78 +1285,484 @@
       }).catch(function (e) { fail(box, e); });
     }
 
-    /* ---------- 4. Lug'at yodlash ---------- */
-    var vocabFilter = 'hammasi';
+    /* ---------- 4. Mening lug'atim (aqlli takrorlash) ---------- */
+    var vocabFilter = { q: '', status: 'hammasi', lesson: '' };
     function sayAr(t) { if (A.CourseSay) A.CourseSay(t, 0.75); }
-    function boxDots(b) {
-      return h('span', { class: 'sp-boxes', title: b == null ? 'hali ko’rilmagan' : (b + '/5 bosqich') },
-        [0, 1, 2, 3, 4].map(function (k) { return h('i', { class: b != null && b > k ? 'on' : '' }); }));
+    var STATUS_UZ = { yangi: 'Yangi', takrorlash: 'Takrorlash kerak', organilmoqda: 'O‘rganilmoqda', barqaror: 'Barqaror yodlangan' };
+    function ivLabel(n) { return n <= 0 ? 'bugun' : n === 1 ? '1 kun' : n < 30 ? n + ' kun' : n < 365 ? Math.round(n / 30) + ' oy' : '1 yil'; }
+    function dueLabel(due, today) {
+      if (!due) return '—';
+      var d = Math.round((Date.parse(due + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 864e5);
+      return d <= 0 ? 'bugun' : d === 1 ? 'ertaga' : d + ' kundan keyin';
     }
+    function xpToast(before, after) { var d = (after || 0) - (before || 0); if (d > 0) UI.toast('+' + d + ' XP', 'ok'); }
+
     function vVocab(el) {
       var box = h('div', {}, loading());
       el.appendChild(box);
-      load('course').then(function (cv) {
+      cache.lvocab = null; cache.ldaily = null;
+      Promise.all([load('lvocab'), load('lprogress').catch(function () { return null; }), load('course').catch(function () { return null; }), load('ldaily').catch(function () { return null; })]).then(function (r) {
+        var vv = r[0], pg = r[1], cv = r[2], dy = r[3];
         UI.clear(box);
-        var today = A.today ? A.today() : new Date().toISOString().slice(0, 10);
-        var vs = vocabOf(cv, today);
-        /* Holat kartochkalari */
-        var rvDone = (cv.reviews || []).filter(function (r) { return r.status === 'done'; }).length;
+        var c = vv.counts;
+        badges.lugat = c.takrorlash + Math.min(c.yangi, 10); paintBadges();
+        /* Holat */
         box.appendChild(h('div', { class: 'sp-tiles' }, [
-          statTile('award', 'Ochiq so’zlar', String(vs.total), 'o’tilgan darslardan'),
-          statTile('check', 'Yodlangan', String(vs.learned), '3+ marta to’g’ri', 'ok'),
-          statTile('clock', 'Bugun takrorlash', String(vs.due + vs.fresh), vs.fresh ? vs.fresh + ' tasi yangi' : 'kartochkalarda', vs.due + vs.fresh ? 'warn' : ''),
-          statTile('task', 'Takrorlash testlari', rvDone + ' / ' + (cv.reviews || []).length, 'har 2 darsda bitta')
+          statTile('award', 'Jami o‘rganilgan', String(c.learned), c.total + ' ta so‘zdan'),
+          statTile('plus', 'Yangi so‘zlar', String(c.yangi), 'hali ko‘rilmagan'),
+          statTile('clock', 'Takrorlash kerak', String(c.takrorlash), 'bugun', c.takrorlash ? 'warn' : ''),
+          statTile('check', 'Barqaror yodlangan', String(c.barqaror), '14+ kunlik oraliqda', 'ok')
         ]));
         /* Bugungi mashg'ulot */
-        var n = Math.min(15, vs.due + vs.fresh);
+        var due = c.takrorlash + Math.min(c.yangi, 10);
+        var st = dy && dy.day ? dy.day.stat : null;
         box.appendChild(h('section', { class: 'sp-vhero' }, [
           h('div', {}, [
-            h('span', { class: 'sp-eyebrow' }, 'Bugungi mashg’ulot'),
-            h('h2', {}, n ? n + ' ta so’z sizni kutmoqda' : 'Bugungi takrorlash bajarilgan ✓'),
-            h('p', {}, 'Kartochkada so’zni ko’ring va tinglang, ma’nosini eslang. Bilsangiz — so’z kamroq takrorlanadi, bilmasangiz — ertaga yana chiqadi.')
+            h('span', { class: 'sp-eyebrow' }, 'Bugungi takrorlash'),
+            h('h2', {}, due ? due + ' ta so‘z sizni kutmoqda' : 'Bugungi takrorlash bajarilgan ✓'),
+            h('p', {}, 'So‘zni ko‘ring, ma’nosini eslang, keyin tekshiring. Javobingizga qarab so‘z 1, 3, 7, 14, 30 kundan keyin qayta chiqadi: oson eslasangiz — kamroq, unutsangiz — ertaga yana.'),
+            st && st.reviews ? h('div', { class: 'sp-vtoday' }, [
+              h('span', {}, 'Bugun: ' + st.reviews + ' ta javob'),
+              h('span', { class: 'ok' }, '✓ ' + st.ok + ' esladim'),
+              h('span', { class: 'bad' }, '✗ ' + st.again + ' unutdim')
+            ]) : null
           ]),
           h('div', { class: 'sp-vhero-b' }, [
-            h('button', { class: 'btn sp-cta', type: 'button', onclick: function () { startCards(); } }, n ? 'Kartochkalarni boshlash →' : 'Baribir mashq qilish →'),
-            h('button', { class: 'btn sp-cta2', type: 'button', onclick: function () { startCards({ reverse: true }); } }, 'O’zbekcha → arabcha')
+            h('button', { class: 'btn sp-cta', type: 'button', disabled: !c.total, onclick: function () { startCards(); } }, due ? 'Kartochkalarni boshlash →' : 'Qo‘shimcha mashq →')
           ])
         ]));
-        /* Takrorlash testlari */
-        box.appendChild(card('Takrorlash testlari — har 2 darsdan keyin', [h('div', { class: 'sp-rvlist' }, (cv.reviews || []).map(function (rv) {
-          var locked = rv.status === 'locked';
-          return h('div', { class: 'sp-rvrow ' + rv.status }, [
-            h('span', { class: 'sp-rvrow-n' }, rv.status === 'done' ? '✓' : locked ? '🔒' : '🔁'),
-            h('div', { class: 'sp-rvrow-t' }, [h('b', {}, rv.title), h('span', {}, rv.sub + (rv.best != null ? ' · eng yaxshi natija ' + rv.best + '%' : ''))]),
-            locked ? h('span', { class: 'sp-pill muted' }, 'Yopiq')
-              : h('button', { class: 'btn sm ' + (rv.status === 'open' ? 'primary' : ''), type: 'button', onclick: function () { startReview(rv.id); } }, rv.status === 'done' ? 'Yana ishlash' : 'Boshlash')
-          ]);
-        }))]));
-        /* So'zlar ro'yxati */
-        var chips = h('div', { class: 'sp-chips' });
-        var list = h('div', { class: 'sp-wlist' });
-        function drawList() {
-          UI.clear(chips);
-          [['hammasi', 'Hammasi'], ['yangi', 'Yodlanmagan'], ['yod', 'Yodlangan']].forEach(function (c) {
-            chips.appendChild(h('button', { type: 'button', class: 'sp-chip' + (vocabFilter === c[0] ? ' on' : ''), onclick: function () { vocabFilter = c[0]; drawList(); } }, c[1]));
-          });
-          UI.clear(list);
-          var ws = vs.words.filter(function (w) { return vocabFilter === 'hammasi' || (vocabFilter === 'yod' ? w.b >= 3 : !(w.b >= 3)); });
-          if (!ws.length) { list.appendChild(empty('award', 'Bu ro’yxat bo’sh', '')); return; }
-          var lastN = null;
-          ws.forEach(function (w) {
-            if (w.n !== lastN) { lastN = w.n; list.appendChild(h('div', { class: 'sp-wgroup' }, w.n + '-dars · ' + A.Course.byId(w.lessonId).title)); }
-            list.appendChild(h('div', { class: 'sp-word' }, [
-              h('button', { class: 'sp-word-say', type: 'button', 'aria-label': 'Tinglash', onclick: function () { if (A.Speak && A.Speak.sayPair) A.Speak.sayPair(w.ar, w.uz, { rate: 0.75 }); else sayAr(w.ar); } }, '🔊'),
-              h('b', { class: 'sp-word-ar', lang: 'ar', dir: 'rtl' }, w.ar),
-              h('span', { class: 'sp-word-tr' }, w.tr),
-              h('span', { class: 'sp-word-uz' }, w.uz),
-              boxDots(w.b)
-            ]));
-          });
+        if (!c.total) {
+          box.appendChild(empty('award', 'Lug‘atingiz hali bo‘sh', 'Darsni boshlang — shu darsning so‘zlari bu yerga avtomatik qo‘shiladi.'));
         }
-        drawList();
-        box.appendChild(card('Mening lug’atim', [chips, list]));
+        /* 7 va 30 kunlik statistika */
+        if (pg) {
+          var sum = function (n) { return pg.activity30.slice(-n).reduce(function (a, d) { return a + d.reviews; }, 0); };
+          box.appendChild(card('Takrorlash statistikasi', [
+            h('div', { class: 'sp-mini2' }, [
+              h('div', {}, [h('b', {}, String(sum(7))), h('span', {}, 'oxirgi 7 kunda javob')]),
+              h('div', {}, [h('b', {}, String(sum(30))), h('span', {}, 'oxirgi 30 kunda javob')]),
+              h('div', {}, [h('b', {}, String(pg.streak.current)), h('span', {}, 'kunlik streak 🔥')])
+            ]),
+            barChart(pg.activity30.map(function (d) { return { label: d.date.slice(8), value: d.reviews, title: d.date + ': ' + d.reviews + ' ta javob' }; }), { unit: 'javob' })
+          ]));
+        }
+        /* A1 takrorlash testlari (dars ochilishi uchun) */
+        if (cv && (cv.reviews || []).length) {
+          box.appendChild(card('Takrorlash testlari — har 2 darsdan keyin', [h('div', { class: 'sp-rvlist' }, cv.reviews.map(function (rv) {
+            var locked = rv.status === 'locked';
+            return h('div', { class: 'sp-rvrow ' + rv.status }, [
+              h('span', { class: 'sp-rvrow-n' }, rv.status === 'done' ? '✓' : locked ? '🔒' : '🔁'),
+              h('div', { class: 'sp-rvrow-t' }, [h('b', {}, rv.title), h('span', {}, rv.sub + (rv.best != null ? ' · eng yaxshi natija ' + rv.best + '%' : ''))]),
+              locked ? h('span', { class: 'sp-pill muted' }, 'Yopiq')
+                : h('button', { class: 'btn sm ' + (rv.status === 'open' ? 'primary' : ''), type: 'button', onclick: function () { startReview(rv.id); } }, rv.status === 'done' ? 'Yana ishlash' : 'Boshlash')
+            ]);
+          }))]));
+        }
+        /* Qidiruv va filtr */
+        if (c.total) {
+          var lessons = {}; vv.words.forEach(function (w) { if (w.lesson) lessons[w.lesson] = w.lessonTitle || w.lesson; });
+          var q = h('input', { type: 'search', id: 'sp-vq', class: 'sp-vsearch', placeholder: 'Qidirish: arabcha yoki o‘zbekcha', value: vocabFilter.q, oninput: function (e) { vocabFilter.q = e.target.value; drawList(); } });
+          var selS = h('select', { id: 'sp-vstatus', onchange: function (e) { vocabFilter.status = e.target.value; drawList(); } },
+            [['hammasi', 'Hamma holat']].concat(Object.keys(STATUS_UZ).map(function (k) { return [k, STATUS_UZ[k]]; })).map(function (o) { return h('option', { value: o[0], selected: vocabFilter.status === o[0] }, o[1]); }));
+          var selL = h('select', { id: 'sp-vlesson', onchange: function (e) { vocabFilter.lesson = e.target.value; drawList(); } },
+            [h('option', { value: '' }, 'Hamma darslar')].concat(Object.keys(lessons).map(function (k) { return h('option', { value: k, selected: vocabFilter.lesson === k }, lessons[k]); })));
+          var cnt = h('span', { class: 'sp-muted small' });
+          var list = h('div', { class: 'sp-wlist' });
+          var normQ = function (t) { return String(t || '').toLowerCase().replace(/[ً-ٰٟ]/g, ''); };
+          var drawList = function () {
+            UI.clear(list);
+            var qq = normQ(vocabFilter.q.trim());
+            var ws = vv.words.filter(function (w) {
+              return (vocabFilter.status === 'hammasi' || w.status === vocabFilter.status) && (!vocabFilter.lesson || w.lesson === vocabFilter.lesson) &&
+                (!qq || normQ(w.ar).indexOf(qq) >= 0 || normQ(w.uz).indexOf(qq) >= 0 || normQ(w.tr).indexOf(qq) >= 0);
+            });
+            cnt.textContent = ws.length + ' ta so‘z';
+            if (!ws.length) { list.appendChild(empty('award', 'Hech narsa topilmadi', 'Qidiruv yoki filtrni o‘zgartiring.')); return; }
+            ws.slice(0, 300).forEach(function (w) {
+              list.appendChild(h('div', { class: 'sp-word2' }, [
+                h('button', { class: 'sp-word-say', type: 'button', 'aria-label': 'Tinglash', onclick: function () { sayAr(w.ar); } }, '🔊'),
+                h('div', { class: 'sp-word2-m' }, [
+                  h('div', { class: 'sp-word2-top' }, [h('b', { class: 'sp-word-ar', lang: 'ar', dir: 'rtl' }, w.ar), h('span', { class: 'sp-word-uz' }, w.uz)]),
+                  w.ex ? h('div', { class: 'sp-word2-ex' }, [h('span', { lang: 'ar', dir: 'rtl' }, w.ex), w.exUz ? h('small', {}, w.exUz) : null]) : null,
+                  h('div', { class: 'sp-word2-meta' }, [
+                    h('span', { class: 'sp-vst ' + w.status }, STATUS_UZ[w.status]),
+                    w.reps ? h('span', {}, 'keyingi: ' + dueLabel(w.due, vv.today)) : null,
+                    w.lessonTitle ? h('span', {}, w.lessonTitle) : null
+                  ])
+                ])
+              ]));
+            });
+          };
+          drawList();
+          box.appendChild(card('Mening lug‘atim', [h('div', { class: 'sp-vfilter' }, [q, selS, selL, cnt]), list]));
+        }
       }).catch(function (e) { fail(box, e); });
     }
+    function statTile(icon, label, value, hint, cls) {
+      return h('div', { class: 'sp-tile ' + (cls || '') }, [h('i', { class: 'sp-tile-i' }, ico(icon)), h('div', {}, [h('small', {}, label), h('b', {}, value), h('span', {}, hint || '')])]);
+    }
+
+    /* Flashcard: arabcha → ma'nosini tekshirish → Bilmadim / Qiynalib esladim / Oson esladim.
+       Har javob darhol serverga ketadi (sahifa yopilsa ham natija saqlanadi). */
+    function startCards(o) {
+      o = o || {};
+      setBack(function () { cache.lvocab = null; go(o.from || 'lugat'); });
+      src.ldeck(o.extra).then(function (dk) {
+        var deck = dk.cards || [];
+        if (!deck.length && !o.extra) { o.extra = true; return startCards(o); }
+        if (!deck.length) { UI.toast('Hali takrorlanadigan so‘z yo‘q.', 'warn'); return; }
+        var res = { ok: 0, hard: 0, again: 0 }, i = 0, shown = false, xp0 = null;
+        UI.clear(view);
+        var wrap = h('div', { class: 'sp-cards' });
+        view.appendChild(wrap);
+        function finish() {
+          UI.clear(wrap);
+          cache.lvocab = null; cache.ldaily = null; cache.lprogress = null;
+          wrap.appendChild(h('div', { class: 'sp-card sp-cdone' }, [
+            h('div', { class: 'sp-cdone-big' }, (res.ok + res.hard) + ' / ' + deck.length),
+            h('h2', {}, res.again ? 'Yaxshi! Unutganlaringiz ertaga yana chiqadi' : 'Ajoyib! Hammasini esladingiz'),
+            h('div', { class: 'sp-cres' }, [h('span', { class: 'ok' }, 'Oson: ' + res.ok), h('span', { class: 'mid' }, 'Qiynalib: ' + res.hard), h('span', { class: 'bad' }, 'Bilmadim: ' + res.again)]),
+            h('div', { class: 'rowflex', style: 'gap:8px;justify-content:center;flex-wrap:wrap' }, [
+              h('button', { class: 'btn', type: 'button', onclick: function () { go(o.from || 'lugat'); } }, o.from === 'kunlik' ? 'Kunlik mashqlarga' : 'Lug‘atga qaytish'),
+              h('button', { class: 'btn primary', type: 'button', onclick: function () { startCards({ from: o.from }); } }, 'Yana bir to‘plam')
+            ])
+          ]));
+        }
+        function answer(w, g) {
+          res[g === 2 ? 'ok' : g === 1 ? 'hard' : 'again']++;
+          i++; draw();
+          src.lreview([{ id: w.id, g: g }]).then(function (r) {
+            if (r && r.day) { if (xp0 != null) xpToast(xp0, r.day.xp); xp0 = r.day.xp; }
+          }).catch(function (e) { UI.toast(e.message || 'Saqlanmadi — internetni tekshiring', 'bad'); });
+        }
+        function draw() {
+          if (i >= deck.length) { finish(); return; }
+          var w = deck[i]; shown = false;
+          UI.clear(wrap);
+          var bar = h('div', { class: 'sp-cbar' }, h('i', { style: 'width:' + Math.round(i * 100 / deck.length) + '%' }));
+          var back = h('div', { class: 'sp-cback' }, [
+            h('div', { class: 'sp-cuz' }, w.uz),
+            w.tr ? h('span', { class: 'sp-ctr' }, w.tr) : null,
+            w.ex ? h('div', { class: 'sp-cex' }, [h('div', { lang: 'ar', dir: 'rtl' }, w.ex), w.exUz ? h('small', {}, w.exUz) : null]) : null
+          ]);
+          back.hidden = true;
+          var actions = h('div', { class: 'sp-cact' }, [h('button', { class: 'btn lg sp-show', type: 'button', onclick: reveal }, 'Ma’nosini tekshirish')]);
+          function reveal() {
+            if (shown) return; shown = true; back.hidden = false;
+            UI.clear(actions); actions.className = 'sp-cact three';
+            [[0, '✗ Bilmadim', 'sp-no'], [1, '≈ Qiynalib esladim', 'sp-mid'], [2, '✓ Oson esladim', 'sp-yes']].forEach(function (b) {
+              actions.appendChild(h('button', { class: 'btn lg ' + b[2], type: 'button', onclick: function () { answer(w, b[0]); } }, [h('span', {}, b[1]), h('small', {}, 'keyingi: ' + ivLabel(w.preview[b[0]]))]));
+            });
+          }
+          wrap.appendChild(h('div', { class: 'sp-chead' }, [
+            h('span', {}, (i + 1) + ' / ' + deck.length), w.isNew ? h('span', { class: 'sp-pill' }, 'Yangi so‘z') : h('span', { class: 'sp-pill muted' }, 'Takrorlash')
+          ]));
+          wrap.appendChild(bar);
+          wrap.appendChild(h('div', { class: 'sp-flash', onclick: reveal }, [
+            h('div', { class: 'sp-car', lang: 'ar', dir: 'rtl' }, w.ar),
+            h('button', { class: 'sp-csay', type: 'button', onclick: function (e) { e.stopPropagation(); sayAr(w.ar); } }, '🔊 Tinglash'),
+            back
+          ]));
+          wrap.appendChild(actions);
+          sayAr(w.ar);
+        }
+        draw();
+      }).catch(function (e) { UI.toast(e.message || 'Yuklanmadi', 'bad'); });
+    }
+
+    /* ---------- Kichik grafiklar (SVG, kutubxonasiz) ---------- */
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    function svgEl(tag, attrs, kids) {
+      var e = document.createElementNS(SVGNS, tag);
+      Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+      return e;
+    }
+    /** Ustunli grafik (HTML — telefonda ham yozuvlari aniq): [{label, value, title}] */
+    function barChart(data, o) {
+      o = o || {};
+      var max = Math.max(1, Math.max.apply(null, data.map(function (d) { return d.value || 0; })));
+      var nice = max <= 5 ? 5 : max <= 10 ? 10 : max <= 50 ? Math.ceil(max / 10) * 10 : Math.ceil(max / 50) * 50;
+      var step = Math.ceil(data.length / (o.ticks || 8));
+      var cols = data.map(function (d, i) {
+        var v = d.value || 0;
+        return h('div', { class: 'sp-bc-col' + (i === data.length - 1 ? ' last' : ''), title: d.title || (d.label + ': ' + v) }, [
+          h('div', { class: 'sp-bc-bar' }, h('i', { style: 'height:' + (v ? Math.max(3, v * 100 / nice) : 0) + '%' })),
+          h('span', { class: 'sp-bc-l' }, (i % step === 0 || i === data.length - 1) ? d.label : '')
+        ]);
+      });
+      return h('div', { class: 'sp-bc', role: 'img', 'aria-label': (o.unit || '') + ' grafigi, eng ko‘pi ' + max }, [
+        h('div', { class: 'sp-bc-y' }, [h('span', {}, String(nice)), h('span', {}, String(Math.round(nice / 2))), h('span', {}, '0')]),
+        h('div', { class: 'sp-bc-area' }, [h('div', { class: 'sp-bc-grid' }, [h('i'), h('i'), h('i')]), h('div', { class: 'sp-bc-cols' }, cols)])
+      ]);
+    }
+    /** Chiziqli grafik: chiziq SVG da, yozuv va nuqtalar HTML da: [{label, value}] */
+    function lineChart(data, o) {
+      o = o || {};
+      var vals = data.map(function (d) { return d.value; }).filter(function (v) { return v != null; });
+      var max = o.max || Math.max(1, Math.max.apply(null, vals.concat([1])));
+      var nice = o.max || (max <= 5 ? 5 : max <= 10 ? 10 : Math.ceil(max / 10) * 10);
+      var X = function (i) { return data.length < 2 ? 50 : i * 100 / (data.length - 1); };
+      var Y = function (v) { return 100 - v * 100 / nice; };
+      var pts = data.map(function (d, i) { return d.value == null ? null : { x: X(i), y: Y(d.value), d: d }; }).filter(Boolean);
+      var area = h('div', { class: 'sp-lc-area' }, [h('div', { class: 'sp-bc-grid' }, [h('i'), h('i'), h('i')])]);
+      if (pts.length > 1) {
+        var path = pts.map(function (p, i) { return (i ? 'L' : 'M') + p.x.toFixed(2) + ' ' + p.y.toFixed(2); }).join(' ');
+        area.appendChild(svgEl('svg', { viewBox: '0 0 100 100', preserveAspectRatio: 'none', class: 'sp-lc-svg', 'aria-hidden': 'true' }, [
+          svgEl('path', { d: path + ' L' + pts[pts.length - 1].x.toFixed(2) + ' 100 L' + pts[0].x.toFixed(2) + ' 100 Z', class: 'sp-ch-area' }),
+          svgEl('path', { d: path, class: 'sp-ch-line', 'vector-effect': 'non-scaling-stroke' })
+        ]));
+      }
+      pts.forEach(function (p, i) {
+        if (pts.length > 12 && i !== pts.length - 1) return;      // ko'p nuqtada faqat chiziq
+        area.appendChild(h('span', { class: 'sp-lc-dot' + (i === pts.length - 1 ? ' last' : ''), style: 'left:' + p.x + '%;top:' + p.y + '%', title: p.d.label + ': ' + p.d.value + (o.pct ? '%' : '') }));
+      });
+      var last = pts[pts.length - 1];
+      if (last) area.appendChild(h('span', { class: 'sp-lc-val', style: 'left:' + last.x + '%;top:' + last.y + '%' }, last.d.value + (o.pct ? '%' : '')));
+      var step = Math.ceil(data.length / 6);
+      var xl = h('div', { class: 'sp-lc-x' }, data.map(function (d, i) { return h('span', { style: 'left:' + X(i) + '%' }, (i % step === 0 || i === data.length - 1) ? d.label : ''); }));
+      return h('div', { class: 'sp-bc', role: 'img', 'aria-label': (o.unit || '') + ' grafigi' }, [
+        h('div', { class: 'sp-bc-y' }, [h('span', {}, nice + (o.pct ? '%' : '')), h('span', {}, Math.round(nice / 2) + (o.pct ? '%' : '')), h('span', {}, '0')]),
+        h('div', { class: 'sp-lc-wrap' }, [area, xl])
+      ]);
+    }
+    function chartEmpty(t) { return h('p', { class: 'sp-muted small sp-chnone' }, t || 'Hali ma’lumot yo‘q — mashq qilishni boshlang.'); }
+
+    /* ---------- 5. Kunlik mashqlar ---------- */
+    var TASKS = [
+      { id: 'newWords', title: 'yangi so‘z o‘rganing', icon: '🆕', unit: 'so‘z', xpKey: 'newWord', per: true },
+      { id: 'reviews', title: 'eski so‘zni takrorlang', icon: '🔁', unit: 'so‘z', xpKey: 'review', per: true },
+      { id: 'test', title: 'test savoliga javob bering', icon: '🎯', unit: 'savol', xpKey: 'testCorrect', per: true, note: 'to‘g‘ri javob' },
+      { id: 'rl', title: 'Reading / Listening mashqi', icon: '🎧', unit: 'mashq', xpKey: 'rl' }
+    ];
+    function vDaily(el) {
+      var box = h('div', {}, loading());
+      el.appendChild(box);
+      cache.ldaily = null;
+      load('ldaily').then(function (dy) {
+        UI.clear(box);
+        var day = dy.day, rules = dy.rules || {};
+        var allN = Object.keys(day.goals).filter(function (k) { return day.goals[k] > 0; });
+        var doneN = allN.filter(function (k) { return (day.done[k] || 0) >= day.goals[k]; }).length;
+        badges.kunlik = allN.length - doneN; paintBadges();
+        /* Yuqori qism: bugungi XP, umumiy XP, streak */
+        box.appendChild(h('section', { class: 'sp-dhero' }, [
+          h('div', { class: 'sp-dring', style: '--p:' + (allN.length ? Math.round(doneN * 100 / allN.length) : 0) }, [h('b', {}, doneN + '/' + allN.length), h('span', {}, 'topshiriq')]),
+          h('div', { class: 'sp-dstats' }, [
+            h('div', {}, [h('b', {}, '+' + day.xp), h('span', {}, 'bugungi XP')]),
+            h('div', {}, [h('b', {}, String(dy.xpTotal)), h('span', {}, 'umumiy XP')]),
+            h('div', { class: dy.streak.todayDone ? 'hot' : '' }, [h('b', {}, '🔥 ' + dy.streak.current), h('span', {}, 'kun ketma-ket')]),
+            h('div', {}, [h('b', {}, String(dy.streak.best)), h('span', {}, 'eng uzun streak')])
+          ]),
+          h('p', { class: 'sp-dnote' }, dy.streak.todayDone ? 'Bugungi streak saqlandi ✓ Ertaga ham kiring!' : 'Streak uchun bugun kamida ' + dy.minXp + ' XP to‘plang (hozir ' + day.xp + ' XP).')
+        ]));
+        /* Topshiriqlar */
+        var list = h('div', { class: 'sp-dtasks' });
+        TASKS.forEach(function (t) {
+          var goal = day.goals[t.id] || 0, done = Math.min(goal, day.done[t.id] || 0);
+          var off = !goal, fin = !off && done >= goal;
+          var xpTxt = '+' + (rules[t.xpKey] || 0) + ' XP' + (t.per ? ' / ' + (t.note || t.unit) : '');
+          var btn = null;
+          if (!off && !fin) {
+            if (t.id === 'newWords' || t.id === 'reviews') btn = h('button', { class: 'btn sm primary', type: 'button', onclick: function () { startCards({ from: 'kunlik' }); } }, 'Boshlash');
+            if (t.id === 'test') btn = h('button', { class: 'btn sm primary', type: 'button', onclick: function () { runDailyQuiz(dy); } }, day.quizOpen ? 'Davom etish' : 'Boshlash');
+            if (t.id === 'rl') btn = h('button', { class: 'btn sm primary', type: 'button', onclick: function () { runRl(dy); } }, 'Boshlash');
+          }
+          list.appendChild(h('div', { class: 'sp-dtask' + (fin ? ' done' : '') + (off ? ' off' : '') }, [
+            h('span', { class: 'sp-dtask-i', 'aria-hidden': 'true' }, fin ? '✓' : t.icon),
+            h('div', { class: 'sp-dtask-m' }, [
+              h('b', {}, t.id === 'rl' ? t.title : goal ? goal + ' ta ' + t.title : t.title.charAt(0).toUpperCase() + t.title.slice(1)),
+              off ? h('span', { class: 'small muted' }, t.id === 'reviews' ? 'Hozircha takrorlanadigan so‘z yo‘q — avval yangi so‘zlarni o‘rganing' : dy.a0 && (t.id === 'newWords') ? 'A0 da asosiy urg‘u o‘qishga — lug‘at A1 da ochiladi' : 'Hozircha mavjud emas — darsni davom ettiring')
+                : h('div', { class: 'sp-dbar' }, [h('i', { style: 'width:' + Math.round(done * 100 / goal) + '%' }), h('span', {}, done + ' / ' + goal)]),
+              off ? null : h('span', { class: 'small sp-dxp' }, xpTxt)
+            ]),
+            btn
+          ]));
+        });
+        list.appendChild(h('div', { class: 'sp-dtask bonus' + (day.bonus ? ' done' : '') }, [
+          h('span', { class: 'sp-dtask-i' }, day.bonus ? '✓' : '🎁'),
+          h('div', { class: 'sp-dtask-m' }, [h('b', {}, 'Hammasini bajarish bonusi'), h('span', { class: 'small sp-dxp' }, '+' + (rules.allBonus || 0) + ' XP')])
+        ]));
+        box.appendChild(card('Bugungi topshiriqlar', [list]));
+        /* 7 kunlik faollik */
+        var days7 = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+        box.appendChild(card('Oxirgi 7 kun', [barChart(dy.last7.map(function (d) {
+          var wd = (new Date(d.date + 'T00:00:00Z').getUTCDay() + 6) % 7;
+          return { label: days7[wd], value: d.xp, title: d.date + ': ' + d.xp + ' XP' };
+        }), { unit: 'XP', h: 130 })]));
+        /* Yutuqlar */
+        box.appendChild(card('Yutuqlar', [badgeGrid(dy.badges)]));
+      }).catch(function (e) { fail(box, e); });
+    }
+    function badgeGrid(list) {
+      return h('div', { class: 'sp-badges' }, list.map(function (b) {
+        return h('div', { class: 'sp-bdg' + (b.at ? ' on' : '') }, [
+          h('span', { class: 'sp-bdg-i', 'aria-hidden': 'true' }, b.at ? b.icon : '🔒'),
+          h('b', {}, b.title), h('small', {}, b.at ? 'olindi · ' + dateLabel(b.at) : b.about)
+        ]);
+      }));
+    }
+    /** Savolni o'qib berish: A0 da — darslik ovozi, boshqalarda — so'z ovozi */
+    function sayQ(t, dy) { if (!t) return; if (dy && dy.a0) a0Say(t); else sayAr(t); }
+    function runDailyQuiz(dy) {
+      setBack(function () { go('kunlik'); });
+      src.lqStart().then(function (r) {
+        var qz = r.quiz, i = 0;
+        while (i < qz.qs.length && qz.qs[i].answered) i++;
+        UI.clear(view);
+        var wrap = h('div', { class: 'sp-cards' });
+        view.appendChild(wrap);
+        function draw() {
+          if (i >= qz.qs.length) {
+            cache.ldaily = null;
+            var ok = qz.qs.filter(function (q) { return q.answered && q.answered.pick === q.answered.right; }).length;
+            UI.clear(wrap);
+            wrap.appendChild(h('div', { class: 'sp-card sp-cdone' }, [
+              h('div', { class: 'sp-cdone-big' }, ok + ' / ' + qz.qs.length),
+              h('h2', {}, ok === qz.qs.length ? 'Zo‘r! Hammasi to‘g‘ri' : 'Test yakunlandi'),
+              h('button', { class: 'btn primary', type: 'button', onclick: function () { go('kunlik'); } }, 'Kunlik mashqlarga →')
+            ]));
+            return;
+          }
+          var q = qz.qs[i];
+          UI.clear(wrap);
+          wrap.appendChild(h('div', { class: 'sp-chead' }, [h('span', {}, 'Kunlik test · ' + (i + 1) + ' / ' + qz.qs.length), h('span', { class: 'sp-pill' }, '+' + (dy.rules.testCorrect || 0) + ' XP')]));
+          wrap.appendChild(h('div', { class: 'sp-cbar' }, h('i', { style: 'width:' + Math.round(i * 100 / qz.qs.length) + '%' })));
+          var cardEl = h('div', { class: 'sp-card sp-qcard' }, [h('div', { class: 'sp-cq' }, q.prompt)]);
+          if (q.show) cardEl.appendChild(h('div', { class: 'sp-car', lang: 'ar', dir: 'rtl' }, q.show));
+          if (q.say) { cardEl.appendChild(h('button', { class: 'sp-csay big', type: 'button', onclick: function () { sayQ(q.say, dy); } }, '🔊 Tinglash')); setTimeout(function () { sayQ(q.say, dy); }, 250); }
+          var opts = h('div', { class: 'sp-copts' + (q.optionsAr ? ' ar' : '') });
+          q.options.forEach(function (op, k) {
+            opts.appendChild(h('button', { class: 'sp-copt', type: 'button', lang: q.optionsAr ? 'ar' : null, dir: q.optionsAr ? 'rtl' : null, onclick: function () {
+              Array.prototype.forEach.call(opts.children, function (b) { b.disabled = true; });
+              src.lqAnswer(qz.id, q.i, k).then(function (a) {
+                q.answered = { pick: k, right: a.right };
+                opts.children[a.right].classList.add('ok');
+                if (!a.correct) opts.children[k].classList.add('bad');
+                else UI.toast('+' + (dy.rules.testCorrect || 0) + ' XP', 'ok');
+                setTimeout(function () { i++; draw(); }, a.correct ? 700 : 1500);
+              }).catch(function (e) { UI.toast(e.message || 'Saqlanmadi', 'bad'); Array.prototype.forEach.call(opts.children, function (b) { b.disabled = false; }); });
+            } }, op));
+          });
+          cardEl.appendChild(opts);
+          wrap.appendChild(cardEl);
+        }
+        draw();
+      }).catch(function (e) { UI.toast(e.message || 'Test ochilmadi', 'bad'); });
+    }
+    function runRl(dy) {
+      setBack(function () { go('kunlik'); });
+      src.lrlStart().then(function (r) {
+        var rl = r.rl, ans = [], i = 0;
+        UI.clear(view);
+        var wrap = h('div', { class: 'sp-cards' });
+        view.appendChild(wrap);
+        function submit() {
+          UI.clear(wrap); wrap.appendChild(loading());
+          src.lrlSubmit(rl.id, ans).then(function (x) {
+            cache.ldaily = null;
+            UI.clear(wrap);
+            wrap.appendChild(h('div', { class: 'sp-card sp-cdone' }, [
+              h('div', { class: 'sp-cdone-big' }, x.percent + '%'),
+              h('h2', {}, x.passed ? 'Mashq bajarildi! +' + (dy.rules.rl || 0) + ' XP' : 'Yana bir urinib ko‘ring — 60% kerak'),
+              h('div', { class: 'rowflex', style: 'gap:8px;justify-content:center;flex-wrap:wrap' }, [
+                x.passed ? null : h('button', { class: 'btn primary', type: 'button', onclick: function () { runRl(dy); } }, 'Qayta urinish'),
+                h('button', { class: 'btn', type: 'button', onclick: function () { go('kunlik'); } }, 'Kunlik mashqlarga')
+              ])
+            ]));
+          }).catch(function (e) { fail(wrap, e); });
+        }
+        function draw() {
+          if (i >= rl.qs.length) { submit(); return; }
+          var q = rl.qs[i];
+          UI.clear(wrap);
+          wrap.appendChild(h('div', { class: 'sp-chead' }, [h('span', {}, (q.kind === 'listening' ? '🎧 Listening' : '📖 Reading') + ' · ' + (i + 1) + ' / ' + rl.qs.length)]));
+          wrap.appendChild(h('div', { class: 'sp-cbar' }, h('i', { style: 'width:' + Math.round(i * 100 / rl.qs.length) + '%' })));
+          var cardEl = h('div', { class: 'sp-card sp-qcard' }, [h('div', { class: 'sp-cq' }, q.prompt)]);
+          if (q.show) {
+            var shown = h('div', { class: 'sp-car sp-rltext', lang: 'ar', dir: 'rtl' });
+            var at = q.mark ? q.show.indexOf(q.mark) : -1;
+            if (at >= 0) { shown.appendChild(document.createTextNode(q.show.slice(0, at))); shown.appendChild(h('mark', {}, q.mark)); shown.appendChild(document.createTextNode(q.show.slice(at + q.mark.length))); }
+            else shown.textContent = q.show;
+            cardEl.appendChild(shown);
+          }
+          if (q.say) { cardEl.appendChild(h('button', { class: 'sp-csay big', type: 'button', onclick: function () { sayQ(q.say, dy); } }, '🔊 Yana tinglash')); setTimeout(function () { sayQ(q.say, dy); }, 250); }
+          var opts = h('div', { class: 'sp-copts' + (q.optionsAr ? ' ar' : '') });
+          q.options.forEach(function (op, k) {
+            opts.appendChild(h('button', { class: 'sp-copt', type: 'button', lang: q.optionsAr ? 'ar' : null, dir: q.optionsAr ? 'rtl' : null, onclick: function () { ans[i] = k; i++; draw(); } }, op));
+          });
+          cardEl.appendChild(opts);
+          wrap.appendChild(cardEl);
+        }
+        draw();
+      }).catch(function (e) { UI.toast(e.message || 'Mashq ochilmadi', 'bad'); });
+    }
+
+    /* ---------- 6. Mening rivojlanishim ---------- */
+    var SKILL_UZ = { vocabulary: 'Lug‘at (Vocabulary)', grammar: 'Grammatika (Grammar)', reading: 'O‘qish (Reading)', listening: 'Tinglash (Listening)', writing: 'Yozish (Writing)', speaking: 'Gapirish (Speaking)' };
+    var actRange = 7;
+    function vProgress(el) {
+      var box = h('div', {}, loading());
+      el.appendChild(box);
+      cache.lprogress = null;
+      load('lprogress').then(function (pg) {
+        UI.clear(box);
+        var c = pg.course || { code: d.level ? d.level.code : '', title: '', done: 0, total: 0, percent: 0 };
+        /* Kurs va daraja */
+        box.appendChild(h('section', { class: 'sp-hero sp-phero' }, [
+          h('div', { class: 'sp-hero-l' }, [
+            h('span', { class: 'sp-eyebrow' }, 'Joriy daraja · ' + (pg.level || c.code || '—')),
+            h('h1', {}, c.title || 'Kurs'),
+            h('p', {}, c.done + ' ta dars tugatildi · jami ' + c.total + ' ta')
+          ]),
+          h('div', { class: 'sp-hero-r' }, h('div', { class: 'sp-ring', style: '--p:' + c.percent }, [h('b', {}, c.percent + '%'), h('span', {}, 'kurs')]))
+        ]));
+        var hw = pg.homework || {};
+        box.appendChild(h('div', { class: 'sp-tiles' }, [
+          statTile('award', 'O‘rganilgan so‘zlar', String(pg.vocab.learned || 0), (pg.vocab.barqaror || 0) + ' tasi barqaror'),
+          statTile('task', 'Uy vazifalari', hw.submitted + ' / ' + hw.total, hw.accepted + ' qabul' + (hw.returned ? ' · ' + hw.returned + ' qaytarildi' : '') + (hw.pending ? ' · ' + hw.pending + ' tekshirilmoqda' : '')),
+          statTile('chart', 'To‘plangan XP', String(pg.xpTotal), 'kunlik mashqlardan'),
+          statTile('clock', 'Learning streak', '🔥 ' + pg.streak.current, 'eng uzun: ' + pg.streak.best + ' kun', pg.streak.todayDone ? 'ok' : '')
+        ]));
+        /* Faollik */
+        var actBox = h('div', {});
+        var tabs = h('div', { class: 'sp-chips' });
+        function drawAct() {
+          UI.clear(tabs); UI.clear(actBox);
+          [[7, '7 kun'], [30, '30 kun']].forEach(function (x) { tabs.appendChild(h('button', { type: 'button', class: 'sp-chip' + (actRange === x[0] ? ' on' : ''), onclick: function () { actRange = x[0]; drawAct(); } }, x[1])); });
+          var src0 = actRange === 7 ? pg.activity7 : pg.activity30;
+          var any = src0.some(function (x) { return x.xp || x.steps; });
+          actBox.appendChild(any ? barChart(src0.map(function (x) { return { label: actRange === 7 ? x.date.slice(5).replace('-', '.') : x.date.slice(8), value: x.xp, title: x.date + ': ' + x.xp + ' XP · ' + x.reviews + ' takrorlash · ' + x.steps + ' dars bosqichi' }; }), { unit: 'XP' }) : chartEmpty());
+        }
+        drawAct();
+        box.appendChild(card('Kunlik faollik (XP)', [tabs, actBox]));
+        var grid = h('div', { class: 'sp-grid2' });
+        var colL = h('div', { class: 'sp-col' }), colR = h('div', { class: 'sp-col' });
+        grid.appendChild(colL); grid.appendChild(colR); box.appendChild(grid);
+        /* Lug'at o'sishi */
+        var gw = pg.growth || [];
+        colL.appendChild(card('Lug‘at boyligi', [gw.some(function (x) { return x.words; }) ? lineChart(gw.map(function (x) { return { label: x.date.slice(8), value: x.words }; }), { unit: 'so‘z' }) : chartEmpty('So‘z o‘rganishni boshlang — o‘sish shu yerda ko‘rinadi.')]));
+        /* Haftalar bo'yicha o'zlashtirish */
+        var wk = (pg.weekly || []).slice(-8);
+        colR.appendChild(card('Haftalar bo‘yicha o‘zlashtirish', [wk.some(function (x) { return x.recall != null; }) ? lineChart(wk.map(function (x) { return { label: x.week.slice(5).replace('-', '.'), value: x.recall }; }), { pct: true, max: 100, unit: 'eslab qolish %' }) : chartEmpty('Takrorlash natijalari to‘plangach — har hafta necha foiz so‘zni eslaganingiz ko‘rinadi.')]));
+        /* Test natijalari */
+        var tq = (pg.quiz || []).map(function (x) { return { label: x.date.slice(5).replace('-', '.'), value: x.percent }; });
+        colL.appendChild(card('Kunlik test natijalari', [tq.length ? lineChart(tq, { pct: true, max: 100, unit: 'test %' }) : chartEmpty('Kunlik testni ishlang — natijalaringiz o‘zgarishi shu yerda.')]));
+        colR.appendChild(card('Dars testlari', [(pg.tests || []).length ? h('div', { class: 'sp-tres' }, pg.tests.map(function (t) {
+          return h('div', { class: 'sp-tres-r' }, [h('span', {}, t.label), h('div', { class: 'sp-dbar' }, [h('i', { style: 'width:' + t.percent + '%' }), h('span', {}, t.percent + '%')])]);
+        })) : chartEmpty('Hali dars testi topshirilmagan.')]));
+        /* Ko'nikmalar */
+        box.appendChild(card('Ko‘nikmalar', [h('div', { class: 'sp-skills' }, pg.skills.map(function (s) {
+          return h('div', { class: 'sp-skill' + (s.score == null ? ' none' : '') }, [
+            h('div', { class: 'sp-skill-h' }, [h('b', {}, SKILL_UZ[s.id] || s.id), h('span', {}, s.score == null ? 'Hali baholanmagan' : s.score + '%')]),
+            s.score == null ? null : h('div', { class: 'sp-dbar' }, h('i', { style: 'width:' + s.score + '%' })),
+            h('small', {}, s.score == null ? (s.id === 'writing' || s.id === 'speaking' ? 'Ustoz baholagach ko‘rinadi' : 'Yetarli natija to‘plangach hisoblanadi') : s.basis)
+          ]);
+        })), h('p', { class: 'small sp-muted' }, 'Foizlar faqat haqiqiy javoblar, testlar va ustoz baholaridan hisoblanadi.')]));
+        box.appendChild(card('Yutuqlar', [badgeGrid(pg.badges)]));
+      }).catch(function (e) { fail(box, e); });
+    }
+
     /* A0 o'quvchisi uchun «Lug'at yodlash» — yopiq: A0 da asosiy urg'u o'qishga */
     function vVocabLocked(el) {
       el.appendChild(h('section', { class: 'sp-lock' }, [
@@ -1343,90 +1778,6 @@
         h('button', { class: 'btn primary', type: 'button', onclick: function () { go('alifbo'); } }, 'O‘qish darslariga qaytish →')
       ]));
     }
-    function statTile(icon, label, value, hint, cls) {
-      return h('div', { class: 'sp-tile ' + (cls || '') }, [h('i', { class: 'sp-tile-i' }, ico(icon)), h('div', {}, [h('small', {}, label), h('b', {}, value), h('span', {}, hint || '')])]);
-    }
-    /* Ochiq darslar so'zlari va ularning Leitner holati (serverdagi view dan) */
-    function vocabOf(cv, today) {
-      var open = {};
-      cv.lessons.forEach(function (l) { if (l.status !== 'locked') open[l.id] = 1; });
-      var map = (cv.vocab && cv.vocab.map) || {};
-      var learned = 0, due = 0, fresh = 0;
-      var words = A.Course.allWords().filter(function (w) { return open[w.lessonId]; }).map(function (w) {
-        var v = map[w.key];
-        w.b = v ? v.b : null; w.due = v ? v.due : null;
-        if (!v) fresh++; else { if (v.b >= 3) learned++; if (!v.due || v.due <= today) due++; }
-        return w;
-      });
-      return { words: words, total: words.length, learned: learned, due: due, fresh: fresh };
-    }
-
-    /** Kartochkalar sessiyasi (Leitner): avval muddati kelganlar, keyin yangilar */
-    function startCards(o) {
-      setBack(function () { delete cache.course; go('lugat'); });
-      o = o || {};
-      load('course').then(function (cv) {
-        var today = A.today ? A.today() : new Date().toISOString().slice(0, 10);
-        var vs = vocabOf(cv, today);
-        var due = vs.words.filter(function (w) { return w.b != null && (!w.due || w.due <= today); });
-        var fresh = vs.words.filter(function (w) { return w.b == null; });
-        var deck = due.concat(fresh).slice(0, 15);
-        if (!deck.length) deck = vs.words.slice().sort(function () { return Math.random() - .5; }).slice(0, 10);
-        if (!deck.length) { UI.toast('Hali ochiq so’z yo’q.', 'warn'); return; }
-        var results = [], i = 0, shown = false;
-        UI.clear(view);
-        var wrap = h('div', { class: 'sp-cards' });
-        view.appendChild(wrap);
-        function finish() {
-          UI.clear(wrap);
-          var ok = results.filter(function (r) { return r.ok; }).length;
-          wrap.appendChild(h('div', { class: 'sp-card sp-cdone' }, [
-            h('div', { class: 'sp-cdone-big' }, ok + ' / ' + results.length),
-            h('h2', {}, ok === results.length ? 'Ajoyib! Hammasini bildingiz' : 'Yaxshi! Bilmaganlaringiz ertaga yana chiqadi'),
-            h('div', { class: 'rowflex', style: 'gap:8px;justify-content:center;flex-wrap:wrap' }, [
-              h('button', { class: 'btn', type: 'button', onclick: function () { delete cache.course; go('lugat'); } }, 'Lug’atga qaytish'),
-              h('button', { class: 'btn primary', type: 'button', onclick: function () { delete cache.course; startCards(o); } }, 'Yana bir to’plam')
-            ])
-          ]));
-          src.vocab(results).then(function () { delete cache.course; }).catch(function (e) { UI.toast(e.message || 'Saqlanmadi', 'bad'); });
-        }
-        function draw() {
-          if (i >= deck.length) { finish(); return; }
-          var w = deck[i]; shown = false;
-          UI.clear(wrap);
-          var bar = h('div', { class: 'sp-cbar' }, h('i', { style: 'width:' + Math.round(i * 100 / deck.length) + '%' }));
-          var animEl = h('div', { class: 'sp-canim' }); animEl.innerHTML = A.CourseAnim ? A.CourseAnim.render(w.anim, '') : '';
-          var front = o.reverse
-            ? [h('div', { class: 'sp-cq' }, 'Arabchasini eslang:'), h('div', { class: 'sp-cuz-big' }, w.uz)]
-            : [animEl, h('div', { class: 'sp-car', lang: 'ar', dir: 'rtl' }, w.ar), h('button', { class: 'sp-csay', type: 'button', onclick: function (e) { e.stopPropagation(); sayAr(w.ar); } }, '🔊 Tinglash')];
-          var back = h('div', { class: 'sp-cback' }, o.reverse
-            ? [animEl, h('div', { class: 'sp-car', lang: 'ar', dir: 'rtl' }, w.ar), h('span', { class: 'sp-ctr' }, w.tr)]
-            : [h('div', { class: 'sp-cuz' }, w.uz), h('span', { class: 'sp-ctr' }, w.tr)]);
-          back.hidden = true;
-          var actions = h('div', { class: 'sp-cact' }, [
-            h('button', { class: 'btn lg sp-show', type: 'button', onclick: reveal }, 'Ko’rsatish')
-          ]);
-          function reveal() {
-            if (shown) return; shown = true; back.hidden = false;
-            /* Javob ochildi: arabcha old tomonda bo'lsa — endi o'zbekcha tarjimasi eshitiladi */
-            if (o.reverse) sayAr(w.ar); else if (A.Speak && A.Speak.sayUz) A.Speak.sayUz(w.uz);
-            UI.clear(actions);
-            actions.appendChild(h('button', { class: 'btn lg sp-no', type: 'button', onclick: function () { results.push({ key: w.key, ok: false }); i++; draw(); } }, '✗ Bilmadim'));
-            actions.appendChild(h('button', { class: 'btn lg sp-yes', type: 'button', onclick: function () { results.push({ key: w.key, ok: true }); i++; draw(); } }, '✓ Bildim'));
-          }
-          wrap.appendChild(h('div', { class: 'sp-chead' }, [
-            h('button', { class: 'sp-link', type: 'button', onclick: function () { if (results.length) src.vocab(results).catch(function () { }); delete cache.course; go('lugat'); } }, '← Chiqish'),
-            h('span', {}, (i + 1) + ' / ' + deck.length), boxDots(w.b)
-          ]));
-          wrap.appendChild(bar);
-          wrap.appendChild(h('div', { class: 'sp-flash', onclick: reveal }, front.concat([back])));
-          wrap.appendChild(actions);
-          if (!o.reverse) sayAr(w.ar);
-        }
-        draw();
-      }).catch(function (e) { UI.toast(e.message || 'Yuklanmadi', 'bad'); });
-    }
-
     /** Takrorlash testi: har 2 darsdan keyin; 60% dan o'tilsa keyingi dars ochiladi */
     function startReview(rid) {
       setBack(function () { go('lugat'); });
@@ -1710,11 +2061,17 @@
     }
 
     paintNav(); paintTop(); paintView();
+    load('ldaily').then(function (dy) {
+      var g = dy.day.goals, dn = dy.day.done;
+      badges.kunlik = Object.keys(g).filter(function (k) { return g[k] > 0 && (dn[k] || 0) < g[k]; }).length; paintBadges();
+    }).catch(function () { });
     /* Badge uchun kurs ma'lumotini oldindan yuklaymiz (A0 o'quvchida A1 kursi yo'q) */
     if (!isA0) load('course').then(function (cv) {
       badges.vazifalar = cv.lessons.filter(function (l) { return hwState(l).id === 'qayta'; }).length;
-      badges.lugat = (cv.vocab ? cv.vocab.due + cv.vocab.fresh : 0) + (cv.reviews || []).filter(function (r) { return r.status === 'open'; }).length;
+      var rvOpen = (cv.reviews || []).filter(function (r) { return r.status === 'open'; }).length;
+      badges.lugat = rvOpen;
       paintBadges();
+      load('lvocab').then(function (vv) { badges.lugat = rvOpen + vv.counts.takrorlash + Math.min(vv.counts.yangi, 10); paintBadges(); }).catch(function () { });
       /* Darsdan «Takrorlash» tugmasi bilan kelgan bo'lsa — testni darhol ochamiz */
       var m = /[?&]rv=(r\d+)/.exec(String(location.hash || ''));
       if (m && cur === 'lugat') startReview(m[1]);

@@ -110,9 +110,11 @@ async function dictionary(A, store) {
 }
 /** Kurs qissasidan shu so'z qatnashgan gap (misol jumla) */
 function exampleFor(lesson, ar) {
-  const key = normAr(ar).split(' ')[0];
-  if (!key || !lesson.dialog || !lesson.dialog.lines) return null;
-  return lesson.dialog.lines.filter(x => normAr(x.ar).indexOf(key) >= 0)[0] || null;
+  /* So'z gapda ALOHIDA so'z bo'lib kelishi kerak («كم» → «عليكم» ichida emas) */
+  const tok = t => normAr(t).replace(/[^\u0621-\u064A\s]/g, ' ').split(/\s+/).filter(Boolean).map(w => w.replace(/^(ال|و|ف|ب)/, ''));
+  const key = tok(ar)[0];
+  if (!key || key.length < 2 || !lesson.dialog || !lesson.dialog.lines) return null;
+  return lesson.dialog.lines.filter(x => tok(x.ar).indexOf(key) >= 0)[0] || null;
 }
 
 /** Admin: so'z qo'shish / tahrirlash. Takroriy (bir xil arabcha + tarjima) so'z yaratilmaydi. */
@@ -391,7 +393,7 @@ function dayXp(day) { return Object.keys(day.xp || {}).reduce((s, k) => s + (Num
 function dayPublic(day) {
   return { date: day.date, goals: day.goals, done: day.done, xp: dayXp(day), bonus: day.xp.bonus != null,
     quizOpen: !!(day.quiz && day.quiz.qs && Object.keys(day.quiz.ans || {}).length < day.quiz.qs.length),
-    rlDone: taskDone(day, 'rl') };
+    rlDone: taskDone(day, 'rl'), stat: { reviews: day.stat.reviews || 0, ok: day.stat.ok || 0, again: day.stat.again || 0, tq: day.stat.tq || 0, tqOk: day.stat.tqOk || 0 } };
 }
 
 /** Kunlik test: 5 savol (o'quvchining so'zlari yoki A0 alifbosi). Javob faqat serverda. */
@@ -452,7 +454,7 @@ async function rlStart(A, store, sid, today, level) {
     if (!qs.length) return { error: 'Mashq tuzib bo‘lmadi.', code: 400 };
     day.rl = { id: rid('r'), qs, at: Date.now() };
     await putDay(store, sid, day);
-    return { ok: true, rl: { id: day.rl.id, qs: qs.map((x, i) => ({ i, kind: x.skill, prompt: x.prompt, show: x.show || '', say: x.say || '', optionsAr: !!x.optionsAr, options: x.options })) } };
+    return { ok: true, rl: { id: day.rl.id, qs: qs.map((x, i) => ({ i, kind: x.skill, prompt: x.prompt, show: x.show || '', mark: x.mark || '', say: x.say || '', optionsAr: !!x.optionsAr, options: x.options })) } };
   });
 }
 async function rlSubmit(A, store, sid, today, body) {
