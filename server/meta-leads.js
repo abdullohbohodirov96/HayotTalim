@@ -53,8 +53,13 @@ const MAP = [
 function keyOf(k) { for (const [f, re] of MAP) if (re.test(k)) return f; return ''; }
 function nice(v) { return String(v || '').replace(/_/g, ' ').trim(); }
 function parseFields(fd) {
-  const r = { name: '', phone: '', answers: [], fields: {} };
+  const r = { name: '', phone: '', phone2: '', answers: [], fields: {} };
   let first = '', last = '';
+  /* Telefonlar: Meta'ning standart maydoni (phone_number) — asosiy raqam;
+     formaga qo'shilgan boshqa telefon savollari (masalan «qo'shimcha raqam») —
+     phone2 ga tushadi va javoblar ro'yxatida ham ko'rinadi (avval ular asosiy
+     raqamning ustiga yozilib, raqam yo'qolib qolardi). */
+  const phones = [];
   (fd || []).forEach(f => {
     const k = String(f.name || ''), v = nice((f.values || []).join(', '));
     if (!v) return;
@@ -62,13 +67,21 @@ function parseFields(fd) {
     if (which === 'name') r.name = v;
     else if (which === 'first') first = v;
     else if (which === 'last') last = v;
-    else if (which === 'phone') r.phone = v;
+    else if (which === 'phone') {
+      const main = /^(phone|phone_?number|telefon)$/i.test(k.trim());
+      phones.push({ v, main });
+      if (!main) r.answers.push(nice(k).replace(/\?$/, '') + ': ' + v);
+    }
     else {
       if (which && !r.fields[which]) r.fields[which] = v;
       r.answers.push(nice(k).replace(/\?$/, '') + ': ' + v);
     }
   });
   if (!r.name) r.name = (first + ' ' + last).trim();
+  const mainP = phones.filter(x => x.main)[0] || phones[0];
+  if (mainP) r.phone = mainP.v;
+  const extra = phones.filter(x => x !== mainP && String(x.v).replace(/\D/g, '').slice(-9) !== String(r.phone).replace(/\D/g, '').slice(-9));
+  if (extra.length) r.phone2 = extra.map(x => x.v).join(', ');
   return r;
 }
 
@@ -117,6 +130,7 @@ async function saveLead(ctx, leadgenId) {
   const L = await fetchLead(leadgenId);
   const p = parseFields(L.field_data);
   const phone = A.normPhone(p.phone) || p.phone;
+  const phone2 = p.phone2 ? (A.normPhone(p.phone2) || p.phone2) : '';
   const funnels = (await store.list('funnels/')).map(x => x.data).filter(Boolean);
   /* Voronka: META_FUNNEL_ID → «Target» voronkasi (manbasi yoki nomi bo'yicha) → birinchisi */
   const funnel = funnels.filter(f => f.id === process.env.META_FUNNEL_ID)[0] ||
@@ -126,7 +140,8 @@ async function saveLead(ctx, leadgenId) {
   /* Shu raqam bilan murojaat bo'lsa — yangisini ochmaymiz, izoh qo'shamiz */
   const digits = A.phoneDigits(phone);
   const leads = (await store.list('leads/')).map(x => x.data).filter(Boolean);
-  const dup = digits ? leads.filter(l => A.phoneDigits(l.phone) === digits)[0] : null;
+  const d2 = A.phoneDigits(phone2);
+  const dup = digits ? leads.filter(l => A.phoneDigits(l.phone) === digits || (A.phoneDigits(l.phone2) && A.phoneDigits(l.phone2) === digits) || (d2 && A.phoneDigits(l.phone) === d2))[0] : null;
   const ad = [L.campaign_name, L.adset_name, L.ad_name].filter(Boolean).join(' › ');
   const note = p.answers.join(' · ');
   /* Forma javoblari alohida saqlanadi (ERP da oynaning tepasida ko'rinadi);
@@ -137,6 +152,7 @@ async function saveLead(ctx, leadgenId) {
     id = dup.id;
     const before = Object.assign({}, dup);
     dup.metaAnswers = metaAnswers;
+    if (phone2 && !dup.phone2 && A.phoneDigits(phone2) !== A.phoneDigits(dup.phone)) dup.phone2 = phone2;
     dup.note = [dup.note, 'Target formasini qayta to‘ldirdi (' + stamp().slice(0, 10) + ')'].filter(Boolean).join('\n').slice(0, 1500);
     dup.metaLeadIds = [].concat(dup.metaLeadIds || [], [String(leadgenId)]).filter((x, i, a) => a.indexOf(x) === i).slice(-10);
     if (!dup.metaLeadId) dup.metaLeadId = String(leadgenId);
@@ -145,7 +161,7 @@ async function saveLead(ctx, leadgenId) {
   } else {
     id = 'led_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
     await store.set('leads/' + id, {
-      id, funnelId: funnel ? funnel.id : '', name: p.name || 'Noma’lum', phone,
+      id, funnelId: funnel ? funnel.id : '', name: p.name || 'Noma’lum', phone, phone2,
       courseId: '', source: 'Target (' + (L.platform === 'ig' ? 'Instagram' : L.platform === 'fb' ? 'Facebook' : 'Meta') + ')',
       src: ad, ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
       region: p.fields.region || '', wantTime: p.fields.wantTime || '', startLevel: p.fields.startLevel || '',
@@ -155,7 +171,7 @@ async function saveLead(ctx, leadgenId) {
   }
   if (!dup) capi().onLeadSaved(null, await store.get('leads/' + id)).catch(() => { });
   await store.set(key, { leadId: id, at: stamp() });
-  const text = 'Yangi murojaat (target)\nIsm: ' + (p.name || '—') + '\nTelefon: ' + (phone || '—') +
+  const text = 'Yangi murojaat (target)\nIsm: ' + (p.name || '—') + '\nTelefon: ' + (phone || '—') + (phone2 ? '\nQo‘shimcha telefon: ' + phone2 : '') +
     (note ? '\n' + p.answers.join('\n') : '') + (ad ? '\nReklama: ' + ad : '') + (dup ? '\n(bu raqam avval ham yozilgan)' : '');
   if (ctx.notify) ctx.notify(text, id);
 }
@@ -206,4 +222,33 @@ function startPoll(ctx) {
   console.log('  Target arizalari: har ' + Math.round(POLL_MS / 60000) + ' daqiqada tekshiriladi');
 }
 
-module.exports = { handle, parseFields, saveLead, pollOnce, startPoll };
+/* Bir martalik tuzatish: qo'shimcha telefon savoli asosiy raqam ustiga yozilib
+   qolgan oxirgi kunlardagi target arizalarini Meta'dan qayta o'qib to'g'rilaydi. */
+async function fixPhones(ctx, sinceDate) {
+  const { store, A } = ctx;
+  if (!process.env.META_PAGE_TOKEN) return { skipped: 'token yo‘q' };
+  if (await store.get('meta/phone2fix')) return { skipped: 'bajarilgan' };
+  let fixed = 0, seen = 0;
+  const leads = (await store.list('leads/')).map(x => x.data).filter(l => l && l.viaMeta && l.metaLeadId && String(l.createdAt || '') >= sinceDate);
+  for (const l of leads.slice(0, 300)) {
+    seen++;
+    try {
+      const p = parseFields((await fetchLead(l.metaLeadId)).field_data);
+      const ph = A.normPhone(p.phone) || p.phone, ph2 = p.phone2 ? (A.normPhone(p.phone2) || p.phone2) : '';
+      if (!ph2 && A.phoneDigits(ph) === A.phoneDigits(l.phone)) continue;
+      const before = l.phone;
+      /* Faqat qo'shimcha raqam asosiyning o'rniga tushib qolgan bo'lsa (menejer o'zi tuzatganiga tegmaymiz) */
+      if (ph && ph2 && A.phoneDigits(l.phone) === A.phoneDigits(ph2) && A.phoneDigits(ph) !== A.phoneDigits(ph2)) l.phone = ph;
+      if (!ph2) continue;
+      if (ph2) l.phone2 = ph2;
+      const ans = p.answers.map(t => { const i = t.indexOf(': '); return i > 0 ? { q: t.slice(0, i), a: t.slice(i + 2) } : { q: '', a: t }; });
+      if (ans.length) l.metaAnswers = ans;
+      if (before !== l.phone) l.note = [l.note, 'Raqam Meta formasidan tuzatildi: ' + before + ' → ' + l.phone].filter(Boolean).join('\n').slice(0, 1500);
+      await store.set('leads/' + l.id, l); fixed++;
+    } catch (e) { /* bitta ariza o'qilmasa — davom */ }
+  }
+  await store.set('meta/phone2fix', { at: new Date().toISOString(), seen, fixed });
+  return { seen, fixed };
+}
+
+module.exports = { handle, parseFields, saveLead, pollOnce, startPoll, fixPhones };

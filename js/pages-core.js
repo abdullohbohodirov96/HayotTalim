@@ -854,6 +854,7 @@
         name: 'phone', label: 'Telefon', required: true, value: lead.phone, placeholder: '+998 90 123 45 67',
         validate: function (v) { return A.phoneDigits(v).length < 7 ? 'Telefon raqamni to’liq kiriting.' : null; }
       },
+      { name: 'phone2', label: 'Qo’shimcha telefon', value: lead.phone2 || '', placeholder: 'ixtiyoriy' },
       { name: 'nextContact', label: 'Keyingi bog’lanish', type: 'date', value: lead.nextContact },
       {
         /* Qaysi guruhga yozilmoqchi — o'quvchiga o'tkazganda shu guruh o'zi tanlanadi */
@@ -1005,7 +1006,11 @@
         h('div', { class: 'lh-ava', 'aria-hidden': 'true' }, String(nm).trim().charAt(0).toUpperCase() || '?'),
         h('div', { class: 'lh-id' }, [
           h('div', { class: 'lh-name' }, nm),
-          ph ? h('a', { class: 'lh-phone', href: 'tel:+' + (digits.length === 9 ? '998' + digits : digits) }, ph) : h('span', { class: 'muted small' }, 'Raqam kiritilmagan')
+          ph ? h('a', { class: 'lh-phone', href: 'tel:+' + (digits.length === 9 ? '998' + digits : digits) }, ph) : h('span', { class: 'muted small' }, 'Raqam kiritilmagan'),
+          (function () {
+            var p2 = f.get('phone2') ? f.get('phone2').input.value : '', d2 = A.phoneDigits(p2);
+            return d2.length >= 7 ? h('a', { class: 'lh-phone small', href: 'tel:+' + (d2.length === 9 ? '998' + d2 : d2), style: 'font-size:13px;opacity:.85' }, '📞 Qo’shimcha: ' + p2) : null;
+          })()
         ])
       ]));
       if (digits.length >= 9) {
@@ -1025,6 +1030,7 @@
     }
     f.get('name').input.addEventListener('input', paintHero);
     f.get('phone').input.addEventListener('input', paintHero);
+    if (f.get('phone2')) f.get('phone2').input.addEventListener('input', paintHero);
     paintHero();
     paintTrial();
 
@@ -1069,7 +1075,9 @@
           if (!v.nextContact || v.nextContact < v.trialDate) v.nextContact = v.trialDate;
         }
       }
-      return Object.assign({}, lead, v, { phone: A.normPhone(v.phone) });
+      var rec0 = Object.assign({}, lead, v, { phone: A.normPhone(v.phone) });
+      if (v.phone2 && A.phoneDigits(v.phone2).length >= 7) rec0.phone2 = A.normPhone(v.phone2); else delete rec0.phone2;
+      return rec0;
     }
     async function persist(rec) {
       if (isNew) { rec.id = A.uid('led'); rec.createdAt = A.nowStamp(); }

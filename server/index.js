@@ -4954,6 +4954,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
 
   // Target (Meta) arizalari: webhook kelmasa ham har 3 daqiqada tortib olinadi
   metaLeads.startPoll({ store, A, stamp, notify: (text, leadId) => { notifyDirectors(text).catch(() => { }); try { require('./bot').notifyStaff(text, leadId ? { leadId } : null).catch(() => { }); } catch (e) { } } });
+  setTimeout(() => { metaLeads.fixPhones({ store, A }, '2026-10-20').then(r => { if (r && r.fixed) console.log('  Target arizalari: qo‘shimcha telefon tuzatildi — ' + r.fixed + ' ta'); }).catch(e => console.error('phone2fix:', e.message)); }, 60 * 1000);
 
   /* Bot modulini doim tayyorlaymiz — token bo'lmasa ham ERP dan karta to'lovini tasdiqlash ishlaydi */
   require('./bot').init({ store, stamp, A, recordPayment: autoCardPayment });

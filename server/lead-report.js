@@ -126,7 +126,7 @@ async function buildReport(store, date) {
     X.push('🔄 Bugun ishlangan murojaatlar (oldingi kunlardan): ' + worked.length + ' ta');
     worked.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach((l, i) => {
       const si = stageInfo(funnels, l);
-      X.push('   ' + (i + 1) + '. ' + cut(l.name || '—', 30) + ' · ' + (l.phone || '—') + ' — ' + si.label + whatToday(funnels, l, date));
+      X.push('   ' + (i + 1) + '. ' + cut(l.name || '—', 30) + ' · ' + (l.phone || '—') + (l.phone2 ? ' / ' + l.phone2 : '') + ' — ' + si.label + whatToday(funnels, l, date));
     });
   }
 
@@ -141,7 +141,7 @@ async function buildReport(store, date) {
       const g = silent.filter(f);
       if (!g.length) return;
       X.push('  ▸ ' + name + ': ' + g.length + ' ta');
-      g.slice(0, 25).forEach(x => X.push('     • ' + cut(x.l.name || '—', 28) + ' · ' + (x.l.phone || '—') + (x.l.nextContact ? ' · keyingi: ' + String(x.l.nextContact).slice(5).split('-').reverse().join('.') : '')));
+      g.slice(0, 25).forEach(x => X.push('     • ' + cut(x.l.name || '—', 28) + ' · ' + (x.l.phone || '—') + (x.l.phone2 ? ' / ' + x.l.phone2 : '') + (x.l.nextContact ? ' · keyingi: ' + String(x.l.nextContact).slice(5).split('-').reverse().join('.') : '')));
       if (g.length > 25) X.push('     … yana ' + (g.length - 25) + ' ta');
     });
     X.push('  👉 1–2 marta: bugun boshqa soatda yana qo‘ng‘iroq + Telegram xabar.');
@@ -189,7 +189,7 @@ async function buildReport(store, date) {
     const l = x.l;
     const t = String(l.createdAt || '').slice(11, 16);
     L.push('');
-    L.push((i + 1) + '. ' + x.c.icon + ' ' + cut(l.name || '—', 40) + ' · ' + (l.phone || '—') + (t ? ' · ' + t : ''));
+    L.push((i + 1) + '. ' + x.c.icon + ' ' + cut(l.name || '—', 40) + ' · ' + (l.phone || '—') + (l.phone2 ? ' / ' + l.phone2 : '') + (t ? ' · ' + t : ''));
     const nn = noAnswerCount(l);
     L.push('   Holat: ' + x.si.label + (contacted(l, x.si) ? (l.contactedBy ? ' (' + l.contactedBy + ')' : '') : ' — ⏳ bog‘lanilmagan') + (nn ? ' · 📵 ko‘tarmadi ×' + nn : ''));
     const extra = [l.src ? 'Reklama: ' + cut(l.src, 60) : '', l.region ? 'Hudud: ' + l.region : '', l.wantTime ? 'Vaqt: ' + l.wantTime : ''].filter(Boolean).join(' · ');
