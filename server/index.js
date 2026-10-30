@@ -2329,6 +2329,7 @@ async function handleApi(req, res, url) {
       if (sub === 'vocab' && req.method === 'GET') r = await learning.vocabView(A, store, sid, today);
       else if (sub === 'vocab/deck' && req.method === 'GET') r = await learning.deck(A, store, sid, today, { extra: url.searchParams.get('extra') === '1' });
       else if (sub === 'vocab/review' && req.method === 'POST') r = await learning.review(A, store, sid, (await readBody(req)).items, today, stamp);
+      else if (sub === 'vocab/answer' && req.method === 'POST') r = await learning.answer(A, store, sid, today, await readBody(req), stamp);
       else if (sub === 'daily' && req.method === 'GET') r = await learning.dailyView(A, store, sid, today, lvl);
       else if (sub === 'daily/quiz/start' && req.method === 'POST') r = await learning.quizStart(A, store, sid, today, lvl);
       else if (sub === 'daily/quiz/answer' && req.method === 'POST') r = await learning.quizAnswer(A, store, sid, today, await readBody(req));

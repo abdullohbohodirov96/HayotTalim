@@ -4958,3 +4958,22 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .field .lv-chk input{width:auto;padding:0;flex:none;margin:0}
 .lv-chk span{white-space:nowrap}
 #lv-q{padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);font:inherit;width:100%}
+/* So'z yodlash: tanishish → savol (tizim o'zi baholaydi) */
+.sp-pill.new{background:#eaf0ff;color:#2a4fb0}
+.sp-pill.warn{background:#fff2dc;color:#8a5a00}
+.sp-combo{font-weight:800;color:#c4620a;animation:spPop .35s ease both}
+.sp-learn{cursor:default}
+.sp-tip{text-align:center;color:#5b7069;font-size:14px;margin:0}
+.sp-pop{animation:spPop .45s cubic-bezier(.3,1.5,.5,1) both}
+.sp-rise{animation:spRise .45s ease .35s both}
+.sp-rise2{animation:spRise .45s ease .6s both}
+@keyframes spRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.sp-bigsay{width:110px;height:110px;border-radius:50%;border:0;background:#e2f4ec;font-size:46px;cursor:pointer;box-shadow:0 10px 26px rgba(15,74,64,.15);animation:spPulse 1.6s ease-in-out infinite}
+@keyframes spPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.sp-qcard.sp-good{box-shadow:0 0 0 3px #1f9d74 inset;transition:box-shadow .2s}
+.sp-shake{animation:spShake .4s ease}
+@keyframes spShake{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.sp-remember{margin-top:6px;padding:10px 14px;border-radius:14px;background:#fff6e4;color:#7a4b00;font-size:18px;display:flex;gap:6px;align-items:baseline;justify-content:center;flex-wrap:wrap;animation:spRise .35s ease both}
+.sp-remember span{font-family:var(--c-ar,'Amiri',serif);font-size:26px}
+.sp-cdone-emoji{font-size:52px;animation:spPop .5s cubic-bezier(.3,1.6,.5,1) both}
+@media (prefers-reduced-motion:reduce){.sp-pop,.sp-rise,.sp-rise2,.sp-bigsay,.sp-shake,.sp-combo,.sp-cdone-emoji,.sp-remember{animation:none}}

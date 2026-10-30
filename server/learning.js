@@ -314,13 +314,37 @@ async function deck(A, store, sid, today, opts) {
   if (opts && opts.extra && !pick.length) {
     pick = ids.filter(id => sv.words[id].reps).sort(() => Math.random() - .5).slice(0, 10);
   }
+  /* Javob variantlari: o'quvchining o'z lug'atidan, yetmasa — markaz lug'atidan */
+  const poolIds = ids.length >= 4 ? ids : dict.list.map(w => w.id);
+  const choices = (w, field) => {
+    const others = shuffle(poolIds.filter(x => x !== w.id && dict.byId[x] && dict.byId[x][field] !== w[field]).map(x => dict.byId[x][field]));
+    const uniq = Array.from(new Set(others)).slice(0, 3);
+    return shuffle([w[field]].concat(uniq));
+  };
   return {
     cards: pick.slice(0, 30).map(id => {
       const w = dict.byId[id], s = sv.words[id];
       return { id, ar: w.ar, uz: w.uz, tr: w.tr, ex: w.ex, exUz: w.exUz, isNew: !s.reps, iv: s.iv,
-        preview: [0, 1, 2].map(g => schedule(s, g, today).iv) };
+        optsUz: choices(w, 'uz'), optsAr: choices(w, 'ar') };
     })
   };
+}
+
+/** Tizim o'zi baholaydi: o'quvchi «Bu so'z nimani anglatadi?» savoliga javob beradi.
+    To'g'ri va tez (≤ 8 s) — «oson» (oraliq uzayadi), to'g'ri lekin sekin — «qiynalib»,
+    xato — «bilmadim» (ertaga yana). Javob serverda tekshiriladi. */
+async function answer(A, store, sid, today, body, stamp) {
+  const dict = await dictionary(A, store);
+  const id = txt(body && body.id, 60);
+  const w = dict.byId[id];
+  if (!w) return { error: 'So‘z topilmadi.', code: 404 };
+  const field = body.kind === 'ar' ? 'ar' : 'uz';
+  const correct = String(body.pick || '') === String(w[field]);
+  const ms = Number(body.ms) || 0;
+  const g = !correct ? 0 : (ms > 0 && ms <= 8000 ? 2 : 1);
+  const r = await review(A, store, sid, [{ id, g }], today, stamp);
+  if (r.error) return r;
+  return Object.assign({ correct, right: w[field], grade: g }, r);
 }
 
 /** Kartochka javoblari (serverda hisoblanadi) */
@@ -748,6 +772,6 @@ async function wordsAdmin(A, store) {
 
 module.exports = {
   LADDER, SKILLS, DEF, conf, saveConf, dictionary, bustDict, saveWord, removeWord, parseCsv, importCsv,
-  sync, schedule, wordStatus, vocabView, deck, review, dailyView, quizStart, quizAnswer, rlStart, rlSubmit,
+  sync, schedule, wordStatus, vocabView, deck, review, answer, dailyView, quizStart, quizAnswer, rlStart, rlSubmit,
   progress, streakOf, setSkillGrade, staffRows, adminStats, wordsAdmin, studiedRefs, addDays, normAr, withLock
 };

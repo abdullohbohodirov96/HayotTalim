@@ -56,6 +56,7 @@
         lvocab: function () { return D.api('GET', 'api/kabinet/vocab'); },
         ldeck: function (extra) { return D.api('GET', 'api/kabinet/vocab/deck' + (extra ? '?extra=1' : '')); },
         lreview: function (items) { return D.kabPost('api/kabinet/vocab/review', { items: items }); },
+        lanswer: function (id, kind, pick, ms) { return D.kabPost('api/kabinet/vocab/answer', { id: id, kind: kind, pick: pick, ms: ms }); },
         ldaily: function () { return D.api('GET', 'api/kabinet/daily'); },
         lqStart: function () { return D.kabPost('api/kabinet/daily/quiz/start', {}); },
         lqAnswer: function (quizId, i, pick) { return D.kabPost('api/kabinet/daily/quiz/answer', { quizId: quizId, i: i, pick: pick }); },
@@ -217,7 +218,7 @@
     opts = opts || {};
     var src = makeSource(d);
     /* Namoyish (serversiz) rejimida yangi bo'limlar ishlamaydi — tushunarli xabar */
-    ['lvocab', 'ldeck', 'lreview', 'ldaily', 'lqStart', 'lqAnswer', 'lrlStart', 'lrlSubmit', 'lprogress'].forEach(function (k) {
+    ['lvocab', 'ldeck', 'lreview', 'lanswer', 'ldaily', 'lqStart', 'lqAnswer', 'lrlStart', 'lrlSubmit', 'lprogress'].forEach(function (k) {
       if (!src[k]) src[k] = function () { return Promise.reject(new Error('Bu bo‘lim serverga ulangan kabinetda ishlaydi.')); };
     });
     if (A.Speak) A.Speak.loadMap();
@@ -1320,7 +1321,7 @@
           h('div', {}, [
             h('span', { class: 'sp-eyebrow' }, 'Bugungi takrorlash'),
             h('h2', {}, due ? due + ' ta so‘z sizni kutmoqda' : 'Bugungi takrorlash bajarilgan ✓'),
-            h('p', {}, 'So‘zni ko‘ring, ma’nosini eslang, keyin tekshiring. Javobingizga qarab so‘z 1, 3, 7, 14, 30 kundan keyin qayta chiqadi: oson eslasangiz — kamroq, unutsangiz — ertaga yana.'),
+            h('p', {}, 'Yangi so‘zni eshitasiz va ko‘rasiz — eslab qolasiz. Keyin tizim o‘zi so‘raydi: «Bu so‘z nimani anglatadi?» To‘g‘ri topsangiz so‘z 1, 3, 7, 14, 30 kundan keyin qayta chiqadi, xato qilsangiz — ertaga yana.'),
             st && st.reviews ? h('div', { class: 'sp-vtoday' }, [
               h('span', {}, 'Bugun: ' + st.reviews + ' ta javob'),
               h('span', { class: 'ok' }, '✓ ' + st.ok + ' esladim'),
@@ -1328,7 +1329,7 @@
             ]) : null
           ]),
           h('div', { class: 'sp-vhero-b' }, [
-            h('button', { class: 'btn sp-cta', type: 'button', disabled: !c.total, onclick: function () { startCards(); } }, due ? 'Kartochkalarni boshlash →' : 'Qo‘shimcha mashq →')
+            h('button', { class: 'btn sp-cta', type: 'button', disabled: !c.total, onclick: function () { startCards(); } }, due ? 'Boshlash →' : 'Qo‘shimcha mashq →')
           ])
         ]));
         if (!c.total) {
@@ -1402,69 +1403,137 @@
       return h('div', { class: 'sp-tile ' + (cls || '') }, [h('i', { class: 'sp-tile-i' }, ico(icon)), h('div', {}, [h('small', {}, label), h('b', {}, value), h('span', {}, hint || '')])]);
     }
 
-    /* Flashcard: arabcha → ma'nosini tekshirish → Bilmadim / Qiynalib esladim / Oson esladim.
-       Har javob darhol serverga ketadi (sahifa yopilsa ham natija saqlanadi). */
+    /* So'z yodlash — o'quvchi o'zini baholamaydi, tizim o'zi hal qiladi:
+         1) TANISHISH: so'z ko'rinadi va ikki marta aytiladi, ma'nosi, misoli — «Esladim, keyingisi →»;
+         2) SAVOL: bir necha so'zdan keyin «Bu so'z nimani anglatadi?» (ma'nosi / eshitib / arabchasi);
+            to'g'ri va tez — oraliq uzayadi, sekin — qisqaroq, xato — ertaga yana + shu mashg'ulot oxirida qayta so'raladi.
+       Javob serverda tekshiriladi (api/kabinet/vocab/answer).                                     */
     function startCards(o) {
       o = o || {};
-      setBack(function () { cache.lvocab = null; go(o.from || 'lugat'); });
-      src.ldeck(o.extra).then(function (dk) {
+      setBack(function () { cache.lvocab = null; cache.ldaily = null; go(o.from || 'lugat'); });
+      Promise.all([src.ldeck(o.extra), src.ldaily().catch(function () { return null; })]).then(function (rr) {
+        var dk = rr[0], xpStart = rr[1] && rr[1].day ? rr[1].day.xp : null;
         var deck = dk.cards || [];
         if (!deck.length && !o.extra) { o.extra = true; return startCards(o); }
         if (!deck.length) { UI.toast('Hali takrorlanadigan so‘z yo‘q.', 'warn'); return; }
-        var res = { ok: 0, hard: 0, again: 0 }, i = 0, shown = false, xp0 = null;
+        var fresh = deck.filter(function (c) { return c.isNew; }), old = deck.filter(function (c) { return !c.isNew; });
+        /* Navbat: avval eski so'zlardan savol, keyin yangilar 4 tadan: tanishish → savol */
+        var steps = [];
+        old.slice(0, 6).forEach(function (w) { steps.push({ t: 'q', w: w }); });
+        for (var k = 0; k < fresh.length; k += 4) {
+          var grp = fresh.slice(k, k + 4);
+          grp.forEach(function (w) { steps.push({ t: 'learn', w: w }); });
+          var mix = grp.slice().sort(function () { return Math.random() - .5; });
+          var olds = old.slice(6 + k / 2, 6 + k / 2 + 2);
+          mix.concat(olds).forEach(function (w) { steps.push({ t: 'q', w: w }); });
+        }
+        old.slice(6 + Math.ceil(fresh.length / 4) * 2).forEach(function (w) { steps.push({ t: 'q', w: w }); });
+        var asked = {}, retry = [], i = 0, combo = 0, best = 0, right = 0, total = 0, xpGot = 0, qn = 0;
         UI.clear(view);
         var wrap = h('div', { class: 'sp-cards' });
         view.appendChild(wrap);
+        function head(lbl, cls) {
+          var n = steps.length + retry.length;
+          wrap.appendChild(h('div', { class: 'sp-chead' }, [
+            h('span', { class: 'sp-pill ' + (cls || '') }, lbl),
+            combo >= 2 ? h('span', { class: 'sp-combo' }, '🔥 ' + combo + ' ketma-ket') : h('span', { class: 'small muted' }, Math.min(i + 1, n) + ' / ' + n)
+          ]));
+          wrap.appendChild(h('div', { class: 'sp-cbar' }, h('i', { style: 'width:' + Math.round(i * 100 / Math.max(1, n)) + '%' })));
+        }
+        function say2(ar) { sayAr(ar); setTimeout(function () { if (document.body.contains(wrap)) sayAr(ar); }, 1900); }
+        function next() { i++; draw(); }
+        function draw() {
+          if (i >= steps.length && retry.length) { steps = steps.concat(retry); retry = []; }
+          if (i >= steps.length) { finish(); return; }
+          var st = steps[i];
+          UI.clear(wrap);
+          if (st.t === 'learn') learn(st.w); else ask(st.w, st.again);
+        }
+        /* 1) Tanishish */
+        function learn(w) {
+          head('Yangi so‘z', 'new');
+          var cardEl = h('div', { class: 'sp-flash sp-learn' }, [
+            h('div', { class: 'sp-car sp-pop', lang: 'ar', dir: 'rtl' }, w.ar),
+            w.tr ? h('div', { class: 'sp-ctr' }, '[' + w.tr + ']') : null,
+            h('div', { class: 'sp-cuz sp-rise' }, w.uz),
+            w.ex ? h('div', { class: 'sp-cex sp-rise2' }, [h('div', { lang: 'ar', dir: 'rtl' }, w.ex), w.exUz ? h('small', {}, w.exUz) : null]) : null,
+            h('button', { class: 'sp-csay', type: 'button', onclick: function (e) { e.stopPropagation(); sayAr(w.ar); } }, '🔊 Yana eshitish')
+          ]);
+          wrap.appendChild(cardEl);
+          wrap.appendChild(h('p', { class: 'sp-tip' }, 'Ovoz chiqarib 2 marta takrorlang va ma’nosini eslab qoling — birozdan keyin so‘rayman 😉'));
+          wrap.appendChild(h('div', { class: 'sp-cact' }, h('button', { class: 'btn lg sp-yes', type: 'button', onclick: next }, 'Esladim, keyingisi →')));
+          say2(w.ar);
+        }
+        /* 2) Savol: tizim o'zi baholaydi */
+        function ask(w, isRetry) {
+          qn++;
+          var kinds = ['uz', 'listen', 'ar'];
+          var kind = isRetry ? 'uz' : kinds[qn % 3];
+          if (kind === 'ar' && !(w.optsAr && w.optsAr.length >= 3)) kind = 'uz';
+          head(isRetry ? 'Yana bir bor' : w.isNew ? 'Eslaysizmi?' : 'Takrorlash', isRetry ? 'warn' : '');
+          var cardEl = h('div', { class: 'sp-card sp-qcard' });
+          if (kind === 'uz') {
+            cardEl.appendChild(h('div', { class: 'sp-cq' }, 'Bu so‘z nimani anglatadi?'));
+            cardEl.appendChild(h('div', { class: 'sp-car', lang: 'ar', dir: 'rtl' }, w.ar));
+            cardEl.appendChild(h('button', { class: 'sp-csay', type: 'button', onclick: function () { sayAr(w.ar); } }, '🔊'));
+            sayAr(w.ar);
+          } else if (kind === 'listen') {
+            cardEl.appendChild(h('div', { class: 'sp-cq' }, 'Tinglang: bu so‘z nimani anglatadi?'));
+            cardEl.appendChild(h('button', { class: 'sp-bigsay', type: 'button', 'aria-label': 'Tinglash', onclick: function () { sayAr(w.ar); } }, '🔊'));
+            setTimeout(function () { sayAr(w.ar); }, 200);
+          } else {
+            cardEl.appendChild(h('div', { class: 'sp-cq' }, 'Arabchasi qaysi?'));
+            cardEl.appendChild(h('div', { class: 'sp-cuz-big' }, '«' + w.uz + '»'));
+          }
+          var field = kind === 'ar' ? 'ar' : 'uz';
+          var list = kind === 'ar' ? w.optsAr : w.optsUz;
+          var opts = h('div', { class: 'sp-copts' + (kind === 'ar' ? ' ar' : '') });
+          var t0 = Date.now(), done = false;
+          list.forEach(function (op) {
+            opts.appendChild(h('button', { class: 'sp-copt', type: 'button', lang: kind === 'ar' ? 'ar' : null, dir: kind === 'ar' ? 'rtl' : null, onclick: function (e) {
+              if (done) return; done = true;
+              var btn = e.currentTarget, ms = Date.now() - t0;
+              Array.prototype.forEach.call(opts.children, function (b) { b.disabled = true; });
+              var ok = op === w[field];
+              var showRes = function (good, rightTxt) {
+                Array.prototype.forEach.call(opts.children, function (b) { if (b.textContent === rightTxt) b.classList.add('ok'); });
+                if (!good) btn.classList.add('bad');
+                if (good) { combo++; best = Math.max(best, combo); cardEl.classList.add('sp-good'); sayAr(w.ar); }
+                else {
+                  combo = 0; cardEl.classList.add('sp-shake');
+                  cardEl.appendChild(h('div', { class: 'sp-remember' }, [h('span', { lang: 'ar', dir: 'rtl' }, w.ar), h('b', {}, ' = ' + w.uz)]));
+                  sayAr(w.ar);
+                  retry.push({ t: 'q', w: w, again: true });     // shu mashg'ulot oxirida yana so'raladi
+                }
+                setTimeout(next, good ? 900 : 2300);
+              };
+              if (!asked[w.id] && !isRetry) {
+                asked[w.id] = 1; total++; if (ok) right++;
+                src.lanswer(w.id, field, op, ms).then(function (r) {
+                  if (r && r.day && xpStart != null) xpGot = r.day.xp - xpStart;
+                }).catch(function (er) { UI.toast(er.message || 'Saqlanmadi — internetni tekshiring', 'bad'); });
+              }
+              showRes(ok, w[field]);
+            } }, op));
+          });
+          cardEl.appendChild(opts);
+          wrap.appendChild(cardEl);
+        }
         function finish() {
           UI.clear(wrap);
           cache.lvocab = null; cache.ldaily = null; cache.lprogress = null;
+          var pct = total ? Math.round(right * 100 / total) : 100;
           wrap.appendChild(h('div', { class: 'sp-card sp-cdone' }, [
-            h('div', { class: 'sp-cdone-big' }, (res.ok + res.hard) + ' / ' + deck.length),
-            h('h2', {}, res.again ? 'Yaxshi! Unutganlaringiz ertaga yana chiqadi' : 'Ajoyib! Hammasini esladingiz'),
-            h('div', { class: 'sp-cres' }, [h('span', { class: 'ok' }, 'Oson: ' + res.ok), h('span', { class: 'mid' }, 'Qiynalib: ' + res.hard), h('span', { class: 'bad' }, 'Bilmadim: ' + res.again)]),
+            h('div', { class: 'sp-cdone-emoji' }, pct >= 90 ? '🏆' : pct >= 60 ? '🌟' : '💪'),
+            h('div', { class: 'sp-cdone-big' }, right + ' / ' + total),
+            h('h2', {}, pct >= 90 ? 'Zo‘r! Deyarli hammasini esladingiz' : pct >= 60 ? 'Yaxshi natija!' : 'Davom eting — takrorlash eslab qolishni kuchaytiradi'),
+            h('div', { class: 'sp-cres' }, [best >= 2 ? h('span', { class: 'ok' }, '🔥 Eng uzun seriya: ' + best) : null, h('span', { class: 'mid' }, 'Xato so‘zlar ertaga yana chiqadi')]),
             h('div', { class: 'rowflex', style: 'gap:8px;justify-content:center;flex-wrap:wrap' }, [
               h('button', { class: 'btn', type: 'button', onclick: function () { go(o.from || 'lugat'); } }, o.from === 'kunlik' ? 'Kunlik mashqlarga' : 'Lug‘atga qaytish'),
-              h('button', { class: 'btn primary', type: 'button', onclick: function () { startCards({ from: o.from }); } }, 'Yana bir to‘plam')
+              h('button', { class: 'btn primary', type: 'button', onclick: function () { startCards({ from: o.from }); } }, 'Yana mashq qilish')
             ])
           ]));
-        }
-        function answer(w, g) {
-          res[g === 2 ? 'ok' : g === 1 ? 'hard' : 'again']++;
-          i++; draw();
-          src.lreview([{ id: w.id, g: g }]).then(function (r) {
-            if (r && r.day) { if (xp0 != null) xpToast(xp0, r.day.xp); xp0 = r.day.xp; }
-          }).catch(function (e) { UI.toast(e.message || 'Saqlanmadi — internetni tekshiring', 'bad'); });
-        }
-        function draw() {
-          if (i >= deck.length) { finish(); return; }
-          var w = deck[i]; shown = false;
-          UI.clear(wrap);
-          var bar = h('div', { class: 'sp-cbar' }, h('i', { style: 'width:' + Math.round(i * 100 / deck.length) + '%' }));
-          var back = h('div', { class: 'sp-cback' }, [
-            h('div', { class: 'sp-cuz' }, w.uz),
-            w.tr ? h('span', { class: 'sp-ctr' }, w.tr) : null,
-            w.ex ? h('div', { class: 'sp-cex' }, [h('div', { lang: 'ar', dir: 'rtl' }, w.ex), w.exUz ? h('small', {}, w.exUz) : null]) : null
-          ]);
-          back.hidden = true;
-          var actions = h('div', { class: 'sp-cact' }, [h('button', { class: 'btn lg sp-show', type: 'button', onclick: reveal }, 'Ma’nosini tekshirish')]);
-          function reveal() {
-            if (shown) return; shown = true; back.hidden = false;
-            UI.clear(actions); actions.className = 'sp-cact three';
-            [[0, '✗ Bilmadim', 'sp-no'], [1, '≈ Qiynalib esladim', 'sp-mid'], [2, '✓ Oson esladim', 'sp-yes']].forEach(function (b) {
-              actions.appendChild(h('button', { class: 'btn lg ' + b[2], type: 'button', onclick: function () { answer(w, b[0]); } }, [h('span', {}, b[1]), h('small', {}, 'keyingi: ' + ivLabel(w.preview[b[0]]))]));
-            });
-          }
-          wrap.appendChild(h('div', { class: 'sp-chead' }, [
-            h('span', {}, (i + 1) + ' / ' + deck.length), w.isNew ? h('span', { class: 'sp-pill' }, 'Yangi so‘z') : h('span', { class: 'sp-pill muted' }, 'Takrorlash')
-          ]));
-          wrap.appendChild(bar);
-          wrap.appendChild(h('div', { class: 'sp-flash', onclick: reveal }, [
-            h('div', { class: 'sp-car', lang: 'ar', dir: 'rtl' }, w.ar),
-            h('button', { class: 'sp-csay', type: 'button', onclick: function (e) { e.stopPropagation(); sayAr(w.ar); } }, '🔊 Tinglash'),
-            back
-          ]));
-          wrap.appendChild(actions);
-          sayAr(w.ar);
+          if (xpGot > 0) UI.toast('+' + xpGot + ' XP', 'ok');
         }
         draw();
       }).catch(function (e) { UI.toast(e.message || 'Yuklanmadi', 'bad'); });

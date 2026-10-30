@@ -124,7 +124,7 @@ let srv;
   let dy = (await kget(S1, 'daily')).json;
   ok('Kunlik maqsadlar: 5 yangi, 0 takrorlash (hali eski so‘z yo‘q), test, mashq', dy.day.goals.newWords === 5 && dy.day.goals.reviews === 0 && dy.day.goals.test === 5 && dy.day.goals.rl === 1, JSON.stringify(dy.day.goals));
   const deck = (await kget(S1, 'vocab/deck')).json;
-  ok('Kartochkalar: yangi so‘zlar, oraliq ko‘rsatkichi bilan', deck.cards.length >= 5 && deck.cards.every(c => c.isNew && c.preview.length === 3), deck.cards.length);
+  ok('Kartochkalar: yangi so‘zlar, javob variantlari bilan', deck.cards.length >= 5 && deck.cards.every(c => c.isNew && c.optsUz.length >= 2), deck.cards.length);
   eq('CSRF siz javob qabul qilinmaydi', (await kpost(S1, 'vocab/review', { items: [{ id: deck.cards[0].id, g: 2 }] }, true)).status, 403);
   const items = deck.cards.slice(0, 5).map((c, i) => ({ id: c.id, g: i === 0 ? 0 : 2 }));
   let rv = (await kpost(S1, 'vocab/review', { items })).json;
@@ -138,7 +138,23 @@ let srv;
   ok('«Bilmadim»: keyingi takrorlash ertaga', forgot.due === L.addDays(v.today, 1) && forgot.lapses >= 1, JSON.stringify(forgot));
   ok('Holat statistikasi takrorlash tarixidan', v.counts.yangi === nCourse - 5 && v.counts.learned === 5, JSON.stringify(v.counts));
 
+  section('4b. Tizim o‘zi baholaydi (vocab/answer)');
+  const dk3 = (await kget(S1, 'vocab/deck')).json.cards;
+  const nw = dk3.filter(c => c.isNew)[0];
+  ok('Kartochkada 4 ta javob varianti, to‘g‘risi ichida', nw.optsUz.length >= 2 && nw.optsUz.indexOf(nw.uz) >= 0 && nw.optsAr.indexOf(nw.ar) >= 0, JSON.stringify(nw.optsUz));
+  const wrongPick = nw.optsUz.filter(x => x !== nw.uz)[0];
+  const an1 = (await kpost(S1, 'vocab/answer', { id: nw.id, kind: 'uz', pick: wrongPick, ms: 3000 })).json;
+  ok('Xato javob — server aniqlaydi, to‘g‘risini qaytaradi, ertaga yana', an1.correct === false && an1.right === nw.uz && an1.grade === 0, JSON.stringify(an1).slice(0, 160));
+  const nw2 = dk3.filter(c => c.isNew)[1];
+  const an2 = (await kpost(S1, 'vocab/answer', { id: nw2.id, kind: 'ar', pick: nw2.ar, ms: 4000 })).json;
+  ok('To‘g‘ri va tez — «oson»', an2.correct && an2.grade === 2);
+  const nw3 = dk3.filter(c => c.isNew)[2];
+  const an3 = (await kpost(S1, 'vocab/answer', { id: nw3.id, kind: 'uz', pick: nw3.uz, ms: 20000 })).json;
+  ok('To‘g‘ri lekin sekin — «qiynalib»', an3.correct && an3.grade === 1);
+  eq('Noma’lum so‘z', (await kpost(S1, 'vocab/answer', { id: 'yoq', kind: 'uz', pick: 'x' })).status, 404);
+
   section('5. Kunlik test — javob serverda tekshiriladi, XP bir marta');
+  const xpBeforeQuiz = (await kget(S1, 'daily')).json.day.xp;
   const qz = (await kpost(S1, 'daily/quiz/start')).json;
   ok('5 ta savol, to‘g‘ri javob mijozga berilmaydi', qz.quiz && qz.quiz.qs.length === 5 && qz.quiz.qs.every(q => !('answer' in q)), JSON.stringify(qz).slice(0, 200));
   const again = (await kpost(S1, 'daily/quiz/start')).json;
@@ -153,7 +169,7 @@ let srv;
   }
   dy = (await kget(S1, 'daily')).json;
   eq('Test topshirig‘i: 5/5', dy.day.done.test, 5);
-  eq('XP = 25 + to‘g‘ri javoblar × 5', dy.day.xp, 25 + right * 5);
+  eq('XP: faqat to‘g‘ri javoblar × 5 qo‘shildi', dy.day.xp, xpBeforeQuiz + right * 5);
   eq('Eskirgan test id si rad etiladi', (await kpost(S1, 'daily/quiz/answer', { quizId: 'qxx', i: 0, pick: 0 })).status, 409);
 
   section('6. Reading / Listening mashqi');
