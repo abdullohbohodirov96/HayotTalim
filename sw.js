@@ -23,6 +23,7 @@ const SHELL = [
   './js/pages-fin.js',
   './js/pages-team.js',
   './js/pages-lms.js',
+  './js/pages-learning.js',
   './js/pages-forms.js',
   './js/pages-zoom.js',
   './js/course-a1.js',

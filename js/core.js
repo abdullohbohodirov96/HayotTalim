@@ -610,7 +610,7 @@
     course: ['speak.js', 'course-a1.js', 'alifbo.js', 'a0-motion.js', 'course-anim.js',
       'qissa-video.js', 'course-ui.js', 'pages-course.js', 'kabinet-ui.js'],
     erp: ['xlsx-lite.js', 'pages-core.js', 'pages-edu.js', 'pages-fin.js', 'pages-team.js',
-      'pages-lms.js', 'pages-forms.js', 'pages-zoom.js', 'bot.js', 'import.js']
+      'pages-lms.js', 'pages-learning.js', 'pages-forms.js', 'pages-zoom.js', 'bot.js', 'import.js']
   };
   var loadedSrc = {}, bundleP = {};
   function scriptBase() {

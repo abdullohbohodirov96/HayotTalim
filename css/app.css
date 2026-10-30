@@ -4940,3 +4940,21 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .sp-lc-x span{position:absolute;transform:translateX(-50%);font-size:11px;color:#7b928a;white-space:nowrap}
 .sp-lc-x span:first-child{transform:none}.sp-lc-x span:last-child{transform:translateX(-100%)}
 @media (prefers-reduced-motion:reduce){.sp-bc-bar i{transition:none}}
+/* Xodimlar: lug'at bazasi va o'quvchilar rivojlanishi */
+.field>span{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.lv-h{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+.lv-lessons{display:flex;flex-wrap:wrap;gap:6px 14px;max-height:180px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2)}
+.lv-chk{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--ink)}
+.lv-bars{display:flex;align-items:flex-end;gap:3px;height:130px;padding-bottom:18px}
+.lv-bar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative}
+.lv-bar i{display:block;width:70%;background:var(--ok);border-radius:4px 4px 1px 1px;opacity:.8}
+.lv-bar span{position:absolute;bottom:-17px;font-size:10px;color:var(--muted)}
+.lv-bar:nth-child(odd) span{visibility:hidden}
+.lv-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.lv-skill{display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.lv-skill .btn{align-self:flex-start;margin-top:4px}
+.lv-lessons{grid-column:1/-1}
+.form-grid>.field:has(.lv-lessons){grid-column:1/-1}
+.field .lv-chk input{width:auto;padding:0;flex:none;margin:0}
+.lv-chk span{white-space:nowrap}
+#lv-q{padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);font:inherit;width:100%}

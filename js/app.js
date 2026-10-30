@@ -179,6 +179,8 @@
     { id: 'staff', label: 'Xodimlar', icon: 'badge', perm: 'nav.staff' },
     { id: 'reports', label: 'Hisobotlar', icon: 'chart', perm: 'nav.reports' },
     { id: 'progress', label: 'O’quv natijalari', icon: 'chart', perm: 'reports.learning' },
+    { id: 'studentProgress', label: 'O’quvchilar rivojlanishi', icon: 'chart', perm: 'lesson.log' },
+    { id: 'vocabAdmin', label: 'Lug’at bazasi', icon: 'award', perm: 'curriculum.view' },
     { id: 'rating', label: 'Reyting', icon: 'award', perm: 'nav.students' },
     { id: 'chat', label: 'Suhbat', icon: 'chat', perm: 'nav.chat' },
     { id: 'tasks', label: 'Vazifalar', icon: 'task', perm: 'nav.tasks' },
