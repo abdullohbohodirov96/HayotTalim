@@ -234,7 +234,16 @@
     root.appendChild(h('div', { class: 'sp-main' }, [top, view]));
     root.appendChild(tabs);
 
+    /* «Orqaga» tugmasi (yuqori chapda): ichki sahifada (dars, mashq, kartochka) —
+       bo'lim ro'yxatiga; bo'limda — Asosiy sahifaga. */
+    var subBack = null;
+    function setBack(fn) { subBack = fn; paintTop(); }
+    function goBack() {
+      if (subBack) { var f = subBack; subBack = null; f(); return; }
+      if (cur !== 'asosiy') go('asosiy');
+    }
     function go(id) {
+      subBack = null;
       cur = id;
       try { history.replaceState(null, '', location.pathname + '#kabinet' + (id === 'asosiy' ? '' : '?b=' + id)); } catch (e) { }
       paintNav(); paintTop(); paintView();
@@ -293,7 +302,9 @@
     function paintTop() {
       UI.clear(top);
       var n = NAV.filter(function (x) { return x.id === cur; })[0];
+      var canBack = !!subBack || cur !== 'asosiy';
       top.appendChild(h('div', { class: 'sp-top-l' }, [
+        canBack ? h('button', { type: 'button', class: 'sp-back', 'aria-label': 'Orqaga', title: 'Orqaga', onclick: function () { try { a0Stop(); } catch (e) { } goBack(); } }, '←') : null,
         h('img', { class: 'sp-top-logo', src: A.LOGO || '', alt: '' }),
         h('div', {}, [h('span', { class: 'sp-top-k' }, 'O’quvchi kabineti'), h('b', {}, n.label)])
       ]));
@@ -512,6 +523,29 @@
        Dars bosqichlari: 1) Yodlash  2) Video  3) Mashq  4) Test  5) Uy vazifasi.
        Keyingi dars: test ≥ 60% va uy vazifasi topshirilgach ochiladi.               */
     var A0P = { cur: null, gen: 0 };
+    /** «To'liq ekran» tugmasi. iPhone'da element to'liq ekran bo'lmaydi —
+        u yerda blok butun sahifani qoplaydi (yana bosilsa yoki «✕» — yopiladi). */
+    function fullBtn(getEl) {
+      var b = h('button', { class: 'btn sm', type: 'button', 'aria-label': 'To‘liq ekran' }, '⛶ To‘liq ekran');
+      function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+      function pseudo(el, on) {
+        el.classList.toggle('sp-pfull', on); document.documentElement.classList.toggle('cr-noscroll', on);
+        b.textContent = on ? '✕ Yopish' : '⛶ To‘liq ekran';
+      }
+      b.onclick = function () {
+        var el = getEl(); if (!el) return;
+        if (isFs()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { } return; }
+        if (el.classList.contains('sp-pfull')) { pseudo(el, false); return; }
+        var fs = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (fs) {
+          try { var pr = fs.call(el); if (pr && pr.catch) pr.catch(function () { pseudo(el, true); }); b.textContent = '✕ Yopish'; return; } catch (e) { }
+        }
+        pseudo(el, true);
+      };
+      document.addEventListener('fullscreenchange', function () { if (!isFs() && !getEl().classList.contains('sp-pfull')) b.textContent = '⛶ To‘liq ekran'; });
+      document.addEventListener('webkitfullscreenchange', function () { if (!isFs() && !getEl().classList.contains('sp-pfull')) b.textContent = '⛶ To‘liq ekran'; });
+      return b;
+    }
     /** Ovozni to'xtatish (video, «hammasini tinglash» va h.k.) */
     function a0Stop() {
       A0P.gen++;
@@ -592,6 +626,7 @@
     /* ---------- Bitta dars ---------- */
     function openAlif(lid, step) {
       a0Stop();
+      setBack(function () { go('alifbo'); });
       var F = A.Alifbo, l = F.byId(lid);
       UI.clear(view);
       var wrap = h('div', { class: 'a0-wrap' });
@@ -740,7 +775,9 @@
         var cap = h('div', { class: 'a0-cap' });
         var bar = h('div', { class: 'a0-vbar' }, h('i'));
         var cnt = h('span', { class: 'a0-vcnt' }, '');
-        body.appendChild(h('div', { class: 'a0-video' }, [stage, cap, bar]));
+        var vbox = h('div', { class: 'a0-video' }, [stage, cap, bar]);
+        var player = h('div', { class: 'a0-player' }, [vbox]);
+        body.appendChild(player);
         var idx = 0, playing = false;
         var bPlay = h('button', { class: 'btn primary', type: 'button' }, '▶ Boshlash');
         var ctr = h('div', { class: 'a0-vctl' }, [
@@ -748,9 +785,10 @@
           bPlay,
           h('button', { class: 'btn sm', type: 'button', onclick: function () { show(Math.min(seq.length - 1, idx + 1), playing); } }, '⏩'),
           h('button', { class: 'btn sm', type: 'button', onclick: function () { show(0, true); } }, '↺ Boshidan'),
+          fullBtn(function () { return player; }),
           cnt
         ]);
-        body.appendChild(ctr);
+        player.appendChild(ctr);
         var endBox = h('div', { hidden: true });
         body.appendChild(endBox);
         var M = A.A0Motion, mo = M ? M.intro(F, l) : null, moK = -1;
@@ -822,7 +860,14 @@
             syncIntro(url0 ? A0P.cur : null, g0);
             return pr.then(function () { if (!url0) return new Promise(function (r) { setTimeout(r, l.intro.length * 75); }); });
           }
-          if (it.letter && !it.forms && l.kind === 'letters') return a0SayLetter(it.letter, true);
+          if (it.letter && !it.forms && l.kind === 'letters') {
+            /* Harf: nomi → maxraj tushuntirishi → yana nomi (o'quvchi ikki marta eshitsin) */
+            var gL = A0P.gen;
+            return a0SayLetter(it.letter, true).then(function () {
+              if (gL !== A0P.gen) return;
+              return new Promise(function (r) { setTimeout(r, 500); }).then(function () { if (gL === A0P.gen) return a0Say(F.letter(it.letter).say); });
+            });
+          }
           return a0Say(it.say || it.ar);
         }
         function show(i, autoplay) {
@@ -837,7 +882,7 @@
               if (g !== A0P.gen) return;
               if (i + 1 < seq.length) show(i + 1, true);
               else finish();
-            }, i === 0 ? 600 : (seq[i].text ? 2500 : 1300));
+            }, i === 0 ? 600 : (seq[i].text ? 2500 : 2200));   /* o'quvchi ovoz chiqarib takrorlashga ulgursin */
           });
         }
         function finish() {
@@ -1301,6 +1346,7 @@
 
     /** Kartochkalar sessiyasi (Leitner): avval muddati kelganlar, keyin yangilar */
     function startCards(o) {
+      setBack(function () { delete cache.course; go('lugat'); });
       o = o || {};
       load('course').then(function (cv) {
         var today = A.today ? A.today() : new Date().toISOString().slice(0, 10);
@@ -1366,6 +1412,7 @@
 
     /** Takrorlash testi: har 2 darsdan keyin; 60% dan o'tilsa keyingi dars ochiladi */
     function startReview(rid) {
+      setBack(function () { go('lugat'); });
       var rv = A.Course.reviewById(rid); if (!rv) return;
       var qs = A.Course.buildReview(rv);
       var ans = [], i = 0;

@@ -1148,6 +1148,19 @@ async function kabPassOk(student, pw) {
   /* Parol qo'yilmagan — boshlang'ich parol shaxsiy kod */
   return !!student.code && String(pw).trim() === String(student.code);
 }
+/** Kabinet sessiyasini uzaytirish: o'quvchi ilovani ochib turgan ekan, u hech qachon
+    chiqib ketmasin. Muddatining yarmi o'tgan bo'lsa — yana to'liq muddatga cho'ziladi. */
+async function kabRenew(req, ses) {
+  try {
+    const left = Number(ses.expiresAt) - Date.now();
+    if (!(left < kabsess.TTL_MS / 2)) return undefined;
+    const raw = parseCookies(req)[kabsess.COOKIE];
+    if (!raw) return undefined;
+    ses.expiresAt = Date.now() + kabsess.TTL_MS;
+    await store.set(kabsess.COL + ses.id, ses);
+    return { 'Set-Cookie': kabsess.cookieHeader(raw, kabsess.TTL_MS / 1000) };
+  } catch (e) { return undefined; }
+}
 /** O'quvchining darajasi: qo'lda belgilangan → daraja testi → A0 (alifbo tugamagan bo'lsa) */
 async function studentLevel(st) {
   if (!st) return null;
@@ -1979,7 +1992,7 @@ async function handleApi(req, res, url) {
         return send(res, 401, { error: 'Kirish kerak.' }, { 'Set-Cookie': kabsess.clearHeader() });
       }
       const sum = await parents.summary(store, par, progress);
-      return send(res, 200, Object.assign({ csrf: ses.csrf }, sum));
+      return send(res, 200, Object.assign({ csrf: ses.csrf }, sum), await kabRenew(req, ses));
     }
     const st = await store.get('students/' + ses.studentId);
     if (!st || st.status === 'o’chirilgan') {
@@ -1988,7 +2001,7 @@ async function handleApi(req, res, url) {
     const sum = await kabinet.summary(store, st);
     sum.hasOwnPassword = !!(await store.get('kabpass/' + st.id));
     sum.level = await studentLevel(st);
-    return send(res, 200, Object.assign({ csrf: ses.csrf, kind: 'student' }, sum));
+    return send(res, 200, Object.assign({ csrf: ses.csrf, kind: 'student' }, sum), await kabRenew(req, ses));
   }
 
   if (route === 'kabinet/logout' && req.method === 'POST') {

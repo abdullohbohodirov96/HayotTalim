@@ -4636,8 +4636,9 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .mo-fade{opacity:0;animation:moFade .6s ease .35s forwards}
 @keyframes moFade{to{opacity:1}}
 /* harf o'ngdan chapga «yoziladi» */
-.mo-writein{clip-path:inset(0 0 0 100%);animation:moWrite 1.1s cubic-bezier(.5,0,.3,1) .15s forwards}
-@keyframes moWrite{to{clip-path:inset(0 0 0 0)}}
+.mo-writein{clip-path:inset(-45% -12% -45% 100%);animation:moWrite 1.1s cubic-bezier(.5,0,.3,1) .15s forwards}
+/* Yuqori-pastki zaxira: hamza (أ) va harakatlar quti chegarasidan chiqadi — kesilmasin */
+@keyframes moWrite{to{clip-path:inset(-45% -12% -45% 0)}}
 .mo-big{font-size:clamp(72px,14vw,130px);line-height:1.4;color:#fff;text-shadow:0 6px 24px rgba(0,0,0,.35)}
 .mo-long{font-size:clamp(20px,4vw,32px);line-height:2.1;text-align:justify;color:#fff}
 .mo-small{font-size:26px;color:#cfeee2}
@@ -4647,7 +4648,7 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 @keyframes moWave{0%,100%{transform:rotate(0)}20%{transform:rotate(18deg)}40%{transform:rotate(-10deg)}60%{transform:rotate(14deg)}80%{transform:rotate(-4deg)}}
 .mo-kicker{font-size:12px;letter-spacing:.22em;color:#8fd9bd;font-weight:800}
 .mo-num{font-size:52px;color:#e3b23c;animation:moPop .6s cubic-bezier(.2,1.4,.4,1) .2s both}
-.mo-titlear{font-size:clamp(28px,6vw,44px);color:#fff;clip-path:inset(0 0 0 100%);animation:moWrite 1.2s ease .5s forwards}
+.mo-titlear{font-size:clamp(28px,6vw,44px);color:#fff;clip-path:inset(-45% -12% -45% 100%);animation:moWrite 1.2s ease .5s forwards}
 .mo-hello em{font-style:normal;color:#cfeee2;font-size:18px}
 .mo-grid28{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;max-width:520px;width:100%}
 .mo-grid28 span{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:12px;background:rgba(255,255,255,.08);font-size:clamp(22px,5vw,34px);color:#fff}
@@ -4667,7 +4668,7 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .mo-arrow i{display:block;width:150px;height:4px;border-radius:4px;background:#e3b23c;position:relative;transform-origin:right;animation:moArrow 1.4s ease .3s both}
 .mo-arrow i::before{content:'';position:absolute;left:-2px;top:-6px;border:8px solid transparent;border-right:12px solid #e3b23c;border-left:0}
 @keyframes moArrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-.mo-write{font-size:clamp(56px,12vw,96px);color:#fff;clip-path:inset(0 0 0 100%);animation:moWrite 1.6s ease .2s forwards}
+.mo-write{font-size:clamp(56px,12vw,96px);color:#fff;clip-path:inset(-45% -12% -45% 100%);animation:moWrite 1.6s ease .2s forwards}
 .mo-scene.mo-mahraj,.mo-scene.mo-letter,div.mo-mahraj{flex-direction:row!important;flex-wrap:wrap;gap:22px;display:flex;align-items:center;justify-content:center}
 .mo-side .mo-big{font-size:clamp(64px,11vw,104px)}
 .mo-imgw{position:relative;width:min(220px,42vw)}
@@ -4790,3 +4791,17 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .bar.gbar>i.trial{background:#e8b33a}
 .bar.gbar.full>i:not(.trial){background:var(--warn)}
 .gtrial{color:#b7791f;font-weight:700}
+/* To'liq ekran: A0 video pleyeri (haqiqiy fullscreen va iPhone uchun sahifani qoplash) */
+.a0-player{display:flex;flex-direction:column;gap:12px}
+.a0-player:fullscreen,.a0-player:-webkit-full-screen,.a0-player.sp-pfull{background:#0b3a32;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));justify-content:center}
+.a0-player.sp-pfull{position:fixed;inset:0;z-index:9999;overflow:auto}
+.a0-player:fullscreen .a0-video,.a0-player.sp-pfull .a0-video,.a0-player:-webkit-full-screen .a0-video{flex:1;display:flex;flex-direction:column;border-radius:16px}
+.a0-player:fullscreen .a0-stage,.a0-player.sp-pfull .a0-stage,.a0-player:-webkit-full-screen .a0-stage{flex:1}
+.a0-player:fullscreen .a0-vctl,.a0-player.sp-pfull .a0-vctl{justify-content:center}
+.a0-player:fullscreen .a0-vcnt,.a0-player.sp-pfull .a0-vcnt{color:#eafff6}
+.qv-player:fullscreen,.qv-player:-webkit-full-screen,.qv-player.sp-pfull{background:#0b1f1a;display:flex;flex-direction:column;justify-content:center;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.qv-player.sp-pfull{position:fixed;inset:0;z-index:9999;overflow:auto}
+/* Kabinet: yuqori chapdagi «Orqaga» tugmasi */
+.sp-back{flex:none;width:40px;height:40px;border-radius:12px;border:1px solid #cfe3d9;background:#fff;color:#0f5c46;font-size:22px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.sp-back:hover{background:#eaf5f0}
+.sp-back:focus-visible{outline:3px solid #8fd9bd;outline-offset:2px}

@@ -737,6 +737,7 @@
           onclick: async function () {
             if (D.mode !== 'server') { try { sessionStorage.removeItem('kab_local'); } catch (e) { } err.hidden = true; portalOn(false); showForm(); return; }
             try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
+            try { localStorage.removeItem('sabo_kab'); } catch (e) { }
             err.hidden = true;
             portalOn(false);
             showForm();
@@ -763,6 +764,7 @@
     }
 
     function showInfo(d) {
+      try { localStorage.setItem('sabo_kab', '1'); } catch (e) { }
       if (d && d.kind === 'parent') return showParent(d);
       UI.clear(result);
       portalOn(true);
@@ -775,6 +777,7 @@
         logout: async function () {
           if (D.mode !== 'server') { try { sessionStorage.removeItem('kab_local'); } catch (e) { } err.hidden = true; portalOn(false); showForm(); return; }
           try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
+            try { localStorage.removeItem('sabo_kab'); } catch (e) { }
           err.hidden = true;
           try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { }
           portalOn(false);
@@ -3927,6 +3930,10 @@
         if (where === 'test' || where === 'daraja') { renderTest(); return; }
         if (where === 'ustoz') { renderTeacherFromHash(); return; }
         if (where === 'kirish' || where === 'login') { renderLogin(null); return; }
+        /* Shu qurilmada o'quvchi kabinetga kirgan bo'lsa (ayniqsa telefonga
+           o'rnatilgan ilovada) — sayt emas, darrov kabinet ochiladi. */
+        var kabHere = false; try { kabHere = localStorage.getItem('sabo_kab') === '1'; } catch (e) { }
+        if (!where && kabHere) { try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { } renderKabinet(); return; }
         renderLanding();                 // saytning ochiq sahifasi
         return;
       }

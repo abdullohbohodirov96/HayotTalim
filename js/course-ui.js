@@ -330,7 +330,9 @@
       var done = v ? v.lessons.filter(function (l) { return l.status === 'done'; }).length : 0;
       var total = C.LESSONS.length;
       var pct = Math.round(done * 100 / total);
+      function exitCourse() { if (opts.onExit) opts.onExit(); else { location.hash = 'kabinet'; A.renderKabinet && A.renderKabinet(); } }
       head.appendChild(h('div', { class: 'cr-top-in' }, [
+        h('button', { class: 'sp-back', type: 'button', 'aria-label': 'Orqaga', title: 'Orqaga', onclick: exitCourse }, '←'),
         h('button', { class: 'cr-brand', type: 'button', onclick: function () { location.hash = ''; A.renderLanding(); } }, [
           h('img', { src: A.LOGO || '', alt: '' }),
           h('div', {}, [h('b', {}, 'Onlayn darsxona'), h('span', {}, C.title)])
@@ -540,12 +542,29 @@
             h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.prev(); } }, '⏪ Ortga'),
             h('button', { class: 'btn sm', type: 'button', onclick: function (e) { if (!qv) return; if (qv.isPlaying()) { qv.pause(); e.currentTarget.textContent = '▶ Davom'; } else { qv.play(); e.currentTarget.textContent = '⏸ To’xtatish'; } } }, '⏸ To’xtatish'),
             h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.next(); } }, 'Oldinga ⏩'),
-            h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.restart(); } }, '↺ Boshidan')
+            h('button', { class: 'btn sm', type: 'button', onclick: function () { if (qv) qv.restart(); } }, '↺ Boshidan'),
+            fsBtn()
           ]);
+        }
+        var animBox = h('div', { class: 'qv-player' });
+        /* To'liq ekran: haqiqiy fullscreen, iPhone'da — sahifani qoplash */
+        function fsBtn() {
+          var b = h('button', { class: 'btn sm', type: 'button' }, '⛶ To’liq ekran');
+          function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+          function pseudo(on) { animBox.classList.toggle('sp-pfull', on); document.documentElement.classList.toggle('cr-noscroll', on); b.textContent = on ? '✕ Yopish' : '⛶ To’liq ekran'; }
+          b.onclick = function () {
+            if (isFs()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { } return; }
+            if (animBox.classList.contains('sp-pfull')) { pseudo(false); return; }
+            var fs = animBox.requestFullscreen || animBox.webkitRequestFullscreen;
+            if (fs) { try { var pr = fs.call(animBox); if (pr && pr.catch) pr.catch(function () { pseudo(true); }); b.textContent = '✕ Yopish'; return; } catch (e) { } }
+            pseudo(true);
+          };
+          ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) { document.addEventListener(ev, function () { if (!isFs() && !animBox.classList.contains('sp-pfull')) b.textContent = '⛶ To’liq ekran'; }); });
+          return b;
         }
         function showAnim(where) {
           if (!A.QissaVideo || anim.parentNode) return;
-          where.appendChild(anim); mountAnim(); where.appendChild(animCtrls());
+          animBox.appendChild(anim); where.appendChild(animBox); mountAnim(); animBox.appendChild(animCtrls());
         }
         /* Darsning interaktiv videosi (so'zlar → test → qissa → savollar, javob berib
            boriladi) — tayyor bo'lsa, dars SHUNDAN boshlanadi */
