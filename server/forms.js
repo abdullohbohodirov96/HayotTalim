@@ -325,8 +325,8 @@ async function recordEventNow(store, formId, ev, fieldId, day) {
   else if (ev === 'submit') { s.submits++; d.c++; }
   else {
     const k = txt(fieldId, 24).replace(/[^A-Za-z0-9_]/g, '');
-    if (!k) return false;
-    s.fields[k] = (s.fields[k] || 0) + 1;
+    if (!k || /^(__proto__|constructor|prototype)$/.test(k)) return false;
+    s.fields[k] = (Object.prototype.hasOwnProperty.call(s.fields, k) ? s.fields[k] : 0) + 1;
   }
   const keys = Object.keys(s.days).sort();
   while (keys.length > 90) delete s.days[keys.shift()];

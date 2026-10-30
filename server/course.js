@@ -227,7 +227,7 @@ async function submitReview(A, store, sid, body, stamp) {
 async function vocabMark(A, store, sid, body) {
   const C = A.Course;
   const doc = await get(store, sid);
-  const open = {};
+  const open = Object.create(null);
   C.vocabState(doc, A.today()).words.forEach(w => { open[w.key] = 1; });
   const items = (Array.isArray(body.items) ? body.items : []).slice(0, 60);
   let n = 0;

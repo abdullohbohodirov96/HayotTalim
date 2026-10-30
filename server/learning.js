@@ -43,6 +43,9 @@ function clampInt(v, lo, hi, d) { const n = Math.round(Number(v)); return Number
 function txt(v, max) { return String(v == null ? '' : v).replace(/\u0000/g, '').trim().slice(0, max || 300); }
 function addDays(iso, d) { const x = new Date(iso + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); }
 function dayDiff(a, b) { return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5); }
+const has = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+const ID_RE = /^[A-Za-z0-9_-]{1,60}$/;                 // so'z id si: «c-a1-01-0», «w…»
+function safeMap(o) { const m = Object.create(null); if (o && typeof o === 'object') Object.keys(o).forEach(k => { if (ID_RE.test(k)) m[k] = o[k]; }); return m; }
 function rid(p) { return (p || '') + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'); }
 /** Arabcha matnni solishtirish uchun (harakatlarsiz) — takroriy so'zni aniqlash */
 function normAr(t) { return String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/\s+/g, ' ').trim(); }
@@ -86,7 +89,7 @@ function bustDict() { dictCache = null; }
 /** Onlayn kursning o'zidagi so'zlar (js/course-a1.js) + markaz kiritgan so'zlar */
 async function dictionary(A, store) {
   if (dictCache && Date.now() - dictAt < 60000) return dictCache;
-  const out = [], byId = {};
+  const out = [], byId = Object.create(null);
   if (A.Course) {
     A.Course.LESSONS.forEach(l => {
       (l.words || []).forEach((w, k) => {
@@ -118,14 +121,15 @@ function exampleFor(lesson, ar) {
 }
 
 /** Admin: so'z qo'shish / tahrirlash. Takroriy (bir xil arabcha + tarjima) so'z yaratilmaydi. */
-async function saveWord(A, store, body, by, stamp) {
+async function saveWord(A, store, body, by, stamp, opts) {
   const ar = txt(body.ar, 120), uz = txt(body.uz, 200);
   if (!ar || !/[؀-ۿ]/.test(ar)) return { error: 'Arabcha so‘zni kiriting.' };
   if (!uz) return { error: 'O‘zbekcha tarjimasini kiriting.' };
   const lessons = (Array.isArray(body.lessons) ? body.lessons : String(body.lessons || '').split(/[,;\s]+/))
     .map(x => txt(x, 60)).filter(x => /^(course:a1-\d\d|topic:[A-Za-z0-9_-]{1,40})$/.test(x));
   const id = body.id ? txt(body.id, 40) : '';
-  const all = (await store.list(VOC)).map(r => r.data).filter(Boolean);
+  if (id && !ID_RE.test(id)) return { error: 'So‘z topilmadi.', code: 404 };
+  const all = opts && opts.all ? opts.all : (await store.list(VOC)).map(r => r.data).filter(Boolean);
   const dup = all.filter(w => w.id !== id && w.active !== false && normAr(w.ar) === normAr(ar) && txt(w.uz).toLowerCase() === uz.toLowerCase())[0];
   if (dup) {
     /* Bor so'z — faqat yangi darslarni qo'shamiz */
@@ -142,10 +146,12 @@ async function saveWord(A, store, body, by, stamp) {
   });
   if (!prev) w.createdAt = stamp();
   await store.set(VOC + w.id, w);
+  if (opts && opts.all) { const k = opts.all.findIndex(x => x.id === w.id); if (k >= 0) opts.all[k] = w; else opts.all.push(w); }
   bustDict();
   return { ok: true, word: w };
 }
 async function removeWord(store, id) {
+  if (!ID_RE.test(String(id || ''))) return { error: 'So‘z topilmadi.', code: 404 };
   const w = await store.get(VOC + txt(id, 40));
   if (!w) return { error: 'So‘z topilmadi.', code: 404 };
   /* O'quvchilar tarixi buzilmasin — o'chirmaymiz, faolsizlantiramiz */
@@ -178,8 +184,9 @@ function parseCsv(text) {
 async function importCsv(A, store, text, by, stamp) {
   const rows = parseCsv(text);
   let added = 0, merged = 0; const errors = [];
+  const all = (await store.list(VOC)).map(r => r.data).filter(Boolean);     // bir marta o'qiladi
   for (const r of rows) {
-    const x = await saveWord(A, store, r, by, stamp);
+    const x = await saveWord(A, store, Object.assign({}, r, { id: '' }), by, stamp, { all });
     if (x.error) errors.push(r.line + '-qator: ' + x.error);
     else if (x.duplicate) merged++; else added++;
   }
@@ -209,7 +216,7 @@ async function studiedRefs(A, store, sid) {
 /* ---------------- Shaxsiy lug'at ---------------- */
 async function getSv(store, sid) {
   const d = (await store.get(SV + sid)) || { studentId: sid, words: {} };
-  d.words = d.words || {};
+  d.words = safeMap(d.words);                         // eski yozuvdagi g'alati kalitlar tashlanadi
   return d;
 }
 function newState(today, from) {
@@ -336,7 +343,7 @@ async function deck(A, store, sid, today, opts) {
 async function answer(A, store, sid, today, body, stamp) {
   const dict = await dictionary(A, store);
   const id = txt(body && body.id, 60);
-  const w = dict.byId[id];
+  const w = ID_RE.test(id) ? dict.byId[id] : null;
   if (!w) return { error: 'So‘z topilmadi.', code: 404 };
   const field = body.kind === 'ar' ? 'ar' : 'uz';
   const correct = String(body.pick || '') === String(w[field]);
@@ -357,7 +364,7 @@ async function review(A, store, sid, items, today, stamp) {
     let saved = 0;
     (Array.isArray(items) ? items : []).slice(0, 60).forEach(it => {
       const id = txt(it && it.id, 60), g = Number(it && it.g);
-      if (!sv.words[id] || [0, 1, 2].indexOf(g) < 0) return;
+      if (!ID_RE.test(id) || !has(sv.words, id) || [0, 1, 2].indexOf(g) < 0) return;
       const s = sv.words[id];
       const wasNew = !s.reps;
       sv.words[id] = schedule(s, g, today);
@@ -384,12 +391,12 @@ async function review(A, store, sid, items, today, stamp) {
 
 /* ---------------- Kunlik topshiriqlar ---------------- */
 function award(day, key, amount) {
-  if (day.xp[key] != null) return 0;
+  if (has(day.xp, key)) return 0;
   day.xp[key] = amount; return amount;
 }
 async function getDay(store, sid, today, c, sv, level) {
   let d = await store.get(DAY + sid + '/' + today);
-  if (d) { d.xp = d.xp || {}; d.seen = d.seen || {}; d.done = d.done || {}; d.stat = d.stat || {}; return d; }
+  if (d) { d.xp = d.xp || {}; d.seen = d.seen || {}; d.done = d.done || {}; d.stat = d.stat || {}; d.goals = d.goals || {}; return d; }
   /* Maqsadlar kun boshida o'quvchining lug'atiga qarab belgilanadi */
   const words = sv ? Object.keys(sv.words).map(k => sv.words[k]) : [];
   const fresh = words.filter(s => !s.reps).length, seen = words.filter(s => s.reps).length;
@@ -449,14 +456,17 @@ async function quizAnswer(A, store, sid, today, body) {
     const day = await store.get(DAY + sid + '/' + today);
     if (!day || !day.quiz || day.quiz.id !== String(body.quizId || '')) return { error: 'Test eskirgan — qaytadan boshlang.', code: 409 };
     day.xp = day.xp || {}; day.done = day.done || {}; day.stat = day.stat || {}; day.seen = day.seen || {};
-    const i = Number(body.i), q = day.quiz.qs[i];
+    const i = Number(body.i), q = Number.isInteger(i) && i >= 0 ? day.quiz.qs[i] : null;
     if (!q) return { error: 'Savol topilmadi.', code: 400 };
     if (day.quiz.ans[i] != null) return { ok: true, right: q.answer, correct: day.quiz.ans[i] === q.answer, repeat: true, day: dayPublic(day) };
     const pick = Number(body.pick);
     day.quiz.ans[i] = pick;
     const correct = pick === q.answer;
     day.stat.tq = (day.stat.tq || 0) + 1;
-    if (correct) { day.stat.tqOk = (day.stat.tqOk || 0) + 1; award(day, 'q:' + day.quiz.id + ':' + i, c.xp.testCorrect); }
+    /* XP — kunlik maqsaddagi savollar uchungina (yangi test ochib XP «yig'ib» bo'lmaydi) */
+    const xpLeft = (day.goals.test || 0) > (day.stat.tqXpN || 0);
+    if (correct) day.stat.tqOk = (day.stat.tqOk || 0) + 1;
+    if (xpLeft) { day.stat.tqXpN = (day.stat.tqXpN || 0) + 1; if (correct) award(day, 'q:' + day.quiz.id + ':' + i, c.xp.testCorrect); }
     /* Topshiriq: 5 ta savolga javob berish (to'g'ri bo'lishi shart emas, XP — faqat to'g'risiga) */
     day.done.test = Math.min(day.goals.test, (day.done.test || 0) + 1);
     if (q.skill) { day.stat['sk_' + q.skill] = (day.stat['sk_' + q.skill] || 0) + 1; if (correct) day.stat['skOk_' + q.skill] = (day.stat['skOk_' + q.skill] || 0) + 1; }

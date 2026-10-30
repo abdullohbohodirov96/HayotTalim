@@ -35,7 +35,8 @@
     "test:a0": "node tests/a0-course-test.js",
     "test:e2e": "node tests/full-course-e2e.js",
     "test:quiz": "node tests/kanal-quiz-test.js",
-    "test:learning": "node tests/learning-test.js"
+    "test:learning": "node tests/learning-test.js",
+    "test:hujum3": "node tests/hujum3-test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

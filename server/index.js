@@ -381,6 +381,16 @@ function kabinetOk(ip) {
   kabinetTries.set(ip, { n: 0, first: Date.now(), total: rec.total || 0 });
 }
 
+/* Aqlli lug'at va kunlik mashq yozuvlari: o'quvchi bo'yicha daqiqasiga cheklov */
+const learnRate = new Map();
+const LEARN_RATE = Number(process.env.LEARN_RATE_PER_MIN || 90);
+function learnRateOk(sid) {
+  const now = Date.now(), r = learnRate.get(sid);
+  if (!r || now - r.first > 60000) { learnRate.set(sid, { n: 1, first: now }); if (learnRate.size > 20000) learnRate.clear(); return true; }
+  r.n++;
+  return r.n <= LEARN_RATE;
+}
+
 /* ---------------- Sessiyalar ----------------
    Xodim sessiyalari BAZADA saqlanadi (server qayta ishga tushsa ham chiqib
    ketmaydi), lekin tokenning o'zi emas — faqat SHA-256 xeshi:
@@ -1294,7 +1304,7 @@ async function fileVisibleToStudents(rec, studentIds) {
   if (!ref) return false;
   const mems = (await store.list('memberships/'))
     .map(r => r.data).filter(m => m && ids.indexOf(String(m.studentId)) >= 0 && m.status !== 'chiqdi');
-  const gids = {};
+  const gids = Object.create(null);
   mems.forEach(m => { gids[String(m.groupId)] = 1; });
 
   const [col, key] = ref.split('/');
@@ -1440,9 +1450,10 @@ async function teacherScope(user) {
   if (user.role !== 'oqituvchi') return null;
   const groups = (await store.list('groups/')).map(x => x.data)
     .filter(g => g && g.teacherId === user.staffId);
-  const gid = {};
+  /* Prototipsiz obyekt: «__proto__», «constructor» kabi id lar tegishlilik tekshiruvidan o'tib ketmasin */
+  const gid = Object.create(null);
   groups.forEach(g => { gid[g.id] = 1; });
-  const sid = {};
+  const sid = Object.create(null);
   (await store.list('memberships/')).map(x => x.data).forEach(m => {
     if (m && gid[m.groupId]) sid[m.studentId] = 1;
   });
@@ -2322,6 +2333,8 @@ async function handleApi(req, res, url) {
       const sid = req.method === 'GET' ? String(url.searchParams.get('studentId') || mine[0] || '') : String(mine[0] || '');
       if (!allowStudent(sid)) return send(res, 403, { error: 'Bu o’quvchi sizga tegishli emas.' });
       if (req.method !== 'GET' && isParent) return send(res, 403, { error: 'Mashqni o’quvchining o’zi bajaradi.' });
+      /* Yozish tezligi cheklovi: daqiqasiga ko'pi bilan LEARN_RATE ta (bazani to'ldirib tashlash va skript bilan «yig'ish»dan) */
+      if (req.method !== 'GET' && !learnRateOk(sid)) return send(res, 429, { error: 'Juda tez — bir oz sekinroq javob bering.' });
       const today = A.today();
       const stL = await store.get('students/' + sid);
       const lvl = ((await studentLevel(stL)) || {}).code || '';
@@ -2880,7 +2893,7 @@ async function handleApi(req, res, url) {
     levels.displayList('uz').forEach(function (l) {
       LEVELS[l.code] = l.code + ' — ' + l.name;
     });
-    const startLevel = LEVELS[String(body.startLevel || '')] || '';
+    const startLevel = Object.prototype.hasOwnProperty.call(LEVELS, String(body.startLevel || '')) ? LEVELS[String(body.startLevel)] : '';
     const wantTime = String(body.wantTime || '').slice(0, 40);
     /* Hudud — yopiq ro'yxatdan; reklama belgisi — faqat oddiy belgilar */
     const region = (A.REGIONS || []).indexOf(String(body.region || '')) >= 0 ? String(body.region) : '';
@@ -3170,8 +3183,8 @@ async function handleApi(req, res, url) {
       const mems = (await store.list('memberships/')).map(x => x.data).filter(m => m && m.status === 'faol');
       let gs = groups;
       if (user.role === 'oqituvchi') gs = A.scopeGroups(user, groups);
-      const gids = {}; gs.forEach(g => { gids[g.id] = g; });
-      const ids = {};
+      const gids = Object.create(null); gs.forEach(g => { gids[g.id] = g; });
+      const ids = Object.create(null);
       mems.forEach(m => { if (gids[m.groupId]) (ids[m.studentId] = ids[m.studentId] || []).push(gids[m.groupId]); });
       if (user.role !== 'oqituvchi') {
         (await store.list('students/')).map(x => x.data).filter(s => s && s.status === 'faol')
