@@ -26,7 +26,8 @@
      «Alifbo» esa asosiy bo'lim bo'ladi — telefonning pastki menyusida ham. */
   function navFor(level) {
     if (!(level && level.code === 'A0')) return NAV_ALL;
-    return NAV_ALL.filter(function (n) { return !/^(darslar|vazifalar|lugat)$/.test(n.id); }).map(function (n) {
+    return NAV_ALL.filter(function (n) { return !/^(darslar|vazifalar)$/.test(n.id); }).map(function (n) {
+      if (n.id === 'lugat') return { id: 'lugat', label: 'Lug’at yodlash · yopiq', short: 'Lug’at', icon: 'award' };
       if (n.id === 'alifbo') return { id: 'alifbo', label: 'Alifbo darslari', short: 'Alifbo', icon: 'play', mob: true };
       if (n.id === 'reyting' || n.id === 'jadval') return Object.assign({}, n, { mob: true });
       return n;
@@ -318,6 +319,7 @@
 
     function paintView() {
       UI.clear(view);
+      if (cur === 'lugat' && isA0) { vVocabLocked(view); return; }
       var fn = { asosiy: vHome, alifbo: vAlif, reyting: vRating, darslar: vLessons, vazifalar: vHomework, lugat: vVocab, jadval: vSchedule, tolov: vPay, fayllar: vFiles, savol: vAsk, profil: vProfile }[cur];
       fn(view);
       if (A.I18N && A.I18N.apply) { try { A.I18N.apply(view); } catch (e) { } }
@@ -1325,6 +1327,21 @@
         drawList();
         box.appendChild(card('Mening lug’atim', [chips, list]));
       }).catch(function (e) { fail(box, e); });
+    }
+    /* A0 o'quvchisi uchun «Lug'at yodlash» — yopiq: A0 da asosiy urg'u o'qishga */
+    function vVocabLocked(el) {
+      el.appendChild(h('section', { class: 'sp-lock' }, [
+        h('div', { class: 'sp-lock-i', 'aria-hidden': 'true' }, '🔒'),
+        h('span', { class: 'sp-eyebrow' }, 'A1 darajasida ochiladi'),
+        h('h2', {}, 'Hozir asosiy vazifa — o‘qishni o‘rganish'),
+        h('p', {}, 'A0 kursida diqqatimiz harflar, harakatlar va arabcha so‘zlarni ravon o‘qishga qaratilgan. So‘z yodlashga keyin o‘tamiz: avval o‘qish mustahkam bo‘lsa, yangi so‘zlar ham tezroq va oson yodlanadi.'),
+        h('div', { class: 'sp-lock-steps' }, [
+          h('div', {}, [h('b', {}, '1'), h('span', {}, 'Alifbo darslarini tugatasiz — 24 dars')]),
+          h('div', {}, [h('b', {}, '2'), h('span', {}, 'A1 darajasiga o‘tasiz')]),
+          h('div', {}, [h('b', {}, '3'), h('span', {}, 'Lug‘at yodlash ochiladi: so‘zlar 1 → 3 → 7 kun oralig‘ida takrorlanadi va xotirada mustahkam qoladi')])
+        ]),
+        h('button', { class: 'btn primary', type: 'button', onclick: function () { go('alifbo'); } }, 'O‘qish darslariga qaytish →')
+      ]));
     }
     function statTile(icon, label, value, hint, cls) {
       return h('div', { class: 'sp-tile ' + (cls || '') }, [h('i', { class: 'sp-tile-i' }, ico(icon)), h('div', {}, [h('small', {}, label), h('b', {}, value), h('span', {}, hint || '')])]);
