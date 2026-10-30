@@ -118,7 +118,7 @@ function pickTail(pending, base) {
 /** «To'lov qilish»: da'vo yaratadi (yoki eskisini qaytaradi) */
 async function startClaim(ctx, student, chatId) {
   const { store, A, stamp } = ctx;
-  const all = await store.all();
+  const all = await store.all({ light: true });
   const invoices = [], payments = [];
   all.forEach(({ path: p, data }) => {
     const parts = p.split('/');

@@ -146,7 +146,7 @@ function codeOk(chatId) { codeTries.delete(String(chatId)); }
 
 /* ---------------- Moliya: har bir yozuv alohida hujjatda ---------------- */
 async function finData() {
-  const all = await store.all();
+  const all = await store.all({ light: true });
   const invoices = [], payments = [];
   all.forEach(({ path: p, data }) => {
     const parts = p.split('/');
@@ -193,7 +193,7 @@ async function balanceText(student) {
 async function attendanceText(student) {
   const mems = (await listCol('memberships')).filter(m => m.studentId === student.id);
   const rows = [];
-  const all = await store.all();
+  const all = await store.all({ light: true });
   for (const m of mems) {
     const g = await store.get('groups/' + m.groupId);
     all.forEach(({ path: p, data }) => {

@@ -81,6 +81,11 @@ function makeSqlite() {
       const rows = db.prepare("SELECT path, data FROM docs WHERE path NOT LIKE 'vchunk/%'").all();
       return rows.map(r => ({ path: r.path, data: JSON.parse(r.data) }));
     },
+    /** Xotira nusxasi uchun: kichik hujjatlar matni, kattalari — faqat yo'li */
+    async mirrorRows(max) {
+      return db.prepare("SELECT path, CASE WHEN length(data) <= ? THEN data END AS json FROM docs WHERE path NOT LIKE 'vchunk/%'").all(max)
+        .map(r => ({ path: r.path, json: r.json == null ? null : String(r.json) }));
+    },
     async close() { db.close(); }
   };
 }
@@ -213,6 +218,14 @@ function makePostgres(url) {
       const r = await q("SELECT path, data FROM docs WHERE path NOT LIKE 'vchunk/%'");
       return r.rows.map(x => ({ path: x.path, data: x.data }));
     },
+    /** Xotira nusxasi uchun: kichik hujjatlar matni, kattalari — faqat yo'li */
+    async mirrorRows(max) {
+      const r = await q("SELECT path, CASE WHEN octet_length(data::text) <= $1 THEN data::text END AS json FROM docs WHERE path NOT LIKE 'vchunk/%' AND path NOT LIKE 'filebody/%'", [max]);
+      const out = r.rows.map(x => ({ path: x.path, json: x.json }));
+      const b = await q("SELECT path FROM docs WHERE path LIKE 'filebody/%'");
+      b.rows.forEach(x => out.push({ path: x.path, json: null }));
+      return out;
+    },
     /** Bazaning hajmi va yozuvlar soni — sozlamalarda ko'rsatiladi */
     async stats() {
       const r = await q(
@@ -225,10 +238,121 @@ function makePostgres(url) {
   };
 }
 
+/* ---------------- Xotiradagi nusxa (tezlik uchun) ----------------
+   Har sahifa ochilishida server bazaga o'nlab «ro'yxat» so'rovi yuborardi
+   (guruhlar, a'zoliklar, davomat…). Neon uzoqda — har so'rov 20–100 ms, jami
+   bir necha soniya. Endi kichik hujjatlarning nusxasi server xotirasida turadi:
+   o'qish — xotiradan, yozish — avval bazaga, keyin xotiraga.
+   Server bitta nusxada ishlaydi (Render), barcha yozuvlar shu jarayondan
+   o'tadi — shuning uchun nusxa doim aniq. Ehtiyot uchun har MIRROR_REFRESH_MIN
+   daqiqada bazadan qayta o'qiladi. Katta yozuvlar (video bo'laklari, fayl
+   mazmuni) xotiraga olinmaydi — ular har safar bazadan o'qiladi.
+   O'chirish: STORE_MIRROR=0.                                                  */
+const MIRROR_SKIP = /^(vchunk|vupload|filebody|qissaaudio|photos|formbg)\//;
+const MIRROR_MAX_DOC = 256 * 1024;                 // shundan katta hujjat — bazadan
+const MIRROR_MAX_TOTAL = Number(process.env.MIRROR_MAX_MB || 60) * 1024 * 1024;
+function withMirror(base) {
+  const cols = new Map();            // to'plam → Map(path → JSON matn)
+  const big = new Set();             // xotirada yo'q, lekin bazada bor (katta) hujjatlar
+  let state = 'off';                 // off | loading | on | failed
+  let loading = null, pending = null, bytes = 0, loadedAt = 0, loads = 0;
+  const colOf = p => { const i = p.indexOf('/'); return i < 0 ? p : p.slice(0, i); };
+  const skip = p => MIRROR_SKIP.test(p);
+  function put(p, json) {
+    const c = colOf(p);
+    if (json == null) { const m = cols.get(c); if (m) { const o = m.get(p); if (o) bytes -= o.length; m.delete(p); } big.delete(p); return; }
+    if (json.length > MIRROR_MAX_DOC) { const m = cols.get(c); if (m && m.has(p)) { bytes -= m.get(p).length; m.delete(p); } big.add(p); return; }
+    let m = cols.get(c); if (!m) { m = new Map(); cols.set(c, m); }
+    const o = m.get(p); if (o) bytes -= o.length;
+    m.set(p, json); bytes += json.length; big.delete(p);
+  }
+  async function load() {
+    if (loading) return loading;
+    pending = new Map();
+    loading = (async () => {
+      try {
+        const rows = await base.mirrorRows(MIRROR_MAX_DOC);
+        cols.clear(); big.clear(); bytes = 0;
+        for (const r of rows) {
+          if (skip(r.path)) continue;
+          if (r.json == null) big.add(r.path); else put(r.path, r.json);
+          if (bytes > MIRROR_MAX_TOTAL) throw new Error('nusxa juda katta');
+        }
+        for (const [p, j] of pending) put(p, j);      // yuklash paytidagi yozuvlar
+        state = 'on'; loadedAt = Date.now(); loads++;
+      } catch (e) {
+        if (loads > 0 && !/katta/.test(e.message)) { loadedAt = Date.now(); return; }   // vaqtincha xato — eski nusxa qoladi
+        state = 'failed'; cols.clear(); big.clear(); bytes = 0;
+        console.warn('  Xotira nusxasi o\'chirildi (' + e.message + ') — to\'g\'ridan-to\'g\'ri baza ishlatiladi.');
+      } finally { pending = null; loading = null; }
+    })();
+    return loading;
+  }
+  async function ready() {
+    if (state === 'on') {
+      /* Ishga tushgandan keyingi dastlabki daqiqalarda (deploy paytida eski nusxa
+         hali yozayotgan bo'lishi mumkin) tezroq, keyin har 10 daqiqada yangilanadi */
+      const every = loads < 3 ? 90000 : Number(process.env.MIRROR_REFRESH_MIN || 10) * 60000;
+      if (Date.now() - loadedAt > every && !loading) load();     // fonda yangilanadi, hozircha eskisi xizmat qiladi
+      return true;
+    }
+    if (state === 'failed') return false;
+    await load();
+    return state === 'on';
+  }
+  const parse = j => JSON.parse(j);
+  const w = Object.assign({}, base, {
+    mirror: true,
+    async get(p) {
+      if (skip(p) || !(await ready())) return base.get(p);
+      const m = cols.get(colOf(p));
+      if (m && m.has(p)) return parse(m.get(p));
+      if (big.has(p)) return base.get(p);
+      return null;
+    },
+    async list(prefix) {
+      if (skip(prefix) || !prefix || !(await ready())) return base.list(prefix);
+      const c = colOf(prefix), m = cols.get(c), out = [];
+      if (m) for (const [p, j] of m) if (p.startsWith(prefix)) out.push({ path: p, data: parse(j) });
+      for (const p of big) if (p.startsWith(prefix)) { const d = await base.get(p); if (d != null) out.push({ path: p, data: d }); }
+      return out;
+    },
+    async set(p, data) {
+      await base.set(p, data);
+      if (skip(p)) return;
+      const j = JSON.stringify(data);
+      if (state === 'on') put(p, j);
+      if (pending) pending.set(p, j);
+    },
+    async del(p) {
+      if (base.del) await base.del(p);
+      if (skip(p)) return;
+      if (state === 'on') put(p, null);
+      if (pending) pending.set(p, null);
+    },
+    /* Butun baza. { light: true } — katta fayl to'plamlarisiz (video, fayl
+       mazmuni, rasmlar): ro'yxat sahifalari uchun, xotiradan tez. */
+    async all(opts) {
+      if (!(await ready())) return base.all();
+      const out = [];
+      for (const m of cols.values()) for (const [p, j] of m) out.push({ path: p, data: parse(j) });
+      for (const p of big) { const d = await base.get(p); if (d != null) out.push({ path: p, data: d }); }
+      if (!(opts && opts.light)) {
+        for (const pre of ['vupload/', 'filebody/', 'qissaaudio/', 'photos/', 'formbg/']) out.push(...await base.list(pre));
+      }
+      return out;
+    },
+    mirrorInfo() { return { state, bytes, docs: Array.from(cols.values()).reduce((s, m) => s + m.size, 0), big: big.size, loadedAt }; },
+    mirrorReload() { return load(); }
+  });
+  return w;
+}
+
 function createStore() {
   const url = process.env.DATABASE_URL;
-  if (url) return makePostgres(url);
-  return makeSqlite() || makeJsonFile();
+  const s = url ? makePostgres(url) : (makeSqlite() || makeJsonFile());
+  if (String(process.env.STORE_MIRROR || '1') === '0' || !s.mirrorRows) return s;
+  return withMirror(s);
 }
 
 module.exports = { createStore, DATA_DIR, pgConf, pgSslOptions, stripSslParams };

@@ -524,6 +524,24 @@
     return false;
   }
 
+  /* Kabinet ma'lumotining shu qurilmadagi nusxasi (tez ochilish uchun).
+     CSRF siri saqlanmaydi; «Chiqish»da o'chiriladi. */
+  var KAB_ME = 'kab_me_v1';
+  function kabMeRead() {
+    try { var j = localStorage.getItem(KAB_ME); if (!j || localStorage.getItem('sabo_kab') !== '1') return null; var d = JSON.parse(j); return d && (d.kind === 'student' || d.kind === 'parent') ? d : null; } catch (e) { return null; }
+  }
+  function kabMeStrip(d) { var c = {}; for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k) && k !== 'csrf') c[k] = d[k]; return c; }
+  function kabMeWrite(d) { try { localStorage.setItem(KAB_ME, JSON.stringify(kabMeStrip(d))); } catch (e) { } }
+  function kabMeSame(a, b) { try { return JSON.stringify(kabMeStrip(a)) === JSON.stringify(kabMeStrip(b)); } catch (e) { return false; } }
+  function kabMeClear() {
+    try {
+      localStorage.removeItem(KAB_ME);
+      var ks = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('kabc1:') === 0) ks.push(k); }
+      ks.forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) { }
+  }
+  A.kabMeClear = kabMeClear;
+
   function renderKabinet(prefill) {
     if (withBundle('course', function () { renderKabinet(prefill); })) return;
     if (dupView('kabinet')) return;
@@ -634,16 +652,31 @@
           return;
         }
       }
+      /* Tezkor ochilish: oxirgi ma'lumot shu qurilmada saqlangan — kabinet
+         darhol chiqadi, yangisi fonda olinadi (server uxlab qolgan bo'lsa ham
+         o'quvchi kutib o'tirmaydi). */
+      var cached = token ? null : kabMeRead();
+      var shown = null;
+      if (cached) { info.hidden = true; shown = showInfo(cached); }
       var d;
+      var wait = D.api('GET', 'api/kabinet/me');
+      D.kabCsrf = '';
+      D.kabCsrfWait = wait;
       try {
-        d = await D.api('GET', 'api/kabinet/me');
+        d = await wait;
         D.kabCsrf = d.csrf || '';
       } catch (ex) {
+        if (cached && ex && ex.status !== 401 && ex.status !== 403) return;   // tarmoq/server xatosi — saqlangani qoladi
+        kabMeClear();
         info.hidden = true;
         showForm();
         return;
-      }
+      } finally { D.kabCsrfWait = null; }
       info.hidden = true;
+      if (cached && kabMeSame(cached, d)) return;
+      /* O'zgargan bo'lsa — yangisi bilan qayta chiziladi (o'quvchi ichki sahifada
+         bo'lsa, xalaqit bermaymiz: keyingi ochilishda yangisi chiqadi) */
+      if (shown && shown.busy && shown.busy()) return;
       showInfo(d);
     }
 
@@ -740,6 +773,7 @@
             if (D.mode !== 'server') { try { sessionStorage.removeItem('kab_local'); } catch (e) { } err.hidden = true; portalOn(false); showForm(); return; }
             try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
             try { localStorage.removeItem('sabo_kab'); } catch (e) { }
+            kabMeClear();
             err.hidden = true;
             portalOn(false);
             showForm();
@@ -767,12 +801,13 @@
 
     function showInfo(d) {
       try { localStorage.setItem('sabo_kab', '1'); } catch (e) { }
+      if (D.mode === 'server' && d && (d.kind === 'student' || d.kind === 'parent')) kabMeWrite(d);
       if (d && d.kind === 'parent') return showParent(d);
       UI.clear(result);
       portalOn(true);
       var root = h('div', {});
       result.appendChild(root);
-      A.StudentPortal.render(root, d, {
+      return A.StudentPortal.render(root, d, {
         centerName: centerNameNow(),
         openCourse: function () { location.hash = 'kurs'; openCourse(); },
         runQuiz: runQuiz,
@@ -780,6 +815,7 @@
           if (D.mode !== 'server') { try { sessionStorage.removeItem('kab_local'); } catch (e) { } err.hidden = true; portalOn(false); showForm(); return; }
           try { await D.api('POST', 'api/kabinet/logout', {}); } catch (e) { }
             try { localStorage.removeItem('sabo_kab'); } catch (e) { }
+          kabMeClear();
           err.hidden = true;
           try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { }
           portalOn(false);
@@ -3910,6 +3946,19 @@
     window.addEventListener('beforeunload', function (e) {
       if (UI.hasUnsaved && UI.hasUnsaved()) { e.preventDefault(); e.returnValue = ''; }
     });
+    /* Tezkor yo'l: o'quvchi shu qurilmada kabinetga kirgan va ma'lumoti saqlangan
+       bo'lsa — server tekshiruvini kutmasdan kabinet darhol ochiladi. */
+    var fastKab = false, fastKabBare = false;
+    try {
+      var hw0 = String(location.hash || '').replace('#', '').split('?')[0];
+      var isWeb0 = /^https?:$/.test(location.protocol) && !(global.claude && typeof global.claude.use === 'function');
+      if (isWeb0 && (hw0 === 'kabinet' || !hw0) && !/[?&]t=/.test(String(location.hash || '')) && kabMeRead()) {
+        if (!hw0) { try { history.replaceState(null, '', location.pathname + '#kabinet'); } catch (e) { } }
+        D.mode = 'server';
+        fastKab = true; fastKabBare = !hw0;
+        renderKabinet();
+      }
+    } catch (e) { console.warn(e); fastKab = false; }
     try {
       await D.initAuth();
 
@@ -3919,6 +3968,10 @@
       var tgb2 = document.getElementById('tg-link'); if (tgb2) tgb2.onclick = function () { openTelegramLink(); };
         var tgb = document.getElementById('tg-link'); if (tgb) tgb.onclick = function () { openTelegramLink(); };
         D.onBusy = busyIndicator;
+        var whereF = String(location.hash || '').replace('#', '').split('?')[0];
+        /* Kabinet allaqachon ochilgan. Faqat manzil bo'sh bo'lib, shu qurilmada
+           xodim ham kirgan bo'lsa — avvalgidek xodim paneli ochiladi. */
+        if (fastKab && (whereF === 'kabinet' || whereF === 'kurs') && !(fastKabBare && D.currentServerUser)) return;
         if (D.currentServerUser) {
           try {
             await D.loadBootstrap();
@@ -3976,6 +4029,7 @@
       else renderLogin(null);
     } catch (e) {
       console.error(e);
+      if (fastKab) { D.mode = 'server'; return; }   // server javob bermadi — saqlangan kabinet ko'rinib turadi
       hidePreRender();
       var boot = document.getElementById('boot');
       boot.hidden = false;

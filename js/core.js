@@ -246,6 +246,8 @@
        Sirni kabinet ma'lumoti bilan birga server beradi.                */
     kabCsrf: '',
     async kabPost(path, body) {
+      /* Kabinet keshdan ochilgan bo'lsa, server javobi (CSRF) kelguncha kutamiz */
+      if (!this.kabCsrf && this.kabCsrfWait) { try { await this.kabCsrfWait; } catch (e) { } }
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         var off = new Error('Internet yo’q. Ma’lumot saqlanmadi.');
         off.offline = true;
@@ -299,6 +301,10 @@
       var isArtifact = !!(global.claude && typeof global.claude.use === 'function');
       var isWeb = typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && !isArtifact;
       var waits = isWeb ? [4000, 10000, 20000, 30000] : [2500];
+      /* Xodim sessiyasi so'rovi «health» bilan bir vaqtda yuboriladi —
+         ketma-ket ikki so'rov o'rniga bitta kutish (kirish tezroq). */
+      var self = this, meP = null;
+      if (isWeb) meP = this.api('GET', 'api/me').then(function (r) { return { user: r.user }; }, function (e) { return { err: e }; });
       for (var wi = 0; wi < waits.length; wi++) {
         try {
           var ctrl = new AbortController();
@@ -308,8 +314,12 @@
           if (res.ok) {
             this.mode = 'server';
             this.authReady = true;
+            var pre = meP ? await meP : null;
+            if (pre && !pre.err) { this.currentServerUser = pre.user; return; }
+            /* 401 — xodim sifatida kirilmagan; boshqa xato (tarmoq) — yana bir bor so'raymiz */
+            if (pre && pre.err && pre.err.status === 401) { this.currentServerUser = null; return; }
             try {
-              var me = await this.api('GET', 'api/me');
+              var me = await self.api('GET', 'api/me');
               this.currentServerUser = me.user;
             } catch (e) { this.currentServerUser = null; }
             return;

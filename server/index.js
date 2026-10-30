@@ -1796,7 +1796,7 @@ const COLLECTIONS = ['users', 'staff', 'teachers', 'courses', 'rooms', 'students
   'forms', 'formsub', 'formstat'];
 
 async function apiBootstrap(user) {
-  const all = await store.all();
+  const all = await store.all({ light: true });
   const v = visibleData(user, all);
   const col = {};
   COLLECTIONS.forEach(c => { col[c] = v.col[c] || {}; });

@@ -234,11 +234,12 @@ async function summary(store, student) {
 
   /* --- Davomat --- */
   const rows = [];
-  const all = await store.all();
   const labels = { keldi: 'Keldi', kelmadi: 'Kelmadi', kechikdi: 'Kechikdi', sababli: 'Sababli' };
   for (const m of mine) {
     const g = groupById[m.groupId];
-    all.forEach(({ path: p, data }) => {
+    /* Faqat shu guruhning dars yozuvlari (butun bazani o'qish shart emas) */
+    const lrows = await store.list('lessons/' + m.groupId + '__');
+    lrows.forEach(({ path: p, data }) => {
       if (p.indexOf('lessons/' + m.groupId + '__') !== 0) return;
       const items = (data && data.items) || {};
       Object.keys(items).forEach(date => {

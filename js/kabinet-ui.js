@@ -228,9 +228,44 @@
     var groups = d.groups || [];
     var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
     var cache = {};
+    /* Tez ochilish: o'qiladigan ma'lumotlar shu qurilmada saqlanadi. Bo'lim
+       ochilganda avval saqlangani darhol chiqadi, serverdan yangisi fonda
+       olinadi; farq qilsa — bo'lim jimgina qayta chiziladi.               */
+    var SWR = { course: 1, alif: 1, ldaily: 1, lvocab: 1, lprogress: 1, top: 1, learning: 1, payments: 1, files: 1 };
+    var swrOn = D.mode === 'server' && st && st.id;
+    var swrKey = 'kabc1:' + (st && st.id) + ':';
+    var revalidated = {}, usedNow = {};
+    function swrGet(k) { try { return localStorage.getItem(swrKey + k); } catch (e) { return null; } }
+    function swrPut(k, v) {
+      var j; try { j = JSON.stringify(v); } catch (e) { return; }
+      if (j.length > 900000) return;
+      try { if (localStorage.getItem('sabo_kab') !== '1') return j; } catch (e) { return j; }   // chiqib ketgan — saqlanmaydi
+      try { localStorage.setItem(swrKey + k, j); } catch (e) { try { localStorage.removeItem(swrKey + k); } catch (e2) { } }
+      return j;
+    }
     function load(key) {
-      if (!cache[key]) cache[key] = src[key]().catch(function (e) { delete cache[key]; throw e; });
-      return cache[key];
+      usedNow[key] = true;
+      if (cache[key]) return cache[key];
+      if (!(swrOn && SWR[key])) {
+        cache[key] = src[key]().catch(function (e) { delete cache[key]; throw e; });
+        return cache[key];
+      }
+      var oldJ = revalidated[key] ? null : swrGet(key), old = null;
+      if (oldJ) { try { old = JSON.parse(oldJ); } catch (e) { old = null; } }
+      revalidated[key] = true;
+      var net = src[key]().then(function (v) { var j = swrPut(key, v); return { v: v, j: j }; });
+      if (!old) {
+        cache[key] = net.then(function (r) { return r.v; }).catch(function (e) { delete cache[key]; throw e; });
+        return cache[key];
+      }
+      var mine = cache[key] = Promise.resolve(old);
+      net.then(function (r) {
+        if (cache[key] !== mine) return;                 // orada boshqa joy yangilagan
+        cache[key] = Promise.resolve(r.v);
+        if (r.j === oldJ) return;
+        if (!subBack && usedNow[key] && root.isConnected) paintView();
+      }, function () { /* tarmoq yo'q — saqlangani qoladi */ });
+      return mine;
     }
 
     function sectionFromHash() {
@@ -335,6 +370,7 @@
     }
 
     function paintView() {
+      usedNow = {};
       UI.clear(view);
       if (cur === 'lugat' && isA0) { vVocabLocked(view); return; }
       var fn = { kunlik: vDaily, rivoj: vProgress, asosiy: vHome, alifbo: vAlif, reyting: vRating, darslar: vLessons, vazifalar: vHomework, lugat: vVocab, jadval: vSchedule, tolov: vPay, fayllar: vFiles, savol: vAsk, profil: vProfile }[cur];
@@ -2145,7 +2181,7 @@
       var m = /[?&]rv=(r\d+)/.exec(String(location.hash || ''));
       if (m && cur === 'lugat') startReview(m[1]);
     }).catch(function () { });
-    return { go: go };
+    return { go: go, busy: function () { return !!subBack || !root.isConnected; } };
   }
 
   A.StudentPortal = { render: render, upcoming: upcoming };
