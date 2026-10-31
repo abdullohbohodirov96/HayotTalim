@@ -172,7 +172,7 @@ function makePostgres(url) {
   const pool = new Pool({
     connectionString: stripSslParams(url),
     ssl: pgSslOptions(conf),
-    max: Number(process.env.PG_POOL_MAX || 10),
+    max: Number(process.env.PG_POOL_MAX || 20),
     idleTimeoutMillis: Number(process.env.PG_IDLE_MS || 15000),   // bo'sh ulanish yopilsin
     connectionTimeoutMillis: Number(process.env.PG_CONNECT_MS || 15000),
     allowExitOnIdle: true
@@ -359,10 +359,10 @@ function withMirror(base) {
       const m = cols.get(colOf(p));
       if (m && m.has(p)) return parse(m.get(p));
       if (big.has(p)) return base.get(p);
-      /* Xotirada yo'q — boshqa jarayon hozirgina yozgan bo'lishi mumkin: bazadan so'raymiz */
-      const d = await base.get(p);
-      if (d != null) { const j = JSON.stringify(d); put(p, j); }
-      return d;
+      /* Xotirada yo'q — yo'q deb javob beramiz (boshqa jarayon yozganlari delta orqali
+         keladi: sqlite — har so'rovda, Postgres — 2 soniyada). Bazaga bormaymiz:
+         «hali yo'q» yozuvlar (kunlik mashq, sessiya…) juda ko'p so'raladi. */
+      return null;
     },
     async list(prefix) {
       if (skip(prefix) || !prefix || !(await ready())) return base.list(prefix);
