@@ -26,11 +26,20 @@
   var NAV = NAV_ALL;
   /* A0 guruhidagi o'quvchi: A1 bo'limlari (darslar, vazifalar, lug'at) yashiriladi,
      «Alifbo» esa asosiy bo'lim bo'ladi — telefonning pastki menyusida ham. */
-  function navFor(level) {
-    if (!(level && level.code === 'A0')) return NAV_ALL;
+  /* «Darslarim» — bitta bo'lim, o'quvchining darajasiga mos ochiladi (telefonda 2-o'rinda):
+       A0 → alifbo darslari;  A1 va yuqori → kurs darslari (A0 yashiriladi);
+       daraja yo'q yoki to'liq dostup → ikkalasi ham. */
+  function navFor(level, full) {
+    var code = level && level.code;
+    if (full || !code) return NAV_ALL.map(function (n) {
+      if (n.id === 'alifbo') return Object.assign({}, n, { label: 'Alifbo (A0) darslari', short: 'Alifbo' });
+      if (n.id === 'darslar') return Object.assign({}, n, { label: 'Darslarim (A1)' });
+      return n;
+    });
+    if (code !== 'A0') return NAV_ALL.filter(function (n) { return n.id !== 'alifbo'; });
     return NAV_ALL.filter(function (n) { return !/^(darslar|vazifalar)$/.test(n.id); }).map(function (n) {
       if (n.id === 'lugat') return { id: 'lugat', label: 'Lug’at yodlash · yopiq', short: 'Lug’at', icon: 'award' };
-      if (n.id === 'alifbo') return { id: 'alifbo', label: 'Alifbo darslari', short: 'Alifbo', icon: 'play', mob: true };
+      if (n.id === 'alifbo') return { id: 'alifbo', label: 'Darslarim', short: 'Darslarim', icon: 'play', mob: true };
       if (n.id === 'jadval') return Object.assign({}, n, { mob: true });
       return n;
     });
@@ -224,7 +233,7 @@
     if (A.Speak) A.Speak.loadMap();
     var st = d.student, fin = d.finance || {}, att = d.attendance || {};
     var isA0 = !!(d.level && d.level.code === 'A0') && !d.fullAccess;
-    NAV = d.fullAccess ? NAV_ALL : navFor(d.level);
+    NAV = navFor(d.level, d.fullAccess);
     var groups = d.groups || [];
     var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
     var cache = {};
@@ -296,6 +305,11 @@
       if (cur !== 'asosiy') go('asosiy');
     }
     function go(id) {
+      /* Darajaga mos bo'lim: A0 o'quvchida «darslar» → alifbo, A1 da «alifbo» → darslar */
+      if (!NAV.some(function (n) { return n.id === id; })) {
+        var alt = { darslar: 'alifbo', vazifalar: 'alifbo', alifbo: 'darslar' }[id];
+        id = alt && NAV.some(function (n) { return n.id === alt; }) ? alt : 'asosiy';
+      }
       subBack = null;
       cur = id;
       try { history.replaceState(null, '', location.pathname + '#kabinet' + (id === 'asosiy' ? '' : '?b=' + id)); } catch (e) { }

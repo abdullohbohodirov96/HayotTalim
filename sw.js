@@ -8,7 +8,7 @@
    5. HTML ham, JS/CSS ham BITTA versiya keshidan beriladi.                  */
 'use strict';
 
-const VERSION = 'markaz-748b2e42ea2e';
+const VERSION = 'markaz-9868e3713bdd';
 const SHELL = [
   './index.html',
   './css/app.css',
