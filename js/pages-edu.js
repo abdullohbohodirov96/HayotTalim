@@ -24,12 +24,39 @@
   }
 
   /* ================= GURUHLAR ================= */
+  /* Guruh darajasi: guruhning o'zida → kursida → nomining boshida («A0 | …») */
+  var LEVELS_ORDER = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  function groupLevel(g) {
+    var lv = String(g.level || '').toUpperCase();
+    if (LEVELS_ORDER.indexOf(lv) < 0) { var c = g.courseId ? D.one('courses', g.courseId) : null; lv = String((c && c.level) || '').toUpperCase(); }
+    if (LEVELS_ORDER.indexOf(lv) < 0) { var m = /\b(A0|A1|A2|B1|B2|C1|C2)\b/i.exec(String(g.name || '') + ' ' + String((g.courseId && Q.courseName(g.courseId)) || '')); lv = m ? m[1].toUpperCase() : ''; }
+    return lv;
+  }
+  /* Kim uchun: guruhda belgilangan; bo'lmasa — nomidan (ayol/erkak/bola) */
+  var AUD = { ayollar: 'Ayollar', erkaklar: 'Erkaklar', bolalar: 'Bolalar', aralash: 'Aralash' };
+  function groupAudience(g) {
+    if (AUD[g.audience]) return g.audience;
+    var n = String(g.name || '').toLowerCase();
+    if (/ayol|qiz|xotin|women|female|жен/.test(n)) return 'ayollar';
+    if (/erkak|yigit|\bmen\b|male|муж/.test(n)) return 'erkaklar';
+    if (/bola|kids|child|дет/.test(n)) return 'bolalar';
+    if (/aralash|mix/.test(n)) return 'aralash';
+    return '';
+  }
+  A.groupLevel = groupLevel; A.groupAudience = groupAudience;
+
   A.Pages.groups = function (view, route, App) {
     App.guard('group.view');
-    var list = A.scopeGroups(App.user, D.all('groups'));
-    var status = route.status || 'all';
+    var all = A.scopeGroups(App.user, D.all('groups'));
+    var status = route.status || 'all', lvF = route.lvl || 'all', audF = route.aud || 'all';
+    var list = all;
     if (status !== 'all') list = list.filter(function (g) { return g.status === status; });
+    var byStatus = list;
+    if (lvF !== 'all') list = list.filter(function (g) { return (groupLevel(g) || 'none') === lvF; });
+    if (audF !== 'all') list = list.filter(function (g) { return (groupAudience(g) || 'none') === audF; });
     list = A.sortBy(list, 'name');
+    function goF(o) { App.go('groups', Object.assign({ status: status, lvl: lvF, aud: audF }, o)); }
+    function cnt(fn) { return byStatus.filter(fn).length; }
 
     view.appendChild(UI.pageHead('Guruhlar', list.length + ' ta guruh', [
       App.can('group.edit') ? h('button', { class: 'btn primary', onclick: function () { groupForm(null, App); } },
@@ -44,11 +71,34 @@
       ].map(function (s) {
         return h('button', {
           type: 'button', 'aria-pressed': status === s.id ? 'true' : 'false',
-          onclick: function () { App.go('groups', { status: s.id }); }
+          onclick: function () { goF({ status: s.id }); }
         }, s.label);
       }))
     ]));
 
+    /* Daraja va «kim uchun» bo'yicha filtr (sonlari bilan) */
+    var lvls = LEVELS_ORDER.filter(function (l) { return cnt(function (g) { return groupLevel(g) === l; }); });
+    var noLv = cnt(function (g) { return !groupLevel(g); });
+    var auds = Object.keys(AUD).filter(function (a) { return cnt(function (g) { return groupAudience(g) === a; }); });
+    var noAud = cnt(function (g) { return !groupAudience(g); });
+    function segBtn(on, label, n, fn) {
+      return h('button', { type: 'button', 'aria-pressed': on ? 'true' : 'false', onclick: fn }, [label, n != null ? h('span', { class: 'muted', style: 'margin-inline-start:4px' }, String(n)) : null]);
+    }
+    view.appendChild(h('div', { class: 'filters', style: 'flex-wrap:wrap;gap:8px' }, [
+      h('div', { class: 'seg', title: 'Daraja' }, [segBtn(lvF === 'all', 'Hamma daraja', byStatus.length, function () { goF({ lvl: 'all' }); })]
+        .concat(lvls.map(function (l) { return segBtn(lvF === l, l, cnt(function (g) { return groupLevel(g) === l; }), function () { goF({ lvl: l }); }); }))
+        .concat(noLv ? [segBtn(lvF === 'none', 'Daraja yo‘q', noLv, function () { goF({ lvl: 'none' }); })] : [])),
+      h('div', { class: 'seg', title: 'Kim uchun' }, [segBtn(audF === 'all', 'Hammasi', null, function () { goF({ aud: 'all' }); })]
+        .concat(auds.map(function (a) { return segBtn(audF === a, (a === 'ayollar' ? '👩 ' : a === 'erkaklar' ? '👨 ' : a === 'bolalar' ? '🧒 ' : '👥 ') + AUD[a], cnt(function (g) { return groupAudience(g) === a; }), function () { goF({ aud: a }); }); }))
+        .concat(noAud ? [segBtn(audF === 'none', 'Belgilanmagan', noAud, function () { goF({ aud: 'none' }); })] : []))
+    ]));
+    if (noLv || noAud) view.appendChild(h('p', { class: 'small muted', style: 'margin:-4px 2px 10px' },
+      'Daraja yoki «kim uchun» belgilanmagan guruhlarni oching → «Tahrirlash» → kurs darajasi va «Kim uchun» ni tanlang — filtr aniq ishlaydi.'));
+
+    if (!list.length && all.length) {
+      view.appendChild(UI.card(null, UI.empty({ title: 'Bu filtrga mos guruh yo‘q', text: 'Boshqa daraja yoki «kim uchun» ni tanlang.' })));
+      return;
+    }
     if (!list.length) {
       view.appendChild(UI.card(null, UI.empty({
         title: 'Guruh yo’q',
@@ -74,8 +124,10 @@
       }, h('div', { class: 'card-body', style: 'display:flex;flex-direction:column;gap:9px' }, [
         h('div', { class: 'rowflex', style: 'justify-content:space-between' }, [
           h('h3', { style: 'font-size:15px' }, [
+            groupLevel(g) ? h('span', { class: 'pill ok', style: 'margin-inline-end:6px' }, groupLevel(g)) : null,
             g.code ? h('span', { class: 'pill info', style: 'margin-inline-end:6px' }, g.code) : null,
-            g.name
+            g.name,
+            groupAudience(g) ? h('span', { class: 'pill', style: 'margin-inline-start:6px' }, AUD[groupAudience(g)]) : null
           ]),
           g.status === 'faol' ? UI.pill('Faol', 'ok') : (g.status === 'rejalashtirilgan' ? UI.pill('Rejalashtirilgan', 'info') : UI.pill('Yakunlangan', 'mute'))
         ]),
@@ -442,9 +494,13 @@
         options: [{ value: 'onlayn', label: 'Onlayn (Zoom)' }, { value: 'oflayn', label: 'Oflayn (xonada)' }]
       },
       {
-        name: 'audience', label: 'Kim uchun', type: 'select', value: g.audience || 'ayollar',
+        name: 'audience', label: 'Kim uchun', type: 'select', value: g.audience || groupAudience(g) || 'ayollar',
         options: [{ value: 'ayollar', label: 'Ayollar' }, { value: 'erkaklar', label: 'Erkaklar' },
           { value: 'bolalar', label: 'Bolalar' }, { value: 'aralash', label: 'Aralash' }]
+      },
+      {
+        name: 'level', label: 'Daraja', type: 'select', value: g.level || groupLevel(g) || '',
+        options: [{ value: '', label: '— kurs darajasi —' }].concat(LEVELS_ORDER.map(function (l) { return { value: l, label: l }; }))
       },
       {
         name: 'roomId', label: 'Xona (oflayn uchun)', type: 'select', value: g.roomId,

@@ -867,7 +867,9 @@
           var days = (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join('/');
           return {
             value: g.id, disabled: !!full,
-            label: g.name + (days ? ' · ' + days + ' ' + (g.startTime || '') : '') +
+            label: (A.groupLevel && A.groupLevel(g) && String(g.name).indexOf(A.groupLevel(g)) < 0 ? A.groupLevel(g) + ' · ' : '') + g.name +
+              (A.groupAudience && A.groupAudience(g) ? ' · ' + ({ ayollar: 'ayollar', erkaklar: 'erkaklar', bolalar: 'bolalar', aralash: 'aralash' })[A.groupAudience(g)] : '') +
+              (days ? ' · ' + days + ' ' + (g.startTime || '') : '') +
               (g.status === 'rejalashtirilgan' && g.startDate ? ' · ' + A.dateLabel(String(g.startDate).slice(0, 10)) + 'dan' : '') +
               (lim ? ' · ' + (full ? 'to’la' : (lim - n) + ' joy') : '')
           };
