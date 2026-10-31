@@ -161,7 +161,7 @@ function makePostgres(url) {
   const pool = new Pool({
     connectionString: stripSslParams(url),
     ssl: pgSslOptions(conf),
-    max: Number(process.env.PG_POOL_MAX || 4),
+    max: Number(process.env.PG_POOL_MAX || 10),
     idleTimeoutMillis: Number(process.env.PG_IDLE_MS || 15000),   // bo'sh ulanish yopilsin
     connectionTimeoutMillis: Number(process.env.PG_CONNECT_MS || 15000),
     allowExitOnIdle: true

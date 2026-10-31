@@ -300,11 +300,11 @@ function loginOk(req, login) { loginTries.delete(gateKey(req, login)); }
 
 /* ---------------- O'quvchi kabineti: kod taxmin qilishdan himoya ----------------
    4 xonali kodni taxmin qilish mumkin (9000 ta variant), shuning uchun:
-   — 5 ta noto'g'ri urinishdan keyin 15 daqiqa qulf;
+   — 10 ta noto'g'ri urinishdan (bitta IP dan) keyin 15 daqiqa qulf;
    — 20 ta noto'g'ri urinishdan keyin direktorga xabar;
    — to'g'ri kod kiritilsa sanoq tozalanadi.                                    */
 const kabinetTries = new Map();
-const KAB_MAX = Number(process.env.KABINET_MAX_TRIES || 5);
+const KAB_MAX = Number(process.env.KABINET_MAX_TRIES || 10);   // mobil operatorlarda ko'p o'quvchi bitta IP da (CGNAT) — 5 juda kam edi
 const KAB_LOCK_MS = Number(process.env.KABINET_LOCK_MS || 15 * 60 * 1000);
 const KAB_NOTIFY_AT = 20;
 /* KABINET_STRICT=1 bo'lsa kod yetarli emas: o'quvchi o'z telefon raqamining
@@ -4403,8 +4403,9 @@ async function handleApi(req, res, url) {
     }
     const users = {}; (await store.list('users/')).forEach(r => { if (r.data) users[r.data.id] = r.data.name || r.data.login; });
     const studs = {}; (await store.list('students/')).forEach(r => { if (r.data) studs[r.data.id] = ((r.data.lastName || '') + ' ' + (r.data.firstName || '')).trim(); });
-    const vfiles = (await store.list('files/')).map(r => r.data)
-      .filter(f => f && /^video\//.test(String(f.type || '')))
+    let vf = (await store.list('files/')).map(r => r.data).filter(f => f && /^video\//.test(String(f.type || '')));
+    if (user.role === 'oqituvchi') { const ok = []; for (const f of vf) if (await teacherFileOk(user, f)) ok.push(f); vf = ok; }
+    const vfiles = vf
       .sort((a, b) => String(b.at).localeCompare(String(a.at)))
       .map(f => {
         const ref = String(f.refPath || '');
@@ -4439,11 +4440,18 @@ async function handleApi(req, res, url) {
     await writeAudit(user, 'O‘chirilgan yozuv tiklandi', t.title || t.path, 'O‘chirgan: ' + (t.by || '—') + ' · ' + (t.at || ''));
     return send(res, 200, { ok: true, path: t.path });
   }
+  /* Tarixni ko'rish/qaytarish: direktor/admin (settings.edit) yoki shu yozuvni tahrirlash
+     huquqi bor xodim. O'qituvchilar boshqa guruhlar tarixini ko'rmasin — ularga yopiq. */
+  function histAllowed(u, path) {
+    if (A.can(u, 'settings.edit')) return true;
+    if (u.role === 'oqituvchi') return false;
+    const perm = writePermFor(path);
+    return perm !== '__server__' && A.can(u, perm);
+  }
   if (route === 'history' && req.method === 'GET') {
     const hp = String(url.searchParams.get('path') || '');
-    if (!HIST_RE.test(hp) || !/^[A-Za-z0-9_\-./~:@+]+$/.test(hp)) return send(res, 400, { error: 'Noto’g’ri yo’l.' });
-    const perm = writePermFor(hp);
-    if (!(A.can(user, 'settings.edit') || (perm !== '__server__' && A.can(user, perm)))) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    if (!HIST_RE.test(hp) || !/^[A-Za-z0-9_\-]+\/[A-Za-z0-9_\-.~:@+]+$/.test(hp) || hp.indexOf('..') >= 0) return send(res, 400, { error: 'Noto’g’ri yo’l.' });
+    if (!histAllowed(user, hp)) return send(res, 403, { error: 'Ruxsat yo’q.' });
     const items = (await store.list('hist/')).map(r => r.data).filter(x => x && x.path === hp)
       .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
       .map(x => ({ id: x.id, at: x.at, by: x.by, change: x.change }));
@@ -4455,8 +4463,7 @@ async function handleApi(req, res, url) {
     if (!/^h_[a-z0-9]+$/.test(id)) return send(res, 400, { error: 'Noto’g’ri.' });
     const x = await store.get('hist/' + id);
     if (!x || !x.path || !HIST_RE.test(x.path)) return send(res, 404, { error: 'Topilmadi.' });
-    const perm = writePermFor(x.path);
-    if (!(A.can(user, 'settings.edit') || (perm !== '__server__' && A.can(user, perm)))) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    if (!histAllowed(user, x.path)) return send(res, 403, { error: 'Ruxsat yo’q.' });
     const cur = await store.get(x.path);
     const data = Object.assign({}, x.data);
     if (cur) ['salt', 'hash', 'iter', 'algo', 'stageLog', 'noAnswerLog', 'noAnswer', 'trialBookedAt', 'trialBookedBy'].forEach(k => { if (cur[k] !== undefined) data[k] = cur[k]; });
