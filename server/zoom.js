@@ -377,8 +377,8 @@ async function tick(store, A, ctx, nowMs) {
     }
     /* Yozuv: webhook kelmasa — har 10 daqiqada tekshiramiz (6 soatgacha) */
     /* Dars erta tugatilishi ham mumkin — yozuvni dars boshlanganidan 30 daqiqa o'tib tekshira boshlaymiz */
-    if (!rec.recSent && now >= L.start + 30 && now <= L.end + 360 && (!rec.recCheck || Date.now() - rec.recCheck > 10 * 60 * 1000)) {
-      rec.recCheck = Date.now(); changed = true;
+    if (!rec.recSent && now >= L.start + 30 && now <= L.end + 360 && (rec.recCheckMin == null || now - rec.recCheckMin >= 10)) {
+      rec.recCheckMin = now; rec.recCheck = Date.now(); changed = true;
       try {
         if (!rec.recording) rec.recording = await fetchRecording(store, rec);
         if (rec.recording && await sendRecording(store, rec, ctx)) { rec.recSent = ctx.stamp(); done.push('yozuv ' + id); }
