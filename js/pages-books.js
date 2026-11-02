@@ -26,6 +26,33 @@
       if (id === 'daftar') App.go('notebook'); else App.go('books');
     });
   }
+
+  /* =================== DARS REJIMI va KITOB ⇄ DAFTAR =================== */
+  function lessonOn() { try { return sessionStorage.getItem('lesson-mode') === '1'; } catch (e) { return false; } }
+  function fsOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function enterFs() {
+    var el = document.documentElement;
+    try { if (!fsOn()) (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch (e) { }
+  }
+  function exitFs() { try { if (fsOn()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { } }
+  function setLesson(on) {
+    try { sessionStorage.setItem('lesson-mode', on ? '1' : '0'); } catch (e) { }
+    if (on) enterFs(); else exitFs();
+  }
+  function lastBook() {
+    var id = lsGet('bk-last-book');
+    return BOOKS.filter(function (b) { return b.id === id; })[0] || BOOKS[0];
+  }
+  /* O'ng pastki burchakdagi kichik tugma: daftarda — kitob, kitobda — daftar */
+  function switcher(kind, onClick, sub) {
+    var b = lastBook();
+    return h('button', { type: 'button', class: 'ls-switch ls-' + kind, title: kind === 'book' ? 'Kitobga o‘tish' : 'Daftarga o‘tish', onclick: onClick }, [
+      kind === 'book' ? h('img', { src: coverUrl(b), alt: '' }) : h('span', { class: 'ls-nb' }, '📝'),
+      h('span', { class: 'ls-t' }, [h('b', {}, kind === 'book' ? '📖 Kitob' : 'Daftar'), h('small', {}, sub || '')])
+    ]);
+  }
+  A.openBookLast = function () { var b = lastBook(); openBook(b, Number(lsGet('bk-last-' + b.id)) || 1); };
+
   A.Pages.books = function (view, route, App) {
     if (!App.can('curriculum.view') && !App.can('lesson.log')) return App.guard('curriculum.view');
     view.appendChild(UI.pageHead('Kitoblar va daftar', 'Darsda kitobni oching, ustiga yozing va chizing; daftarda arabcha tushuntiring', []));
@@ -48,6 +75,8 @@
   var GAP = 14;
 
   function openBook(book, startPage) {
+    lsSet('bk-last-book', book.id);
+    var old = document.querySelector('.bk-view'); if (old && old.__close) old.__close();
     var st = { page: Math.max(1, Math.min(book.pages, startPage || 1)), zoom: 1, tool: 'hand', color: COLORS[1], size: 'm',
       pages: {}, undo: {}, hide: false, dirty: {}, edit: 0, w: 0, h: 0 };
     var root = h('div', { class: 'bk-view', tabindex: '-1' });
@@ -96,6 +125,15 @@
       h('div', { class: 'bk-acts' }, [tbtn('↶', 'Bekor qilish', undo), tbtn('🗑', 'Sahifadagi yozuvlarni tozalash', clearPage), hideBtn])
     ]);
     root.appendChild(top); root.appendChild(stage); root.appendChild(bottom);
+    var nbLast = lsGet('nb-last-title');
+    root.appendChild(switcher('nb', function () {
+      var App = A.App, onNb = App && App.route.name === 'notebook' && App.route.id;
+      keepFs = true; close();
+      if (onNb) return;
+      var id = lsGet('nb-last');
+      if (id) App.go('notebook', { id: id }); else App.go('notebook');
+    }, nbLast || 'Daftarlar'));
+    root.__close = close;
     document.body.appendChild(root);
     document.body.classList.add('bk-open');
     root.focus();
@@ -365,15 +403,15 @@
       ov.appendChild(grid);
       root.appendChild(ov);
     }
-    function fullscreen() {
-      try { if (document.fullscreenElement) document.exitFullscreen(); else root.requestFullscreen(); } catch (e) { }
-    }
+    function fullscreen() { if (fsOn()) exitFs(); else enterFs(); }
+    var keepFs = false;
     function close() {
       flush();
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
       if (ro) ro.disconnect(); else window.removeEventListener('resize', onResize);
-      try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { }
+      if (!keepFs && !lessonOn()) exitFs();
+      keepFs = false;
       root.remove(); document.body.classList.remove('bk-open');
     }
     paintTools();
@@ -518,6 +556,7 @@
     D.api('GET', 'api/notebook?id=' + encodeURIComponent(id)).then(function (r) {
       UI.clear(box);
       var nb = r.notebook;
+      lsSet('nb-last', nb.id); lsSet('nb-last-title', nb.title || 'Daftar');
       var title = h('input', { class: 'nb-title', value: nb.title || '', placeholder: 'Daftar nomi', maxlength: 120 });
       var state = h('span', { class: 'nb-state' }, '✓ Saqlangan');
       var ed = h('div', { class: 'nb-ed', contenteditable: 'true', dir: 'auto', spellcheck: 'false' });
@@ -672,8 +711,14 @@
         title, state,
         h('button', { class: 'btn', onclick: function () { saveNow().then(function () { exportMenu(nb, title.value); }).catch(function (e) { UI.toast(e.message, 'bad'); }); } }, ['⬇️ ', 'Yuklab olish']),
         h('button', { class: 'btn', onclick: function () { saveNow().then(function () { sendDialog(nb, title.value); }).catch(function (e) { UI.toast(e.message, 'bad'); }); } }, ['📤 ', 'Guruhga yuborish']),
-        h('button', { class: 'btn primary', onclick: function () { present(ed.innerHTML, title.value); } }, [UI.icon('play'), 'Darsda ko‘rsatish'])
+        h('button', { class: 'btn primary', onclick: function () { present(ed.innerHTML, title.value); } }, [UI.icon('play'), 'Darsda ko‘rsatish']),
+        h('button', { class: 'btn ls-mode' + (lessonOn() ? ' on' : ''), title: 'Menyu va panellar yashiriladi, ekran to‘liq ochiladi', onclick: function () {
+          setLesson(!lessonOn()); App.render();
+        } }, lessonOn() ? '✕ Oddiy rejim' : '⛶ Dars rejimi')
       ]), box);
+      title.addEventListener('input', function () { lsSet('nb-last-title', title.value || 'Daftar'); });
+      var b0 = lastBook(), pg0 = Number(lsGet('bk-last-' + b0.id)) || 1;
+      view.appendChild(switcher('book', function () { clearTimeout(t); save(); A.openBookLast(); }, b0.title + ' · ' + pg0 + '-bet'));
       box.appendChild(bar); box.appendChild(tblBar); box.appendChild(kb); box.appendChild(ed);
       ed.focus();
     }).catch(function (e) { UI.clear(box); box.appendChild(h('div', { class: 'note bad' }, e.message || 'Daftar topilmadi')); });
@@ -753,11 +798,11 @@
       h('div', { class: 'nb-pres-top' }, [h('b', {}, title || ''),
         h('button', { type: 'button', class: 'bk-b', onclick: function () { scale = Math.max(0.8, scale / 1.15); apply(); } }, 'A−'),
         h('button', { type: 'button', class: 'bk-b', onclick: function () { scale = Math.min(4, scale * 1.15); apply(); } }, 'A+'),
-        h('button', { type: 'button', class: 'bk-b', onclick: function () { try { if (document.fullscreenElement) document.exitFullscreen(); else ov.requestFullscreen(); } catch (e) { } } }, '⛶'),
+        h('button', { type: 'button', class: 'bk-b', onclick: function () { if (fsOn()) exitFs(); else enterFs(); } }, '⛶'),
         h('button', { type: 'button', class: 'bk-b', onclick: close }, '✕')]),
       body
     ]);
-    function close() { try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { } ov.remove(); document.removeEventListener('keydown', k); }
+    function close() { if (!lessonOn()) exitFs(); ov.remove(); document.removeEventListener('keydown', k); }
     function k(e) { if (e.key === 'Escape' && !document.fullscreenElement) close(); }
     document.addEventListener('keydown', k);
     apply(); document.body.appendChild(ov); ov.focus();

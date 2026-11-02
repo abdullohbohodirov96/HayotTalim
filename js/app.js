@@ -66,8 +66,12 @@
       renderNav();
       var page = A.Pages[App.route.name];
       if (!page) { view.appendChild(UI.empty({ title: 'Sahifa topilmadi' })); view.style.minHeight = ''; return; }
+      /* Dars rejimi: daftar ochiq bo'lsa, menyu va tepadagi panel yashiriladi (Zoom'da ekran ulashish uchun) */
+      var lessonOn = false;
+      try { lessonOn = sessionStorage.getItem('lesson-mode') === '1'; } catch (e) { }
+      document.body.classList.toggle('lesson-mode', lessonOn && App.route.name === 'notebook' && !!App.route.id);
       try {
-        var sb = sectionBar();
+        var sb = document.body.classList.contains('lesson-mode') ? null : sectionBar();
         if (sb) {
           view.appendChild(sb);
           /* Telefonda tanlangan tugma ko'rinmay qolmasin (masalan, 5-sahifa) */
