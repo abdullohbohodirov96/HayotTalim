@@ -138,6 +138,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   await zoom.tick(store, A, ctx, at(20, 30));
   ok('Rahbariyatga qayta so‘ralmaydi', staffMsgs.filter(m => /Dars yozuvi tayyor/.test(m.text)).length === 1);
   const dec = await zoom.decideRecording(store, 'g1__' + iso, true, 'Direktor', ctx);
+  dec.sent = await dec.job;
   ok('Tasdiqlangach guruh chatiga yuborildi (katta fayl → havola)', dec.sent && recMsgs().length === 1 && /rec\/share\/abc/.test(recMsgs()[0].text) && /xyz/.test(recMsgs()[0].text), JSON.stringify(recMsgs()));
   const dec2 = await zoom.decideRecording(store, 'g1__' + iso, true, 'Direktor', ctx);
   ok('Yozuv ikki marta yuborilmaydi', dec2.already === 'sent' && recMsgs().length === 1);

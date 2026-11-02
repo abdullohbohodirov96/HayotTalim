@@ -332,11 +332,25 @@ async function decideRecording(store, id, approve, who, ctx) {
     await store.set(COL + rec.id, rec);
     return { ok: true, rejected: true };
   }
-  let sent = false;
-  try { sent = await sendRecording(store, rec, ctx); } catch (e) { rec.recNote = e.message; }
-  if (sent) { rec.recSent = ctx.stamp(); rec.recPending = false; rec.recBy = who || ''; delete rec.recRejected; }
+  if (rec.recSending && Date.now() - Number(rec.recSending) < 90 * 60 * 1000) return { ok: true, already: 'sending' };
+  rec.recSending = Date.now(); rec.recBy = who || '';
   await store.set(COL + rec.id, rec);
-  return sent ? { ok: true, sent: true } : { error: rec.recNote || 'Yuborilmadi.', code: 400 };
+  /* Yuborish uzoq davom etishi mumkin (katta videoni bo'lish) — fonda; tugagach rahbariyatga natija */
+  const job = (async () => {
+    let sent = false;
+    try { sent = await sendRecording(store, rec, ctx); } catch (e) { rec.recNote = e.message; }
+    if (sent) { rec.recSent = ctx.stamp(); rec.recPending = false; delete rec.recRejected; }
+    delete rec.recSending;
+    await store.set(COL + rec.id, rec);
+    if (ctx.notifyStaff) {
+      const txt = sent
+        ? '✅ Dars yozuvi guruhga yuborildi — ' + rec.groupName + ' (' + rec.date + ')' + (rec.recParts ? '\n🎬 Video ' + rec.recParts + ' qismda' : '') + (rec.recNote ? '\n⚠️ ' + rec.recNote : '')
+        : '⚠️ Dars yozuvi guruhga yuborilmadi — ' + rec.groupName + ': ' + (rec.recNote || 'nomaʼlum xato');
+      try { await ctx.notifyStaff(txt); } catch (e) { }
+    }
+    return sent;
+  })();
+  return { ok: true, sending: true, job };
 }
 async function sendRecording(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
@@ -355,6 +369,21 @@ async function sendRecording(store, rec, ctx) {
         return true;
       }
     } catch (e) { rec.recNote = 'Video yuborilmadi: ' + e.message; }
+  }
+  /* Katta video: sifatini buzmasdan 50 MB lik bo'laklarga bo'lib, VIDEO qilib yuboramiz (1/5, 2/5 …) */
+  if (!small && ctx.sendBigVideo) {
+    const pref = ['shared_screen_with_speaker_view', 'shared_screen_with_gallery_view', 'active_speaker', 'speaker_view', 'gallery_view', 'shared_screen'];
+    const big = (r.files || []).filter(f => f.url && f.size > 0)
+      .sort((a, b) => ((pref.indexOf(a.type) + 1 || 99) - (pref.indexOf(b.type) + 1 || 99)) || (b.size - a.size))[0];
+    if (big) {
+      try {
+        const t = await token();
+        const url = big.url + (big.url.indexOf('?') >= 0 ? '&' : '?') + 'access_token=' + encodeURIComponent(t);
+        const res = await ctx.sendBigVideo(g.tgChat, url, caption);
+        rec.recParts = res && res.parts; delete rec.recNote;
+        return true;
+      } catch (e) { rec.recNote = 'Video bo‘lib yuborilmadi (' + e.message + ') — havola yuborildi'; }
+    }
   }
   const link = r.shareUrl || (r.files[0] && r.files[0].play) || '';
   if (!link) return false;
