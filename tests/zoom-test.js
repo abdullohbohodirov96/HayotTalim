@@ -126,9 +126,11 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('Bek 20 daqiqa kechikdi — kechikdi', att && att.ms3.status === 'kechikdi', att && JSON.stringify(att.ms3));
   recordingReady = true;
   await zoom.tick(store, A, ctx, at(19, 52));
-  ok('Yozuv guruh chatiga yuborildi (katta fayl → havola)', groupMsgs.length === 1 && /rec\/share\/abc/.test(groupMsgs[0].text) && /xyz/.test(groupMsgs[0].text), JSON.stringify(groupMsgs));
+  const recMsgs = () => groupMsgs.filter(m => /Dars yozuvi/.test(m.text));
+  ok('Guruh chatiga dars e’loni (havola, darslik) bordi', groupMsgs.some(m => /Bugun dars bor/.test(m.text) && /zoom\.us\/j\/777/.test(m.text) && /kabinet/.test(m.text)), JSON.stringify(groupMsgs));
+  ok('Yozuv guruh chatiga yuborildi (katta fayl → havola)', recMsgs().length === 1 && /rec\/share\/abc/.test(recMsgs()[0].text) && /xyz/.test(recMsgs()[0].text), JSON.stringify(groupMsgs));
   await zoom.tick(store, A, ctx, at(20, 30));
-  ok('Yozuv ikki marta yuborilmaydi', groupMsgs.length === 1);
+  ok('Yozuv ikki marta yuborilmaydi', recMsgs().length === 1);
 
   console.log('\n5. O’qituvchi belgilagan davomatga tegmaydi');
   L.items[iso].attendance.ms2 = { status: 'sababli' };

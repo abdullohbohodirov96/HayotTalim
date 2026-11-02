@@ -4989,3 +4989,9 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .sp-top5k h3{margin:4px 0 2px;font-size:22px}
 .sp-top5k p{margin:0;color:var(--muted,#6b7280);font-size:14px;line-height:1.45}
 .sp-top5k .btn{justify-self:start}
+/* Zoom: xabar matnlari */
+.zm-tpl{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.zm-ta{width:100%;min-height:150px;font:14px/1.45 inherit;padding:10px;border-radius:12px;border:1px solid var(--line,#ddd);resize:vertical}
+.zm-prev{padding:12px 14px;border-radius:14px;background:#eef6ea;color:#111;font-size:14px;line-height:1.45;word-break:break-word;white-space:normal}
+.zm-prev code{background:#fff;padding:0 4px;border-radius:4px}
+@media (max-width:700px){.zm-tpl{grid-template-columns:1fr}}

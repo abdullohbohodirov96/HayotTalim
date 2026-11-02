@@ -1516,7 +1516,21 @@ async function zoomTick() {
     await zoom.tick(store, A, zoomCtx());
   } finally { zoomBusy = false; }
 }
+/* «Rejalashtirilgan» guruh boshlanish sanasi kelganda o'zi «Faol» bo'ladi */
+async function activatePlannedGroups() {
+  const today = A.today();
+  for (const r of await store.list('groups/')) {
+    const g = r.data;
+    if (!g || r.path.split('/').length !== 2 || g.status !== 'rejalashtirilgan' || !g.startDate || g.startDate > today) continue;
+    g.status = 'faol';
+    await store.set('groups/' + g.id, g);
+    console.log('  Guruh faollashdi (boshlanish sanasi keldi):', g.name || g.id);
+  }
+}
 function startZoom() {
+  activatePlannedGroups().catch(e => console.error('guruh holati:', e.message));
+  const ag = setInterval(() => { if (quiet.due('grpactivate', 60 * 60 * 1000, 10 * 60 * 1000)) activatePlannedGroups().catch(() => { }); }, 5 * 60 * 1000);
+  if (ag.unref) ag.unref();
   ensureJoinCodes().catch(e => console.error('guruh kodi:', e.message));
   const jc = setInterval(() => { if (quiet.due('joincodes', 6 * 3600 * 1000, 10 * 60 * 1000)) ensureJoinCodes().catch(() => { }); }, 60 * 1000);
   if (jc.unref) jc.unref();
@@ -3862,6 +3876,52 @@ async function handleApi(req, res, url) {
     const d = await zoom.overview(store, String(url.searchParams.get('from') || ''));
     if (!A.can(user, 'group.edit')) d.lessons.forEach(l => { l.startUrl = ''; });
     return send(res, 200, d);
+  }
+  /* Xabar matnlari: o'qish (ko'rish) — Zoom bo'limini ko'radiganlar, o'zgartirish — guruhni tahrirlay oladiganlar */
+  if (route === 'zoom/templates' && req.method === 'GET') {
+    if (!A.can(user, 'nav.groups')) return nope();
+    return send(res, 200, { templates: await zoom.templates(store), defaults: zoom.TPL_DEF });
+  }
+  if (route === 'zoom/templates' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit')) return nope();
+    const body = await readBody(req);
+    const t = await zoom.saveTemplates(store, body);
+    await writeAudit(user, 'Zoom xabar matnlari o’zgartirildi', 'zoom', '');
+    return send(res, 200, { ok: true, templates: t });
+  }
+  /* Guruhlar: Zoom'ga qo'shish/olib tashlash, darslik sur'ati (qo'lda ochish/yopish) */
+  if (route === 'zoom/groups' && req.method === 'GET') {
+    if (!A.can(user, 'nav.groups')) return nope();
+    const [groups, courses, hols, mems] = await Promise.all(['groups/', 'courses/', 'holidays/', 'memberships/'].map(c =>
+      store.list(c).then(rows => rows.filter(r => r.path.split('/').length === 2).map(r => r.data).filter(Boolean))));
+    const list = groups.filter(g => g.status !== 'yakunlangan').map(g => {
+      const sc = pace.schedule(g, hols);
+      return {
+        id: g.id, name: g.name || '', code: g.code || '', status: g.status || '', format: g.format || '',
+        online: zoom.isOnline(g), zoomAuto: g.zoomAuto !== false, tg: !!g.tgChat,
+        days: g.days || [], startTime: g.startTime || '', endTime: g.endTime || '', startDate: g.startDate || '',
+        level: pace.groupLevel(g, courses), students: mems.filter(m => m.groupId === g.id && m.status === 'faol').length,
+        pace: sc ? { n: sc.n, next: sc.next, offset: Math.round(Number(g.paceOffset) || 0) } : null
+      };
+    }).sort((a, b) => (b.online - a.online) || String(a.name).localeCompare(String(b.name)));
+    return send(res, 200, { groups: list });
+  }
+  if (route === 'zoom/group' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit')) return nope();
+    const body = await readBody(req);
+    const g = await store.get('groups/' + String(body.id || ''));
+    if (!g) return send(res, 404, { error: 'Guruh topilmadi.' });
+    const what = [];
+    if (typeof body.zoomAuto === 'boolean') { g.zoomAuto = body.zoomAuto; what.push(body.zoomAuto ? 'Zoom yoqildi' : 'Zoom o’chirildi'); }
+    if (body.online === true) { g.format = 'onlayn'; what.push('format: onlayn'); }
+    if (body.paceDelta === 1 || body.paceDelta === -1) {
+      g.paceOffset = Math.max(-200, Math.min(200, Math.round(Number(g.paceOffset) || 0) + body.paceDelta));
+      what.push(body.paceDelta > 0 ? 'darslikda keyingi dars ochildi' : 'darslikda oxirgi dars yopildi');
+    }
+    if (!what.length) return send(res, 400, { error: 'O’zgarish yo’q.' });
+    await store.set('groups/' + g.id, g);
+    await writeAudit(user, 'Zoom/darslik: ' + what.join(', '), g.name || g.id, '');
+    return send(res, 200, { ok: true });
   }
   if (route === 'zoom/run' && req.method === 'POST') {
     if (!A.can(user, 'group.edit')) return nope();

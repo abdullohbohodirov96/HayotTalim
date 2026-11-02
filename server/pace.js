@@ -73,7 +73,9 @@ function schedule(g, hols, nowMs) {
     if (s > today && guard > 400) break;
     d.setUTCDate(d.getUTCDate() + 1);
   }
-  return { n, next };
+  /* Ustoz qo'lda ochgan/yopgan darslar (Zoom darslar → Guruhlar) */
+  const off = Math.round(Number(g.paceOffset) || 0);
+  return { n: Math.max(0, n + off), next };
 }
 
 /**

@@ -142,24 +142,54 @@ async function createMeeting(store, A, L, ctx) {
   return rec;
 }
 
-/* ---------------- Xabarlar ---------------- */
+/* ---------------- Xabarlar ----------------
+   Matnlar meta/zoomtpl da saqlanadi (Zoom darslar → Xabar matnlari), bo'lmasa — standart.
+   O'rinbosarlar: {guruh} {sana} {vaqt} {havola} {parol} {darslik} {ustoz_havola}           */
+const TPL_DEF = {
+  h1: '⏰ <b>1 soatdan keyin dars</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}\n📖 Darslik: {darslik}',
+  m15: '⏳ <b>15 daqiqadan keyin dars boshlanadi</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
+  start: '🔴 <b>Dars boshlandi!</b> Hoziroq qo’shiling\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
+  miss: '❗ <b>Siz hali darsga qo’shilmadingiz.</b> Dars davom etyapti — hoziroq kiring\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
+  group: '📣 <b>Bugun dars bor!</b>\n\n📚 {guruh}\n📅 {sana} · 🕒 {vaqt}\n\n👉 Zoom havola: {havola}{parol}\n📖 Darslik: {darslik}\n\nKechikmang, darsda ko’rishguncha! 🙂',
+  teacher: '👩‍🏫 <b>Darsni boshlash</b> (ustoz uchun)\n📚 {guruh} · {vaqt}\n\n{ustoz_havola}'
+};
+const TPL_KEYS = Object.keys(TPL_DEF);
+async function templates(store) {
+  const t = (await store.get('meta/zoomtpl')) || {};
+  const out = {}; TPL_KEYS.forEach(k => { out[k] = typeof t[k] === 'string' && t[k].trim() ? t[k] : TPL_DEF[k]; });
+  out.groupOn = t.groupOn !== false;
+  return out;
+}
+async function saveTemplates(store, body) {
+  const t = {};
+  TPL_KEYS.forEach(k => { if (typeof (body && body[k]) === 'string') t[k] = String(body[k]).replace(/\u0000/g, '').slice(0, 1500); });
+  t.groupOn = !(body && body.groupOn === false);
+  await store.set('meta/zoomtpl', t);
+  return templates(store);
+}
+function siteUrl(settings) { return String((settings && settings.siteUrl) || process.env.SITE_URL || 'https://saboacademy.uz').replace(/\/+$/, ''); }
+/** Matnni to'ldirish: HTML belgilar (<b>) shablonda qoladi, qiymatlar xavfsiz qilinadi */
+function fill(tpl, v) {
+  return String(tpl).replace(/\{(guruh|sana|vaqt|havola|parol|darslik|ustoz_havola)\}/g, (m, k) => {
+    if (k === 'parol') return v.parol ? '\n🔑 Parol: <code>' + esc(v.parol) + '</code>' : '';
+    return esc(v[k] == null ? '' : v[k]);
+  });
+}
+function vars(rec, link, pass, settings) {
+  return { guruh: rec.groupName, sana: rec.date, vaqt: rec.start + '–' + rec.end, havola: link || '', parol: pass || '',
+    darslik: siteUrl(settings) + '/kabinet', ustoz_havola: rec.startUrl || '' };
+}
 function linkFor(rec, sid) { return (rec.regs && rec.regs[sid] && rec.regs[sid].joinUrl) || rec.joinUrl; }
 async function notifyStudents(store, rec, kind, ctx, onlyMissing) {
   let n = 0;
+  const T = await templates(store), settings = (await store.get('meta/settings')) || {};
   for (const { s } of await members(store, rec.groupId)) {
     if (onlyMissing && rec.joined && rec.joined[s.id]) continue;
     const chats = [];
     if (s.telegram && s.telegram.id) chats.push(String(s.telegram.id));
     if (!chats.length) continue;
     const link = linkFor(rec, s.id);
-    const head = {
-      h1: '⏰ <b>1 soatdan keyin dars</b>',
-      m15: '⏳ <b>15 daqiqadan keyin dars boshlanadi</b>',
-      start: '🔴 <b>Dars boshlandi!</b> Hoziroq qo’shiling',
-      miss: '❗ <b>Siz hali darsga qo’shilmadingiz.</b> Dars davom etyapti — hoziroq kiring'
-    }[kind];
-    const text = head + '\n\n📚 ' + esc(rec.groupName) + '\n🕒 ' + rec.start + '–' + rec.end +
-      '\n\n👉 Darsga kirish: ' + esc(link) + (rec.password && !(rec.regs && rec.regs[s.id]) ? '\n🔑 Parol: <code>' + esc(rec.password) + '</code>' : '');
+    const text = fill(T[kind], vars(rec, link, rec.password && !(rec.regs && rec.regs[s.id]) ? rec.password : '', settings));
     for (const chatId of chats) {
       await ctx.send({ kind: 'elon', chatId, studentId: s.id, text, dedupeKey: 'zoom:' + rec.id + ':' + kind + ':' + s.id });
       n++;
@@ -172,8 +202,17 @@ async function notifyTeacher(store, rec, ctx) {
   const st = g && g.teacherId ? await store.get('staff/' + g.teacherId) : null;
   const chat = st && st.telegram && st.telegram.id ? String(st.telegram.id) : '';
   if (!chat || !rec.startUrl) return false;
-  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher',
-    text: '👩‍🏫 <b>Darsni boshlash</b> (ustoz uchun)\n📚 ' + esc(rec.groupName) + ' · ' + rec.start + '\n\n' + esc(rec.startUrl) });
+  const T = await templates(store), settings = (await store.get('meta/settings')) || {};
+  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });
+  return true;
+}
+/** Guruhning Telegram chatiga umumiy e'lon (guruh botga ulangan bo'lsa) */
+async function notifyGroup(store, rec, ctx) {
+  const g = await store.get('groups/' + rec.groupId);
+  const T = await templates(store);
+  if (!g || !g.tgChat || !T.groupOn || !ctx.sendGroup) return false;
+  const settings = (await store.get('meta/settings')) || {};
+  await ctx.sendGroup(g, fill(T.group, vars(rec, rec.joinUrl, rec.password, settings)));
   return true;
 }
 
@@ -316,7 +355,7 @@ async function tick(store, A, ctx, nowMs) {
     rec.sent = rec.sent || {};
     let changed = false;
     const step = async (key, cond, fn) => { if (!rec.sent[key] && cond) { await fn(); rec.sent[key] = ctx.stamp(); changed = true; done.push(key + ' ' + id); } };
-    await step('h1', now >= L.start - 60 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); });
+    await step('h1', now >= L.start - 60 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
     await step('start', now >= L.start && now < L.end, () => notifyStudents(store, rec, 'start', ctx));
     if (!rec.sent.miss && now >= L.start + MISS_AFTER_MIN && now < L.end) {
@@ -409,6 +448,6 @@ async function overview(store, fromIso) {
 }
 
 module.exports = {
-  COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting,
+  COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };

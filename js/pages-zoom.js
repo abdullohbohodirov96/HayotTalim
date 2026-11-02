@@ -28,6 +28,11 @@
       }, [UI.icon('clock'), 'Hozir tekshirish']) : null,
       h('button', { class: 'btn', onclick: function () { reload(App); } }, [UI.icon('history'), 'Yangilash'])
     ]));
+    var tab = App._zoomTab || 'darslar';
+    view.appendChild(UI.tabs([{ id: 'darslar', label: 'Darslar' }, { id: 'guruhlar', label: 'Guruhlar' }, { id: 'matn', label: 'Xabar matnlari' }], tab,
+      function (id) { App._zoomTab = id; App.render(); }));
+    if (tab === 'guruhlar') { groupsTab(view, App); return; }
+    if (tab === 'matn') { textsTab(view, App); return; }
     load(App, function (d, err) {
       if (d === undefined) { view.appendChild(h('div', { class: 'card muted', style: 'padding:18px' }, 'Yuklanmoqda…')); return; }
       if (!d) { view.appendChild(h('div', { class: 'card', style: 'padding:18px' }, 'Yuklab bo’lmadi: ' + (err || ''))); return; }
@@ -99,4 +104,99 @@
       });
     });
   };
+
+  /* ---------- Guruhlar: Zoom'ga qo'shish, darslik sur'ati ---------- */
+  var WD = ['Du', 'Se', 'Cho', 'Pa', 'Ju', 'Sha', 'Ya'];
+  var OY = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+  function dLabel(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? Number(m[3]) + '-' + OY[Number(m[2]) - 1] : ''; }
+  function groupsTab(view, App) {
+    var box = h('div', {}, h('div', { class: 'card muted', style: 'padding:18px' }, 'Yuklanmoqda…'));
+    view.appendChild(h('p', { class: 'muted', style: 'margin:4px 0 12px' },
+      'Zoom yoqilgan onlayn guruhlarga dars boshlanishidan 2 soat oldin konferensiya o’zi ochiladi, eslatmalar boradi. Darslik — o’quvchi kabinetidagi darslar: guruhda dars o’tgani sari o’zi ochiladi; kerak bo’lsa qo’lda ochib/yopib qo’yasiz.'));
+    view.appendChild(box);
+    var canEdit = App.can('group.edit');
+    function act(body, msg) {
+      D.api('POST', 'api/zoom/group', body).then(function () { UI.toast(msg, 'ok'); draw(); })
+        .catch(function (e) { UI.toast(e.message || 'Bo’lmadi', 'bad'); });
+    }
+    function draw() {
+      D.api('GET', 'api/zoom/groups').then(function (r) {
+        UI.clear(box);
+        if (!r.groups.length) { box.appendChild(UI.empty({ title: 'Guruh yo’q', text: 'Avval guruh yarating.' })); return; }
+        r.groups.forEach(function (g) {
+          var on = g.online && g.zoomAuto;
+          var when = (g.days || []).map(function (d) { return WD[d - 1]; }).join(', ') + (g.startTime ? ' · ' + g.startTime + '–' + g.endTime : '');
+          var pc = g.pace;
+          box.appendChild(h('div', { class: 'card zm-card' }, [
+            h('div', { class: 'zm-head' }, [
+              h('div', {}, [h('b', {}, (g.code ? g.code + ' · ' : '') + g.name),
+                h('div', { class: 'muted small' }, [when || 'Jadval yo’q', g.level ? ' · ' + g.level : '', ' · ' + g.students + ' o’quvchi',
+                  g.startDate ? ' · boshlanish ' + dLabel(g.startDate) : ''].join(''))]),
+              UI.pill(g.status === 'faol' ? 'Faol' : g.status === 'rejalashtirilgan' ? 'Rejalashtirilgan' : (g.status || '—'), g.status === 'faol' ? 'ok' : 'info'),
+              UI.pill(on ? 'Zoom: yoqilgan' : !g.online ? 'Oflayn guruh' : 'Zoom: o’chirilgan', on ? 'ok' : 'mute')
+            ]),
+            h('div', { class: 'zm-steps' }, [
+              h('span', { class: 'zm-step' + (g.tg ? ' on' : '') }, g.tg ? '✓ Telegram guruhiga ulangan — e’lon guruhga ham boradi' : '○ Telegram guruhiga ulanmagan — xabar faqat o’quvchilarga'),
+              h('span', { class: 'zm-step' + (pc ? ' on' : '') }, pc
+                ? '📖 Darslikda ' + pc.n + ' ta dars ochiq' + (pc.offset ? ' (qo’lda ' + (pc.offset > 0 ? '+' : '') + pc.offset + ')' : '') + (pc.next ? ' · keyingisi ' + dLabel(pc.next.date) + ', ' + pc.next.end + ' dan keyin' : '')
+                : '📖 Darslik: guruh jadvali to’liq emas (kun, vaqt, boshlanish sanasi)')
+            ]),
+            canEdit ? h('div', { class: 'zm-acts' }, [
+              !g.online ? h('button', { class: 'btn sm', onclick: function () { act({ id: g.id, online: true, zoomAuto: true }, 'Guruh onlayn qilindi va Zoom’ga qo’shildi.'); } }, '＋ Onlayn qilib Zoom’ga qo’shish')
+                : h('button', { class: 'btn sm ' + (g.zoomAuto ? '' : 'primary'), onclick: function () { act({ id: g.id, zoomAuto: !g.zoomAuto }, g.zoomAuto ? 'Zoom o’chirildi.' : 'Zoom’ga qo’shildi.'); } },
+                  g.zoomAuto ? 'Zoom’dan olib tashlash' : '＋ Zoom’ga qo’shish'),
+              pc ? h('button', { class: 'btn sm', onclick: function () { act({ id: g.id, paceDelta: 1 }, 'Darslikda keyingi dars ochildi.'); } }, '📖 Keyingi darsni ochish') : null,
+              pc && pc.n > 0 ? h('button', { class: 'btn sm', onclick: function () { act({ id: g.id, paceDelta: -1 }, 'Oxirgi ochilgan dars yopildi.'); } }, 'Oxirgisini yopish') : null
+            ]) : null
+          ]));
+        });
+      }).catch(function (e) { UI.clear(box); box.appendChild(h('div', { class: 'card note bad' }, e.message || 'Yuklab bo’lmadi')); });
+    }
+    draw();
+  }
+
+  /* ---------- Xabar matnlari ---------- */
+  var TPL = [
+    ['group', 'Guruh chatiga e’lon (1 soat oldin)'],
+    ['h1', 'O’quvchiga: 1 soat oldin'],
+    ['m15', 'O’quvchiga: 15 daqiqa oldin'],
+    ['start', 'O’quvchiga: dars boshlanganda'],
+    ['miss', 'Qo’shilmaganlarga (10 daqiqadan keyin)'],
+    ['teacher', 'Ustozga: darsni boshlash havolasi']
+  ];
+  var SAMPLE = { guruh: 'A0 · Ayollar kechki', sana: '2026-11-02', vaqt: '20:00–21:20', havola: 'https://us06web.zoom.us/j/81234567890', parol: '', darslik: 'https://saboacademy.uz/kabinet', ustoz_havola: 'https://us06web.zoom.us/s/81234567890?zak=…' };
+  function preview(t) {
+    var esc = function (x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    var html = esc(t).replace(/&lt;(\/?)(b|i|code)&gt;/g, '<$1$2>')
+      .replace(/\{(guruh|sana|vaqt|havola|parol|darslik|ustoz_havola)\}/g, function (m, k) { return esc(SAMPLE[k] || ''); })
+      .replace(/\n/g, '<br>');
+    var d = h('div', { class: 'zm-prev' }); d.innerHTML = html; return d;
+  }
+  function textsTab(view, App) {
+    var box = h('div', {}, h('div', { class: 'card muted', style: 'padding:18px' }, 'Yuklanmoqda…'));
+    view.appendChild(box);
+    var canEdit = App.can('group.edit');
+    D.api('GET', 'api/zoom/templates').then(function (r) {
+      UI.clear(box);
+      var t = r.templates, defs = r.defaults, areas = {}, prevs = {};
+      box.appendChild(h('div', { class: 'note', style: 'margin-bottom:12px' },
+        'O’rniga avtomatik qo’yiladi: {guruh} {sana} {vaqt} {havola} {parol} {darslik} {ustoz_havola}. Qalin yozuv: <b>matn</b>. O’ng tomonda — o’quvchi Telegramda ko’radigan ko’rinish.'));
+      var gOn = h('input', { type: 'checkbox', checked: t.groupOn !== false, disabled: !canEdit });
+      box.appendChild(h('label', { class: 'zm-step on', style: 'display:inline-flex;gap:8px;margin-bottom:12px' }, [gOn, ' Guruh Telegram chatiga ham e’lon yuborilsin']));
+      TPL.forEach(function (x) {
+        var upd = function () { UI.clear(prevs[x[0]]); prevs[x[0]].appendChild(preview(ta.value)); };
+        var ta = h('textarea', { rows: 7, class: 'zm-ta', disabled: !canEdit, oninput: upd });
+        ta.value = t[x[0]];
+        areas[x[0]] = ta; prevs[x[0]] = h('div', {}, preview(t[x[0]]));
+        box.appendChild(h('div', { class: 'card zm-card' }, [
+          h('div', { class: 'zm-head' }, [h('b', {}, x[1]), canEdit ? h('button', { class: 'btn sm', type: 'button', onclick: function () { ta.value = defs[x[0]]; upd(); } }, 'Standart') : null]),
+          h('div', { class: 'zm-tpl' }, [ta, prevs[x[0]]])
+        ]));
+      });
+      if (canEdit) box.appendChild(h('div', { class: 'zm-acts' }, [h('button', { class: 'btn primary', type: 'button', onclick: function () {
+        var body = { groupOn: gOn.checked }; Object.keys(areas).forEach(function (k) { body[k] = areas[k].value; });
+        D.api('POST', 'api/zoom/templates', body).then(function () { UI.toast('Saqlandi.', 'ok'); }).catch(function (e) { UI.toast(e.message || 'Saqlanmadi', 'bad'); });
+      } }, 'Saqlash')]));
+    }).catch(function (e) { UI.clear(box); box.appendChild(h('div', { class: 'card note bad' }, e.message || 'Yuklab bo’lmadi')); });
+  }
 })(typeof window !== 'undefined' ? window : globalThis);
