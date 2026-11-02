@@ -24,6 +24,7 @@ function ok(name, cond, extra) {
   if (cond) { pass++; out.push('  ✓ ' + name); } else { fail++; out.push('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
 }
 function section(t) { out.push('\n' + t); }
+if (process.env.LIVE) { const _p = out.push.bind(out); out.push = (...a) => { a.forEach(x => console.log(x)); return _p(...a); }; }
 const LIMIT_STEP = 450, LIMIT_SECTION = 900;   // ms
 
 async function api(p, body, cookie, method, extra) {
@@ -55,6 +56,12 @@ const SPEECH_MOCK = `
         setTimeout(function () { self.speaking = false; u.onend && u.onend({}); }, 90);
       } };
     Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true });
+    /* Yozib olingan ovoz (mp3) ham «aytildi» deb hisoblanadi — fayl manzili bilan */
+    HTMLMediaElement.prototype.play = function () {
+      var el = this; window.__said.push({ url: String(el.src || '').replace(location.origin, ''), audio: true });
+      setTimeout(function () { el.dispatchEvent(new Event('ended')); }, 60);
+      return Promise.resolve();
+    };
     window.SpeechSynthesisUtterance = function (t) { this.text = t; this.lang = ''; };
   })();`;
 
@@ -148,9 +155,9 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       const ms = await timed(page, 'bo’lim ' + id, async () => {
         if (!mobile) await page.click('.sp-nav-i[data-b="' + id + '"]');
         else {
-          const tab = await page.$('.sp-tab:has-text("' + ({ asosiy: 'Asosiy', darslar: 'Darslarim', vazifalar: 'Vazifalar', lugat: 'Lug’at' })[id] + '")');
-          if (tab && ['asosiy', 'darslar', 'vazifalar', 'lugat'].indexOf(id) >= 0) await tab.click();
-          else { await page.click('.sp-tab:has-text("Yana")'); await page.waitForSelector('.sp-more-i'); await page.click('.sp-more-i:has-text("' + ({ jadval: 'Dars jadvali', tolov: 'To’lovlarim', fayllar: 'Fayllarim', savol: 'Savol-javob', profil: 'Profil' })[id] + '")'); }
+          const tab = await page.$('.sp-tab:has-text("' + ({ asosiy: 'Asosiy', darslar: 'Darslarim', lugat: 'Lug’at' })[id] + '")');
+          if (tab && ['asosiy', 'darslar', 'lugat'].indexOf(id) >= 0) await tab.click();
+          else { await page.click('.sp-tab:has-text("Yana")'); await page.waitForSelector('.sp-more-i'); await page.click('.sp-more-i:has-text("' + ({ vazifalar: 'Uy vazifalarim', jadval: 'Dars jadvali', tolov: 'To’lovlarim', fayllar: 'Fayllarim', savol: 'Savol-javob', profil: 'Profil' })[id] + '")'); }
         }
       }, sel, LIMIT_SECTION);
       const ov = await overflow(page);
@@ -175,8 +182,12 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       await clearSaid(page);
       const words = await page.$$('.cr-word');
       for (const w of words) { await w.click(); await page.waitForTimeout(130); }
-      let s = (await said(page)).map(x => norm(x.text));
-      ok('So’zlar: har kartochka bosilganda o’z so’zi aytiladi (' + words.length + ')', L.words.every(t => s.indexOf(norm(t)) >= 0), s.join(' | '));
+      const said0 = await said(page);
+      let s = said0.filter(x => x.text).map(x => norm(x.text));
+      const urls = said0.filter(x => x.url).map(x => x.url.replace(/^\.?\//, '/'));
+      const wordUrls = await page.evaluate(ws => ws.map(t => A.Speak && A.Speak.urlFor ? A.Speak.urlFor(t) : null), L.words);
+      const heard = (t, i) => s.indexOf(norm(t)) >= 0 || (wordUrls[i] && urls.some(u => u.endsWith(String(wordUrls[i]).replace(/^\.?\/?/, ''))));
+      ok('So’zlar: har kartochka bosilganda o’z so’zi aytiladi (' + words.length + ')', L.words.every(heard), s.concat(urls).join(' | '));
       if (n === 0) await page.screenshot({ path: path.join(SHOTS, vname + '-sozlar.png') });
 
       /* So'zlar → Video */
@@ -268,8 +279,9 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
     function eq(name, got, want) { ok(name, got === want, 'kutilgan ' + want + ', olindi ' + got); }
 
     await doLesson(0);
-    ok('1-dars tugagach «Keyingi darsga o’tish» bor', !!(await page.$('.cr-next .btn:has-text("Keyingi darsga")')));
     const nLessons = await page.evaluate(() => A.Course.LESSONS.length);
+    if (nLessons > 1) ok('1-dars tugagach «Keyingi darsga o’tish» bor', !!(await page.$('.cr-next .btn:has-text("Keyingi darsga")')));
+    else ok('Yagona dars tugagach «Keyingi darsga» chiqmaydi', !(await page.$('.cr-next .btn:has-text("Keyingi darsga")')));
     if (nLessons < 3) {
       section('4. Takrorlash testi — kursda ' + nLessons + ' ta dars bor, 2-dars va takrorlash o’tkazib yuborildi');
       await page.evaluate(() => { location.hash = 'kabinet'; });
@@ -311,17 +323,46 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
     await timed(page, 'lug’at→kartochkalar', () => page.click('.sp-vhero .sp-cta'), '.sp-flash');
     /* Kartochkalar: yangi so'z (tanishish → «Esladim») va savol (variantlardan biri) */
     let cardsDone = 0;
-    for (let k = 0; k < 300; k++) {
+    /* To'g'ri javobni bilish uchun lug'at: tanishish kartasidan (arabcha → ma'no)
+       va xato javobdan keyin chiqadigan «eslab qoling» qatoridan yig'iladi.
+       Shunda qayta so'raladigan so'z ham to'g'ri javob bilan yopiladi. */
+    const dict = {};
+    for (let k = 0; k < 400; k++) {
       if (await page.$('.sp-cdone')) break;
+      if (process.env.LIVE) console.log('K', k, Object.keys(dict).length, await page.evaluate(() => [...document.querySelectorAll('.sp-learn,.sp-qcard,.sp-yes,.sp-copt,.sp-cq')].map(e => e.className.split(' ')[0] + (e.disabled ? ':d' : '')).join(',') + ' | ' + location.hash));
+      const learnCard = await page.$('.sp-flash.sp-learn');
+      if (learnCard) {
+        const pair = await page.evaluate(() => [((document.querySelector('.sp-learn .sp-car') || {}).textContent || '').trim(), ((document.querySelector('.sp-learn .sp-cuz') || {}).textContent || '').trim()]);
+        if (pair[0]) dict[pair[0]] = pair[1];
+      }
       const yes = await page.$('.sp-cact .sp-yes');
       if (yes) { await yes.click(); cardsDone++; await page.waitForTimeout(60); continue; }
       const opt = await page.$('.sp-copt:not([disabled])');
       if (opt) {
-        /* To'g'ri javobni tanlaymiz: savoldagi so'zning ma'nosi — sahifadagi lug'atdan */
-        await opt.click(); cardsDone++;
-        await page.waitForFunction(el => !document.body.contains(el), opt, { timeout: 5000 }).catch(() => { });
+        const pick = await page.evaluate(d => {
+          const opts = [...document.querySelectorAll('.sp-copt')].map(b => b.textContent.trim());
+          const car = document.querySelector('.sp-qcard .sp-car'), cuz = document.querySelector('.sp-qcard .sp-cuz-big');
+          let want = null;
+          if (car) want = d[car.textContent.trim()];
+          else if (cuz) { const uz = cuz.textContent.replace(/[«»]/g, '').trim(); want = Object.keys(d).find(a => d[a] === uz); }
+          else {   // «Tinglang»: oxirgi aytilgan so'z
+            const last = (window.__said || []).slice().reverse().find(x => x.text || x.url);
+            if (last) want = d[Object.keys(d).find(a => (last.text && last.text.trim() === a) || (last.url && A.Speak.urlFor(a) && last.url.endsWith(String(A.Speak.urlFor(a)).replace(/^\.?\/?/, ''))))];
+          }
+          const i = want != null ? opts.indexOf(want) : -1;
+          return i >= 0 ? i : 0;
+        }, dict);
+        const btns = await page.$$('.sp-copt');
+        await btns[pick].click(); cardsDone++;
+        const rem = await page.waitForSelector('.sp-remember', { timeout: 400 }).catch(() => null);
+        if (rem) {
+          const r = await page.evaluate(() => { const e = document.querySelector('.sp-remember'); return [e.querySelector('span').textContent.trim(), e.querySelector('b').textContent.replace(/^\s*=\s*/, '').trim()]; });
+          dict[r[0]] = r[1];
+        }
+        await page.waitForFunction(el => !document.body.contains(el), btns[pick], { timeout: 5000 }).catch(() => { });
         continue;
       }
+      if (process.env.LIVE && k % 10 === 0) console.log('KARTA', k, await page.evaluate(() => { const f = document.querySelector('.sp-flash, .sp-card'); return f ? f.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '').slice(0, 900) : 'yo’q: ' + document.body.innerText.slice(0, 200); }));
       await page.waitForTimeout(200);
     }
     console.log('    kartochka qadamlari: ' + cardsDone);
@@ -357,7 +398,7 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
     eq('Yangi parol bilan kirish ishlaydi', relog.status, 200);
     }
 
-    section('7. Barcha 8 dars — har bosqich (ustoz ko’rinishi)');
+    section('7. Barcha darslar — har bosqich (ustoz ko’rinishi)');
     await page.evaluate(() => { location.hash = ''; });
     await page.evaluate(() => A.renderCourse({ preview: true, onExit: function () { } }));
     await page.waitForSelector('.cr-lesson');
@@ -380,12 +421,20 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
         if (mobile && i === 2) await page.screenshot({ path: path.join(SHOTS, vname + '-L3-bosqich' + (k + 1) + '.png'), fullPage: true });
       }
       /* video bir gap o'qilguncha */
-      await page.evaluate(() => document.querySelectorAll('.cr-step')[0].click());
-      await page.waitForSelector('.qv-bigplay');
-      await clearSaid(page);
-      await page.click('.qv-bigplay');
-      try { await page.waitForFunction(() => window.__said.length >= 2, null, { timeout: 12000 }); } catch (e) { bad.push('video gapirmadi'); }
-      await page.evaluate(() => { const b = document.querySelector('.qv-ctrl .qv-btn.primary'); if (b && /To/.test(b.textContent)) b.click(); });
+      /* Video bosqichi (tartibda 2-o'rinda: so'z yodlashdan keyin) */
+      await page.evaluate(() => { const st = [...document.querySelectorAll('.cr-step')]; (st.find(e => /Video/i.test(e.textContent)) || st[0]).click(); });
+      /* Ikki xil video: interaktiv dars sahifasi (iframe) yoki harakatli sahna (▶) */
+      await page.waitForSelector('.qv-bigplay, .cr-ivideo', { timeout: 15000 });
+      if (await page.$('.cr-ivideo')) {
+        const src = await page.$eval('.cr-ivideo', f => f.getAttribute('src'));
+        const st = await page.evaluate(u => fetch(u).then(r => r.status).catch(() => 0), src);
+        if (st !== 200) bad.push('interaktiv video ochilmadi (' + st + ' ' + src + ')');
+      } else {
+        await clearSaid(page);
+        await page.click('.qv-bigplay');
+        try { await page.waitForFunction(() => window.__said.length >= 2, null, { timeout: 12000 }); } catch (e) { bad.push('video gapirmadi'); }
+        await page.evaluate(() => { const b = document.querySelector('.qv-ctrl .qv-btn.primary'); if (b && /To/.test(b.textContent)) b.click(); });
+      }
       ok((i + 1) + '-dars: ' + steps + ' bosqich ochildi, ovoz va video ishlaydi', bad.length === 0, bad.join(', '));
     }
     ok(vname + ': JS xatosi yo’q', errors.length === 0, errors.slice(0, 5).join(' | '));
@@ -397,7 +446,8 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
   section('8. Ustoz paneli: vazifani tekshirish');
   const ov = await api('/api/course/overview', null, dir, 'GET');
   const rows = (ov.json.rows || []).filter(r => /^e2e/.test(r.studentId));
-  ok('Ustoz ikki sinov o’quvchisining vazifalarini ko’radi', rows.length === 2 && rows.every(r => r.pending.length === 2), rows.map(r => r.pending.length).join(','));
+  /* Har o'quvchi o'tgan darslar soni (1-dars, kursda 3+ dars bo'lsa 2-dars ham) qadar vazifa */
+  ok('Ustoz ikki sinov o’quvchisining vazifalarini ko’radi', rows.length === 2 && rows.every(r => r.pending.length >= 1 && r.pending.length <= 2), rows.map(r => r.pending.length).join(','));
   for (const r of rows) {
     if (!r.pending.length) continue;
     const rr = await api('/api/course/review', { studentId: r.studentId, lessonId: r.pending[0].lessonId, decision: 'qabul', grade: 5, comment: 'Barakalla' }, dir);

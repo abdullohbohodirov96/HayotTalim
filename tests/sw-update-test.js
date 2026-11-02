@@ -25,6 +25,35 @@ function ok(name, cond, extra) {
 function eq(name, got, want) { ok(name, got === want, 'kutilgan ' + JSON.stringify(want) + ', olindi ' + JSON.stringify(got)); }
 function section(t) { out.push('\n' + t); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const { spawn } = require('child_process');
+const PASS = 'Sw-Sinov-2026!';
+let API_PORT = 0;
+
+/* Ilova endi faqat server bilan ishlaydi (api/health, api/me). Shuning uchun
+   haqiqiy serverni vaqtinchalik ma'lumot papkasi bilan ishga tushiramiz,
+   statik server esa /api/ so'rovlarini unga uzatadi — "deploy"da faqat
+   statik fayllar almashadi, server o'sha-o'sha qoladi (haqiqiy holatdek). */
+async function startBackend(dataDir) {
+  API_PORT = 3900 + Math.floor(Math.random() * 90);
+  const env = Object.assign({}, process.env, {
+    PORT: String(API_PORT), DATA_DIR: dataDir, SEED_DIRECTOR_PASSWORD: PASS, TRUST_PROXY_HOPS: '1'
+  });
+  const child = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], { env, stdio: 'ignore' });
+  for (let i = 0; i < 80; i++) {
+    const okRes = await new Promise(r => http.get('http://127.0.0.1:' + API_PORT + '/api/health', res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false)));
+    if (okRes) return child;
+    await sleep(250);
+  }
+  child.kill(); throw new Error('Server ishga tushmadi');
+}
+function proxyApi(req, res) {
+  const up = http.request({ host: '127.0.0.1', port: API_PORT, path: req.url, method: req.method,
+    headers: Object.assign({}, req.headers, { host: '127.0.0.1:' + API_PORT }) }, r => {
+    res.writeHead(r.statusCode, r.headers); r.pipe(res);
+  });
+  up.on('error', () => { res.writeHead(502); res.end(); });
+  req.pipe(up);
+}
 
 /* ---------- Kichik statik server ---------- */
 const MIME = {
@@ -34,6 +63,7 @@ const MIME = {
 };
 function serve(dir) {
   const server = http.createServer((req, res) => {
+    if (req.url.indexOf('/api/') === 0) return proxyApi(req, res);
     let rel = decodeURIComponent(req.url.split('?')[0]);
     if (rel === '/') rel = '/index.html';
     const file = path.join(dir, rel);
@@ -115,7 +145,7 @@ async function loginAndOpenMenu(page) {
   if (!logged) {
     await page.waitForSelector('#login-user', { state: 'visible', timeout: 20000 });
     await page.fill('#login-user', 'admin');
-    await page.fill('#login-pass', 'hayottalim.123');
+    await page.fill('#login-pass', PASS);
     await page.click('button[type=submit]');
   }
   await page.waitForSelector('#app:not([hidden])', { timeout: 20000 });
@@ -172,6 +202,7 @@ async function closeMenu(page) {
   fs.mkdirSync(SHOTS, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'albayan-sw-'));
   const site = path.join(tmp, 'site');
+  const backend = await startBackend(path.join(tmp, 'data'));
 
   /* ---------- 1. ESKI versiyani chiqaramiz ---------- */
   section('1. Eski versiya brauzerda ochiladi va keshga tushadi');
@@ -188,7 +219,7 @@ async function closeMenu(page) {
   await ctx.route(url => url.hostname !== '127.0.0.1', r => r.abort());
   const page = await ctx.newPage();
   page.on('pageerror', e => { fail++; out.push('  ✗ JS xatosi: ' + e.message); });
-  await page.goto(BASE);
+  await page.goto(BASE + '#kirish');
   await page.waitForFunction(() => navigator.serviceWorker && navigator.serviceWorker.controller !== undefined, null, { timeout: 20000 });
   // xizmat ishchisi boshqaruvni olsin
   for (let i = 0; i < 40; i++) {
@@ -266,7 +297,7 @@ async function closeMenu(page) {
   section('5. 360 / 390 / 430 px da o’lcham (yangilangan profilda)');
   for (const w of [360, 390, 430]) {
     await page.setViewportSize({ width: w, height: 800 });
-    await page.reload();
+    await page.goto(BASE + '#kirish');
     const m = await loginAndOpenMenu(page);
     ok(w + ' px: ikonka ' + m.maxIco + ' px', m.maxIco > 0 && m.maxIco <= 26, JSON.stringify(m));
     ok(w + ' px: qator ' + m.minRow + ' px', m.minRow >= 48, JSON.stringify(m));
@@ -292,6 +323,7 @@ async function closeMenu(page) {
   await ctx.close();
   await browser.close();
   server.close();
+  backend.kill();
   fs.rmSync(tmp, { recursive: true, force: true });
 
   console.log(out.join('\n'));
@@ -303,4 +335,4 @@ async function closeMenu(page) {
   console.log((fail === 0 ? '✓ HAMMASI O’TDI' : '✗ XATOLAR BOR') + ` — ${pass} ta o'tdi, ${fail} ta xato`);
   console.log('Eslatma: Chromium (ish stoli) bilan o’lchandi — haqiqiy telefon emas.');
   process.exit(fail === 0 ? 0 : 1);
-})().catch(e => { console.error(e); process.exit(1); });
+})().catch(e => { console.log(out.join('\n')); console.error(e); process.exit(1); });

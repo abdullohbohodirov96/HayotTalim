@@ -139,7 +139,9 @@
       });
       // Yangi ishchi boshqaruvni oldi — sahifani darhol yangi kod bilan ochamiz.
       navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (!hadController) return;
+        /* Birinchi tashrifda ishchi sahifani birinchi marta o'z boshqaruviga
+           oladi — bu yangilanish emas. Keyingi almashinuv esa yangi versiya. */
+        if (!hadController) { hadController = true; return; }
         updating = false;
         pendingWorker = null;
         pendingReload = true;

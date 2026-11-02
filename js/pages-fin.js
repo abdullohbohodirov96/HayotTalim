@@ -1678,8 +1678,8 @@
       ]);
       return UI.card('Zapusk va bepul dars', [
         h('p', { class: 'small muted', style: 'margin-top:0' },
-          'Band joylar: ' + used + (p.seats ? ' / ' + p.seats : '') +
-          '. O’quvchini guruhga yozayotganda "Zapusk chegirmasi" belgilansa, joy band hisoblanadi.'),
+          h('span', null, 'Band joylar'), ': ' + used + (p.seats ? ' / ' + p.seats : '') + '. ',
+          h('span', null, 'O’quvchini guruhga yozayotganda "Zapusk chegirmasi" belgilansa, joy band hisoblanadi.')),
         lf.node,
         h('div', { style: 'margin-top:14px' }, h('button', {
           class: 'btn primary', onclick: function (e) {

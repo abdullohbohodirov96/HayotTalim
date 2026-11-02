@@ -162,6 +162,8 @@
   }
 
   A.Speak = {
+    /** Shu matn uchun yozib olingan ovoz fayli (bo'lmasa null) */
+    urlFor: function (t) { return STATIC_AR[norm(t)] || map[norm(t)] || null; },
     say: say, sayUz: sayUz, sayPair: sayPair, stop: function () { pairTok++; stop(); }, loadMap: loadMap, norm: norm,
     hasUz: function (t) { return !!STATIC_UZ[normUz(t)]; },
     hasStudio: function (t) { return !!(STATIC_AR[norm(t)] || map[norm(t)]); },
