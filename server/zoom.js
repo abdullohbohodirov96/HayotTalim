@@ -136,7 +136,7 @@ async function createMeeting(store, A, L, ctx) {
    Matnlar meta/zoomtpl da saqlanadi (Zoom darslar → Xabar matnlari), bo'lmasa — standart.
    O'rinbosarlar: {guruh} {sana} {vaqt} {havola} {parol} {darslik} {ustoz_havola}           */
 const TPL_DEF = {
-  h1: '⏰ <b>1 soatdan keyin dars</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}\n📖 Darslik: {darslik}',
+  h1: '⏰ <b>30 daqiqadan keyin dars</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}\n📖 Darslik: {darslik}',
   m15: '⏳ <b>15 daqiqadan keyin dars boshlanadi</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
   start: '🔴 <b>Dars boshlandi!</b> Hoziroq qo’shiling\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
   miss: '❗ <b>Siz hali darsga qo’shilmadingiz.</b> Dars davom etyapti — hoziroq kiring\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
@@ -147,6 +147,8 @@ const TPL_KEYS = Object.keys(TPL_DEF);
 async function templates(store) {
   const t = (await store.get('meta/zoomtpl')) || {};
   const out = {}; TPL_KEYS.forEach(k => { out[k] = typeof t[k] === 'string' && t[k].trim() ? t[k] : TPL_DEF[k]; });
+  /* Eslatma endi 30 daqiqa oldin ketadi — saqlangan eski matndagi «1 soatdan keyin» ham moslanadi */
+  if (/1 soatdan keyin/.test(out.h1)) out.h1 = out.h1.replace(/1 soatdan keyin/g, '30 daqiqadan keyin');
   out.groupOn = t.groupOn !== false;
   return out;
 }
@@ -428,7 +430,8 @@ async function tick(store, A, ctx, nowMs) {
       catch (e) { rec.openError = e.message; }
     }
     const step = async (key, cond, fn) => { if (!rec.sent[key] && cond) { await fn(); rec.sent[key] = ctx.stamp(); changed = true; done.push(key + ' ' + id); } };
-    await step('h1', now >= L.start - 60 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
+    /* Havola darsdan 30 daqiqa oldin: o'quvchilarga, ustozga (organizator havolasi) va guruh chatiga */
+    await step('h1', now >= L.start - 30 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
     await step('start', now >= L.start && now < L.end, () => notifyStudents(store, rec, 'start', ctx));
     if (!rec.sent.miss && now >= L.start + MISS_AFTER_MIN && now < L.end) {

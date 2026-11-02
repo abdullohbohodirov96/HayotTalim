@@ -90,10 +90,12 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('Hali eslatma yo’q', sent.length === 0);
 
   await zoom.tick(store, A, ctx, at(17, 0));
-  ok('1 soat oldin: botga ulangan 2 o’quvchiga eslatma', kinds('h1').length === 2, kinds('h1').length);
+  ok('1 soat oldin hali havola ketmaydi', kinds('h1').length === 0);
+  await zoom.tick(store, A, ctx, at(17, 30));
+  ok('30 daqiqa oldin: botga ulangan 2 o’quvchiga havola', /30 daqiqadan keyin/.test((kinds('h1')[0] || {}).text || '') && kinds('h1').length === 2, kinds('h1').length);
   ok('Ustozga (botga ulangan ERP hisobi) «Darsni boshlash» havolasi', sent.some(m => m.chatId === '900' && /zoom\.us\/s\/777/.test(m.text)));
   ok('Har o’quvchiga ismi yozilgan havola', kinds('h1').every(m => /zoom\.us\/j\/777\?uname=/.test(m.text)) && /uname=Madina%20Karimova/.test(kinds('h1').filter(m => m.studentId === 's1')[0].text));
-  await zoom.tick(store, A, ctx, at(17, 10));
+  await zoom.tick(store, A, ctx, at(17, 35));
   ok('Takroriy tick — qayta yubormaydi', kinds('h1').length === 2);
   await zoom.tick(store, A, ctx, at(17, 45));
   ok('15 daqiqa oldin eslatma', kinds('m15').length === 2);

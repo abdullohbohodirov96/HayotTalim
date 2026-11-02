@@ -15,7 +15,7 @@
   function reload(App) { App._zoom = {}; App.render(); }
 
   var ST = { yaratildi: ['Tayyor', 'info'], jonli: ['Jonli', 'ok'], tugadi: ['Tugadi', 'mute'], xato: ['Xato', 'bad'] };
-  var STEP = [['h1', '1 soat oldin'], ['m15', '15 daq oldin'], ['start', 'Boshlanganda'], ['miss', 'Qo’shilmaganlarga']];
+  var STEP = [['h1', '30 daq oldin'], ['m15', '15 daq oldin'], ['start', 'Boshlanganda'], ['miss', 'Qo’shilmaganlarga']];
 
   /* Mehmon (sinov darsi) uchun shaxsiy havola: ism yoziladi → tayyor havola nusxalanadi */
   function guestDialog(l) {
@@ -204,8 +204,8 @@
 
   /* ---------- Xabar matnlari ---------- */
   var TPL = [
-    ['group', 'Guruh chatiga e’lon (1 soat oldin)'],
-    ['h1', 'O’quvchiga: 1 soat oldin'],
+    ['group', 'Guruh chatiga e’lon (30 daqiqa oldin)'],
+    ['h1', 'O’quvchiga: 30 daqiqa oldin'],
     ['m15', 'O’quvchiga: 15 daqiqa oldin'],
     ['start', 'O’quvchiga: dars boshlanganda'],
     ['miss', 'Qo’shilmaganlarga (10 daqiqadan keyin)'],
