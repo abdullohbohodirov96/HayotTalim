@@ -153,8 +153,8 @@ async function api(p, o = {}) {
     ok('Instagram va Telegram havolalari bor',
       (org.sameAs || []).some(u => /instagram/.test(u)) && (org.sameAs || []).some(u => /t\.me/.test(u)),
       JSON.stringify(org.sameAs));
-    ok('Boshqa nomlari ham yozilgan ("hayot talim" deb qidirilganda)',
-      (org.alternateName || []).some(n => /hayot ?talim/i.test(n)), JSON.stringify(org.alternateName));
+    ok('Boshqa nomlari ham yozilgan ("sabo akademiya" deb qidirilganda)',
+      (org.alternateName || []).some(n => /sabo ?akademiya/i.test(n)), JSON.stringify(org.alternateName));
     ok('Kirillcha nomi ham bor', (org.alternateName || []).some(n => /[Ѐ-ӿ]/.test(n)),
       JSON.stringify(org.alternateName));
     ok('Facebook sahifasi sameAs da', (org.sameAs || []).some(u => /facebook\.com/.test(u)), JSON.stringify(org.sameAs));

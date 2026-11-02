@@ -69,6 +69,7 @@ function ok(name, cond, info) {
   await p.waitForTimeout(3000);
   ok('Chegirma 5 soniyagacha chiqmaydi', !(await p.$('.promo.on')));
   await p.waitForSelector('.promo.on', { timeout: 6000 });
+  await p.waitForTimeout(700);   // kirish animatsiyasi (o'ngdan suriladi) tugasin
   const pr = await p.evaluate(() => {
     const e = document.querySelector('.promo'); const rc = e.getBoundingClientRect();
     const go = e.querySelector('.promo-go');
