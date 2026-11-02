@@ -1463,12 +1463,31 @@ async function sendTgDocument(chatId, buf, name, caption) {
 }
 
 /* ---------------- Zoom avtomatikasi ---------------- */
+/* Bot tugmalari: dars yozuvini guruhga yuborish / yubormaslik (rahbariyat tasdig'i) */
+function registerZoomButtons() {
+  const bot = require('./bot');
+  if (!bot.onButton) return;
+  bot.onButton('zr', async (id, who) => {
+    const r = await zoom.decideRecording(store, id, true, who, zoomCtx());
+    if (r.already) return { toast: 'Allaqachon yuborilgan.', label: '✅ Guruhga yuborilgan' };
+    if (r.error) return { toast: r.error };
+    await writeAudit({ name: who, role: 'bot' }, 'Zoom: dars yozuvi guruhga yuborildi', id, '');
+    return { toast: 'Guruhga yuborildi ✅', label: '✅ Guruhga yuborildi — ' + who };
+  });
+  bot.onButton('zx', async (id, who) => {
+    const r = await zoom.decideRecording(store, id, false, who, zoomCtx());
+    if (r.already) return { toast: 'Allaqachon yuborilgan.', label: '✅ Guruhga yuborilgan' };
+    return r.error ? { toast: r.error } : { toast: 'Guruhga yuborilmaydi.', label: '❌ Yuborilmadi — ' + who };
+  });
+}
+try { registerZoomButtons(); } catch (e) { console.error('zoom tugmalari:', e.message); }
+
 function zoomCtx() {
   return {
     stamp,
     send: (msg) => { try { return require('./bot').enqueue(Object.assign({}, msg, { kind: 'dars' }), 6 * 3600 * 1000); } catch (e) { return null; } },
     sendGroup: (g, text) => require('./bot').sendToGroup(g, text),
-    notifyStaff: (text) => require('./bot').notifyStaff(text),
+    notifyStaff: (text, opts) => require('./bot').notifyStaff(text, opts),
     sendVideo: async (chatId, buf, caption) => {
       const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
       if (!tokenTg) throw new Error('bot token yo‘q');
@@ -4022,6 +4041,13 @@ async function handleApi(req, res, url) {
     await store.set('groups/' + g.id, g);
     await writeAudit(user, 'Guruh kodi yangilandi', g.code || g.name, '');
     return send(res, 200, { ok: true, joinCode: g.joinCode });
+  }
+  if (route === 'zoom/recording' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit')) return nope();
+    const body = await readBody(req);
+    const r = await zoom.decideRecording(store, body.id, body.action !== 'reject', user.name || user.login, zoomCtx());
+    if (r.ok && !r.already) await writeAudit(user, body.action === 'reject' ? 'Zoom: yozuv guruhga yuborilmadi' : 'Zoom: dars yozuvi guruhga yuborildi', String(body.id || ''), '');
+    return send(res, r.code || 200, r);
   }
   if (route === 'zoom/guest' && req.method === 'POST') {
     if (!A.can(user, 'group.edit') && !A.can(user, 'attendance.mark')) return nope();

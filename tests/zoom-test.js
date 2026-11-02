@@ -71,7 +71,7 @@ const ctx = {
   stamp: () => '2026-10-19 18:' + String(n++ % 60).padStart(2, '0'),
   send: async (m) => { sent.push(m); return { id: 'x' }; },
   sendGroup: async (g, text) => { groupMsgs.push({ chat: g.tgChat, text }); return { ok: true }; },
-  notifyStaff: async (text) => { staffMsgs.push(text); return { queued: 1 }; },
+  notifyStaff: async (text, o) => { staffMsgs.push({ text, buttons: o && o.buttons }); return { queued: 1 }; },
   sendVideo: async () => { throw new Error('katta fayl yuborilmasligi kerak edi'); }
 };
 const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
@@ -132,9 +132,15 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   await zoom.tick(store, A, ctx, at(19, 52));
   const recMsgs = () => groupMsgs.filter(m => /Dars yozuvi/.test(m.text));
   ok('Guruh chatiga dars e’loni (havola, darslik) bordi', groupMsgs.some(m => /Bugun dars bor/.test(m.text) && /zoom\.us\/j\/777/.test(m.text) && /kabinet/.test(m.text)), JSON.stringify(groupMsgs));
-  ok('Yozuv guruh chatiga yuborildi (katta fayl → havola)', recMsgs().length === 1 && /rec\/share\/abc/.test(recMsgs()[0].text) && /xyz/.test(recMsgs()[0].text), JSON.stringify(groupMsgs));
+  ok('Yozuv tasdiqsiz guruhga ketmadi', recMsgs().length === 0, JSON.stringify(recMsgs()));
+  const ask = staffMsgs.filter(m => /Dars yozuvi tayyor/.test(m.text));
+  ok('Rahbariyatga «yozuv tayyor» + tugmalar bordi', ask.length === 1 && /rec\/share\/abc/.test(ask[0].text) && ask[0].buttons && /^zr:/.test(ask[0].buttons[0][0].callback_data), JSON.stringify(ask));
   await zoom.tick(store, A, ctx, at(20, 30));
-  ok('Yozuv ikki marta yuborilmaydi', recMsgs().length === 1);
+  ok('Rahbariyatga qayta so‘ralmaydi', staffMsgs.filter(m => /Dars yozuvi tayyor/.test(m.text)).length === 1);
+  const dec = await zoom.decideRecording(store, 'g1__' + iso, true, 'Direktor', ctx);
+  ok('Tasdiqlangach guruh chatiga yuborildi (katta fayl → havola)', dec.sent && recMsgs().length === 1 && /rec\/share\/abc/.test(recMsgs()[0].text) && /xyz/.test(recMsgs()[0].text), JSON.stringify(recMsgs()));
+  const dec2 = await zoom.decideRecording(store, 'g1__' + iso, true, 'Direktor', ctx);
+  ok('Yozuv ikki marta yuborilmaydi', dec2.already === 'sent' && recMsgs().length === 1);
 
   console.log('\n5. O’qituvchi belgilagan davomatga tegmaydi');
   L.items[iso].attendance.ms2 = { status: 'sababli' };
@@ -165,7 +171,6 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const gl2 = await zoom.guestLink(store, db['zoomlesson/g1__' + iso], 'dinara karimova', {});
   ok('Shu ism qayta so‘ralsa — o‘sha havola, yangi ro‘yxat yo‘q', gl2.again && gl2.joinUrl === gl.joinUrl);
   ok('Bo‘sh ism rad etiladi', !!(await zoom.guestLink(store, rg, '  ', {})).error);
-  ok('Rahbariyatga «yozuv tayyor» xabari bir marta bordi', staffMsgs.filter(t => /Dars yozuvi tayyor/.test(t)).length === 1, JSON.stringify(staffMsgs));
   console.log('\n10. Eski (ro‘yxatli) konferensiya ochiq qilinadi');
   const rr = db['zoomlesson/g1__' + iso];
   rr.open = false; delete rr.openTried; rr.status = 'jonli';

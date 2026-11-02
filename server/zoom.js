@@ -306,15 +306,37 @@ function recFromPayload(j) {
   if (!files.length) return null;
   return { shareUrl: j.share_url || '', password: j.recording_play_passcode || j.password || '', files };
 }
-/* Rahbariyat va ustozga: «yozuv tayyor» (bir marta) — video kelganini bot orqali bilib turadi */
-async function notifyRecordingStaff(store, rec, ctx) {
-  if (rec.recStaff || !rec.recording || !ctx.notifyStaff) return;
-  const r = rec.recording;
-  const link = r.shareUrl || (r.files && r.files[0] && r.files[0].play) || '';
+/* Yozuv tayyor bo'lganda — avval rahbariyatga (bot): ko'rib, «✅ Guruhga yuborish» bosilgandan keyingina
+   guruh chatiga boradi. ERP «Zoom darslar» sahifasida ham shu tugma bor. */
+function recLink(r) { return r.shareUrl || (r.files && r.files[0] && r.files[0].play) || ''; }
+async function askRecordingApproval(store, rec, ctx) {
+  if (rec.recAsked || rec.recSent || !rec.recording) return;
+  rec.recPending = true;
+  if (!ctx.notifyStaff) return;
+  const r = rec.recording, link = recLink(r);
   const txt = '📹 Dars yozuvi tayyor — ' + rec.groupName + '\n📅 ' + rec.date + ' · ' + rec.start +
     (link ? '\n▶️ ' + link + (r.password ? '\n🔑 Parol: ' + r.password : '') : '') +
-    (rec.recSent ? '\n✅ Guruh chatiga yuborildi' : '\n⚠️ Guruh chatiga yuborilmadi' + (rec.recNote ? ': ' + rec.recNote : ''));
-  try { await ctx.notifyStaff(txt); rec.recStaff = ctx.stamp(); } catch (e) { }
+    '\n\nKo‘rib chiqing. «✅ Guruhga yuborish» ni bossangiz, o‘quvchilar guruhiga boradi.';
+  try {
+    await ctx.notifyStaff(txt, { buttons: [[{ text: '✅ Guruhga yuborish', callback_data: 'zr:' + rec.id }, { text: '❌ Yubormaslik', callback_data: 'zx:' + rec.id }]] });
+    rec.recAsked = ctx.stamp();
+  } catch (e) { }
+}
+/** Tasdiq: guruhga yuborish (yoki rad etish). Takror bosilsa — ikkinchi marta yubormaydi. */
+async function decideRecording(store, id, approve, who, ctx) {
+  const rec = await store.get(COL + String(id || ''));
+  if (!rec || !rec.recording) return { error: 'Yozuv topilmadi.', code: 404 };
+  if (rec.recSent) return { ok: true, already: 'sent', by: rec.recBy || '' };
+  if (!approve) {
+    rec.recPending = false; rec.recRejected = ctx.stamp(); rec.recBy = who || '';
+    await store.set(COL + rec.id, rec);
+    return { ok: true, rejected: true };
+  }
+  let sent = false;
+  try { sent = await sendRecording(store, rec, ctx); } catch (e) { rec.recNote = e.message; }
+  if (sent) { rec.recSent = ctx.stamp(); rec.recPending = false; rec.recBy = who || ''; delete rec.recRejected; }
+  await store.set(COL + rec.id, rec);
+  return sent ? { ok: true, sent: true } : { error: rec.recNote || 'Yuborilmadi.', code: 400 };
 }
 async function sendRecording(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
@@ -387,14 +409,15 @@ async function tick(store, A, ctx, nowMs) {
     }
     /* Yozuv: webhook kelmasa — har 10 daqiqada tekshiramiz (6 soatgacha) */
     /* Dars erta tugatilishi ham mumkin — yozuvni dars boshlanganidan 30 daqiqa o'tib tekshira boshlaymiz */
-    if (!rec.recSent && now >= L.start + 30 && now <= L.end + 360 && (rec.recCheckMin == null || now - rec.recCheckMin >= 10)) {
+    if (!rec.recSent && !rec.recording && now >= L.start + 30 && now <= L.end + 360 && (rec.recCheckMin == null || now - rec.recCheckMin >= 10)) {
       rec.recCheckMin = now; rec.recCheck = Date.now(); changed = true;
       try {
         if (!rec.recording) rec.recording = await fetchRecording(store, rec);
-        if (rec.recording && await sendRecording(store, rec, ctx)) { rec.recSent = ctx.stamp(); done.push('yozuv ' + id); }
+        if (rec.recording && !rec.recAsked) { await askRecordingApproval(store, rec, ctx); done.push('yozuv tayyor ' + id); }
       } catch (e) { rec.recNote = e.message; }
-      await notifyRecordingStaff(store, rec, ctx);
     }
+    /* Yozuv bor, lekin rahbariyatga xabar hali ketmagan (masalan, webhook orqali kelgan) */
+    if (rec.recording && !rec.recSent && !rec.recAsked && !rec.recRejected) { await askRecordingApproval(store, rec, ctx); changed = true; }
     if (changed) await store.set(COL + id, rec);
   }
   return { done };
@@ -438,8 +461,7 @@ async function webhook(store, body, ctx) {
     if (r) {
       if (!r.shareUrl && obj.share_url) r.shareUrl = obj.share_url;
       rec.recording = r;
-      if (!rec.recSent) { try { if (await sendRecording(store, rec, ctx)) rec.recSent = ctx.stamp(); } catch (e) { rec.recNote = e.message; } }
-      await notifyRecordingStaff(store, rec, ctx);
+      if (!rec.recSent) await askRecordingApproval(store, rec, ctx);
     }
   } else return { ok: true, ignored: true };
   await store.set(COL + rec.id, rec);
@@ -456,7 +478,7 @@ async function overview(store, fromIso) {
     out.push({
       id: r.id, groupId: r.groupId, groupName: r.groupName, date: r.date, start: r.start, end: r.end,
       status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, openError: r.open ? '' : (r.openError || ''), joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
-      sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recNote: r.recNote || '',
+      sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recPending: !!(r.recording && !r.recSent && !r.recRejected), recRejected: !!r.recRejected, recBy: r.recBy || '', recNote: r.recNote || '',
       recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password } : null,
       joined: list.filter(x => r.joined && r.joined[x.s.id]).map(x => ({ id: x.s.id, name: stName(x.s), at: r.joined[x.s.id].at })),
       missing: list.filter(x => !(r.joined && r.joined[x.s.id])).map(x => ({ id: x.s.id, name: stName(x.s), tg: !!(x.s.telegram && x.s.telegram.id) })),
@@ -501,7 +523,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  guestLink, withName, linkFor,
+  decideRecording, askRecordingApproval, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };

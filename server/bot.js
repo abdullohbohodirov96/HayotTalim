@@ -414,7 +414,7 @@ async function notifyStaff(text, opts) {
   text = esc(String(text == null ? '' : text));
   const leadId = opts && opts.leadId ? String(opts.leadId) : '';
   const ids = await staffChatIds();
-  let buttons = null;
+  let buttons = opts && Array.isArray(opts.buttons) ? opts.buttons : null;
   if (leadId) {
     const nl = text.indexOf('\n');
     const bs = ((await settings()).bot) || {};
@@ -679,11 +679,28 @@ async function trialTick(nowMs) {
   return { sent };
 }
 
+const cbHandlers = Object.create(null);
+/** Tugma ishlovchisini ro'yxatdan o'tkazish: fn(qiymat, kim) → { toast, label } */
+function onButton(prefix, fn) { cbHandlers[prefix] = fn; }
 /** «✅ Bog'landim» tugmasi */
 async function onCallback(cq) {
   const data = String(cq.data || '');
   const chatId = cq.message && cq.message.chat ? cq.message.chat.id : (cq.from && cq.from.id);
   const answer = t => quizApi('answerCallbackQuery', { callback_query_id: cq.id, text: t || '' }).catch(() => { });
+  /* Boshqa modullar ro'yxatdan o'tkazgan tugmalar (masalan, «zr:» — dars yozuvini guruhga yuborish) */
+  const pre = data.split(':')[0];
+  if (cbHandlers[pre]) {
+    if (!(await isStaffChat(chatId))) return answer('Ruxsat yo‘q.');
+    const u0 = await userByChat(chatId);
+    const who0 = (u0 && u0.name) || [cq.from && cq.from.first_name, cq.from && cq.from.last_name].filter(Boolean).join(' ') || 'Xodim';
+    let r = null;
+    try { r = await cbHandlers[pre](data.slice(pre.length + 1), who0); } catch (e) { r = { toast: 'Xato: ' + e.message }; }
+    if (cq.message && r && r.label) {
+      quizApi('editMessageReplyMarkup', { chat_id: chatId, message_id: cq.message.message_id,
+        reply_markup: { inline_keyboard: [[{ text: r.label, callback_data: 'ok' }]] } }).catch(() => { });
+    }
+    return answer((r && r.toast) || '');
+  }
   if (!/^lc:/.test(data)) return answer('');
   if (!(await isStaffChat(chatId))) return answer('Ruxsat yo‘q.');
   const id = data.slice(3);
@@ -2328,4 +2345,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { onButton, ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

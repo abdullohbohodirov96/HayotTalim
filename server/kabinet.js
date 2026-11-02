@@ -187,7 +187,8 @@ async function summary(store, student) {
           };
         }
       }
-      g.recordings = mine.filter(z => z.recording && z.recording.shareUrl && A.safeUrl(z.recording.shareUrl))
+      /* Yozuv o'quvchiga faqat rahbariyat tasdiqlab guruhga yuborgandan keyin ko'rinadi */
+      g.recordings = mine.filter(z => z.recording && z.recSent && z.recording.shareUrl && A.safeUrl(z.recording.shareUrl))
         .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 10)
         .map(z => ({ date: z.date, start: z.start || '', url: A.safeUrl(z.recording.shareUrl), password: String(z.recording.password || '') }));
     });
