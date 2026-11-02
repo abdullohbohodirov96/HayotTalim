@@ -47,9 +47,11 @@
   /* O'ng pastki burchakdagi kichik tugma: daftarda — kitob, kitobda — daftar */
   function switcher(kind, onClick, sub) {
     var b = lastBook();
-    return h('button', { type: 'button', class: 'ls-switch ls-' + kind, title: kind === 'book' ? 'Kitobga o‘tish' : 'Daftarga o‘tish', onclick: onClick }, [
+    /* Kichik dumaloq tugma — joy egallamaydi; nomi sichqoncha ustiga borganda chiqadi */
+    var tip = (kind === 'book' ? 'Kitobga o‘tish' : 'Daftarga o‘tish') + (sub ? ' — ' + sub : '');
+    return h('button', { type: 'button', class: 'ls-switch ls-' + kind, title: tip, 'aria-label': tip, onclick: onClick }, [
       kind === 'book' ? h('img', { src: coverUrl(b), alt: '' }) : h('span', { class: 'ls-nb' }, '📝'),
-      h('span', { class: 'ls-t' }, [h('b', {}, kind === 'book' ? '📖 Kitob' : 'Daftar'), h('small', {}, sub || '')])
+      h('span', { class: 'ls-tip' }, kind === 'book' ? '📖 Kitob' : '📝 Daftar')
     ]);
   }
   A.openBookLast = function () {
@@ -868,6 +870,32 @@
         Object.keys(panes).forEach(function (k) { panes[k].hidden = k !== id; tabBtns[k].classList.toggle('on', k === id); });
         if (collapsed) { collapsed = false; lsSet('nb-rb-collapsed', '0'); paintCollapse(); }
       }
+      /* Masshtab (Word'dagidek): − 100% + ; Ctrl+g'ildirak va Ctrl +/− ham ishlaydi; foiz bosilsa — 100% */
+      var ZSTEPS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300];
+      var zoom = Number(lsGet('nb-zoom')) || 100;
+      var zLbl = h('button', { type: 'button', class: 'rb-zl', title: '100% ga qaytarish', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setZoom(100); } }, '100%');
+      function setZoom(z) {
+        zoom = Math.max(50, Math.min(300, Math.round(z)));
+        ed.style.zoom = String(zoom / 100);
+        zLbl.textContent = zoom + '%'; lsSet('nb-zoom', String(zoom));
+      }
+      function stepZoom(dir) {
+        var i = 0; while (i < ZSTEPS.length && ZSTEPS[i] < zoom + (dir > 0 ? 1 : 0)) i++;
+        setZoom(dir > 0 ? (ZSTEPS[i] || 300) : (ZSTEPS[Math.max(0, i - 1)] || 50));
+      }
+      var zoomBox = h('div', { class: 'rb-zoom', title: 'Masshtab (Ctrl + g‘ildirak)' }, [
+        h('button', { type: 'button', class: 'rb-zb', 'aria-label': 'Kichiklashtirish', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { stepZoom(-1); } }, '−'),
+        zLbl,
+        h('button', { type: 'button', class: 'rb-zb', 'aria-label': 'Kattalashtirish', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { stepZoom(1); } }, '+')
+      ]);
+      ed.addEventListener('wheel', function (e) { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); stepZoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+      ed.addEventListener('keydown', function (e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        if (e.key === '=' || e.key === '+') { e.preventDefault(); stepZoom(1); }
+        else if (e.key === '-') { e.preventDefault(); stepZoom(-1); }
+        else if (e.key === '0') { e.preventDefault(); setZoom(100); }
+      });
+      setZoom(zoom);
       var colBtn = rb(ico('collapse'), 'Lentani yig‘ish / ochish', function () { collapsed = !collapsed; lsSet('nb-rb-collapsed', collapsed ? '1' : '0'); paintCollapse(); }, 'rb-ic rb-colbtn');
       var body0 = h('div', { class: 'rb-body' }, [homePane, insertPane, kb]);
       function paintCollapse() { body0.hidden = collapsed; UI.clear(colBtn); colBtn.appendChild(ico(collapsed ? 'expand' : 'collapse')); }
@@ -876,7 +904,7 @@
           tabBtns.home = h('button', { type: 'button', class: 'rb-tab', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setTab('home'); } }, 'Asosiy'),
           tabBtns.insert = h('button', { type: 'button', class: 'rb-tab', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setTab('insert'); } }, 'Qo‘shish'),
           tabBtns.ar = h('button', { type: 'button', class: 'rb-tab', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setTab('ar'); } }, 'Arabcha klaviatura'),
-          h('span', { class: 'rb-sp' }), colBtn
+          h('span', { class: 'rb-sp' }), zoomBox, colBtn
         ]),
         body0
       ]);
