@@ -442,7 +442,7 @@ async function overview(store, fromIso) {
     const list = await members(store, r.groupId);
     out.push({
       id: r.id, groupId: r.groupId, groupName: r.groupName, date: r.date, start: r.start, end: r.end,
-      status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
+      status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, openError: r.open ? '' : (r.openError || ''), joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
       sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recNote: r.recNote || '',
       recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password } : null,
       joined: list.filter(x => r.joined && r.joined[x.s.id]).map(x => ({ id: x.s.id, name: stName(x.s), at: r.joined[x.s.id].at })),

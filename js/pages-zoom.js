@@ -119,6 +119,7 @@
               })) : h('p', { class: 'muted small' }, '—')])
           ]),
           l.guests && l.guests.length ? h('p', { class: 'muted small' }, 'Ro’yxatda yo’q ismlar: ' + l.guests.join(', ')) : null,
+          (!l.open && l.openError && App.can('settings.edit')) ? h('div', { class: 'note warn', style: 'margin:8px 0' }, 'Bu konferensiyada ro‘yxatdan o‘tish o‘chirilmadi (' + l.openError + '). Zoom ilovasiga «meeting:update:meeting:admin» ruxsatini qo‘shing yoki zoom.us → Meetings → shu dars → Edit → «Registration» belgisini olib tashlang.') : null,
           h('div', { class: 'zm-acts' }, [
             l.startUrl ? h('a', { class: 'btn primary sm', href: l.startUrl, target: '_blank', rel: 'noopener' }, 'Darsni boshlash (ustoz)') : null,
             l.joinUrl ? h('button', { class: 'btn sm', onclick: function () { try { navigator.clipboard.writeText(l.joinUrl); UI.toast(l.open ? 'Havola nusxalandi — bosgan odam mehmon bo‘lib kiradi.' : 'Umumiy havola nusxalandi (ochganda ism va email so‘raydi).', 'ok'); } catch (e) { } },
