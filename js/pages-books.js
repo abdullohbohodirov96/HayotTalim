@@ -51,7 +51,11 @@
       h('span', { class: 'ls-t' }, [h('b', {}, kind === 'book' ? '📖 Kitob' : 'Daftar'), h('small', {}, sub || '')])
     ]);
   }
-  A.openBookLast = function () { var b = lastBook(); openBook(b, Number(lsGet('bk-last-' + b.id)) || 1); };
+  A.openBookLast = function () {
+    var b = lastBook(), v = document.querySelector('.bk-view');
+    if (v && v.__show && v.__book === b.id) { v.__show(); return; }
+    openBook(b, Number(lsGet('bk-last-' + b.id)) || 1);
+  };
 
   A.Pages.books = function (view, route, App) {
     if (!App.can('curriculum.view') && !App.can('lesson.log')) return App.guard('curriculum.view');
@@ -126,14 +130,28 @@
     ]);
     root.appendChild(top); root.appendChild(stage); root.appendChild(bottom);
     var nbLast = lsGet('nb-last-title');
+    /* Daftarga o'tganda kitob yopilmaydi — yashiriladi: qaytganda o'sha bet, o'sha joy, o'sha kattalik */
+    function hide() {
+      flush();
+      root.style.display = 'none'; root.__hidden = true;
+      document.body.classList.remove('bk-open');
+      window.scrollTo(0, pageY);
+    }
+    function show() {
+      pageY = window.scrollY;
+      root.style.display = ''; root.__hidden = false;
+      document.body.classList.add('bk-open');
+      root.focus({ preventScroll: true });
+    }
     root.appendChild(switcher('nb', function () {
       var App = A.App, onNb = App && App.route.name === 'notebook' && App.route.id;
-      keepFs = true; close();
+      hide();
       if (onNb) return;
       var id = lsGet('nb-last');
       if (id) App.go('notebook', { id: id }); else App.go('notebook');
     }, nbLast || 'Daftarlar'));
-    root.__close = close;
+    root.__close = close; root.__show = show; root.__book = book.id;
+    var pageY = window.scrollY;   /* orqadagi sahifa (daftar) qayerda turgani */
     document.body.appendChild(root);
     document.body.classList.add('bk-open');
     root.focus();
@@ -191,7 +209,7 @@
       if (best !== st.page) { st.page = best; pgIn.value = best; lsSet('bk-last-' + book.id, String(best)); }
     }
     var ticking = false;
-    stage.addEventListener('scroll', function () { if (ticking) return; ticking = true; requestAnimationFrame(function () { ticking = false; watch(); }); });
+    stage.addEventListener('scroll', function () { if (ticking || root.__hidden) return; ticking = true; requestAnimationFrame(function () { ticking = false; watch(); }); });
 
     function go(n) {
       n = Math.max(1, Math.min(book.pages, Number(n) || 1));
@@ -375,6 +393,7 @@
     function onUp() { drag = null; stage.classList.remove('grab'); }
 
     function onKey(e) {
+      if (root.__hidden) return;
       if (/^(INPUT|TEXTAREA)$/.test((e.target && e.target.tagName) || '')) return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown') { go(st.page + 1); e.preventDefault(); }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(st.page - 1); e.preventDefault(); }
@@ -387,9 +406,9 @@
     }
     document.addEventListener('keydown', onKey);
     var lastW = 0;
-    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (stage.clientWidth !== lastW) { lastW = stage.clientWidth; layout(true); } }) : null;
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (root.__hidden || !stage.clientWidth) return; if (stage.clientWidth !== lastW) { lastW = stage.clientWidth; layout(true); } }) : null;
     if (ro) ro.observe(stage); else window.addEventListener('resize', onResize);
-    function onResize() { layout(true); }
+    function onResize() { if (!root.__hidden) layout(true); }
 
     function showThumbs() {
       var ov = h('div', { class: 'bk-thumbs' });
@@ -413,6 +432,7 @@
       if (!keepFs && !lessonOn()) exitFs();
       keepFs = false;
       root.remove(); document.body.classList.remove('bk-open');
+      window.scrollTo(0, pageY);
     }
     paintTools();
     /* Boshida: noutbukda sahifa eniga (900px gacha) — o'qishga qulay; telefonda — eniga to'liq */
@@ -493,10 +513,8 @@
   var NB_TEMPLATES = [
     { id: 'blank', icon: '📄', title: 'Bo‘sh daftar', sub: 'Toza sahifa — xohlagan narsangizni yozasiz', name: 'Yangi daftar', html: function () { return '<p><br></p>'; } },
     { id: 'forms', icon: '📊', title: 'Fe’l shakllari', sub: 'Ma’nosi · Moziy · Muzori’ · Masdar · Amr · Ismi fo‘il · Ismi maf’ul', name: 'Fe’l shakllari',
-      html: function () { return '<h2>Fe’llarning 6 shakli</h2>' + formsTable(VERBS6, 7) + '<p><br></p>'; } },
-    { id: 'conj', icon: '🔤', title: 'Fe’l tuslash (namuna)', sub: 'كَتَبَ fe’li 14 olmosh bilan: moziy, muzori’, amr va ma’nolari', name: 'Fe’l tuslash: كَتَبَ',
-      html: function () { return conjTable(['كَتَبَ', 'yozmoq'], true) + '<p><br></p>'; } },
-    { id: 'conj0', icon: '✏️', title: 'Fe’l tuslash (bo‘sh)', sub: '14 olmosh tayyor — fe’lni o‘zingiz tuslab yozasiz', name: 'Fe’l tuslash',
+      html: function () { return '<h2>Fe’llarning 6 shakli</h2>' + formsTable([], 10) + '<p><br></p>'; } },
+    { id: 'conj0', icon: '🔤', title: 'Fe’l tuslash', sub: '14 olmosh tayyor — moziy, muzori’, amr va ma’nosini o‘zingiz yozasiz', name: 'Fe’l tuslash',
       html: function () { return conjTable(null, false) + '<p><br></p>'; } }
   ];
   function tplCard(t, onPick) {
@@ -720,7 +738,17 @@
       var b0 = lastBook(), pg0 = Number(lsGet('bk-last-' + b0.id)) || 1;
       view.appendChild(switcher('book', function () { clearTimeout(t); save(); A.openBookLast(); }, b0.title + ' · ' + pg0 + '-bet'));
       box.appendChild(bar); box.appendChild(tblBar); box.appendChild(kb); box.appendChild(ed);
-      ed.focus();
+      /* Daftarning qayerida turgan bo'lsangiz — qaytganda o'sha joy */
+      var skey = 'nb-scroll-' + nb.id, sv = 0;
+      try { sv = Number(sessionStorage.getItem(skey)) || 0; } catch (e) { }
+      if (sv) requestAnimationFrame(function () { window.scrollTo(0, sv); });
+      var stt = null;
+      function onWinScroll() {
+        if (!document.body.contains(ed)) { window.removeEventListener('scroll', onWinScroll); return; }
+        clearTimeout(stt); stt = setTimeout(function () { try { sessionStorage.setItem(skey, String(Math.round(window.scrollY))); } catch (e) { } }, 150);
+      }
+      window.addEventListener('scroll', onWinScroll, { passive: true });
+      try { ed.focus({ preventScroll: true }); } catch (e) { }
     }).catch(function (e) { UI.clear(box); box.appendChild(h('div', { class: 'note bad' }, e.message || 'Daftar topilmadi')); });
   }
 

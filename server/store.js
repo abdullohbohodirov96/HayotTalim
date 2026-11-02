@@ -78,7 +78,8 @@ function makeSqlite() {
     /** prefix "students/" ko'rinishida */
     async list(prefix) {
       const rows = db.prepare('SELECT path, data FROM docs WHERE path LIKE ?').all(prefix + '%');
-      return rows.map(r => ({ path: r.path, data: JSON.parse(r.data) }));
+      /* LIKE da «_» va «%» — maxsus belgi: aniq boshlanishni JS da tekshiramiz */
+      return rows.filter(r => r.path.startsWith(prefix)).map(r => ({ path: r.path, data: JSON.parse(r.data) }));
     },
     async all() {
       const rows = db.prepare("SELECT path, data FROM docs WHERE path NOT LIKE 'vchunk/%'").all();
@@ -223,7 +224,7 @@ function makePostgres(url) {
     },
     async list(prefix) {
       const r = await q('SELECT path, data FROM docs WHERE path LIKE $1', [prefix + '%']);
-      return r.rows.map(x => ({ path: x.path, data: x.data }));
+      return r.rows.filter(x => x.path.startsWith(prefix)).map(x => ({ path: x.path, data: x.data }));
     },
     async all() {
       const r = await q("SELECT path, data FROM docs WHERE path NOT LIKE 'vchunk/%'");
