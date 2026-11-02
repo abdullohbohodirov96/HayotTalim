@@ -64,7 +64,7 @@ async function saveAnnot(store, uid, body, stamp) {
 }
 
 /* ---------------- Daftar: HTML tozalash ---------------- */
-const TAGS = { p: 1, div: 1, br: 1, b: 1, strong: 1, i: 1, em: 1, u: 1, s: 1, span: 1, ul: 1, ol: 1, li: 1, h1: 1, h2: 1, h3: 1, blockquote: 1, hr: 1, mark: 1, sub: 1, sup: 1, font: 1, small: 1,
+const TAGS = { p: 1, div: 1, br: 1, b: 1, strong: 1, i: 1, em: 1, u: 1, s: 1, span: 1, ul: 1, ol: 1, li: 1, h1: 1, h2: 1, h3: 1, blockquote: 1, hr: 1, mark: 1, sub: 1, sup: 1, font: 1, small: 1, strike: 1,
   table: 1, thead: 1, tbody: 1, tfoot: 1, tr: 1, th: 1, td: 1, colgroup: 1, col: 1, caption: 1 };
 const CLASS_RE = /^nb-[a-z0-9-]+( nb-[a-z0-9-]+){0,5}$/;
 const VOID = { br: 1, hr: 1, col: 1 };

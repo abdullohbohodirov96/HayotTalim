@@ -722,38 +722,171 @@
         var r = document.createRange(); r.selectNodeContents(nx); r.collapse(false);
         var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
       });
-      var tblBar = h('div', { class: 'nb-bar nb-bar2' }, [
-        b('📋 Shablon', 'Fe’l jadvali va boshqa shablonlarni qo‘shish', tplMenu, 'wide'),
-        b('▦ Jadval', 'Yangi bo‘sh jadval', newTable, 'wide'),
-        h('span', { class: 'nb-sep' }),
-        b('+ qator', 'Pastiga qator qo‘shish', function () { addRow(true); }, 'wide'),
-        b('− qator', 'Qatorni o‘chirish', delRow, 'wide'),
-        b('+ ustun', 'Yoniga ustun qo‘shish', addCol, 'wide'),
-        b('− ustun', 'Ustunni o‘chirish', delCol, 'wide'),
-        b('🗑 jadval', 'Jadvalni o‘chirish', delTable, 'wide')
+      /* =========== Word'ga o'xshash lenta: Asosiy | Qo'shish | Arabcha =========== */
+      var SVG = {
+        undo: 'M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3',
+        redo: 'm15 14 5-5-5-5M20 9H9a5 5 0 0 0 0 10h3',
+        left: 'M3 6h18M3 12h12M3 18h16', center: 'M3 6h18M6 12h12M4 18h16', right: 'M3 6h18M9 12h12M5 18h16', justify: 'M3 6h18M3 12h18M3 18h18',
+        ul: 'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01', ol: 'M10 6h11M10 12h11M10 18h11M4 4v4M3 18h3l-3 3h3',
+        table: 'M3 4h18v16H3zM3 10h18M3 15h18M9 4v16M15 4v16', clear: 'M4 7V4h16v3M9 20h6M12 4v16M3 21 21 3',
+        hr: 'M3 12h18', tpl: 'M4 4h16v16H4zM4 9h16M9 9v11', rowAdd: 'M3 5h18v6H3zM12 15v6M9 18h6', rowDel: 'M3 5h18v6H3zM9 18h6',
+        colAdd: 'M5 3h6v18H5zM18 9v6M15 12h6', colDel: 'M5 3h6v18H5zM15 12h6', trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
+        collapse: 'm6 15 6-6 6 6', expand: 'm6 9 6 6 6-6', kb: 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10'
+      };
+      function ico(name) {
+        var ns = 'http://www.w3.org/2000/svg', sv = document.createElementNS(ns, 'svg');
+        sv.setAttribute('viewBox', '0 0 24 24'); sv.setAttribute('width', '18'); sv.setAttribute('height', '18');
+        sv.setAttribute('fill', 'none'); sv.setAttribute('stroke', 'currentColor'); sv.setAttribute('stroke-width', '2'); sv.setAttribute('stroke-linecap', 'round'); sv.setAttribute('stroke-linejoin', 'round');
+        var pth = document.createElementNS(ns, 'path'); pth.setAttribute('d', SVG[name]); sv.appendChild(pth); return sv;
+      }
+      /* Lenta tugmasi: belgi + (ixtiyoriy) yozuv; bosilganda matndan tanlov yo'qolmaydi */
+      function rb(content, title, fn, cls) {
+        return h('button', { type: 'button', class: 'rb-b ' + (cls || ''), title: title, 'aria-label': title,
+          onmousedown: function (e) { e.preventDefault(); }, onclick: fn }, content);
+      }
+      function big(name, label, title, fn) { return rb([ico(name), h('span', {}, label)], title, fn, 'rb-big'); }
+      function grp(label, rows) {
+        return h('div', { class: 'rb-grp' }, [h('div', { class: 'rb-grp-in' }, rows), h('div', { class: 'rb-grp-t' }, label)]);
+      }
+      function row(items) { return h('div', { class: 'rb-row' }, items); }
+      /* Tanlangan matnni saqlab qo'yamiz — ochiladigan ro'yxatni bosganda tanlov yo'qolmasin */
+      var savedRange = null;
+      function keepSel() { var s0 = window.getSelection(); if (s0.rangeCount && ed.contains(s0.getRangeAt(0).commonAncestorContainer)) savedRange = s0.getRangeAt(0).cloneRange(); }
+      function restoreSel() { if (!savedRange) { ed.focus(); return; } ed.focus(); var s0 = window.getSelection(); s0.removeAllRanges(); s0.addRange(savedRange); }
+      document.addEventListener('selectionchange', function onSel() {
+        if (!document.body.contains(ed)) { document.removeEventListener('selectionchange', onSel); return; }
+        keepSel(); paintState();
+      });
+      /* Shrift o'lchami: Word'dagidek punktlarda (pt) */
+      var SIZES_PT = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 60, 72];
+      function setSize(pt) {
+        restoreSel();
+        try { document.execCommand('styleWithCSS', false, false); } catch (e) { }
+        document.execCommand('fontSize', false, '7');
+        var made = [];
+        Array.prototype.forEach.call(ed.querySelectorAll('font[size="7"]'), function (f) {
+          var sp = document.createElement('span'); sp.style.fontSize = pt + 'pt'; made.push(sp);
+          while (f.firstChild) sp.appendChild(f.firstChild);
+          f.parentNode.replaceChild(sp, f);
+          Array.prototype.forEach.call(sp.querySelectorAll('span'), function (x) { x.style.fontSize = ''; if (!x.getAttribute('style')) { while (x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); } });
+        });
+        Array.prototype.forEach.call(ed.querySelectorAll('span'), function (x) { if (/xxx-large|-webkit-xxx-large/.test(x.style.fontSize)) x.style.fontSize = pt + 'pt'; });
+        /* Belgi almashgani uchun tanlov yo'qoladi — yangi bo'lakni qayta belgilaymiz (keyin qalin, rang… ham shu matnga) */
+        if (made.length) {
+          var rg = document.createRange(); rg.setStartBefore(made[0]); rg.setEndAfter(made[made.length - 1]);
+          var s1 = window.getSelection(); s1.removeAllRanges(); s1.addRange(rg);
+        }
+        later(); keepSel(); paintState();
+      }
+      function bumpSize(dir) {
+        var cur = curSizePt() || 16, i = 0;
+        while (i < SIZES_PT.length && SIZES_PT[i] <= cur) i++;
+        var nx = dir > 0 ? (SIZES_PT[i] || 72) : (SIZES_PT[Math.max(0, i - 2)] || 8);
+        setSize(nx);
+      }
+      function selEl() {
+        var s0 = window.getSelection(); if (!s0.rangeCount) return null;
+        var n = s0.getRangeAt(0).startContainer; if (n.nodeType === 3) n = n.parentNode;
+        return ed.contains(n) ? n : null;
+      }
+      function curSizePt() { var el = selEl(); if (!el) return 0; return Math.round(parseFloat(getComputedStyle(el).fontSize) * 0.75); }
+      var FONTS = [['Manrope', 'Manrope'], ['Amiri', 'Amiri (arabcha)'], ['Arial', 'Arial'], ['Tahoma', 'Tahoma'], ['Georgia', 'Georgia'], ['Verdana', 'Verdana'], ['Courier', 'Courier']];
+      var fontSel = h('select', { class: 'rb-sel rb-font', title: 'Shrift', onmousedown: keepSel }, FONTS.map(function (f) { return h('option', { value: f[0] }, f[1]); }));
+      fontSel.addEventListener('change', function () { restoreSel(); try { document.execCommand('styleWithCSS', false, true); } catch (e) { } document.execCommand('fontName', false, fontSel.value); later(); });
+      var sizeSel = h('select', { class: 'rb-sel rb-size', title: 'Shrift o‘lchami', onmousedown: keepSel }, SIZES_PT.map(function (p0) { return h('option', { value: p0 }, String(p0)); }));
+      sizeSel.addEventListener('change', function () { setSize(Number(sizeSel.value)); });
+      var styleSel = h('select', { class: 'rb-sel rb-style', title: 'Uslub', onmousedown: keepSel }, [
+        h('option', { value: 'p' }, 'Oddiy matn'), h('option', { value: 'h1' }, 'Sarlavha 1'), h('option', { value: 'h2' }, 'Sarlavha 2'), h('option', { value: 'h3' }, 'Sarlavha 3'), h('option', { value: 'blockquote' }, 'Iqtibos')
       ]);
-      var COLS = ['#111111', '#c62828', '#1565c0', '#2e7d32', '#ef6c00', '#6a1b9a'];
-      var kb = h('div', { class: 'nb-kb', style: 'display:none' }, [
+      styleSel.addEventListener('change', function () { restoreSel(); document.execCommand('formatBlock', false, styleSel.value); later(); });
+      /* Rang palitrasi (Word'dagidek: belgining tagidagi chiziq — tanlangan rang) */
+      var PALETTE = ['#000000', '#444444', '#888888', '#c62828', '#ef6c00', '#f9a825', '#2e7d32', '#00838f', '#1565c0', '#6a1b9a', '#ad1457', '#0b5d48'];
+      var HILITE = ['#fff59d', '#c5e1a5', '#b3e5fc', '#f8bbd0', '#ffe0b2', '#e1bee7', 'transparent'];
+      var foreCol = '#c62828', backCol = '#fff59d';
+      function colorBtn(kind) {
+        var bar0 = h('i', { class: 'rb-colbar', style: 'background:' + (kind === 'fore' ? foreCol : backCol) });
+        var main = rb([kind === 'fore' ? h('b', { class: 'rb-A' }, 'A') : h('span', { class: 'rb-mark' }, '🖍'), bar0],
+          kind === 'fore' ? 'Matn rangi' : 'Belgilash rangi (marker)', function () { apply(kind === 'fore' ? foreCol : backCol); });
+        function apply(c) { restoreSel(); try { document.execCommand('styleWithCSS', false, true); } catch (e) { } document.execCommand(kind === 'fore' ? 'foreColor' : 'hiliteColor', false, c); later(); }
+        var pop = h('div', { class: 'rb-pop', hidden: true }, (kind === 'fore' ? PALETTE : HILITE).map(function (c) {
+          return h('button', { type: 'button', class: 'rb-sw' + (c === 'transparent' ? ' none' : ''), style: c === 'transparent' ? '' : 'background:' + c, title: c === 'transparent' ? 'Belgisiz' : c,
+            onmousedown: function (e) { e.preventDefault(); },
+            onclick: function () { if (kind === 'fore') foreCol = c; else backCol = c; bar0.style.background = c === 'transparent' ? '#fff' : c; pop.hidden = true; apply(c); } });
+        }));
+        var arrow = rb('▾', 'Rangni tanlash', function () { pop.hidden = !pop.hidden; }, 'rb-arrow');
+        return h('span', { class: 'rb-split' }, [main, arrow, pop]);
+      }
+      var stBtns = {};
+      function tog(key, label, title, fn, cls) { var x = rb(label, title, fn, 'rb-tog ' + (cls || '')); stBtns[key] = x; return x; }
+      function paintState() {
+        ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'].forEach(function (k) {
+          if (!stBtns[k]) return; var on = false; try { on = document.queryCommandState(k); } catch (e) { } stBtns[k].classList.toggle('on', !!on);
+        });
+        var el = selEl(); if (!el) return;
+        var pt = curSizePt(); if (pt) { var best = SIZES_PT.reduce(function (a0, x) { return Math.abs(x - pt) < Math.abs(a0 - pt) ? x : a0; }, SIZES_PT[0]); if (document.activeElement !== sizeSel) sizeSel.value = String(best); }
+        var ff = String(getComputedStyle(el).fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
+        if (document.activeElement !== fontSel && FONTS.some(function (f) { return f[0] === ff; })) fontSel.value = ff;
+        var blk = el.closest('h1,h2,h3,blockquote,p,div,li,td,th');
+        if (document.activeElement !== styleSel) styleSel.value = blk && /^(H1|H2|H3|BLOCKQUOTE)$/.test(blk.tagName) ? blk.tagName.toLowerCase() : 'p';
+      }
+      var homePane = h('div', { class: 'rb-pane' }, [
+        grp('Bekor qilish', [row([rb(ico('undo'), 'Bekor qilish (Ctrl+Z)', function () { cmd('undo'); }, 'rb-ic'), rb(ico('redo'), 'Qaytarish (Ctrl+Y)', function () { cmd('redo'); }, 'rb-ic')])]),
+        grp('Shrift', [
+          row([fontSel, sizeSel, rb(h('span', { class: 'rb-AA' }, ['A', h('sup', {}, '+')]), 'Kattalashtirish', function () { bumpSize(1); }, 'rb-ic'), rb(h('span', { class: 'rb-AA sm' }, ['A', h('sup', {}, '−')]), 'Kichiklashtirish', function () { bumpSize(-1); }, 'rb-ic')]),
+          row([tog('bold', h('b', {}, 'Q'), 'Qalin (Ctrl+B)', function () { cmd('bold'); paintState(); }), tog('italic', h('i', {}, 'K'), 'Kursiv (Ctrl+I)', function () { cmd('italic'); paintState(); }),
+            tog('underline', h('u', {}, 'T'), 'Tagiga chizish (Ctrl+U)', function () { cmd('underline'); paintState(); }), tog('strikeThrough', h('s', {}, 'abc'), 'Ustidan chizish', function () { cmd('strikeThrough'); paintState(); }),
+            colorBtn('fore'), colorBtn('back'), rb(ico('clear'), 'Formatni tozalash', function () { cmd('removeFormat'); }, 'rb-ic')])
+        ]),
+        grp('Abzats', [
+          row([tog('insertUnorderedList', ico('ul'), 'Belgili ro‘yxat', function () { cmd('insertUnorderedList'); paintState(); }), tog('insertOrderedList', ico('ol'), 'Raqamli ro‘yxat', function () { cmd('insertOrderedList'); paintState(); }),
+            rb(h('b', { class: 'rb-dir' }, 'ع ←'), 'Arabcha: o‘ngdan chapga', function () { setDir('rtl'); }, 'rb-ic'), rb(h('b', { class: 'rb-dir' }, '→ A'), 'Chapdan o‘ngga', function () { setDir('ltr'); }, 'rb-ic')]),
+          row([tog('justifyLeft', ico('left'), 'Chapga tekislash', function () { cmd('justifyLeft'); paintState(); }), tog('justifyCenter', ico('center'), 'O‘rtaga', function () { cmd('justifyCenter'); paintState(); }),
+            tog('justifyRight', ico('right'), 'O‘ngga tekislash', function () { cmd('justifyRight'); paintState(); }), tog('justifyFull', ico('justify'), 'Ikki tomonga tekislash', function () { cmd('justifyFull'); paintState(); })])
+        ]),
+        grp('Uslublar', [row([styleSel]), row([
+          rb(h('span', { class: 'rb-sty h1' }, 'Sarlavha'), 'Katta sarlavha', function () { cmd('formatBlock', 'h1'); paintState(); }),
+          rb(h('span', { class: 'rb-sty' }, 'Oddiy'), 'Oddiy matn', function () { cmd('formatBlock', 'p'); paintState(); })])])
+      ]);
+      var insertPane = h('div', { class: 'rb-pane', hidden: true }, [
+        grp('Jadval', [row([big('table', 'Jadval', 'Yangi 4×4 jadval', newTable), big('tpl', 'Shablon', 'Fe’l shakllari, tuslash jadvali', tplMenu)])]),
+        grp('Qatorlar va ustunlar', [
+          row([rb([ico('rowAdd'), h('span', {}, 'Qator +')], 'Pastiga qator qo‘shish', function () { addRow(true); }, 'rb-txt'), rb([ico('rowDel'), h('span', {}, 'Qator −')], 'Qatorni o‘chirish', delRow, 'rb-txt')]),
+          row([rb([ico('colAdd'), h('span', {}, 'Ustun +')], 'Yoniga ustun qo‘shish', addCol, 'rb-txt'), rb([ico('colDel'), h('span', {}, 'Ustun −')], 'Ustunni o‘chirish', delCol, 'rb-txt')])
+        ]),
+        grp('Boshqa', [row([big('hr', 'Chiziq', 'Gorizontal chiziq', function () { insertHtmlAtCursor('<hr><p><br></p>'); }), big('trash', 'Jadvalni o‘chirish', 'Kursor turgan jadvalni o‘chirish', delTable)])])
+      ]);
+      var kb = h('div', { class: 'rb-pane rb-kbpane', hidden: true }, [
         h('div', { class: 'nb-kb-row' }, AR_KEYS.map(function (k) { return b(k, k, function () { ins(k); }, 'ar'); })),
         h('div', { class: 'nb-kb-row' }, HARAKAT.map(function (x) { return b('◌' + x[0], x[1], function () { ins(x[0]); }, 'ar'); }).concat([
           b('␣', 'Bo‘shliq', function () { ins(' '); }), b('⌫', 'O‘chirish', function () { ed.focus(); document.execCommand('delete'); later(); }), b('↵', 'Yangi qator', function () { ed.focus(); document.execCommand('insertParagraph'); later(); })]))
       ]);
-      var bar = h('div', { class: 'nb-bar' }, [
-        b(h('b', {}, 'B'), 'Qalin', function () { cmd('bold'); }), b(h('i', {}, 'I'), 'Qiya', function () { cmd('italic'); }), b(h('u', {}, 'U'), 'Tagiga chizish', function () { cmd('underline'); }),
-        h('span', { class: 'nb-sep' }),
-        b('H1', 'Katta sarlavha', function () { cmd('formatBlock', 'h1'); }), b('H2', 'Sarlavha', function () { cmd('formatBlock', 'h2'); }), b('¶', 'Oddiy matn', function () { cmd('formatBlock', 'p'); }),
-        b('A−', 'Kichikroq', function () { cmd('fontSize', '2'); }), b('A', 'O‘rtacha', function () { cmd('fontSize', '4'); }), b('A+', 'Kattaroq', function () { cmd('fontSize', '6'); }), b('A++', 'Juda katta', function () { cmd('fontSize', '7'); }),
-        h('span', { class: 'nb-sep' })
-      ].concat(COLS.map(function (c) { return h('button', { type: 'button', class: 'nb-col', style: 'background:' + c, title: 'Rang', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { cmd('foreColor', c); } }); })).concat([
-        b('🖍', 'Sariq bilan belgilash', function () { cmd('hiliteColor', '#fff59d'); }),
-        h('span', { class: 'nb-sep' }),
-        b('⇤', 'Chapga', function () { cmd('justifyLeft'); }), b('↔', 'O‘rtaga', function () { cmd('justifyCenter'); }), b('⇥', 'O‘ngga', function () { cmd('justifyRight'); }),
-        b('ع←', 'Arabcha: o‘ngdan chapga', function () { setDir('rtl'); }), b('→A', 'Chapdan o‘ngga', function () { setDir('ltr'); }),
-        b('•', 'Ro‘yxat', function () { cmd('insertUnorderedList'); }), b('1.', 'Raqamli ro‘yxat', function () { cmd('insertOrderedList'); }),
-        h('span', { class: 'nb-sep' }),
-        b('⌨ عربي', 'Arabcha klaviatura va harakatlar', function () { kb.style.display = kb.style.display === 'none' ? 'block' : 'none'; }, 'wide'),
-        b('↶', 'Bekor qilish', function () { cmd('undo'); }), b('↷', 'Qaytarish', function () { cmd('redo'); }), b('⌀', 'Formatni tozalash', function () { cmd('removeFormat'); })
-      ]));
+      var panes = { home: homePane, insert: insertPane, ar: kb }, curTab = lsGet('nb-rb-tab') || 'home';
+      var collapsed = lsGet('nb-rb-collapsed') === '1';
+      var tabBtns = {};
+      function setTab(id) {
+        curTab = id; lsSet('nb-rb-tab', id);
+        Object.keys(panes).forEach(function (k) { panes[k].hidden = k !== id; tabBtns[k].classList.toggle('on', k === id); });
+        if (collapsed) { collapsed = false; lsSet('nb-rb-collapsed', '0'); paintCollapse(); }
+      }
+      var colBtn = rb(ico('collapse'), 'Lentani yig‘ish / ochish', function () { collapsed = !collapsed; lsSet('nb-rb-collapsed', collapsed ? '1' : '0'); paintCollapse(); }, 'rb-ic rb-colbtn');
+      var body0 = h('div', { class: 'rb-body' }, [homePane, insertPane, kb]);
+      function paintCollapse() { body0.hidden = collapsed; UI.clear(colBtn); colBtn.appendChild(ico(collapsed ? 'expand' : 'collapse')); }
+      var ribbon = h('div', { class: 'nb-ribbon' }, [
+        h('div', { class: 'rb-tabs', role: 'tablist' }, [
+          tabBtns.home = h('button', { type: 'button', class: 'rb-tab', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setTab('home'); } }, 'Asosiy'),
+          tabBtns.insert = h('button', { type: 'button', class: 'rb-tab', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setTab('insert'); } }, 'Qo‘shish'),
+          tabBtns.ar = h('button', { type: 'button', class: 'rb-tab', onmousedown: function (e) { e.preventDefault(); }, onclick: function () { setTab('ar'); } }, 'Arabcha klaviatura'),
+          h('span', { class: 'rb-sp' }), colBtn
+        ]),
+        body0
+      ]);
+      setTab(panes[curTab] ? curTab : 'home');
+      if (lsGet('nb-rb-collapsed') === '1') { collapsed = true; }
+      paintCollapse();
+      document.addEventListener('mousedown', function closePops(e) {
+        if (!document.body.contains(ribbon)) { document.removeEventListener('mousedown', closePops); return; }
+        Array.prototype.forEach.call(ribbon.querySelectorAll('.rb-pop'), function (pp) { if (!pp.parentNode.contains(e.target)) pp.hidden = true; });
+      });
       function saveNow() { clearTimeout(t); state.textContent = 'Saqlanmoqda…'; return D.api('POST', 'api/notebook', { id: nb.id, title: title.value, html: ed.innerHTML }).then(function () { state.textContent = '✓ Saqlangan'; }); }
       view.insertBefore(h('div', { class: 'nb-head' }, [
         h('button', { class: 'btn', onclick: function () { clearTimeout(t); save(); App.go('notebook'); } }, [UI.icon('back'), 'Daftarlar']),
@@ -768,12 +901,7 @@
       title.addEventListener('input', function () { lsSet('nb-last-title', title.value || 'Daftar'); });
       var b0 = lastBook(), pg0 = Number(lsGet('bk-last-' + b0.id)) || 1;
       view.appendChild(switcher('book', function () { clearTimeout(t); save(); A.openBookLast(); }, b0.title + ' · ' + pg0 + '-bet'));
-      box.appendChild(bar); box.appendChild(tblBar); box.appendChild(kb); box.appendChild(ed);
-      /* Dars rejimida asboblar yashirin (Zoom yozuvida faqat daftar ko'rinsin) — burchakdagi tugma bilan ochiladi */
-      document.body.classList.remove('nb-tools-open');
-      view.appendChild(h('button', { type: 'button', class: 'nb-toolbtn', title: 'Asboblar paneli (dars rejimida yashirin)', onclick: function () {
-        document.body.classList.toggle('nb-tools-open');
-      } }, '✏️ Asboblar'));
+      box.appendChild(ribbon); box.appendChild(ed);
       /* Daftarning qayerida turgan bo'lsangiz — qaytganda o'sha joy */
       var skey = 'nb-scroll-' + nb.id, sv = 0;
       try { sv = Number(sessionStorage.getItem(skey)) || 0; } catch (e) { }
