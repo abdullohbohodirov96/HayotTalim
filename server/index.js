@@ -13,6 +13,7 @@ const { A, settingsForClient, writePermFor, readBlocked, safeUser, safeStaff, sa
 const backup = require('./backup');
 const kabinet = require('./kabinet');
 const gamify = require('./gamify');
+const pace = require('./pace');
 const forms = require('./forms');
 const zoom = require('./zoom');
 const link = require('./link');
@@ -2183,7 +2184,7 @@ async function handleApi(req, res, url) {
        Har dars: yodlash → video → mashq → test (serverda baholanadi) → uy vazifasi.
        Keyingi dars faqat test ≥ 60% va uy vazifasi topshirilgach ochiladi.        */
     const F0 = A.Alifbo;
-    const alifDoc = async sid => (await store.get('alifprog/' + sid)) || { lessons: {} };
+    const alifDoc = async sid => pace.attach(store, sid, (await store.get('alifprog/' + sid)) || { lessons: {} }, 'A0');   // guruh sur'ati
     const alifLocked = (doc, lid) => F0.statuses(doc)[lid] === 'locked';
     if (sub === 'alif' && req.method === 'GET') {
       const sid = String(url.searchParams.get('studentId') || mine[0] || '');
@@ -2211,7 +2212,7 @@ async function handleApi(req, res, url) {
       const lesson = F0.byId(String(body.lessonId || ''));
       if (!lesson) return send(res, 404, { error: 'Dars topilmadi.' });
       const doc = await alifDoc(sid);
-      if (alifLocked(doc, lesson.id)) return send(res, 403, { error: 'Bu dars hali yopiq: avval oldingi darsni tugating (test ' + F0.PASS + '% va uy vazifasi).' });
+      if (alifLocked(doc, lesson.id)) return send(res, 403, { error: doc.pace ? 'Bu dars hali yopiq: guruhda dars o‘tilgandan keyin ochiladi.' : 'Bu dars hali yopiq: avval oldingi darsni tugating (test ' + F0.PASS + '% va uy vazifasi).' });
       if (body.kind === 'hw') return send(res, 200, { questions: F0.publicTest(F0.buildHomework(lesson)), tasks: F0.hwTasks(lesson) });
       const seed = crypto.randomBytes(6).toString('hex');
       doc.sess = { id: 'as' + seed, lessonId: lesson.id, seed, at: Date.now() };

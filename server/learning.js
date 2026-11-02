@@ -539,7 +539,7 @@ function wordQuestions(sv, dict, n, rl) {
 /** A0 (alifbo) o'quvchisi: o'tilgan darslardan savollar */
 async function a0Questions(A, store, sid, n, kind) {
   const F = A.Alifbo; if (!F) return [];
-  const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
+  const doc = await require('./pace').attach(store, sid, (await store.get('alifprog/' + sid)) || { lessons: {} }, 'A0');
   const st = F.statuses(doc);
   const open = F.LESSONS.filter(l => st[l.id] !== 'locked');
   if (!open.length) return [];

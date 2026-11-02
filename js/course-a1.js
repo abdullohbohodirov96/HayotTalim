@@ -191,6 +191,19 @@
     return !!(p && p.testBest != null && p.testBest >= PASS && hwPassed(p.hw));
   }
 
+
+  /* Guruh sur'ati: pace = { n: guruh o'tkazgan darslar soni, next: { date, start, end } } (server/pace.js) */
+  var OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+  function paceNote(i, pace) {
+    if (!pace) return '';
+    if (i === pace.n && pace.next) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pace.next.date || '');
+      var d = m ? Number(m[3]) + '-' + OYLAR[Number(m[2]) - 1] : '';
+      return d ? 'Dars o‘tilgandan keyin ochiladi: ' + d + (pace.next.end ? ', ' + pace.next.end : '') : 'Dars o‘tilgandan keyin ochiladi';
+    }
+    return 'Dars o‘tilgandan keyin ochiladi';
+  }
+
   /** Har bir darsning holati: 'done' | 'open' | 'locked'
       progress = { lessons: { [id]: {...} }, unlocked: { [id]: true } } */
   function statuses(progress) {
@@ -204,7 +217,10 @@
       /* Har REVIEW_EVERY darsdan keyin takrorlash testi bor: undan o'tmaguncha keyingi dars yopiq */
       var gate = i > 0 ? reviewAfter(LESSONS[i - 1].id) : null;
       var gateOk = !gate || reviewPassed(progress, gate.id);
-      var open = i === 0 || (prevDone && gateOk) || !!manual[l.id] || !!(progress && progress.all);   // all — to'liq dostup (ko'rish/test hisobi)
+      var pace = progress && progress.pace;
+      var open = (pace && typeof pace.n === 'number')
+        ? (i < pace.n || !!manual[l.id] || !!progress.all)          // guruh sur'ati: guruh o'tgan darslargina ochiq
+        : (i === 0 || (prevDone && gateOk) || !!manual[l.id] || !!(progress && progress.all));   // all — to'liq dostup (ko'rish/test hisobi)
       out[l.id] = done ? 'done' : (open ? 'open' : 'locked');
       prevDone = done;
     });
@@ -309,11 +325,12 @@
     var vs = vocabState(doc, today || '9999-12-31');
     return {
       course: { code: 'A1', title: 'Arab tili — A1 (Oila, Uy-joy)', pass: PASS },
-      lessons: LESSONS.map(function (l) {
+      pace: doc.pace ? { n: doc.pace.n, next: doc.pace.next, group: doc.pace.group } : null,
+      lessons: LESSONS.map(function (l, i) {
         var p = (doc.lessons || {})[l.id] || {};
         var hw = p.hw || null;
         return {
-          id: l.id, n: l.n, unit: l.unit, title: l.title, titleAr: l.titleAr, status: st[l.id],
+          id: l.id, n: l.n, unit: l.unit, title: l.title, titleAr: l.titleAr, status: st[l.id], lockNote: st[l.id] === 'locked' ? paceNote(i, doc.pace) : '',
           steps: p.steps || {}, testBest: p.testBest == null ? null : p.testBest, testTries: p.testTries || 0,
           hw: hw ? {
             submittedAt: hw.submittedAt || null, status: hw.status || null, auto: hw.auto || null,

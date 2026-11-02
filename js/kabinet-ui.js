@@ -663,16 +663,29 @@
     }
     function a0Steps(lv) { return (lv && lv.steps) || {}; }
 
+    /* Guruh sur'ati haqida qisqa yozuv: «Guruhda 5 ta dars o'tildi · keyingisi 4-noyabr, 19:30 dan keyin» */
+    function paceBox(pc) {
+      if (!pc) return null;
+      var OY = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+      var m = pc.next && /^(\d{4})-(\d{2})-(\d{2})$/.exec(pc.next.date || '');
+      return h('div', { class: 'a0-cta', style: 'margin-bottom:14px' }, [
+        h('div', {}, [h('span', { class: 'a0-eyebrow' }, '📅 Darslar guruh bilan birga ochiladi' + (pc.group ? ' · ' + pc.group : '')),
+          h('b', {}, 'Guruhda ' + pc.n + ' ta dars o‘tildi'),
+          m ? h('div', { class: 'small muted' }, 'Keyingi dars ' + Number(m[3]) + '-' + OY[Number(m[2]) - 1] + (pc.next.end ? ', ' + pc.next.end : '') + ' da tugagach ochiladi') : null])
+      ]);
+    }
+
     /* ---------- Darslar ro'yxati: 8 hafta ---------- */
     function vAlif(el) {
       var F = A.Alifbo;
       var box = h('div', {}, loading());
-      el.appendChild(h('p', { class: 'sp-lead' }, 'A0 — «Nabra» darsligi bo‘yicha arab tilida o‘qish va yozish: 24 dars, 2 oy (haftasiga 3 dars). Har darsda: so‘z va harflarni yodlash → video dars → mashq → test → uy vazifasi. Keyingi dars oldingisi tugagach ochiladi.'));
+      el.appendChild(h('p', { class: 'sp-lead' }, 'A0 — «Nabra» darsligi bo‘yicha arab tilida o‘qish va yozish: 24 dars, 2 oy (haftasiga 3 dars). Har darsda: so‘z va harflarni yodlash → video dars → mashq → test → uy vazifasi. Darslar guruhda dars o‘tilgani sari ochilib boradi.'));
       el.appendChild(box);
       cache.alif = null;
       load('alif').then(function (v) {
         UI.clear(box);
         box.appendChild(h('div', { class: 'cr-mini', style: 'margin-bottom:14px' }, [h('div', { class: 'cr-bar' }, h('i', { style: 'width:' + Math.round(v.done * 100 / v.total) + '%' })), h('span', { class: 'small' }, v.done + ' / ' + v.total + ' dars tugadi')]));
+        if (v.pace) box.appendChild(paceBox(v.pace));
         var nextOpen = v.lessons.filter(function (l) { return l.status === 'open'; })[0];
         if (nextOpen) box.appendChild(h('div', { class: 'a0-cta' }, [
           h('div', {}, [h('span', { class: 'a0-eyebrow' }, 'Davom etish · ' + nextOpen.week + '-hafta'), h('b', {}, nextOpen.n + '-dars: ' + nextOpen.title)]),
@@ -686,7 +699,7 @@
               var locked = l.status === 'locked', L0 = F.byId(l.id);
               var stp = a0Steps(l), nDone = F.STEPS.filter(function (s) { return stp[s.id]; }).length;
               return h('button', { type: 'button', class: 'sp-lesson ' + l.status, onclick: function () {
-                if (locked) { UI.toast('Bu dars oldingi dars tugagach ochiladi: test ' + F.PASS + '% va uy vazifasi.', 'warn'); return; }
+                if (locked) { UI.toast(l.lockNote ? l.lockNote + '.' : 'Bu dars oldingi dars tugagach ochiladi: test ' + F.PASS + '% va uy vazifasi.', 'warn'); return; }
                 openAlif(l.id);
               } }, [
                 h('div', { class: 'sp-lesson-top' }, [
@@ -694,7 +707,7 @@
                   h('span', { class: 'sp-ar' + (locked ? ' sp-blur' : ''), lang: 'ar', dir: 'rtl' }, L0.titleAr)
                 ]),
                 h('b', { class: locked ? 'sp-blur' : '' }, l.n + '. ' + l.title),
-                locked ? h('span', { class: 'sp-lock-note' }, '🔒 Oldingi dars tugagach ochiladi') : null,
+                locked ? h('span', { class: 'sp-lock-note' }, '🔒 ' + (l.lockNote || 'Oldingi dars tugagach ochiladi')) : null,
                 h('span', { class: 'sp-lesson-s' }, locked ? 'Yopiq' : l.status === 'done' ? 'Tugadi · test ' + l.best + '%' + (l.hw && l.hw.percent != null ? ' · vazifa ' + l.hw.percent + '%' : '')
                   : (nDone ? nDone + ' / 5 bosqich' + (l.best != null ? ' · test ' + l.best + '%' : '') : 'Boshlanmagan')),
                 locked ? null : h('span', { class: 'a0-dots' }, F.STEPS.map(function (s) { return h('i', { class: stp[s.id] ? 'on' : '' }); }))
@@ -1137,7 +1150,7 @@
               area.appendChild(h('div', { class: 'a0-result' }, [
                 h('div', { class: 'a0-big ' + (r.passed ? 'ok' : 'bad') }, r.result.percent + '%'),
                 h('h3', {}, r.passed ? 'Uy vazifasi qabul qilindi!' : 'Kamida ' + F.PASS + '% kerak — qayta urinib ko‘ring'),
-                h('p', { class: 'muted' }, r.passed ? (nx ? (nx.status === 'locked' ? 'Keyingi dars testdan o‘tgach ochiladi.' : 'Keyingi dars ochildi: ' + nx.n + '. ' + nx.title) : 'Tabriklaymiz — A0 kursini tugatdingiz! Endi A1 darslariga o‘tasiz.') : r.result.correct + ' / ' + r.result.total + ' to‘g‘ri.'),
+                h('p', { class: 'muted' }, r.passed ? (nx ? (nx.status === 'locked' ? (nx.lockNote ? nx.lockNote + '.' : 'Keyingi dars testdan o‘tgach ochiladi.') : 'Keyingi dars ochildi: ' + nx.n + '. ' + nx.title) : 'Tabriklaymiz — A0 kursini tugatdingiz! Endi A1 darslariga o‘tasiz.') : r.result.correct + ' / ' + r.result.total + ' to‘g‘ri.'),
                 h('div', { class: 'a0-row' }, [
                   h('button', { class: 'btn', type: 'button', onclick: function () { go('alifbo'); } }, 'Darslar ro‘yxati'),
                   r.passed && nx && nx.status !== 'locked' ? h('button', { class: 'btn primary', type: 'button', onclick: function () { openAlif(nx.id, 'learn'); } }, 'Keyingi dars →')
@@ -1204,10 +1217,11 @@
     /* ---------- 2. Darslarim ---------- */
     function vLessons(el) {
       var box = h('div', {}, loading());
-      el.appendChild(h('p', { class: 'sp-lead' }, 'Har bir dars: video → qissa → so’zlar → qoida → mashq → test, keyin uy vazifasi. Test va uy vazifasi 60% dan yuqori bo’lsa keyingi dars ochiladi.'));
+      el.appendChild(h('p', { class: 'sp-lead' }, 'Har bir dars: video → qissa → so’zlar → qoida → mashq → test, keyin uy vazifasi. Darslar guruhda dars o‘tilgani sari ochilib boradi.'));
       el.appendChild(box);
       load('course').then(function (cv) {
         UI.clear(box);
+        if (cv.pace) box.appendChild(paceBox(cv.pace));
         var units = (A.Course && A.Course.UNITS) || [{ id: null, title: '' }];
         units.forEach(function (u) {
           var ls = cv.lessons.filter(function (l) { return !u.id || l.unit === u.id; });
@@ -1242,7 +1256,7 @@
             return h('button', {
               type: 'button', class: 'sp-lesson ' + l.status,
               onclick: function () {
-                if (locked) { UI.toast('Bu dars oldingi dars va vazifa tugagach ochiladi.', 'warn'); return; }
+                if (locked) { UI.toast(l.lockNote ? l.lockNote + '.' : 'Bu dars oldingi dars va vazifa tugagach ochiladi.', 'warn'); return; }
                 goLesson(l.id);
               }
             }, [
@@ -1251,7 +1265,7 @@
                 h('span', { class: 'sp-ar sp-blur' }, locked ? 'كتاب جديد' : (l.titleAr || ''))
               ]),
               h('b', { class: locked ? 'sp-blur' : '' }, l.n + '. ' + (locked ? 'Yangi dars mavzusi' : l.title)),
-              locked ? h('span', { class: 'sp-lock-note' }, '🔒 Oldingi dars tugagach ochiladi') : null,
+              locked ? h('span', { class: 'sp-lock-note' }, '🔒 ' + (l.lockNote || 'Oldingi dars tugagach ochiladi')) : null,
               h('div', { class: 'sp-steps' }, STEP_IDS.map(function (s) { return h('i', { class: l.steps && l.steps[s] ? 'on' : '' }); })),
               h('span', { class: 'sp-lesson-s' }, locked ? 'Yopiq' : l.status === 'done' ? 'Tugallangan' + (l.testBest != null ? ' · test ' + l.testBest + '%' : '')
                 : sd ? sd + ' / 7 bosqich' : 'Boshlanmagan')
@@ -1303,7 +1317,7 @@
                 return h('a', { class: 'sp-filechip', href: src.fileUrl({ id: fid }), target: '_blank', rel: 'noopener' }, [ico('link'), 'Fayl ' + (i + 1)]);
               })) : null,
               h('div', { class: 'sp-hw-f' }, [
-                hw.auto ? h('span', { class: 'sp-muted' }, 'Test qismi: ' + hw.auto.correct + '/' + hw.auto.total) : h('span', { class: 'sp-muted' }, l.status === 'locked' ? 'Oldingi dars tugagach ochiladi' : 'Rasm yoki PDF yuklash mumkin'),
+                hw.auto ? h('span', { class: 'sp-muted' }, 'Test qismi: ' + hw.auto.correct + '/' + hw.auto.total) : h('span', { class: 'sp-muted' }, l.status === 'locked' ? (l.lockNote || 'Oldingi dars tugagach ochiladi') : 'Rasm yoki PDF yuklash mumkin'),
                 l.status === 'locked' ? null : h('button', {
                   class: 'btn sm ' + (s.id === 'bajar' || s.id === 'qayta' ? 'primary' : ''), type: 'button',
                   onclick: function () { goLesson(l.id, 'homework'); }

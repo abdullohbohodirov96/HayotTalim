@@ -668,6 +668,19 @@
   function hwOk(p) { return !!(p && p.hw && p.hw.at && (!p.hw.auto || !p.hw.auto.total || Number(p.hw.auto.percent) >= PASS)); }
   function testOk(p) { return !!(p && p.best != null && Number(p.best) >= PASS); }
   function isDone(p) { return testOk(p) && hwOk(p); }
+
+  /* Guruh sur'ati: pace = { n: guruh o'tkazgan darslar soni, next: { date, start, end } } (server/pace.js) */
+  var OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+  function paceNote(i, pace) {
+    if (!pace) return '';
+    if (i === pace.n && pace.next) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pace.next.date || '');
+      var d = m ? Number(m[3]) + '-' + OYLAR[Number(m[2]) - 1] : '';
+      return d ? 'Dars o‘tilgandan keyin ochiladi: ' + d + (pace.next.end ? ', ' + pace.next.end : '') : 'Dars o‘tilgandan keyin ochiladi';
+    }
+    return 'Dars o‘tilgandan keyin ochiladi';
+  }
+
   function statuses(progress) {
     var pl = (progress && progress.lessons) || {};
     var manual = (progress && progress.unlocked) || {};
@@ -675,7 +688,11 @@
     LESSONS.forEach(function (l, i) {
       var p = pl[l.id];
       var done = isDone(p);
-      out[l.id] = done ? 'done' : ((i === 0 || prevDone || manual[l.id] || (progress && progress.all)) ? 'open' : 'locked');
+      var pace = progress && progress.pace;
+      var open = (pace && typeof pace.n === 'number')
+        ? (i < pace.n || !!manual[l.id] || !!progress.all)          // guruh sur'ati (server/pace.js)
+        : (i === 0 || prevDone || manual[l.id] || (progress && progress.all));
+      out[l.id] = done ? 'done' : (open ? 'open' : 'locked');
       prevDone = done;
     });
     return out;
@@ -684,13 +701,14 @@
     var st = statuses(progress);
     var pl = (progress && progress.lessons) || {};
     var done = 0;
-    var lessons = LESSONS.map(function (l) {
+    var lessons = LESSONS.map(function (l, i) {
       if (st[l.id] === 'done') done++;
       var p = pl[l.id] || {};
-      return { id: l.id, n: l.n, week: l.week, title: l.title, status: st[l.id], best: p.best == null ? null : p.best, last: p.last == null ? null : p.last,
+      return { id: l.id, n: l.n, week: l.week, title: l.title, status: st[l.id], lockNote: st[l.id] === 'locked' ? paceNote(i, progress && progress.pace) : '', best: p.best == null ? null : p.best, last: p.last == null ? null : p.last,
         tries: p.tries || 0, steps: p.steps || {}, testOk: testOk(p), hw: p.hw ? { at: p.hw.at, percent: p.hw.auto ? p.hw.auto.percent : null, ok: hwOk(p) } : null };
     });
-    return { pass: PASS, done: done, total: LESSONS.length, lessons: lessons };
+    var pc = progress && progress.pace;
+    return { pass: PASS, done: done, total: LESSONS.length, lessons: lessons, pace: pc ? { n: pc.n, next: pc.next, group: pc.group } : null };
   }
   function byId(id) { for (var i = 0; i < LESSONS.length; i++) if (LESSONS[i].id === id) return LESSONS[i]; return null; }
 

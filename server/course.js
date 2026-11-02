@@ -24,6 +24,7 @@
 'use strict';
 
 const COL = 'courseprog/';
+const pace = require('./pace');
 const crypto = require('crypto');
 const KEYS = require('./course-keys');          // uy vazifasi javoblari — faqat serverda
 const TEST_TRIES_PER_DAY = Number(process.env.COURSE_TEST_TRIES || 5);   // bir dars testiga kuniga
@@ -34,13 +35,13 @@ function txt(v, max) { return String(v == null ? '' : v).replace(/\u0000/g, '').
 function empty(sid) { return { studentId: String(sid), lessons: {}, unlocked: {}, reviews: {}, vocab: {} }; }
 
 async function get(store, sid) {
-  const d = await store.get(COL + sid);
-  if (!d) return empty(sid);
+  let d = await store.get(COL + sid);
+  if (!d) d = empty(sid);
   d.lessons = d.lessons || {};
   d.unlocked = d.unlocked || {};
   d.reviews = d.reviews || {};
   d.vocab = d.vocab || {};
-  return d;
+  return pace.attach(store, sid, d, 'A1');   // darslar guruh sur'atida ochiladi (server/pace.js)
 }
 async function put(store, sid, doc) { await store.set(COL + sid, doc); }
 
