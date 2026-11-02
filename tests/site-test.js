@@ -121,6 +121,10 @@ async function api(p, opts = {}) {
   {
     const gaPage = await api('/');
     const headPart = gaPage.text.split('</head>')[0] || '';
+    if (!/googletagmanager/.test(gaPage.text)) {
+      /* Asosiy saytdan Google Analytics olib tashlangan (faqat landinglarda, GA_MEASUREMENT_ID bilan) */
+      ok('Asosiy saytda GA yo’q — ERP ma’lumoti Google’ga ketmaydi', true);
+    } else {
     ok('GA kodi <head> qismida', /googletagmanager\.com\/gtag\/js/.test(headPart),
       headPart.slice(0, 200));
     ok('Measurement ID bor', /G-[A-Z0-9]{6,}/.test(headPart), headPart.slice(0, 200));
@@ -134,7 +138,7 @@ async function api(p, opts = {}) {
     ok('Skript shartli yuklanadi (oddiy <script src> emas)',
       !/<script[^>]+src="https:\/\/www\.googletagmanager\.com/.test(gaPage.text),
       'oddiy script src topildi');
-
+    }
   }
 
   /* ================= 1. Ochiq ma'lumot ================= */
@@ -199,6 +203,15 @@ async function api(p, opts = {}) {
     /* --- 1. Ochiq sayt: statistika ishlashi kerak --- */
     await gp.goto(BASE);
     await gp.waitForTimeout(1500);
+    if (!scriptRequests) {
+      /* Asosiy saytda Google Analytics ulanmagan (u faqat landinglarda, GA_MEASUREMENT_ID bilan) —
+         demak ERP ma'lumoti Google'ga umuman ketmaydi; ERP manzilida ham tekshiramiz */
+      await gp.goto(BASE + '#student?id=st_maxfiy_777');
+      await gp.reload({ waitUntil: 'domcontentloaded' });
+      await gp.waitForTimeout(1200);
+      ok('Asosiy sayt va ERP: gtag.js yuklanmaydi, Google’ga hech narsa ketmaydi', scriptRequests === 0 && beacons === 0, scriptRequests + '/' + beacons);
+      await gp.close();
+    } else {
     const pub1 = await gp.evaluate(() => JSON.stringify(window.__gaSeen || []));
     ok('Ochiq saytda gtag.js yuklandi', scriptRequests > 0, String(scriptRequests));
     ok('Ochiq saytda page_view yuborildi', /"event","page_view"/.test(pub1), pub1.slice(0, 220));
@@ -284,6 +297,7 @@ async function api(p, opts = {}) {
     ok('Haqiqiy Google ga so’rov ketmadi (sinovda ushlandi)', beacons === 0 || true,
       'ushlangan: ' + beacons);
     await gp.close();
+    }
   }
 
   page.on('pageerror', e => { fail++; out.push('  ✗ JS xatosi: ' + e.message); });
@@ -300,10 +314,11 @@ async function api(p, opts = {}) {
      kurs kartochkasidan.                                               */
   await page.waitForSelector('.lvl', { timeout: 15000 });
   const txt2 = await page.evaluate(() => document.body.innerText);
-  eq('Oltita daraja kartasi', await page.evaluate(() => document.querySelectorAll('.lvl').length), 6);
+  const lvlCodes = await page.evaluate(() => Array.from(document.querySelectorAll('.lvl')).map(e => (e.innerText.match(/\b(A0|A1|A2|B1|B2|C1|C2)\b/) || [''])[0]).filter(Boolean));
+  ok('Daraja kartalari A0 dan C2 gacha (' + lvlCodes.length + ')', ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'].every(c => lvlCodes.indexOf(c) >= 0), lvlCodes.join(','));
   ok('Daraja kodlari ko’rinadi',
     /A1/.test(txt2) && /C2/.test(txt2), txt2.slice(0, 500));
-  ok('Daraja izohi ko’rinadi', /Harflar, salomlashish/.test(txt2), txt2.slice(0, 900));
+  ok('Daraja izohi ko’rinadi', /Salomlashish, tanishuv/.test(txt2), txt2.slice(0, 900));
   /* Markaz so'radi: saytda narx ko'rsatilmaydi */
   ok('Saytda narx kartasi yo’q',
     (await page.evaluate(() => document.querySelectorAll('.price-card, #narx').length)) === 0);
@@ -448,7 +463,7 @@ async function api(p, opts = {}) {
   const PHONE2 = '+99890' + String(Date.now()).slice(-7);
   await page.goto(BASE);
   await page.waitForSelector('.lvl', { timeout: 20000 });
-  await page.evaluate(() => document.querySelectorAll('.lvl')[2].click());
+  await page.evaluate(() => Array.from(document.querySelectorAll('.lvl')).filter(e => /\bB1\b/.test(e.innerText))[0].click());
   await page.waitForTimeout(600);
   const pill = await page.evaluate(() => {
     const p = document.getElementById('lead-level-pill');

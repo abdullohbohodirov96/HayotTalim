@@ -437,11 +437,12 @@ async function typeIn(page, sel, val) {
     if (!btn) return { none: true };
     btn.click();
     await new Promise(r => setTimeout(r, 800));
-    const q = document.querySelector('.modal .quick-contact');
+    /* Murojaat oynasining tepasida (lead-hero): Qo'ng'iroq / Telegram / SMS */
+    const q = document.querySelector('.modal .lh-acts');
     return {
       bor: !!q && !q.hidden,
       matn: q ? q.innerText.replace(/\s+/g, ' ').trim() : '',
-      tel: q ? (q.querySelector('a.call-btn') || {}).href || '' : ''
+      tel: q ? (q.querySelector('a.lh-call') || {}).href || '' : ''
     };
   });
   ok('Oynada bog’lanish tugmalari bor', !!inModal.bor, JSON.stringify(inModal));

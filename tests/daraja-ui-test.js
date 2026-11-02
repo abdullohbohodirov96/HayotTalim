@@ -1,5 +1,7 @@
 /* Daraja testi — brauzerda to'liq yo'l (telefon va kompyuter).
    node tests/daraja-ui-test.js <URL> [qisqa-vaqtli-server-URL]
+   Server TEST_MAX_STARTS=200 bilan ishga tushsin: sinov bitta IP dan 30 tadan ko'p test boshlaydi
+   (oddiy foydalanuvchi uchun 1 soatda 30 ta chegara bor).
    1) til tanlash → boshlash → 20 savol (orqaga, "Bilmayman") → natija
    2) natijadan "Darsga yozilish" → ariza formasi, daraja tanlangan
    3) qayta topshirish, to'g'ridan-to'g'ri #test havolasi

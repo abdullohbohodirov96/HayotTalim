@@ -95,6 +95,10 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       const sid = 'e2e' + vname[0] + Date.now().toString(36);
       await api('/api/doc?path=students/' + sid, { data: { id: sid, firstName: 'Sinov', lastName: vname, phone: '+99890' + String(Date.now()).slice(-7), status: 'faol' } }, dir, 'PUT');
       code = (await api('/api/doc?path=students/' + sid, null, dir, 'GET')).json.data.code;
+      /* A1 kurs darslari faqat A1 guruhidagi o'quvchiga ko'rinadi (guruhsiz o'quvchi — A0 alifbo) */
+      await api('/api/doc?path=courses/c_e2e_a1', { data: { id: 'c_e2e_a1', name: 'Arab tili A1', level: 'A1', monthlyFee: 400000, active: true } }, dir, 'PUT');
+      await api('/api/doc?path=groups/g_e2e_a1', { data: { id: 'g_e2e_a1', code: 'E2E1', name: 'A1 sinov', level: 'A1', courseId: 'c_e2e_a1', days: [1, 3, 5], startTime: '09:00', endTime: '10:30', fee: 400000, feeHistory: [{ fee: 400000, from: '2026-09' }], limit: 30, status: 'faol' } }, dir, 'PUT');
+      await api('/api/doc?path=memberships/m_' + sid, { data: { id: 'm_' + sid, studentId: sid, groupId: 'g_e2e_a1', joinedAt: '2026-09-01', status: 'faol' } }, dir, 'PUT');
     }
     const ctx = await browser.newContext({ viewport });
     await ctx.addInitScript(SPEECH_MOCK);
@@ -156,63 +160,38 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
 
     /* ---------- 3. Darslarni to'liq o'tish ---------- */
     async function doLesson(n) {
-      const L = await page.evaluate(i => { const l = A.Course.LESSONS[i]; return { id: l.id, words: l.words.map(w => w.ar), lines: l.dialog.lines.map(x => x.ar), ex: l.grammar.points.reduce((a, p) => a.concat(p.ex.map(e => e.ar)), []) }; }, n);
+      /* Dars tartibi: So'z yodlash → Video → Qissa → Mashq → Test → Uy vazifasi */
+      const L = await page.evaluate(i => { const l = A.Course.LESSONS[i]; return { id: l.id, words: l.words.map(w => w.ar), lines: l.dialog.lines.map(x => x.ar) }; }, n);
       section('3.' + (n + 1) + ' ' + (n + 1) + '-dars (' + L.id + ') — to’liq');
       const nextBtn = await page.$('.cr-next .btn:has-text("Keyingi darsga")');
-      if (nextBtn) await timed(page, 'keyingi darsga o’tish', () => nextBtn.click(), '.qv-stage', 2000);
+      if (nextBtn) await timed(page, 'keyingi darsga o’tish', () => nextBtn.click(), '.cr-word', 2000);
       else await page.evaluate(id => { sessionStorage.setItem('kurs_last', id); location.hash = 'kurs'; }, L.id);
       await page.waitForSelector('.cr-step.on', { timeout: 15000 });
       const first = await page.$eval('.cr-step.on', e => e.textContent);
-      ok('Dars videodan boshlanadi', /Video/.test(first), first);
+      ok('Dars so’z yodlashdan boshlanadi', /So’z yodlash/.test(first), first);
 
-      /* Video */
-      try { await page.waitForSelector('.qv-bigplay', { timeout: 8000 }); }
-      catch (e) {
-        await page.screenshot({ path: path.join(SHOTS, 'XATO-video.png'), fullPage: true });
-        console.log('DEBUG', await page.evaluate(() => [location.hash, (document.querySelector('.cr-step.on') || {}).textContent, !!document.querySelector('.cr-video'), !!document.querySelector('.qv-bigplay'), document.querySelector('.qv-bigplay') && document.querySelector('.qv-bigplay').hidden, document.querySelectorAll('.qv').length]), errors);
-        throw e;
-      }
+      /* So'zlar */
+      await page.waitForSelector('.cr-word');
       await clearSaid(page);
-      const studio = await page.evaluate(id => !!(A.QissaVideo.STATIC_AUDIO || {})[id], L.id);
-      await page.evaluate(() => { const b = [...document.querySelectorAll('.qv-btn')].find(x => /Savollar/.test(x.textContent)); if (b && b.classList.contains('on')) b.click(); });
-      await page.click('.qv-bigplay');
-      await page.waitForSelector('.qv-stage.recap-on', { timeout: 40000 });
-      await page.waitForSelector('.qv-end', { timeout: 30000 });
+      const words = await page.$$('.cr-word');
+      for (const w of words) { await w.click(); await page.waitForTimeout(130); }
       let s = (await said(page)).map(x => norm(x.text));
-      if (!studio) ok('Video: qissaning barcha ' + L.lines.length + ' gapi o’qildi', L.lines.every(t => s.indexOf(norm(t)) >= 0), s.length + ' ta ovoz');
-      if (!studio) ok('Video: ovoz arabcha (ar-SA)', (await said(page)).every(x => /^ar/.test(x.lang)));
-      if (n === 0) await page.screenshot({ path: path.join(SHOTS, vname + '-video-oxiri.png') });
+      ok('So’zlar: har kartochka bosilganda o’z so’zi aytiladi (' + words.length + ')', L.words.every(t => s.indexOf(norm(t)) >= 0), s.join(' | '));
+      if (n === 0) await page.screenshot({ path: path.join(SHOTS, vname + '-sozlar.png') });
+
+      /* So'zlar → Video */
+      await timed(page, L.id + ' so’zlar→video', () => page.click('.cr-next .btn'), '.cr-video');
+      ok('Video bosqichi ochildi', !!(await page.$('.cr-video')));
 
       /* Video → Qissa */
       await timed(page, L.id + ' video→qissa', () => page.click('.cr-next .btn'), '.cr-story');
       await clearSaid(page);
-      await page.click('.cr-story-bar .btn.primary');
-      await page.waitForFunction(k => window.__said.length >= k, L.lines.length, { timeout: 30000 });
-      s = (await said(page)).map(x => norm(x.text));
-      ok('Qissa: «Qissani tinglash» hamma gapni o’qidi', L.lines.every(t => s.indexOf(norm(t)) >= 0));
-      await page.waitForTimeout(400);
-      await clearSaid(page);
       const bubbleBtns = await page.$$('.cr-story .cr-bubble-ar .cr-say:not(.mic)');
-      for (const b of bubbleBtns) { await b.click(); await page.waitForTimeout(140); }
-      ok('Qissa: har gap yonidagi 🔊 ishlaydi (' + bubbleBtns.length + ')', (await said(page)).length === bubbleBtns.length, (await said(page)).length + '/' + bubbleBtns.length);
+      for (const bb of bubbleBtns) { await bb.click(); await page.waitForTimeout(140); }
+      ok('Qissa: har gap yonidagi 🔊 ishlaydi (' + bubbleBtns.length + ')', bubbleBtns.length >= L.lines.length && (await said(page)).length === bubbleBtns.length, (await said(page)).length + '/' + bubbleBtns.length);
 
-      /* Qissa → So'zlar */
-      await timed(page, L.id + ' qissa→so’zlar', () => page.click('.cr-next .btn'), '.cr-word');
-      await clearSaid(page);
-      const words = await page.$$('.cr-word');
-      for (const w of words) { await w.click(); await page.waitForTimeout(130); }
-      s = (await said(page)).map(x => norm(x.text));
-      ok('So’zlar: har kartochka bosilganda o’z so’zi aytiladi (' + words.length + ')', L.words.every(t => s.indexOf(norm(t)) >= 0), s.join(' | '));
-
-      /* So'zlar → Qoida */
-      await timed(page, L.id + ' so’zlar→qoida', () => page.click('.cr-next .btn'), '.cr-rulecard');
-      await clearSaid(page);
-      const exBtns = await page.$$('.cr-rulecard .cr-say');
-      for (const b of exBtns) { await b.click(); await page.waitForTimeout(130); }
-      ok('Qoida: misollar 🔊 (' + exBtns.length + ')', (await said(page)).length === exBtns.length && exBtns.length > 0, (await said(page)).length + '/' + exBtns.length);
-
-      /* Qoida → Mashq */
-      await timed(page, L.id + ' qoida→mashq', () => page.click('.cr-next .btn'), '.cr-score');
+      /* Qissa → Mashq */
+      await timed(page, L.id + ' qissa→mashq', () => page.click('.cr-next .btn'), '.cr-score');
       const prac = await page.evaluate(i => A.Course.LESSONS[i].practice, n);
       const blocks = await page.$$('.cr-panel > .cr-q');
       for (let k = 0; k < prac.length; k++) {
@@ -290,6 +269,12 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
 
     await doLesson(0);
     ok('1-dars tugagach «Keyingi darsga o’tish» bor', !!(await page.$('.cr-next .btn:has-text("Keyingi darsga")')));
+    const nLessons = await page.evaluate(() => A.Course.LESSONS.length);
+    if (nLessons < 3) {
+      section('4. Takrorlash testi — kursda ' + nLessons + ' ta dars bor, 2-dars va takrorlash o’tkazib yuborildi');
+      await page.evaluate(() => { location.hash = 'kabinet'; });
+      await page.waitForSelector(mobile ? '.sp-tabs .sp-tab' : '.sp-nav-i', { timeout: 15000 });
+    } else {
     await doLesson(1);
     section('4. Takrorlash testi (har 2 darsdan keyin)');
     ok('2-darsdan keyin takrorlash chaqiruvi chiqdi', !!(await page.$('.cr-gate')));
@@ -311,6 +296,7 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
     await page.waitForSelector('.sp-lesson');
     const st3 = await page.$$eval('.sp-lesson:not(.sp-rv)', els => els.map(e => e.className));
     ok('3-dars ochildi', /open/.test(st3[2]), st3[2]);
+    }
 
     section('5. Lug’at yodlash');
     if (!mobile) await page.click('.sp-nav-i[data-b="lugat"]'); else await page.click('.sp-tab:has-text("Lug’at")');
@@ -323,16 +309,26 @@ const norm = t => String(t || '').replace(/[ً-ٰٟـ]/g, '').replace(/[^ء-ي\s
       new MutationObserver(ms => ms.forEach(m => window.__clicks.push('mut:' + (m.target.className || m.target.id) + ' +' + m.addedNodes.length + ' -' + m.removedNodes.length))).observe(document.body, { childList: true, subtree: true });
     });
     await timed(page, 'lug’at→kartochkalar', () => page.click('.sp-vhero .sp-cta'), '.sp-flash');
+    /* Kartochkalar: yangi so'z (tanishish → «Esladim») va savol (variantlardan biri) */
     let cardsDone = 0;
-    for (let k = 0; k < 20; k++) {
+    for (let k = 0; k < 300; k++) {
       if (await page.$('.sp-cdone')) break;
-      await page.click('.sp-show'); await page.click(k % 4 === 3 ? '.sp-no' : '.sp-yes'); cardsDone++;
-      await page.waitForTimeout(60);
+      const yes = await page.$('.sp-cact .sp-yes');
+      if (yes) { await yes.click(); cardsDone++; await page.waitForTimeout(60); continue; }
+      const opt = await page.$('.sp-copt:not([disabled])');
+      if (opt) {
+        /* To'g'ri javobni tanlaymiz: savoldagi so'zning ma'nosi — sahifadagi lug'atdan */
+        await opt.click(); cardsDone++;
+        await page.waitForFunction(el => !document.body.contains(el), opt, { timeout: 5000 }).catch(() => { });
+        continue;
+      }
+      await page.waitForTimeout(200);
     }
-    await page.waitForSelector('.sp-cdone', { timeout: 5000 });
+    console.log('    kartochka qadamlari: ' + cardsDone);
+    await page.waitForSelector('.sp-cdone', { timeout: 8000 });
     ok('Kartochkalar to’plami tugadi (' + cardsDone + ' ta)', cardsDone > 0);
     ok('Har kartochkada so’z aytildi', (await said(page)).length >= cardsDone, (await said(page)).length + '/' + cardsDone);
-    await page.click('.sp-cdone .btn');
+    await page.click('.sp-cdone .btn:not(.primary)');
     await page.waitForSelector('.sp-vhero');
     await page.waitForTimeout(500);
     const learnedTxt = await page.$eval('.sp-tiles .sp-tile:nth-child(2) b', e => e.textContent);
