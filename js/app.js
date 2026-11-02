@@ -67,6 +67,8 @@
       var page = A.Pages[App.route.name];
       if (!page) { view.appendChild(UI.empty({ title: 'Sahifa topilmadi' })); view.style.minHeight = ''; return; }
       try {
+        var sb = sectionBar();
+        if (sb) view.appendChild(sb);
         page(view, App.route, App);
       } catch (e) {
         console.error(e);
@@ -190,6 +192,56 @@
     { id: 'settings', label: 'Sozlamalar', icon: 'gear', perm: 'settings.edit' }
   ];
 
+  /* Yon menyu bo'limlari: bir-biriga yaqin sahifalar bitta bo'limga yig'ilgan.
+     Bo'lim ichidagi sahifalar sahifa tepasidagi tugmalar qatoridan almashtiriladi. */
+  var SECTIONS = [
+    { id: 's-home', label: 'Bosh sahifa', icon: 'home', items: ['dashboard'] },
+    { id: 's-leads', label: 'Murojaatlar', icon: 'phone', items: ['leads', 'forms'] },
+    { id: 's-students', label: 'O’quvchilar', icon: 'users', items: ['students', 'rating'] },
+    { id: 's-groups', label: 'Guruhlar va darslar', icon: 'calendar', items: ['groups', 'schedule', 'attendance', 'zoom'] },
+    { id: 's-edu', label: 'Ta’lim', icon: 'layers', items: ['course', 'learning', 'curriculum', 'books', 'videoLib', 'vocabAdmin'] },
+    { id: 's-fin', label: 'Moliya', icon: 'wallet', items: ['finance'] },
+    { id: 's-reports', label: 'Hisobotlar', icon: 'chart', items: ['reports', 'progress', 'studentProgress'] },
+    { id: 's-team', label: 'Xodimlar va vazifalar', icon: 'badge', items: ['staff', 'tasks'] },
+    { id: 's-comm', label: 'Aloqa', icon: 'chat', items: ['chat', 'bot'] },
+    { id: 's-set', label: 'Sozlamalar', icon: 'gear', items: ['settings'] }
+  ];
+  /* Ichki sahifalar qaysi menyu bandiga tegishli */
+  var ROUTE_PARENT = { student: 'students', group: 'groups', notebook: 'books' };
+  function navItem(id) { return NAV.filter(function (x) { return x.id === id; })[0]; }
+  function routeNavId(name) { return ROUTE_PARENT[name] || name; }
+  function sectionOf(name) {
+    var id = routeNavId(name);
+    return SECTIONS.filter(function (s) { return s.items.indexOf(id) >= 0; })[0] || null;
+  }
+  function sectionItems(sec) {
+    return sec.items.map(navItem).filter(function (n) { return n && App.can(n.perm); });
+  }
+  function lsGetS(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSetS(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+  /* Bo'lim bosilganda: oxirgi ochilgan sahifasi, bo'lmasa birinchisi */
+  function sectionTarget(sec, items) {
+    var last = lsGetS('sec-' + sec.id);
+    return items.some(function (n) { return n.id === last; }) ? last : items[0].id;
+  }
+  /* Sahifa tepasidagi bo'lim tugmalari */
+  function sectionBar() {
+    var sec = sectionOf(App.route.name);
+    if (!sec) return null;
+    var items = sectionItems(sec);
+    var cur = routeNavId(App.route.name);
+    if (items.some(function (n) { return n.id === cur; })) lsSetS('sec-' + sec.id, cur);
+    if (items.length < 2) return null;
+    return h('nav', { class: 'secbar', 'aria-label': sec.label }, items.map(function (n) {
+      var on = n.id === cur;
+      return h('button', {
+        type: 'button', class: on ? 'on' : '', 'aria-current': on ? 'page' : null,
+        onclick: function () { if (!on || App.route.name !== n.id) App.go(n.id); }
+      }, [UI.icon(n.icon), n.label]);
+    }));
+  }
+  A.sectionBar = sectionBar;
+
   function allowedNav() {
     return NAV.filter(function (n) { return App.can(n.perm); });
   }
@@ -201,15 +253,16 @@
     var navTop = navEl ? navEl.scrollTop : 0;
     var nav = UI.clear(navEl);
     var activeBtn = null;
-    allowedNav().forEach(function (n) {
-      var active = App.route.name === n.id ||
-        (n.id === 'students' && App.route.name === 'student') ||
-        (n.id === 'groups' && App.route.name === 'group') ||
-        (n.id === 'books' && App.route.name === 'notebook');
+    var curSec = sectionOf(App.route.name);
+    SECTIONS.forEach(function (sec) {
+      var items = sectionItems(sec);
+      if (!items.length) return;
+      var active = curSec === sec;
+      var one = items.length === 1 ? items[0] : null;
       var b = h('button', {
         type: 'button', 'aria-current': active ? 'page' : null,
-        onclick: function () { App.go(n.id); }
-      }, [UI.icon(n.icon), n.label]);
+        onclick: function () { App.go(sectionTarget(sec, items)); }
+      }, [UI.icon(one ? one.icon : sec.icon), one ? one.label : sec.label]);
       if (active) activeBtn = b;
       nav.appendChild(b);
     });
@@ -272,17 +325,20 @@
   }
 
   function openMenuSheet() {
-    var list = h('div', { class: 'menu-sheet' }, allowedNav().map(function (n) {
-      var here = App.route.name === n.id;
+    var curSec = sectionOf(App.route.name);
+    var list = h('div', { class: 'menu-sheet' }, SECTIONS.map(function (sec) {
+      var items = sectionItems(sec);
+      if (!items.length) return null;
+      var one = items.length === 1 ? items[0] : null;
       return h('button', {
         class: 'menu-item', type: 'button',
-        'aria-current': here ? 'page' : null,
-        onclick: function () { m.close(); App.go(n.id); }
+        'aria-current': curSec === sec ? 'page' : null,
+        onclick: function () { m.close(); App.go(sectionTarget(sec, items)); }
       }, [
-        UI.icon(n.icon),
-        h('b', {}, n.label)
+        UI.icon(one ? one.icon : sec.icon),
+        h('b', {}, one ? one.label : sec.label)
       ]);
-    }));
+    }).filter(Boolean));
     /* Til va mavzu telefonda yuqoridagi tasmadan olib tashlandi — u har
        sahifada bir qator joyni yeb turardi. Endi shu yerda, bir bosishda. */
     var langRow = h('div', { class: 'menu-lang' }, A.I18N.langs.map(function (l) {
