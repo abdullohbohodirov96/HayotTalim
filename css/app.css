@@ -5150,3 +5150,11 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .bk-mini-x{background:#c62828!important;border-color:#c62828!important;color:#fff!important;padding:0 10px!important}
 .bk-b.bk-lb{padding:0 12px;white-space:nowrap}.bk-b.bk-lb.on{background:#f9a825;color:#111;border-color:#f9a825}
 @media (max-width:720px){.bk-view.bk-lesson .bk-mini{top:6px;right:6px;opacity:.6}.bk-b.bk-lb{font-size:12px}}
+
+/* Dars rejimi: daftar asboblari va sarlavhasi yashirin — yozuvda faqat daftar ko'rinadi */
+.nb-toolbtn{display:none}
+body.lesson-mode .nb-toolbtn{display:inline-flex;position:fixed;top:10px;right:14px;z-index:70;align-items:center;gap:6px;padding:7px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px/1 inherit;font-family:inherit;cursor:pointer;opacity:.45;box-shadow:0 4px 14px rgba(0,0,0,.12);transition:opacity .15s}
+body.lesson-mode .nb-toolbtn:hover{opacity:1}
+body.lesson-mode:not(.nb-tools-open) .nb-head,body.lesson-mode:not(.nb-tools-open) .nb-bar,body.lesson-mode:not(.nb-tools-open) .nb-bar2{display:none!important}
+body.lesson-mode.nb-tools-open .nb-toolbtn{opacity:1;background:#15181d;color:#fff;top:auto;bottom:14px;right:auto;left:14px}
+body.lesson-mode:not(.nb-tools-open) .nb-ed{min-height:calc(100vh - 40px);margin-top:0}

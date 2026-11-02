@@ -769,6 +769,11 @@
       var b0 = lastBook(), pg0 = Number(lsGet('bk-last-' + b0.id)) || 1;
       view.appendChild(switcher('book', function () { clearTimeout(t); save(); A.openBookLast(); }, b0.title + ' · ' + pg0 + '-bet'));
       box.appendChild(bar); box.appendChild(tblBar); box.appendChild(kb); box.appendChild(ed);
+      /* Dars rejimida asboblar yashirin (Zoom yozuvida faqat daftar ko'rinsin) — burchakdagi tugma bilan ochiladi */
+      document.body.classList.remove('nb-tools-open');
+      view.appendChild(h('button', { type: 'button', class: 'nb-toolbtn', title: 'Asboblar paneli (dars rejimida yashirin)', onclick: function () {
+        document.body.classList.toggle('nb-tools-open');
+      } }, '✏️ Asboblar'));
       /* Daftarning qayerida turgan bo'lsangiz — qaytganda o'sha joy */
       var skey = 'nb-scroll-' + nb.id, sv = 0;
       try { sv = Number(sessionStorage.getItem(skey)) || 0; } catch (e) { }

@@ -446,6 +446,21 @@ async function notifyStaff(text, opts) {
   return { queued };
 }
 
+/** Faqat direktor(lar)ga — botga ulangan direktor hisoblari (masalan, dars yozuvini tasdiqlash) */
+async function notifyDirectors(text, opts) {
+  if (!store) return { queued: 0, off: true };
+  text = esc(String(text == null ? '' : text));
+  const buttons = opts && Array.isArray(opts.buttons) ? opts.buttons : null;
+  const dirs = (await linkedUsers()).filter(u => u.role === 'direktor');
+  let queued = 0;
+  for (const u of dirs) {
+    const r = await enqueue({ kind: 'elon', chatId: String(u.telegram.id), text, buttons,
+      dedupeKey: 'dir:' + u.id + ':' + hash(String(text)) }, 5 * 60 * 1000);
+    if (!r.skipped) queued++;
+  }
+  return { queued, directors: dirs.length };
+}
+
 /** Bitta xodimga shaxsiy xabar (masalan, unga vazifa berilganda) */
 async function notifyUser(userId, text) {
   if (!store) return { queued: 0, off: true };
@@ -679,9 +694,9 @@ async function trialTick(nowMs) {
   return { sent };
 }
 
-const cbHandlers = Object.create(null);
-/** Tugma ishlovchisini ro'yxatdan o'tkazish: fn(qiymat, kim) → { toast, label } */
-function onButton(prefix, fn) { cbHandlers[prefix] = fn; }
+const cbHandlers = Object.create(null), cbRoles = Object.create(null);
+/** Tugma ishlovchisini ro'yxatdan o'tkazish: fn(qiymat, kim) → { toast, label }; opts.roles — kim bosa oladi */
+function onButton(prefix, fn, opts) { cbHandlers[prefix] = fn; if (opts && opts.roles) cbRoles[prefix] = opts.roles; }
 /** «✅ Bog'landim» tugmasi */
 async function onCallback(cq) {
   const data = String(cq.data || '');
@@ -692,6 +707,8 @@ async function onCallback(cq) {
   if (cbHandlers[pre]) {
     if (!(await isStaffChat(chatId))) return answer('Ruxsat yo‘q.');
     const u0 = await userByChat(chatId);
+    const need = cbRoles[pre];
+    if (need && !(u0 && need.indexOf(u0.role) >= 0)) return answer('Buni faqat direktor tasdiqlaydi.');
     const who0 = (u0 && u0.name) || [cq.from && cq.from.first_name, cq.from && cq.from.last_name].filter(Boolean).join(' ') || 'Xodim';
     let r = null;
     try { r = await cbHandlers[pre](data.slice(pre.length + 1), who0); } catch (e) { r = { toast: 'Xato: ' + e.message }; }
@@ -2345,4 +2362,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { onButton, ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { notifyDirectors, onButton, ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };

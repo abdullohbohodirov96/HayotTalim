@@ -61,19 +61,37 @@ async function splitAndSend(url, send, opts) {
       if (parts > MAX_PARTS) throw new Error('Video juda katta (' + Math.round(size / 1048576) + ' MB)');
       fs.readdirSync(dir).filter(f => /^p\d+\.mp4$/.test(f)).forEach(f => fs.unlinkSync(path.join(dir, f)));
       const seg = Math.max(30, Math.ceil(dur / parts));
+      /* faststart — Telegram videoni yuklab bo'lmasdan ochib ko'rsata olsin (oqim) */
       const r = await run(ff, ['-hide_banner', '-loglevel', 'error', '-i', src, '-map', '0', '-c', 'copy', '-f', 'segment',
-        '-segment_time', String(seg), '-reset_timestamps', '1', '-movflags', '+faststart', path.join(dir, 'p%03d.mp4')]);
+        '-segment_time', String(seg), '-reset_timestamps', '1', '-segment_format_options', 'movflags=+faststart', path.join(dir, 'p%03d.mp4')]);
       if (r.code !== 0) throw new Error('ffmpeg bo‘la olmadi: ' + String(r.err).slice(-300));
       files = fs.readdirSync(dir).filter(f => /^p\d+\.mp4$/.test(f)).sort().map(f => path.join(dir, f));
       if (files.length && files.every(f => fs.statSync(f).size <= PART_MAX)) break;
       parts = Math.ceil(parts * 1.5) + 1; files = [];
     }
     if (!files.length) throw new Error('Bo‘laklar 50 MB dan kichik bo‘lmadi');
-    for (let i = 0; i < files.length; i++) await send(fs.readFileSync(files[i]), i + 1, files.length);
+    for (let i = 0; i < files.length; i++) {
+      const meta = await metaOf(ff, files[i], dir, i);
+      await send(fs.readFileSync(files[i]), i + 1, files.length, meta);
+    }
     return { parts: files.length };
   } finally {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { }
   }
 }
 
-module.exports = { splitAndSend, available, ffmpegPath, durationOf };
+/** Telegram uchun: eni, bo'yi, davomiyligi va muqova rasmi — shunda video to'g'ri (yotiq, 16:9) ko'rinadi va darhol ochiladi */
+async function metaOf(ff, file, dir, i) {
+  const pr = await run(ff, ['-hide_banner', '-i', file], 30000);
+  const dur = Math.round(durationOf(pr.err));
+  const m = /Video:[^\n]*?\b(\d{2,5})x(\d{2,5})\b/.exec(pr.err || '');
+  const meta = { duration: dur || 0, width: m ? Number(m[1]) : 0, height: m ? Number(m[2]) : 0, thumb: null };
+  /* Muqova: boshidagi qora «ism» kadri emas — videoning 1/3 qismidan bitta kadr */
+  const at = Math.max(1, Math.min(60, Math.floor((dur || 30) / 3)));
+  const jpg = path.join(dir, 't' + i + '.jpg');
+  const t = await run(ff, ['-hide_banner', '-loglevel', 'error', '-ss', String(at), '-i', file, '-frames:v', '1', '-vf', 'scale=320:-2', '-q:v', '5', '-y', jpg], 60000).catch(() => null);
+  if (t && t.code === 0 && fs.existsSync(jpg) && fs.statSync(jpg).size < 200000) meta.thumb = fs.readFileSync(jpg);
+  return meta;
+}
+
+module.exports = { metaOf, splitAndSend, available, ffmpegPath, durationOf };

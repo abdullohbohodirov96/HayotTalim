@@ -135,17 +135,17 @@
               }
             }, 'Qo’shilmaganlarga yana yuborish') : null,
             l.recording && l.recording.shareUrl ? h('a', { class: 'btn sm', href: l.recording.shareUrl, target: '_blank', rel: 'noopener' }, '▶ Dars yozuvi' + (l.recording.dur ? ' (' + l.recording.dur + ')' : '')) : null,
-            l.recording && App.can('group.edit') ? h('button', { class: 'btn sm', title: 'Noto‘g‘ri video kelgan bo‘lsa — Zoom’dan oxirgi seans yozuvini qaytadan olish va yana tasdiqqa yuborish', onclick: async function () {
+            l.recording && App.user && App.user.role === 'direktor' ? h('button', { class: 'btn sm', title: 'Noto‘g‘ri video kelgan bo‘lsa — Zoom’dan oxirgi seans yozuvini qaytadan olish va yana tasdiqqa yuborish', onclick: async function () {
               try { var r = await D.api('POST', 'api/zoom/recording', { id: l.id, action: 'refetch' }); UI.toast('Yozuv qaytadan olindi' + (r.dur ? ' (' + r.dur + ')' : '') + (r.same ? ' — Zoom’da boshqa yozuv yo‘q' : '') + '. Tasdiqlang.', r.same ? 'info' : 'ok'); reload(App); }
               catch (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); }
             } }, '🔄 Yozuvni qaytadan olish') : null,
             /* Yozuv tayyor — rahbariyat ko'rib tasdiqlagach guruhga boradi */
-            l.recPending && App.can('group.edit') ? h('button', { class: 'btn sm primary', onclick: async function () {
+            l.recPending && App.user && App.user.role === 'direktor' ? h('button', { class: 'btn sm primary', onclick: async function () {
               if (!window.confirm('Dars yozuvi guruh chatiga yuborilsinmi?')) return;
               try { await D.api('POST', 'api/zoom/recording', { id: l.id }); UI.toast('Guruhga yuborildi ✅', 'ok'); reload(App); }
               catch (e) { UI.toast(e.message || 'Yuborilmadi', 'bad'); }
             } }, '✅ Yozuvni guruhga yuborish') : null,
-            l.recPending && App.can('group.edit') ? h('button', { class: 'btn sm', onclick: async function () {
+            l.recPending && App.user && App.user.role === 'direktor' ? h('button', { class: 'btn sm', onclick: async function () {
               try { await D.api('POST', 'api/zoom/recording', { id: l.id, action: 'reject' }); UI.toast('Guruhga yuborilmaydi.', 'ok'); reload(App); }
               catch (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); }
             } }, '❌ Yubormaslik') : null,

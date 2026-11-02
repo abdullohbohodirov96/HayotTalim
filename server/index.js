@@ -1474,12 +1474,12 @@ function registerZoomButtons() {
     if (r.error) return { toast: r.error };
     await writeAudit({ name: who, role: 'bot' }, 'Zoom: dars yozuvi guruhga yuborildi', id, '');
     return { toast: 'Yuborilmoqda… tugagach xabar beraman', label: '⏳ Guruhga yuborilmoqda — ' + who };
-  });
+  }, { roles: ['direktor'] });
   bot.onButton('zx', async (id, who) => {
     const r = await zoom.decideRecording(store, id, false, who, zoomCtx());
     if (r.already) return { toast: 'Allaqachon yuborilgan.', label: '✅ Guruhga yuborilgan' };
     return r.error ? { toast: r.error } : { toast: 'Guruhga yuborilmaydi.', label: '❌ Yuborilmadi — ' + who };
-  });
+  }, { roles: ['direktor'] });
 }
 try { registerZoomButtons(); } catch (e) { console.error('zoom tugmalari:', e.message); }
 
@@ -1489,13 +1489,15 @@ function zoomCtx() {
     send: (msg) => { try { return require('./bot').enqueue(Object.assign({}, msg, { kind: 'dars' }), 6 * 3600 * 1000); } catch (e) { return null; } },
     sendGroup: (g, text) => require('./bot').sendToGroup(g, text),
     notifyStaff: (text, opts) => require('./bot').notifyStaff(text, opts),
+    /* Dars yozuvi tasdig'i — hozircha faqat direktorga */
+    notifyDirectors: (text, opts) => require('./bot').notifyDirectors(text, opts),
     sendBigVideo: async (chatId, url, caption) => {
       const bv = require('./bigvideo');
       if (!(await bv.available())) throw new Error('ffmpeg yo‘q');
       const send = zoomCtx().sendVideo;
-      return bv.splitAndSend(url, (buf, i, n) => send(chatId, buf, caption + (n > 1 ? '\n🎬 ' + i + '/' + n + '-qism' : '')));
+      return bv.splitAndSend(url, (buf, i, n, meta) => send(chatId, buf, caption + (n > 1 ? '\n🎬 ' + i + '/' + n + '-qism' : ''), meta));
     },
-    sendVideo: async (chatId, buf, caption) => {
+    sendVideo: async (chatId, buf, caption, meta) => {
       const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
       if (!tokenTg) throw new Error('bot token yo‘q');
       const fd = new FormData();
@@ -1503,6 +1505,10 @@ function zoomCtx() {
       fd.append('caption', caption);
       fd.append('parse_mode', 'HTML');
       fd.append('supports_streaming', 'true');
+      /* O'lcham va davomiylik — Telegram videoni to'g'ri (yotiq) ko'rsatadi; muqova — boshidagi qora kadr emas */
+      if (meta && meta.width && meta.height) { fd.append('width', String(meta.width)); fd.append('height', String(meta.height)); }
+      if (meta && meta.duration) fd.append('duration', String(meta.duration));
+      if (meta && meta.thumb) fd.append('thumbnail', new Blob([meta.thumb], { type: 'image/jpeg' }), 'muqova.jpg');
       fd.append('video', new Blob([buf], { type: 'video/mp4' }), 'dars.mp4');
       const r = await fetch('https://api.telegram.org/bot' + tokenTg + '/sendVideo', { method: 'POST', body: fd });
       const j = await r.json().catch(() => ({}));
@@ -4050,7 +4056,7 @@ async function handleApi(req, res, url) {
     return send(res, 200, { ok: true, joinCode: g.joinCode });
   }
   if (route === 'zoom/recording' && req.method === 'POST') {
-    if (!A.can(user, 'group.edit')) return nope();
+    if (user.role !== 'direktor') return nope('Dars yozuvini faqat direktor tasdiqlaydi.');
     const body = await readBody(req);
     if (body.action === 'refetch') {
       const rr = await zoom.refetchRecording(store, body.id, zoomCtx()).catch(e => ({ error: 'Zoom: ' + e.message, code: 502 }));

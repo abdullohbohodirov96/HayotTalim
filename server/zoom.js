@@ -335,14 +335,15 @@ function recLink(r) { return r.shareUrl || (r.files && r.files[0] && r.files[0].
 async function askRecordingApproval(store, rec, ctx) {
   if (rec.recAsked || rec.recSent || !rec.recording) return;
   rec.recPending = true;
-  if (!ctx.notifyStaff) return;
+  const notify = ctx.notifyDirectors || ctx.notifyStaff;
+  if (!notify) return;
   const r = rec.recording, link = recLink(r);
   const txt = '📹 Dars yozuvi tayyor — ' + rec.groupName + '\n📅 ' + rec.date + ' · ' + rec.start +
     (r.durSec ? '\n⏱ Davomiyligi: ' + fmtDur(r.durSec) + (tooShort(r, rec) ? ' ⚠️ juda qisqa — haqiqiy dars yozuvimi, tekshiring' : '') : '') +
     (link ? '\n▶️ ' + link + (r.password ? '\n🔑 Parol: ' + r.password : '') : '') +
     '\n\nKo‘rib chiqing. «✅ Guruhga yuborish» ni bossangiz, o‘quvchilar guruhiga boradi.';
   try {
-    await ctx.notifyStaff(txt, { buttons: [[{ text: '✅ Guruhga yuborish', callback_data: 'zr:' + rec.id }, { text: '❌ Yubormaslik', callback_data: 'zx:' + rec.id }]] });
+    await notify(txt, { buttons: [[{ text: '✅ Guruhga yuborish', callback_data: 'zr:' + rec.id }, { text: '❌ Yubormaslik', callback_data: 'zx:' + rec.id }]] });
     rec.recAsked = ctx.stamp();
   } catch (e) { }
 }
@@ -380,11 +381,12 @@ async function decideRecording(store, id, approve, who, ctx) {
     if (sent) { rec.recSent = ctx.stamp(); rec.recPending = false; delete rec.recRejected; }
     delete rec.recSending;
     await store.set(COL + rec.id, rec);
-    if (ctx.notifyStaff) {
+    const notifyR = ctx.notifyDirectors || ctx.notifyStaff;
+    if (notifyR) {
       const txt = sent
         ? '✅ Dars yozuvi guruhga yuborildi — ' + rec.groupName + ' (' + rec.date + ')' + (rec.recParts ? '\n🎬 Video ' + rec.recParts + ' qismda' : '') + (rec.recNote ? '\n⚠️ ' + rec.recNote : '')
         : '⚠️ Dars yozuvi guruhga yuborilmadi — ' + rec.groupName + ': ' + (rec.recNote || 'nomaʼlum xato');
-      try { await ctx.notifyStaff(txt); } catch (e) { }
+      try { await notifyR(txt); } catch (e) { }
     }
     return sent;
   })();
@@ -397,7 +399,7 @@ async function sendRecording(store, rec, ctx) {
   const caption = '📹 <b>Dars yozuvi</b> — ' + esc(rec.groupName) + '\n📅 ' + rec.date + ' · ' + rec.start;
   /* Kichik fayl bo'lsa — videoning o'zi guruhga; katta bo'lsa — ko'rish havolasi */
   const small = (r.files || []).filter(f => f.size > 0 && f.size <= TG_VIDEO_MAX && f.url).sort((a, b) => b.size - a.size)[0];
-  if (small && ctx.sendVideo) {
+  if (small && ctx.sendVideo && !ctx.sendBigVideo) {
     try {
       const t = await token();
       const res = await fetchImpl(small.url + (small.url.indexOf('?') >= 0 ? '&' : '?') + 'access_token=' + encodeURIComponent(t));
@@ -409,7 +411,7 @@ async function sendRecording(store, rec, ctx) {
     } catch (e) { rec.recNote = 'Video yuborilmadi: ' + e.message; }
   }
   /* Katta video: sifatini buzmasdan 50 MB lik bo'laklarga bo'lib, VIDEO qilib yuboramiz (1/5, 2/5 …) */
-  if (!small && ctx.sendBigVideo) {
+  if (ctx.sendBigVideo) {
     const pref = ['shared_screen_with_speaker_view', 'shared_screen_with_gallery_view', 'active_speaker', 'speaker_view', 'gallery_view', 'shared_screen'];
     const big = (r.files || []).filter(f => f.url && f.size > 0)
       .sort((a, b) => ((pref.indexOf(a.type) + 1 || 99) - (pref.indexOf(b.type) + 1 || 99)) || (b.size - a.size))[0];
