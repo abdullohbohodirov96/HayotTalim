@@ -391,14 +391,16 @@
 
 
   /* =================== DAFTAR SHABLONLARI =================== */
+  /* Fe'l shakllari: bitta ma'no + 6 shakl (masdar orada) */
   var FORMS6 = [
-    ['الْمَاضِي', 'Moziy', 'nb-c1'], ['الْمُضَارِع', 'Muzori’', 'nb-c2'], ['الْأَمْر', 'Amr', 'nb-c3'],
-    ['الْمَصْدَر', 'Masdar', 'nb-c4'], ['اسْمُ الْفَاعِل', 'Ismi fo‘il', 'nb-c5'], ['اسْمُ الْمَفْعُول', 'Ismi maf’ul', 'nb-c6']
+    ['الْمَاضِي', 'Moziy · o‘tgan zamon', 'nb-c1'], ['الْمُضَارِع', 'Muzori’ · hozirgi zamon', 'nb-c2'], ['الْمَصْدَر', 'Masdar', 'nb-c4'],
+    ['الْأَمْر', 'Amr · buyruq', 'nb-c3'], ['اسْمُ الْفَاعِل', 'Ismi fo‘il', 'nb-c5'], ['اسْمُ الْمَفْعُول', 'Ismi maf’ul', 'nb-c6']
   ];
+  /* [ma'nosi, moziy, muzori', masdar, amr, ismi fo'il, ismi maf'ul] */
   var VERBS6 = [
-    [['كَتَبَ', 'yozdi'], ['يَكْتُبُ', 'yozadi'], ['اُكْتُبْ', 'yoz!'], ['كِتَابَةٌ', 'yozish'], ['كَاتِبٌ', 'yozuvchi'], ['مَكْتُوبٌ', 'yozilgan']],
-    [['فَتَحَ', 'ochdi'], ['يَفْتَحُ', 'ochadi'], ['اِفْتَحْ', 'och!'], ['فَتْحٌ', 'ochish'], ['فَاتِحٌ', 'ochuvchi'], ['مَفْتُوحٌ', 'ochiq, ochilgan']],
-    [['عَلِمَ', 'bildi'], ['يَعْلَمُ', 'biladi'], ['اِعْلَمْ', 'bil!'], ['عِلْمٌ', 'bilish, ilm'], ['عَالِمٌ', 'biluvchi, olim'], ['مَعْلُومٌ', 'ma’lum']]
+    ['yozmoq', 'كَتَبَ', 'يَكْتُبُ', 'كِتَابَةٌ', 'اُكْتُبْ', 'كَاتِبٌ', 'مَكْتُوبٌ'],
+    ['ochmoq', 'فَتَحَ', 'يَفْتَحُ', 'فَتْحٌ', 'اِفْتَحْ', 'فَاتِحٌ', 'مَفْتُوحٌ'],
+    ['bilmoq', 'عَلِمَ', 'يَعْلَمُ', 'عِلْمٌ', 'اِعْلَمْ', 'عَالِمٌ', 'مَعْلُومٌ']
   ];
   var PRON = [
     ['هُوَ', 'u (erkak)'], ['هُمَا', 'u ikkovi (erkak)'], ['هُمْ', 'ular (erkak)'],
@@ -428,12 +430,12 @@
   function cellAr(v) { return '<td class="nb-ar" dir="rtl">' + (v ? esc(v) : '<br>') + '</td>'; }
   function cellM(v) { return '<td class="nb-m" dir="ltr">' + (v ? esc(v) : '<br>') + '</td>'; }
   function formsTable(rows, empty) {
-    var hd = '<tr><th class="nb-num">№</th>' + FORMS6.map(function (f) {
-      return '<th class="nb-h ' + f[2] + '">' + f[0] + '<small>' + f[1] + '</small></th><th class="nb-m">Ma’nosi</th>';
+    var hd = '<tr><th class="nb-num">№</th><th class="nb-mh">Ma’nosi</th>' + FORMS6.map(function (f) {
+      return '<th class="nb-h ' + f[2] + '">' + f[0] + '<small>' + f[1] + '</small></th>';
     }).join('') + '</tr>';
     var body = '', n = 0;
-    rows.forEach(function (r) { n++; body += '<tr><td class="nb-num">' + n + '</td>' + r.map(function (c) { return cellAr(c[0]) + cellM(c[1]); }).join('') + '</tr>'; });
-    for (var i = 0; i < empty; i++) { n++; body += '<tr><td class="nb-num">' + n + '</td>' + FORMS6.map(function () { return cellAr('') + cellM(''); }).join('') + '</tr>'; }
+    rows.forEach(function (r) { n++; body += '<tr><td class="nb-num">' + n + '</td><td class="nb-mean" dir="ltr">' + esc(r[0]) + '</td>' + r.slice(1).map(cellAr).join('') + '</tr>'; });
+    for (var i = 0; i < empty; i++) { n++; body += '<tr><td class="nb-num">' + n + '</td><td class="nb-mean" dir="ltr"><br></td>' + FORMS6.map(function () { return cellAr(''); }).join('') + '</tr>'; }
     return '<table class="nb-tbl" dir="rtl"><thead>' + hd + '</thead><tbody>' + body + '</tbody></table>';
   }
   function conjTable(verb, filled) {
@@ -452,7 +454,7 @@
   }
   var NB_TEMPLATES = [
     { id: 'blank', icon: '📄', title: 'Bo‘sh daftar', sub: 'Toza sahifa — xohlagan narsangizni yozasiz', name: 'Yangi daftar', html: function () { return '<p><br></p>'; } },
-    { id: 'forms', icon: '📊', title: 'Fe’l shakllari', sub: 'Moziy · Muzori’ · Amr · Masdar · Ismi fo‘il · Ismi maf’ul — har birining ma’nosi bilan', name: 'Fe’l shakllari',
+    { id: 'forms', icon: '📊', title: 'Fe’l shakllari', sub: 'Ma’nosi · Moziy · Muzori’ · Masdar · Amr · Ismi fo‘il · Ismi maf’ul', name: 'Fe’l shakllari',
       html: function () { return '<h2>Fe’llarning 6 shakli</h2>' + formsTable(VERBS6, 7) + '<p><br></p>'; } },
     { id: 'conj', icon: '🔤', title: 'Fe’l tuslash (namuna)', sub: 'كَتَبَ fe’li 14 olmosh bilan: moziy, muzori’, amr va ma’nolari', name: 'Fe’l tuslash: كَتَبَ',
       html: function () { return conjTable(['كَتَبَ', 'yozmoq'], true) + '<p><br></p>'; } },
@@ -467,10 +469,11 @@
   }
   function tplPreview(id) {
     if (id === 'blank') return h('div', { class: 'pv-blank' }, [h('i'), h('i'), h('i')]);
-    var cols = id === 'forms' ? 13 : 8, rows = id === 'forms' ? 5 : 7, out = [];
+    var cols = id === 'forms' ? 8 : 8, rows = 7, out = [];
     for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
-      var cls = r === 0 ? (c % 2 ? 'h' + ((c >> 1) % 6 + 1) : 'hm') : (c % 2 ? '' : 'm');
-      if (id === 'forms') cls = r === 0 ? (c === 0 ? 'hm' : (c % 2 ? 'h' + (((c - 1) >> 1) % 6 + 1) : 'hm')) : (c === 0 ? 'm' : (c % 2 ? '' : 'm'));
+      var cls;
+      if (id === 'forms') cls = r === 0 ? (c < 2 ? 'hm' : 'h' + (c - 1)) : (c === 1 ? 'mn' : (c === 0 ? 'm' : ''));
+      else cls = r === 0 ? (c % 2 ? 'hm' : 'h' + ((c >> 1) % 6 + 1)) : (c % 2 ? 'm' : '');
       out.push(h('span', { class: cls }));
     }
     return h('div', { class: 'pv-grid', style: 'grid-template-columns:repeat(' + cols + ',1fr)' }, out);

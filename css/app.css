@@ -5118,3 +5118,7 @@ body.bk-open{overflow:hidden}
 .nb-exp-i{font-size:26px}.nb-exp b{display:block}.nb-exp small{color:var(--muted);font-size:12.5px}
 .nb-send-info{margin:-2px 0 6px;font-size:13px}
 @media (max-width:720px){.nb-ed{padding:16px 12px;font-size:19px}.nb-tpls{grid-template-columns:1fr 1fr}.nb-tpl-pv{height:70px}}
+
+.pv-grid{direction:rtl}.pv-grid span.mn{background:#fff3c4}
+.nb-ed .nb-tbl th.nb-mh,.nb-pres-body .nb-tbl th.nb-mh{background:#f9a825;color:#fff;font-family:Manrope,sans-serif;font-size:.8em}
+.nb-tbl td.nb-mean{background:#fffbea;color:#3d3420;font-family:Manrope,sans-serif;font-size:.92em;font-weight:600;min-width:110px}
