@@ -402,7 +402,10 @@ async function overview(store, fromIso) {
       guests: r.guests || []
     });
   }
-  return { configured: configured(), webhook: webhookReady(), lessons: out };
+  /* Kalitlar haqiqatan ishlayaptimi — token olib ko'ramiz (keshlangan) */
+  let auth = null;
+  if (configured()) { try { await token(); auth = { ok: true }; } catch (e) { auth = { ok: false, error: e.message }; } }
+  return { configured: configured(), auth, webhook: webhookReady(), lessons: out };
 }
 
 module.exports = {

@@ -36,15 +36,21 @@
           h('b', {}, 'Zoom hali ulanmagan'),
           h('ol', {}, [
             h('li', {}, 'marketplace.zoom.us → Develop → Build App → «Server-to-Server OAuth» ilova yarating.'),
-            h('li', {}, 'Scopes: meeting:write:admin, meeting:read:admin, recording:read:admin, report:read:admin, user:read:admin.'),
+            h('li', {}, 'Scopes: meeting:write:meeting:admin, meeting:read:meeting:admin, meeting:write:registrant:admin, meeting:read:list_past_participants:admin, cloud_recording:read:list_recording_files:admin.'),
             h('li', {}, 'Render → Environment: ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET (ilovadagi qiymatlar).'),
             h('li', {}, 'Feature → Event Subscriptions: manzil https://saboacademy.uz/api/zoom/webhook, voqealar: Participant joined, Meeting ended, Recording completed. «Secret Token» ni ZOOM_WEBHOOK_SECRET ga yozing.'),
             h('li', {}, 'Zoom sozlamasida Cloud recording yoqilgan bo’lsin.')
           ])
         ]));
+      } else if (d.auth && !d.auth.ok) {
+        view.appendChild(h('div', { class: 'note bad', style: 'margin-bottom:12px' },
+          'Zoom kalitlari ishlamadi: ' + d.auth.error + '. Render’dagi ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET ni tekshiring va Zoom ilovasi «Activated» ekanini ko’ring.'));
       } else if (!d.webhook) {
+        view.appendChild(h('div', { class: 'note ok', style: 'margin-bottom:12px' }, '✓ Zoom ulandi.'));
         view.appendChild(h('div', { class: 'note warn', style: 'margin-bottom:12px' },
           'Webhook ulanmagan (ZOOM_WEBHOOK_SECRET): kim qo’shilgani dars tugagach aniqlanadi, jonli emas.'));
+      } else {
+        view.appendChild(h('div', { class: 'note ok', style: 'margin-bottom:12px' }, '✓ Zoom ulandi, webhook ham ishlayapti.'));
       }
       var ls = d.lessons || [];
       if (!ls.length) {
