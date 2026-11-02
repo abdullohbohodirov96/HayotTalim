@@ -1468,6 +1468,7 @@ function zoomCtx() {
     stamp,
     send: (msg) => { try { return require('./bot').enqueue(Object.assign({}, msg, { kind: 'dars' }), 6 * 3600 * 1000); } catch (e) { return null; } },
     sendGroup: (g, text) => require('./bot').sendToGroup(g, text),
+    notifyStaff: (text) => require('./bot').notifyStaff(text),
     sendVideo: async (chatId, buf, caption) => {
       const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
       if (!tokenTg) throw new Error('bot token yo‘q');

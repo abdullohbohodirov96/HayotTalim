@@ -65,12 +65,13 @@ zoom.setFetch(async (url, opt) => {
   return J({ message: 'nomaʼlum ' + url }, 404);
 });
 
-const sent = [], groupMsgs = [];
+const sent = [], groupMsgs = [], staffMsgs = [];
 let n = 0;
 const ctx = {
   stamp: () => '2026-10-19 18:' + String(n++ % 60).padStart(2, '0'),
   send: async (m) => { sent.push(m); return { id: 'x' }; },
   sendGroup: async (g, text) => { groupMsgs.push({ chat: g.tgChat, text }); return { ok: true }; },
+  notifyStaff: async (text) => { staffMsgs.push(text); return { queued: 1 }; },
   sendVideo: async () => { throw new Error('katta fayl yuborilmasligi kerak edi'); }
 };
 const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
@@ -164,6 +165,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const gl2 = await zoom.guestLink(store, db['zoomlesson/g1__' + iso], 'dinara karimova', {});
   ok('Shu ism qayta so‘ralsa — o‘sha havola, yangi ro‘yxat yo‘q', gl2.again && gl2.joinUrl === gl.joinUrl);
   ok('Bo‘sh ism rad etiladi', !!(await zoom.guestLink(store, rg, '  ', {})).error);
+  ok('Rahbariyatga «yozuv tayyor» xabari bir marta bordi', staffMsgs.filter(t => /Dars yozuvi tayyor/.test(t)).length === 1, JSON.stringify(staffMsgs));
   console.log('\n10. Eski (ro‘yxatli) konferensiya ochiq qilinadi');
   const rr = db['zoomlesson/g1__' + iso];
   rr.open = false; delete rr.openTried; rr.status = 'jonli';

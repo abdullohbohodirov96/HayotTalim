@@ -306,6 +306,16 @@ function recFromPayload(j) {
   if (!files.length) return null;
   return { shareUrl: j.share_url || '', password: j.recording_play_passcode || j.password || '', files };
 }
+/* Rahbariyat va ustozga: «yozuv tayyor» (bir marta) — video kelganini bot orqali bilib turadi */
+async function notifyRecordingStaff(store, rec, ctx) {
+  if (rec.recStaff || !rec.recording || !ctx.notifyStaff) return;
+  const r = rec.recording;
+  const link = r.shareUrl || (r.files && r.files[0] && r.files[0].play) || '';
+  const txt = '📹 Dars yozuvi tayyor — ' + rec.groupName + '\n📅 ' + rec.date + ' · ' + rec.start +
+    (link ? '\n▶️ ' + link + (r.password ? '\n🔑 Parol: ' + r.password : '') : '') +
+    (rec.recSent ? '\n✅ Guruh chatiga yuborildi' : '\n⚠️ Guruh chatiga yuborilmadi' + (rec.recNote ? ': ' + rec.recNote : ''));
+  try { await ctx.notifyStaff(txt); rec.recStaff = ctx.stamp(); } catch (e) { }
+}
 async function sendRecording(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
   if (!g || !g.tgChat) { rec.recNote = 'Guruh Telegramga ulanmagan'; return false; }
@@ -383,6 +393,7 @@ async function tick(store, A, ctx, nowMs) {
         if (!rec.recording) rec.recording = await fetchRecording(store, rec);
         if (rec.recording && await sendRecording(store, rec, ctx)) { rec.recSent = ctx.stamp(); done.push('yozuv ' + id); }
       } catch (e) { rec.recNote = e.message; }
+      await notifyRecordingStaff(store, rec, ctx);
     }
     if (changed) await store.set(COL + id, rec);
   }
@@ -428,6 +439,7 @@ async function webhook(store, body, ctx) {
       if (!r.shareUrl && obj.share_url) r.shareUrl = obj.share_url;
       rec.recording = r;
       if (!rec.recSent) { try { if (await sendRecording(store, rec, ctx)) rec.recSent = ctx.stamp(); } catch (e) { rec.recNote = e.message; } }
+      await notifyRecordingStaff(store, rec, ctx);
     }
   } else return { ok: true, ignored: true };
   await store.set(COL + rec.id, rec);
