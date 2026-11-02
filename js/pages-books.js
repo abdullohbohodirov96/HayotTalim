@@ -20,12 +20,16 @@
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
   var AR_RE = /[؀-ۿ]/;
 
-  /* =================== KITOBLAR RO'YXATI =================== */
+  /* =================== KITOBLAR VA DAFTAR — bitta bo'lim =================== */
+  function tabsBar(App, active) {
+    return UI.tabs([{ id: 'kitob', label: '📚 Kitoblar' }, { id: 'daftar', label: '📝 Daftar' }], active, function (id) {
+      if (id === 'daftar') App.go('notebook'); else App.go('books');
+    });
+  }
   A.Pages.books = function (view, route, App) {
     if (!App.can('curriculum.view') && !App.can('lesson.log')) return App.guard('curriculum.view');
-    view.appendChild(UI.pageHead('Kitoblar', 'Darsda kitobni oching: sahifani yaqinlashtiring, ustiga yozing va chizing', [
-      h('button', { class: 'btn', onclick: function () { App.go('notebook'); } }, [UI.icon('edit'), 'Daftar'])
-    ]));
+    view.appendChild(UI.pageHead('Kitoblar va daftar', 'Darsda kitobni oching, ustiga yozing va chizing; daftarda arabcha tushuntiring', []));
+    view.appendChild(tabsBar(App, 'kitob'));
     view.appendChild(h('div', { class: 'bk-grid' }, BOOKS.map(function (b) {
       var last = Number(lsGet('bk-last-' + b.id)) || 0;
       return h('button', { type: 'button', class: 'bk-card', onclick: function () { openBook(b, last || 1); } }, [
@@ -38,21 +42,29 @@
     if (route && route.id) { var b0 = BOOKS.filter(function (x) { return x.id === route.id; })[0]; if (b0) openBook(b0, Number(lsGet('bk-last-' + b0.id)) || 1); }
   };
 
-  /* =================== KITOB O'QUVCHISI =================== */
+  /* =================== KITOB O'QUVCHISI (pastga aylantirib o'qiladi) =================== */
   var COLORS = ['#111111', '#d32f2f', '#1565c0', '#2e7d32', '#ef6c00', '#ffffff'];
   var SIZES = { s: [0.0022, 0.012, 0.022], m: [0.0038, 0.02, 0.032], l: [0.0065, 0.032, 0.048] };   // qalam, marker, matn
+  var GAP = 14;
 
   function openBook(book, startPage) {
     var st = { page: Math.max(1, Math.min(book.pages, startPage || 1)), zoom: 1, tool: 'hand', color: COLORS[1], size: 'm',
-      pages: {}, undo: {}, hide: false, dirty: {}, saving: false };
+      pages: {}, undo: {}, hide: false, dirty: {}, edit: 0, w: 0, h: 0 };
     var root = h('div', { class: 'bk-view', tabindex: '-1' });
     var stage = h('div', { class: 'bk-stage' });
-    var pageEl = h('div', { class: 'bk-page' });
-    var img = h('img', { class: 'bk-img', alt: '', draggable: 'false' });
-    var cv = h('canvas', { class: 'bk-cv' });
-    var spin = h('div', { class: 'bk-spin' }, 'Yuklanmoqda…');
-    pageEl.appendChild(img); pageEl.appendChild(cv); pageEl.appendChild(spin);
-    stage.appendChild(pageEl);
+    var col = h('div', { class: 'bk-colm' });
+    stage.appendChild(col);
+    /* Har sahifa: rasm + chizma qatlami. Rasm va qatlam faqat ko'rinish yaqinida yuklanadi (xotira tejaladi) */
+    var P = [];
+    for (var n = 1; n <= book.pages; n++) (function (n) {
+      var el = h('div', { class: 'bk-page', 'data-n': n });
+      var img = h('img', { class: 'bk-img', alt: n + '-sahifa', draggable: 'false' });
+      var cv = h('canvas', { class: 'bk-cv' });
+      el.appendChild(img); el.appendChild(cv);
+      var pg = { n: n, el: el, img: img, cv: cv, ctx: cv.getContext('2d'), live: false };
+      P[n] = pg; col.appendChild(el);
+      bindDraw(pg);
+    })(n);
     var pgIn = h('input', { class: 'bk-pgin', type: 'number', min: 1, max: book.pages, value: st.page, 'aria-label': 'Sahifa' });
     var zoomLbl = h('span', { class: 'bk-zl' }, '100%');
     var saveLbl = h('span', { class: 'bk-save' }, '');
@@ -76,7 +88,7 @@
     var sizeBtns = ['s', 'm', 'l'].map(function (k) {
       return h('button', { type: 'button', class: 'bk-sz', title: 'Qalinlik', onclick: function () { st.size = k; paintTools(); } }, h('i', { class: 'bk-dot ' + k }));
     });
-    var hideBtn = tbtn('👁', 'Yozuvlarni yashirish/ko‘rsatish', function () { st.hide = !st.hide; paintTools(); redraw(); });
+    var hideBtn = tbtn('👁', 'Yozuvlarni yashirish/ko‘rsatish', function () { st.hide = !st.hide; paintTools(); redrawAll(); });
     var bottom = h('div', { class: 'bk-bottom' }, [
       h('div', { class: 'bk-tools' }, [toolBtn('hand', '✋', 'Surish'), toolBtn('pen', '✏️', 'Qalam'), toolBtn('mark', '🖍', 'Marker'), toolBtn('text', '🔤', 'Matn'), toolBtn('erase', '🧽', 'O‘chirish')]),
       h('div', { class: 'bk-cols' }, colorBtns),
@@ -88,8 +100,7 @@
     document.body.classList.add('bk-open');
     root.focus();
 
-    /* ---- yozuvlarni yuklash ---- */
-    D.api('GET', 'api/books/annot?book=' + encodeURIComponent(book.id)).then(function (r) { st.pages = (r && r.pages) || {}; redraw(); })
+    D.api('GET', 'api/books/annot?book=' + encodeURIComponent(book.id)).then(function (r) { st.pages = (r && r.pages) || {}; redrawAll(); })
       .catch(function () { saveLbl.textContent = 'Yozuvlar yuklanmadi'; });
 
     /* ---- o'lchamlar ---- */
@@ -98,45 +109,63 @@
       return Math.max(200, Math.min(W, H * book.ratio));
     }
     function fitWidthZoom() { return Math.max(1, (stage.clientWidth - 24) / baseWidth()); }
-    function layout(keepCenter) {
-      var cx = 0.5, cy = 0.5;
-      if (keepCenter && pageEl.offsetWidth) {
-        cx = (stage.scrollLeft + stage.clientWidth / 2 - pageEl.offsetLeft) / pageEl.offsetWidth;
-        cy = (stage.scrollTop + stage.clientHeight / 2 - pageEl.offsetTop) / pageEl.offsetHeight;
+    function dpr() { return Math.min(window.devicePixelRatio || 1, 2); }
+    function sizeCanvas(pg) {
+      if (!pg.live) { if (pg.cv.width) { pg.cv.width = 0; pg.cv.height = 0; } return; }
+      var d = dpr();
+      pg.cv.width = Math.round(st.w * d); pg.cv.height = Math.round(st.h * d);
+      redraw(pg);
+    }
+    function layout(keepAnchor) {
+      /* joyni saqlash: qaysi sahifaning qayeri ekran o'rtasida edi */
+      var anc = null;
+      if (keepAnchor && st.h) {
+        var cy = stage.scrollTop + stage.clientHeight / 2;
+        var k = Math.max(1, Math.min(book.pages, Math.floor((cy - 12) / (st.h + GAP)) + 1));
+        anc = { n: k, fy: (cy - P[k].el.offsetTop) / st.h, fx: (stage.scrollLeft + stage.clientWidth / 2 - P[k].el.offsetLeft) / st.w };
       }
-      var w = Math.round(baseWidth() * st.zoom), hh = Math.round(w / book.ratio);
-      pageEl.style.width = w + 'px'; pageEl.style.height = hh + 'px';
-      var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
-      cv.style.width = w + 'px'; cv.style.height = hh + 'px';
+      st.w = Math.round(baseWidth() * st.zoom); st.h = Math.round(st.w / book.ratio);
+      col.style.width = st.w + 'px';
+      for (var i = 1; i <= book.pages; i++) {
+        var el = P[i].el; el.style.width = st.w + 'px'; el.style.height = st.h + 'px';
+        P[i].cv.style.width = st.w + 'px'; P[i].cv.style.height = st.h + 'px';
+        sizeCanvas(P[i]);
+      }
       zoomLbl.textContent = Math.round(st.zoom * 100) + '%';
-      redraw();
-      if (keepCenter) {
-        stage.scrollLeft = pageEl.offsetLeft + cx * w - stage.clientWidth / 2;
-        stage.scrollTop = pageEl.offsetTop + cy * hh - stage.clientHeight / 2;
+      if (anc) {
+        stage.scrollTop = P[anc.n].el.offsetTop + anc.fy * st.h - stage.clientHeight / 2;
+        stage.scrollLeft = P[anc.n].el.offsetLeft + anc.fx * st.w - stage.clientWidth / 2;
       }
+      watch();
     }
     function setZoom(z) { st.zoom = Math.max(0.5, Math.min(5, z)); layout(true); }
 
-    /* ---- sahifa ---- */
+    /* ---- ko'rinishga yaqin sahifalar yuklanadi ---- */
+    function watch() {
+      var top0 = stage.scrollTop - stage.clientHeight * 1.2, bot0 = stage.scrollTop + stage.clientHeight * 2.2;
+      var best = st.page, bestD = Infinity, mid = stage.scrollTop + stage.clientHeight / 2;
+      for (var i = 1; i <= book.pages; i++) {
+        var pg = P[i], y = pg.el.offsetTop, near = y + st.h > top0 && y < bot0;
+        if (near && !pg.img.getAttribute('src')) pg.img.src = pageUrl(book, i);
+        if (near !== pg.live) { pg.live = near; sizeCanvas(pg); }
+        var d = Math.abs(y + st.h / 2 - mid); if (d < bestD) { bestD = d; best = i; }
+      }
+      if (best !== st.page) { st.page = best; pgIn.value = best; lsSet('bk-last-' + book.id, String(best)); }
+    }
+    var ticking = false;
+    stage.addEventListener('scroll', function () { if (ticking) return; ticking = true; requestAnimationFrame(function () { ticking = false; watch(); }); });
+
     function go(n) {
       n = Math.max(1, Math.min(book.pages, Number(n) || 1));
-      flush();
+      stage.scrollTop = P[n].el.offsetTop - 8;
       st.page = n; pgIn.value = n; lsSet('bk-last-' + book.id, String(n));
-      spin.style.display = 'flex';
-      img.onload = function () { spin.style.display = 'none'; };
-      img.onerror = function () { spin.textContent = 'Sahifa yuklanmadi'; };
-      img.src = pageUrl(book, n);
-      [n + 1, n - 1].forEach(function (k) { if (k >= 1 && k <= book.pages) { var p = new Image(); p.src = pageUrl(book, k); } });
-      stage.scrollTop = 0;
-      redraw();
+      watch();
     }
     pgIn.addEventListener('change', function () { go(pgIn.value); });
 
     /* ---- chizish ---- */
-    var ctx = cv.getContext('2d');
-    function items() { return st.pages[st.page] || (st.pages[st.page] = []); }
-    function drawItem(it, W, H) {
+    function itemsOf(n) { return st.pages[n] || (st.pages[n] = []); }
+    function drawItem(ctx, it, W, H) {
       if (it.t === 'p' || it.t === 'm') {
         var p = it.p; if (p.length < 2) return;
         ctx.save();
@@ -164,16 +193,17 @@
         ctx.restore();
       }
     }
-    function redraw() {
-      var W = cv.width, H = cv.height;
+    function redraw(pg) {
+      if (!pg.live || !pg.cv.width) return;
+      var W = pg.cv.width, H = pg.cv.height, ctx = pg.ctx;
       ctx.clearRect(0, 0, W, H);
       if (st.hide) return;
-      (st.pages[st.page] || []).forEach(function (it) { drawItem(it, W, H); });
-      if (cur) drawItem(cur, W, H);
+      (st.pages[pg.n] || []).forEach(function (it) { drawItem(ctx, it, W, H); });
+      if (pg.cur) drawItem(ctx, pg.cur, W, H);
     }
-    function pt(e) { var r = cv.getBoundingClientRect(); return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))]; }
-    function pushUndo() { var u = st.undo[st.page] || (st.undo[st.page] = []); u.push(JSON.stringify(items())); if (u.length > 60) u.shift(); }
-    function changed() { st.dirty[st.page] = 1; saveLbl.textContent = '…'; clearTimeout(st.t); st.t = setTimeout(flush, 900); }
+    function redrawAll() { for (var i = 1; i <= book.pages; i++) redraw(P[i]); }
+    function pushUndo(n) { st.edit = n; var u = st.undo[n] || (st.undo[n] = []); u.push(JSON.stringify(itemsOf(n))); if (u.length > 60) u.shift(); }
+    function changed(n) { st.dirty[n] = 1; saveLbl.textContent = '…'; clearTimeout(st.t); st.t = setTimeout(flush, 900); }
     function flush() {
       Object.keys(st.dirty).forEach(function (pg) {
         delete st.dirty[pg];
@@ -182,9 +212,8 @@
           .catch(function (e) { saveLbl.textContent = '⚠ Saqlanmadi'; st.dirty[pg] = 1; UI.toast(e.message || 'Saqlanmadi', 'bad'); });
       });
     }
-    var cur = null, drawId = null;
-    function eraseAt(p) {
-      var r = 0.018, list = items(), before = list.length;
+    function eraseAt(pg, p) {
+      var r = 0.018, list = itemsOf(pg.n), before = list.length;
       var keep = list.filter(function (it) {
         if (it.t === 'x') {
           var lines = String(it.v).split('\n'), wq = 0; lines.forEach(function (l) { wq = Math.max(wq, l.length); });
@@ -198,42 +227,44 @@
         }
         return true;
       });
-      if (keep.length !== before) { st.pages[st.page] = keep; redraw(); changed(); }
+      if (keep.length !== before) { st.pages[pg.n] = keep; redraw(pg); changed(pg.n); }
     }
-    cv.addEventListener('pointerdown', function (e) {
-      if (st.tool === 'hand') return;
-      e.preventDefault();
-      if (st.tool === 'text') { textAt(e); return; }
-      cv.setPointerCapture(e.pointerId); drawId = e.pointerId;
-      pushUndo();
-      if (st.tool === 'erase') { cur = null; eraseAt(pt(e)); return; }
-      var p = pt(e), sz = SIZES[st.size];
-      cur = { t: st.tool === 'mark' ? 'm' : 'p', c: st.color, w: st.tool === 'mark' ? sz[1] : sz[0], p: [p[0], p[1]] };
-      redraw();
-    });
-    cv.addEventListener('pointermove', function (e) {
-      if (drawId !== e.pointerId) return;
-      if (st.tool === 'erase') { eraseAt(pt(e)); return; }
-      if (!cur) return;
-      var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-      evs.forEach(function (ev) { var p = pt(ev); var n = cur.p.length; if (Math.abs(p[0] - cur.p[n - 2]) + Math.abs(p[1] - cur.p[n - 1]) > 0.0015) cur.p.push(p[0], p[1]); });
-      redraw();
-    });
-    function endDraw(e) {
-      if (drawId !== e.pointerId) return;
-      drawId = null;
-      if (cur) { items().push(cur); cur = null; redraw(); changed(); }
+    function bindDraw(pg) {
+      var cv = pg.cv, drawId = null;
+      function pt(e) { var r = cv.getBoundingClientRect(); return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))]; }
+      cv.addEventListener('pointerdown', function (e) {
+        if (st.tool === 'hand') return;
+        e.preventDefault();
+        if (st.tool === 'text') { textAt(pg, e, pt(e)); return; }
+        cv.setPointerCapture(e.pointerId); drawId = e.pointerId;
+        pushUndo(pg.n);
+        if (st.tool === 'erase') { pg.cur = null; eraseAt(pg, pt(e)); return; }
+        var p = pt(e), sz = SIZES[st.size];
+        pg.cur = { t: st.tool === 'mark' ? 'm' : 'p', c: st.color, w: st.tool === 'mark' ? sz[1] : sz[0], p: [p[0], p[1]] };
+        redraw(pg);
+      });
+      cv.addEventListener('pointermove', function (e) {
+        if (drawId !== e.pointerId) return;
+        if (st.tool === 'erase') { eraseAt(pg, pt(e)); return; }
+        if (!pg.cur) return;
+        var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+        evs.forEach(function (ev) { var p = pt(ev), c = pg.cur.p, k = c.length; if (Math.abs(p[0] - c[k - 2]) + Math.abs(p[1] - c[k - 1]) > 0.0015) c.push(p[0], p[1]); });
+        redraw(pg);
+      });
+      function endDraw(e) {
+        if (drawId !== e.pointerId) return;
+        drawId = null;
+        if (pg.cur) { itemsOf(pg.n).push(pg.cur); pg.cur = null; redraw(pg); changed(pg.n); }
+      }
+      cv.addEventListener('pointerup', endDraw);
+      cv.addEventListener('pointercancel', endDraw);
     }
-    cv.addEventListener('pointerup', endDraw);
-    cv.addEventListener('pointercancel', endDraw);
-
-    /* matn yozish */
-    function textAt(e) {
-      var p = pt(e), r = cv.getBoundingClientRect();
+    function textAt(pg, e, p) {
+      var r = pg.el.getBoundingClientRect();
       var fs = SIZES[st.size][2] * r.width;
       var ta = h('textarea', { class: 'bk-ta', dir: 'auto', rows: 1, placeholder: 'Yozing… (Enter — tayyor)',
-        style: 'left:' + (e.clientX - pageEl.getBoundingClientRect().left) + 'px;top:' + (e.clientY - pageEl.getBoundingClientRect().top) + 'px;font-size:' + fs + 'px;color:' + st.color });
-      pageEl.appendChild(ta);
+        style: 'left:' + (e.clientX - r.left) + 'px;top:' + (e.clientY - r.top) + 'px;font-size:' + fs + 'px;color:' + st.color });
+      pg.el.appendChild(ta);
       setTimeout(function () { ta.focus(); }, 30);
       var done = false;
       function commit() {
@@ -241,11 +272,9 @@
         var v = ta.value.replace(/\s+$/, '');
         ta.remove();
         if (!v) return;
-        pushUndo();
-        var x = p[0];
-        if (AR_RE.test(v)) { ctx.font = '600 ' + (SIZES[st.size][2] * cv.width) + 'px Amiri, serif'; }
-        items().push({ t: 'x', c: st.color, s: SIZES[st.size][2], x: x, y: p[1], v: v });
-        redraw(); changed();
+        pushUndo(pg.n);
+        itemsOf(pg.n).push({ t: 'x', c: st.color, s: SIZES[st.size][2], x: p[0], y: p[1], v: v });
+        redraw(pg); changed(pg.n);
       }
       ta.addEventListener('keydown', function (ev) {
         ev.stopPropagation();
@@ -255,15 +284,16 @@
       ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
       ta.addEventListener('blur', commit);
     }
-
     function undo() {
-      var u = st.undo[st.page]; if (!u || !u.length) { UI.toast('Bekor qiladigan narsa yo‘q.', 'info'); return; }
-      st.pages[st.page] = JSON.parse(u.pop()); redraw(); changed();
+      var n = st.edit || st.page, u = st.undo[n];
+      if (!u || !u.length) { UI.toast('Bekor qiladigan narsa yo‘q.', 'info'); return; }
+      st.pages[n] = JSON.parse(u.pop()); redraw(P[n]); changed(n);
     }
     function clearPage() {
-      if (!items().length) return;
-      if (!window.confirm('Shu sahifadagi hamma yozuv va chizmalar o‘chirilsinmi?')) return;
-      pushUndo(); st.pages[st.page] = []; redraw(); changed();
+      var n = st.page;
+      if (!itemsOf(n).length) { UI.toast(n + '-sahifada yozuv yo‘q.', 'info'); return; }
+      if (!window.confirm(n + '-sahifadagi hamma yozuv va chizmalar o‘chirilsinmi?')) return;
+      pushUndo(n); st.pages[n] = []; redraw(P[n]); changed(n);
     }
     function setTool(t) { st.tool = t; paintTools(); }
     function paintTools() {
@@ -274,7 +304,7 @@
       root.classList.toggle('bk-drawing', st.tool !== 'hand');
     }
 
-    /* ---- surish va ikki barmoq bilan yaqinlashtirish ---- */
+    /* ---- ikki barmoq bilan yaqinlashtirish, Ctrl+g'ildirak ---- */
     var pinch = null;
     stage.addEventListener('touchstart', function (e) {
       if (e.touches.length === 2) {
@@ -287,9 +317,8 @@
       if (!pinch || e.touches.length !== 2) return;
       e.preventDefault();
       var a = e.touches[0], b = e.touches[1];
-      var d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      var z = Math.max(0.5, Math.min(5, pinch.z * d / pinch.d));
-      if (Math.abs(z - st.zoom) > 0.02) { st.zoom = z; layout(true); }
+      var z = Math.max(0.5, Math.min(5, pinch.z * Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) / pinch.d));
+      if (Math.abs(z - st.zoom) > 0.03) { st.zoom = z; layout(true); }
     }, { passive: false });
     stage.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
     stage.addEventListener('wheel', function (e) {
@@ -306,31 +335,24 @@
     window.addEventListener('mouseup', onUp);
     function onMove(e) { if (!drag) return; stage.scrollLeft = drag.l - (e.clientX - drag.x); stage.scrollTop = drag.t - (e.clientY - drag.y); }
     function onUp() { drag = null; stage.classList.remove('grab'); }
-    /* telefonda: chapga/o'ngga surish — sahifa almashadi (yaqinlashtirilmagan bo'lsa) */
-    var sw = null;
-    stage.addEventListener('touchstart', function (e) { if (e.touches.length === 1 && st.tool === 'hand' && st.zoom <= 1.01) sw = { x: e.touches[0].clientX, y: e.touches[0].clientY }; else sw = null; }, { passive: true });
-    stage.addEventListener('touchend', function (e) {
-      if (!sw || !e.changedTouches.length) return;
-      var dx = e.changedTouches[0].clientX - sw.x, dy = e.changedTouches[0].clientY - sw.y; sw = null;
-      if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) go(st.page + (dx < 0 ? 1 : -1));
-    });
 
-    /* ---- klaviatura ---- */
     function onKey(e) {
       if (/^(INPUT|TEXTAREA)$/.test((e.target && e.target.tagName) || '')) return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown') { go(st.page + 1); e.preventDefault(); }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(st.page - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { go(1); e.preventDefault(); }
+      else if (e.key === 'End') { go(book.pages); e.preventDefault(); }
       else if (e.key === '+' || e.key === '=') setZoom(st.zoom * 1.25);
       else if (e.key === '-') setZoom(st.zoom / 1.25);
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { undo(); e.preventDefault(); }
       else if (e.key === 'Escape' && !document.fullscreenElement) close();
     }
     document.addEventListener('keydown', onKey);
-    var ro = window.ResizeObserver ? new ResizeObserver(function () { layout(false); }) : null;
+    var lastW = 0;
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (stage.clientWidth !== lastW) { lastW = stage.clientWidth; layout(true); } }) : null;
     if (ro) ro.observe(stage); else window.addEventListener('resize', onResize);
-    function onResize() { layout(false); }
+    function onResize() { layout(true); }
 
-    /* ---- sahifalar ro'yxati ---- */
     function showThumbs() {
       var ov = h('div', { class: 'bk-thumbs' });
       var grid = h('div', { class: 'bk-tgrid' });
@@ -355,8 +377,12 @@
       root.remove(); document.body.classList.remove('bk-open');
     }
     paintTools();
-    /* Boshida: noutbukda sahifa eniga (900px gacha) — o'qishga qulay; telefonda — butun sahifa */
-    requestAnimationFrame(function () { st.zoom = Math.max(1, Math.min(fitWidthZoom(), 900 / baseWidth())); layout(false); go(st.page); });
+    /* Boshida: noutbukda sahifa eniga (900px gacha) — o'qishga qulay; telefonda — eniga to'liq */
+    requestAnimationFrame(function () {
+      lastW = stage.clientWidth;
+      st.zoom = Math.max(1, Math.min(fitWidthZoom(), 900 / baseWidth()));
+      layout(false); go(st.page);
+    });
   }
 
   /* =================== DAFTAR =================== */
@@ -366,13 +392,13 @@
   A.Pages.notebook = function (view, route, App) {
     if (!App.can('curriculum.view') && !App.can('lesson.log')) return App.guard('curriculum.view');
     if (route && route.id) { editor(view, route.id, App); return; }
-    view.appendChild(UI.pageHead('Daftar', 'Darsda tushuntirish uchun yozuvlar — arabcha va o‘zbekcha', [
-      h('button', { class: 'btn', onclick: function () { App.go('books'); } }, [UI.icon('layers'), 'Kitoblar']),
+    view.appendChild(UI.pageHead('Kitoblar va daftar', 'Darsda tushuntirish uchun yozuvlar — arabcha va o‘zbekcha', [
       h('button', { class: 'btn primary', onclick: function () {
         D.api('POST', 'api/notebook', { title: 'Yangi daftar', html: '' }).then(function (r) { App.go('notebook', { id: r.notebook.id }); })
           .catch(function (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); });
       } }, [UI.icon('plus'), 'Yangi daftar'])
     ]));
+    view.appendChild(tabsBar(App, 'daftar'));
     var box = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
     view.appendChild(box);
     D.api('GET', 'api/notebooks').then(function (r) {

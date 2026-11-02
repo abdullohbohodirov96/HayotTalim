@@ -182,8 +182,7 @@
     { id: 'studentProgress', label: 'O’quvchilar rivojlanishi', icon: 'chart', perm: 'lesson.log' },
     { id: 'vocabAdmin', label: 'Lug’at bazasi', icon: 'award', perm: 'curriculum.view' },
     { id: 'videoLib', label: 'Video darsliklar', icon: 'play', perm: 'curriculum.view' },
-    { id: 'books', label: 'Kitoblar', icon: 'layers', perm: 'curriculum.view' },
-    { id: 'notebook', label: 'Daftar', icon: 'edit', perm: 'curriculum.view' },
+    { id: 'books', label: 'Kitoblar va daftar', icon: 'layers', perm: 'curriculum.view' },
     { id: 'rating', label: 'Reyting', icon: 'award', perm: 'nav.students' },
     { id: 'chat', label: 'Suhbat', icon: 'chat', perm: 'nav.chat' },
     { id: 'tasks', label: 'Vazifalar', icon: 'task', perm: 'nav.tasks' },
@@ -205,7 +204,8 @@
     allowedNav().forEach(function (n) {
       var active = App.route.name === n.id ||
         (n.id === 'students' && App.route.name === 'student') ||
-        (n.id === 'groups' && App.route.name === 'group');
+        (n.id === 'groups' && App.route.name === 'group') ||
+        (n.id === 'books' && App.route.name === 'notebook');
       var b = h('button', {
         type: 'button', 'aria-current': active ? 'page' : null,
         onclick: function () { App.go(n.id); }

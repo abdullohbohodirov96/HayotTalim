@@ -1189,6 +1189,7 @@
     'Video darsliklar': ['Видеоуроки', 'Video lessons', 'دروس الفيديو'],
     'Kitoblar': ['Книги', 'Books', 'الكتب'],
     'Daftar': ['Тетрадь', 'Notebook', 'الدفتر'],
+    'Kitoblar va daftar': ['Книги и тетрадь', 'Books & notebook', 'الكتب والدفتر'],
     'O’quvchilar rivojlanishi': ['Прогресс учеников', 'Student progress', 'تقدّم الطلاب'],
     'Lug’at bazasi': ['База слов', 'Vocabulary base', 'قاعدة المفردات'],
     'Zoom darslar': ['Уроки в Zoom', 'Zoom lessons', 'دروس زوم'],
