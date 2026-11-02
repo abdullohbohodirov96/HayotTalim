@@ -12,7 +12,8 @@
 
   /* Kitoblar katalogi: sahifalar assets/books/<id>/pNN.webp */
   var BOOKS = [
-    { id: 'nabra-a0', title: 'Nabra — A0', sub: '1-kitob · O‘qish va yozish', ar: 'نَبْرَة', pages: 48, ratio: 1600 / 2264 }
+    { id: 'nabra-a0', title: 'Nabra — A0', sub: '1-kitob · O‘qish va yozish', ar: 'نَبْرَة', pages: 48, ratio: 1600 / 2264 },
+    { id: 'a0-uy-vazifa', title: 'Uy vazifa daftari — A0', sub: 'وَاجِبَاتِي · Har dars uchun uy vazifasi', ar: 'وَاجِبَاتِي', pages: 27, ratio: 1600 / 2265 }
   ];
   function pageUrl(b, n) { return 'assets/books/' + b.id + '/p' + (n < 10 ? '0' : '') + n + '.webp'; }
   function coverUrl(b) { return 'assets/books/' + b.id + '/cover.webp'; }
@@ -102,13 +103,39 @@
     var zoomLbl = h('span', { class: 'bk-zl' }, '100%');
     var saveLbl = h('span', { class: 'bk-save' }, '');
     function tbtn(label, title, fn, cls) { return h('button', { type: 'button', class: 'bk-b ' + (cls || ''), title: title, 'aria-label': title, onclick: fn }, label); }
+    /* Dars rejimi: tepadagi panel yashiriladi, sahifa eniga to'ladi, ekran to'liq — Zoom'da faqat kitob ko'rinadi */
+    var lessonBtn = h('button', { type: 'button', class: 'bk-b bk-lb', title: 'Dars rejimi (Zoom uchun)', onclick: function () { toggleLesson(); } }, '🎓 Dars rejimi');
+    var miniPg = h('span', { class: 'bk-mini-pg' }, '');
+    var mini = h('div', { class: 'bk-mini' }, [
+      h('button', { type: 'button', class: 'bk-b', title: 'Oldingi sahifa', onclick: function () { go(st.page - 1); } }, '‹'), miniPg,
+      h('button', { type: 'button', class: 'bk-b', title: 'Keyingi sahifa', onclick: function () { go(st.page + 1); } }, '›'),
+      h('button', { type: 'button', class: 'bk-b', title: 'Kichiklashtirish', onclick: function () { setZoom(st.zoom / 1.15); } }, '−'),
+      h('button', { type: 'button', class: 'bk-b', title: 'Yaqinlashtirish', onclick: function () { setZoom(st.zoom * 1.15); } }, '+'),
+      h('button', { type: 'button', class: 'bk-b bk-mini-x', title: 'Dars rejimidan chiqish', onclick: function () { toggleLesson(); } }, '✕ Dars rejimi')
+    ]);
+    function syncNotebookMode() {
+      var App = A.App, on = lessonOn();
+      document.body.classList.toggle('lesson-mode', on && !!(App && App.route.name === 'notebook' && App.route.id));
+      var nb = document.querySelector('.btn.ls-mode');
+      if (nb) { nb.classList.toggle('on', on); nb.textContent = on ? '✕ Oddiy rejim' : '⛶ Dars rejimi'; }
+    }
+    function applyLesson() {
+      var on = lessonOn();
+      root.classList.toggle('bk-lesson', on);
+      lessonBtn.classList.toggle('on', on);
+      miniPg.textContent = st.page + ' / ' + book.pages;
+    }
+    function toggleLesson() {
+      setLesson(!lessonOn()); applyLesson(); syncNotebookMode();
+      requestAnimationFrame(function () { setTimeout(function () { if (lessonOn()) setZoom(fitWidthZoom()); else layout(true); }, 120); });
+    }
     var top = h('div', { class: 'bk-top' }, [
       tbtn('←', 'Yopish', close, 'bk-x'),
       h('b', { class: 'bk-title' }, book.title),
       h('div', { class: 'bk-nav' }, [tbtn('‹', 'Oldingi sahifa', function () { go(st.page - 1); }), pgIn, h('span', { class: 'bk-of' }, '/ ' + book.pages), tbtn('›', 'Keyingi sahifa', function () { go(st.page + 1); })]),
       h('div', { class: 'bk-zoom' }, [tbtn('−', 'Kichiklashtirish', function () { setZoom(st.zoom / 1.25); }), zoomLbl, tbtn('+', 'Yaqinlashtirish', function () { setZoom(st.zoom * 1.25); }),
         tbtn('⤢', 'Sahifaga sig‘dirish', function () { setZoom(1); }), tbtn('⇔', 'Eniga sig‘dirish', function () { setZoom(fitWidthZoom()); })]),
-      tbtn('▦', 'Sahifalar', showThumbs), tbtn('⛶', 'To‘liq ekran', fullscreen), saveLbl
+      tbtn('▦', 'Sahifalar', showThumbs), tbtn('⛶', 'To‘liq ekran', fullscreen), lessonBtn, saveLbl
     ]);
     var toolBtns = {};
     function toolBtn(id, icon, label) {
@@ -128,7 +155,7 @@
       h('div', { class: 'bk-szs' }, sizeBtns),
       h('div', { class: 'bk-acts' }, [tbtn('↶', 'Bekor qilish', undo), tbtn('🗑', 'Sahifadagi yozuvlarni tozalash', clearPage), hideBtn])
     ]);
-    root.appendChild(top); root.appendChild(stage); root.appendChild(bottom);
+    root.appendChild(top); root.appendChild(stage); root.appendChild(bottom); root.appendChild(mini);
     var nbLast = lsGet('nb-last-title');
     /* Daftarga o'tganda kitob yopilmaydi — yashiriladi: qaytganda o'sha bet, o'sha joy, o'sha kattalik */
     function hide() {
@@ -138,7 +165,10 @@
       window.scrollTo(0, pageY);
     }
     function show() {
+      var was = root.classList.contains('bk-lesson');
       pageY = window.scrollY;
+      applyLesson();
+      if (was !== lessonOn()) setTimeout(function () { if (lessonOn()) setZoom(fitWidthZoom()); else layout(true); }, 60);
       root.style.display = ''; root.__hidden = false;
       document.body.classList.add('bk-open');
       root.focus({ preventScroll: true });
@@ -206,7 +236,7 @@
         if (near !== pg.live) { pg.live = near; sizeCanvas(pg); }
         var d = Math.abs(y + st.h / 2 - mid); if (d < bestD) { bestD = d; best = i; }
       }
-      if (best !== st.page) { st.page = best; pgIn.value = best; lsSet('bk-last-' + book.id, String(best)); }
+      if (best !== st.page) { st.page = best; pgIn.value = best; miniPg.textContent = best + ' / ' + book.pages; lsSet('bk-last-' + book.id, String(best)); }
     }
     var ticking = false;
     stage.addEventListener('scroll', function () { if (ticking || root.__hidden) return; ticking = true; requestAnimationFrame(function () { ticking = false; watch(); }); });
@@ -214,7 +244,7 @@
     function go(n) {
       n = Math.max(1, Math.min(book.pages, Number(n) || 1));
       stage.scrollTop = P[n].el.offsetTop - 8;
-      st.page = n; pgIn.value = n; lsSet('bk-last-' + book.id, String(n));
+      st.page = n; pgIn.value = n; miniPg.textContent = n + ' / ' + book.pages; lsSet('bk-last-' + book.id, String(n));
       watch();
     }
     pgIn.addEventListener('change', function () { go(pgIn.value); });
@@ -438,7 +468,8 @@
     /* Boshida: noutbukda sahifa eniga (900px gacha) — o'qishga qulay; telefonda — eniga to'liq */
     requestAnimationFrame(function () {
       lastW = stage.clientWidth;
-      st.zoom = Math.max(1, Math.min(fitWidthZoom(), 900 / baseWidth()));
+      applyLesson();
+      st.zoom = lessonOn() ? fitWidthZoom() : Math.max(1, Math.min(fitWidthZoom(), 900 / baseWidth()));
       layout(false); go(st.page);
     });
   }

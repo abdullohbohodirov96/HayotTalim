@@ -5139,3 +5139,14 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .ls-switch b{font-size:14px}.ls-switch small{font-size:11.5px;color:#6a7380;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
 .bk-view .ls-switch{bottom:84px}
 @media (max-width:900px){.ls-switch{bottom:84px;right:12px;padding:5px 10px 5px 5px}.ls-switch img{width:30px;height:42px}body.lesson-mode .ls-switch{bottom:16px}body .bk-view .ls-switch{bottom:145px}}
+
+/* Kitob: dars rejimi — tepadagi panel yo'q, kichik suzuvchi boshqaruv */
+.bk-mini{display:none}
+.bk-view.bk-lesson .bk-top{display:none}
+.bk-view.bk-lesson .bk-stage{padding:6px}
+.bk-view.bk-lesson .bk-mini{display:flex;position:absolute;top:10px;right:14px;z-index:20;gap:6px;align-items:center;padding:6px 8px;border-radius:14px;background:rgba(21,24,29,.82);backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:.35;transition:opacity .2s}
+.bk-view.bk-lesson .bk-mini:hover,.bk-view.bk-lesson .bk-mini:focus-within{opacity:1}
+.bk-mini-pg{min-width:58px;text-align:center;font-weight:700;font-size:14px}
+.bk-mini-x{background:#c62828!important;border-color:#c62828!important;color:#fff!important;padding:0 10px!important}
+.bk-b.bk-lb{padding:0 12px;white-space:nowrap}.bk-b.bk-lb.on{background:#f9a825;color:#111;border-color:#f9a825}
+@media (max-width:720px){.bk-view.bk-lesson .bk-mini{top:6px;right:6px;opacity:.6}.bk-b.bk-lb{font-size:12px}}
