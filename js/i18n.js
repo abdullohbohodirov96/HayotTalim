@@ -1187,6 +1187,8 @@
     'Daraja → modul → dars → material va vazifa': ['Уровень → модуль → урок → материал и задание', 'Level → module → lesson → material and homework', 'المستوى ← الوحدة ← الدرس ← المادة والواجب'],
     'Dars jarayoni': ['Ход урока', 'Lesson flow', 'سير الدرس'],
     'Video darsliklar': ['Видеоуроки', 'Video lessons', 'دروس الفيديو'],
+    'Kitoblar': ['Книги', 'Books', 'الكتب'],
+    'Daftar': ['Тетрадь', 'Notebook', 'الدفتر'],
     'O’quvchilar rivojlanishi': ['Прогресс учеников', 'Student progress', 'تقدّم الطلاب'],
     'Lug’at bazasi': ['База слов', 'Vocabulary base', 'قاعدة المفردات'],
     'Zoom darslar': ['Уроки в Zoom', 'Zoom lessons', 'دروس زوم'],

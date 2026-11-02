@@ -14,6 +14,7 @@ const backup = require('./backup');
 const kabinet = require('./kabinet');
 const gamify = require('./gamify');
 const pace = require('./pace');
+const books = require('./books');
 const forms = require('./forms');
 const zoom = require('./zoom');
 const link = require('./link');
@@ -3876,6 +3877,19 @@ async function handleApi(req, res, url) {
     const d = await zoom.overview(store, String(url.searchParams.get('from') || ''));
     if (!A.can(user, 'group.edit')) d.lessons.forEach(l => { l.startUrl = ''; });
     return send(res, 200, d);
+  }
+  /* ---------- Kitoblar (chizma/yozuvlar) va daftar — faqat egasining o'zi ---------- */
+  if (route.indexOf('books/') === 0 || route === 'notebooks' || route.indexOf('notebook') === 0) {
+    if (!A.can(user, 'curriculum.view') && !A.can(user, 'lesson.log')) return nope();
+    const uid = String(user.id);
+    let r = null;
+    if (route === 'books/annot' && req.method === 'GET') r = await books.getAnnot(store, uid, url.searchParams.get('book'));
+    else if (route === 'books/annot' && req.method === 'POST') r = await books.saveAnnot(store, uid, await readBody(req), stamp);
+    else if (route === 'notebooks' && req.method === 'GET') r = { notebooks: await books.listNotebooks(store, uid) };
+    else if (route === 'notebook' && req.method === 'GET') r = await books.getNotebook(store, uid, url.searchParams.get('id'));
+    else if (route === 'notebook' && req.method === 'POST') r = await books.saveNotebook(store, uid, await readBody(req), stamp);
+    else if (route === 'notebook/delete' && req.method === 'POST') r = await books.deleteNotebook(store, uid, (await readBody(req)).id);
+    if (r) return send(res, r.code || 200, r);
   }
   /* Xabar matnlari: o'qish (ko'rish) — Zoom bo'limini ko'radiganlar, o'zgartirish — guruhni tahrirlay oladiganlar */
   if (route === 'zoom/templates' && req.method === 'GET') {
