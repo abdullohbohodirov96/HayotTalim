@@ -4984,3 +4984,8 @@ html.cr-noscroll,html.cr-noscroll body{overflow:hidden}
 .hist-i .btn{align-self:flex-start;margin-top:4px}
 .hist-tl{display:flex;flex-direction:column;gap:4px;padding:6px 10px;border-left:3px solid var(--brand,#0e6b55);margin-bottom:6px}
 .lead-noans{white-space:nowrap}
+/* Eng kerakli 5000 so'z */
+.sp-top5k{display:grid;gap:12px;margin:14px 0;padding:20px 22px;border-radius:22px;background:var(--surface,#fff);border:1.5px solid rgba(201,162,39,.45);box-shadow:0 6px 20px rgba(0,0,0,.05)}
+.sp-top5k h3{margin:4px 0 2px;font-size:22px}
+.sp-top5k p{margin:0;color:var(--muted,#6b7280);font-size:14px;line-height:1.45}
+.sp-top5k .btn{justify-self:start}

@@ -82,6 +82,36 @@ async function saveConf(store, body, by) {
   return conf(store);
 }
 
+/* ---------------- Eng kerakli 5000 so'z ----------------
+   server/top5000.json — chastota bo'yicha tartiblangan ro'yxat: [{ ar, tr, uz, pos }].
+   So'z id si: «t0001» … «t5000». O'quvchiga hammasi birdan qo'shilmaydi: kunlik
+   yangi so'z yetmasa, ro'yxatdan navbatdagilari shaxsiy lug'atga qo'shiladi
+   (svocab.topNext — qayerda to'xtagani). «Yana 10 ta» tugmasi — tezroq o'rganish. */
+const TOP_REF = 'top5000';
+let TOP = null;
+function topList() {
+  if (TOP) return TOP;
+  try { TOP = require('./top5000.json'); } catch (e) { TOP = []; }
+  TOP = (Array.isArray(TOP) ? TOP : []).filter(w => w && w.ar && w.uz).map((w, i) => ({
+    id: 't' + String(i + 1).padStart(4, '0'), rank: i + 1, ar: w.ar, uz: w.uz, tr: w.tr || '', pos: w.pos || ''
+  }));
+  return TOP;
+}
+/** Navbatdagi n ta so'zni o'quvchi lug'atiga qo'shadi (bor so'zlar takrorlanmaydi). Qo'shilgan soni. */
+function feedTop(sv, dict, today, n) {
+  const T = topList(); if (!T.length || n <= 0) return 0;
+  /* Darsda o'tilgan so'z (harakatsiz yozuvi bir xil) qayta qo'shilmaydi */
+  const have = new Set(); Object.keys(sv.words).forEach(id => { const w = dict.byId[id]; if (w) have.add(normAr(w.ar)); });
+  let i = Math.max(0, Number(sv.topNext) || 0), added = 0;
+  while (i < T.length && added < n) {
+    const w = T[i++];
+    if (sv.words[w.id] || have.has(normAr(w.ar))) continue;
+    sv.words[w.id] = newState(today, TOP_REF); added++;
+  }
+  sv.topNext = i;
+  return added;
+}
+
 /* ---------------- Markaz lug'ati ---------------- */
 let dictCache = null, dictAt = 0;
 function bustDict() { dictCache = null; }
@@ -101,6 +131,11 @@ async function dictionary(A, store) {
       });
     });
   }
+  topList().forEach(w => {
+    if (byId[w.id]) return;
+    const it = { id: w.id, ar: w.ar, uz: w.uz, tr: w.tr, ex: '', exUz: '', lessons: [TOP_REF], level: 'TOP', builtin: true, rank: w.rank };
+    out.push(it); byId[it.id] = it;
+  });
   const custom = (await store.list(VOC)).map(r => r.data).filter(w => w && w.id && w.active !== false && w.ar && w.uz);
   custom.forEach(w => {
     const it = { id: w.id, ar: w.ar, uz: w.uz, tr: w.tr || '', ex: w.ex || '', exUz: w.exUz || '',
@@ -298,11 +333,15 @@ async function vocabView(A, store, sid, today) {
   const cnt = { total: words.length, yangi: 0, takrorlash: 0, organilmoqda: 0, barqaror: 0 };
   words.forEach(w => { cnt[w.status]++; });
   cnt.learned = cnt.total - cnt.yangi;
-  return { words, counts: cnt, today };
+  const T = topList();
+  const top = { total: T.length, added: 0, learned: 0, barqaror: 0 };
+  words.forEach(w => { if (w.lesson !== TOP_REF) return; top.added++; if (w.status !== 'yangi') top.learned++; if (w.status === 'barqaror') top.barqaror++; });
+  return { words, counts: cnt, top, today };
 }
 async function lessonTitles(A, store) {
   const t = {};
   if (A.Course) A.Course.LESSONS.forEach(l => { t['course:' + l.id] = l.n + '-dars · ' + l.title; });
+  t[TOP_REF] = 'Eng kerakli 5000 so‘z';
   (await store.list('topics/')).map(r => r.data).forEach(x => { if (x && x.id) t['topic:' + x.id] = x.title || ''; });
   return t;
 }
@@ -312,12 +351,23 @@ async function deck(A, store, sid, today, opts) {
   const { sv, dict } = await sync(A, store, sid, today);
   const c = await conf(store);
   const day = await getDay(store, sid, today, c, sv);
+  /* 5000 so'z: kunlik yangi so'z yetmasa — navbatdagilari; «Yana 10 ta» — darhol 10 ta */
+  if (topList().length) {
+    const freshNow = Object.keys(sv.words).filter(id => dict.byId[id] && !sv.words[id].reps).length;
+    const want = (opts && opts.more) ? 10 : Math.max(0, Math.max(c.daily.newWords, 5) - (day.done.newWords || 0) - freshNow);
+    if (want > 0) await withLock(sid, async () => {
+      const cur = await getSv(store, sid);
+      if (feedTop(cur, dict, today, want)) { await store.set(SV + sid, cur); Object.assign(sv.words, cur.words); sv.topNext = cur.topNext; }
+    });
+  }
   const ids = Object.keys(sv.words).filter(id => dict.byId[id]);
   const due = ids.filter(id => sv.words[id].reps && sv.words[id].due <= today)
     .sort((a, b) => String(sv.words[a].due).localeCompare(String(sv.words[b].due)));
   const fresh = ids.filter(id => !sv.words[id].reps);
-  const newLeft = Math.max(0, Math.max(c.daily.newWords, 5) * 2 - (day.done.newWords || 0));
-  let pick = due.slice(0, 30).concat(fresh.slice(0, Math.min(newLeft, 10)));
+  const newLeft = (opts && opts.more) ? 10 : Math.max(0, Math.max(c.daily.newWords, 5) * 2 - (day.done.newWords || 0));
+  /* «Yana 10 ta»: avval yangi so'zlar (eng kam rank — eng kerakli), keyin takrorlash */
+  const byRank = (a, b) => (dict.byId[a].rank || 0) - (dict.byId[b].rank || 0);
+  let pick = (opts && opts.more) ? fresh.sort(byRank).slice(0, 10).concat(due.slice(0, 20)) : due.slice(0, 30).concat(fresh.slice(0, Math.min(newLeft, 10)));
   if (opts && opts.extra && !pick.length) {
     pick = ids.filter(id => sv.words[id].reps).sort(() => Math.random() - .5).slice(0, 10);
   }

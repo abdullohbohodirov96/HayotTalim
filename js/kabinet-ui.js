@@ -63,7 +63,7 @@
         vocab: function (items) { return D.kabPost('api/kabinet/course/vocab', { items: items }); },
         /* Aqlli lug'at, kunlik mashqlar, rivojlanish (server/learning.js) */
         lvocab: function () { return D.api('GET', 'api/kabinet/vocab'); },
-        ldeck: function (extra) { return D.api('GET', 'api/kabinet/vocab/deck' + (extra ? '?extra=1' : '')); },
+        ldeck: function (extra, more) { return D.api('GET', 'api/kabinet/vocab/deck' + (more ? '?more=1' : extra ? '?extra=1' : '')); },
         lreview: function (items) { return D.kabPost('api/kabinet/vocab/review', { items: items }); },
         lanswer: function (id, kind, pick, ms) { return D.kabPost('api/kabinet/vocab/answer', { id: id, kind: kind, pick: pick, ms: ms }); },
         ldaily: function () { return D.api('GET', 'api/kabinet/daily'); },
@@ -1393,10 +1393,24 @@
             ]) : null
           ]),
           h('div', { class: 'sp-vhero-b' }, [
-            h('button', { class: 'btn sp-cta', type: 'button', disabled: !c.total, onclick: function () { startCards(); } }, due ? 'Boshlash →' : 'Qo‘shimcha mashq →')
+            h('button', { class: 'btn sp-cta', type: 'button', disabled: !c.total && !(vv.top && vv.top.total), onclick: function () { startCards(); } }, due || (!c.total && vv.top && vv.top.total) ? 'Boshlash →' : 'Qo‘shimcha mashq →')
           ])
         ]));
-        if (!c.total) {
+        /* Eng kerakli 5000 so'z */
+        var tp = vv.top;
+        if (tp && tp.total) {
+          var pct = Math.round(tp.learned * 100 / tp.total);
+          box.appendChild(h('section', { class: 'sp-top5k' }, [
+            h('div', { class: 'sp-top5k-h' }, [
+              h('span', { class: 'sp-eyebrow' }, '📚 Eng kerakli ' + tp.total + ' so‘z'),
+              h('h3', {}, tp.learned + ' / ' + tp.total + ' o‘rganildi'),
+              h('p', {}, 'Arablar eng ko‘p ishlatadigan so‘zlar — eng keraklisidan boshlab. Har kuni yangi so‘zlar o‘zi qo‘shiladi; tezroq o‘rganmoqchi bo‘lsangiz «Yana 10 ta» ni bosing.')
+            ]),
+            h('div', { class: 'cr-mini' }, [h('div', { class: 'cr-bar' }, h('i', { style: 'width:' + Math.max(pct, tp.learned ? 1 : 0) + '%' })), h('span', { class: 'small' }, pct + '% · barqaror: ' + tp.barqaror)]),
+            h('button', { class: 'btn primary', type: 'button', onclick: function () { startCards({ more: true }); } }, '＋ Yana 10 ta yangi so‘z')
+          ]));
+        }
+        if (!c.total && !(tp && tp.total)) {
           box.appendChild(empty('award', 'Lug‘atingiz hali bo‘sh', 'Darsni boshlang — shu darsning so‘zlari bu yerga avtomatik qo‘shiladi.'));
         }
         /* 7 va 30 kunlik statistika */
@@ -1475,7 +1489,7 @@
     function startCards(o) {
       o = o || {};
       setBack(function () { cache.lvocab = null; cache.ldaily = null; go(o.from || 'lugat'); });
-      Promise.all([src.ldeck(o.extra), src.ldaily().catch(function () { return null; })]).then(function (rr) {
+      Promise.all([src.ldeck(o.extra, o.more), src.ldaily().catch(function () { return null; })]).then(function (rr) {
         var dk = rr[0], xpStart = rr[1] && rr[1].day ? rr[1].day.xp : null;
         var deck = dk.cards || [];
         if (!deck.length && !o.extra) { o.extra = true; return startCards(o); }
