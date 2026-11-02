@@ -376,7 +376,8 @@ async function tick(store, A, ctx, nowMs) {
       rec.attMarked = ctx.stamp(); rec.status = 'tugadi'; changed = true; done.push('davomat ' + id);
     }
     /* Yozuv: webhook kelmasa — har 10 daqiqada tekshiramiz (6 soatgacha) */
-    if (!rec.recSent && now >= L.end + 20 && now <= L.end + 360 && (!rec.recCheck || Date.now() - rec.recCheck > 10 * 60 * 1000)) {
+    /* Dars erta tugatilishi ham mumkin — yozuvni dars boshlanganidan 30 daqiqa o'tib tekshira boshlaymiz */
+    if (!rec.recSent && now >= L.start + 30 && now <= L.end + 360 && (!rec.recCheck || Date.now() - rec.recCheck > 10 * 60 * 1000)) {
       rec.recCheck = Date.now(); changed = true;
       try {
         if (!rec.recording) rec.recording = await fetchRecording(store, rec);
@@ -410,6 +411,8 @@ async function webhook(store, body, ctx) {
     return { reply: { plainToken: plain, encryptedToken: crypto.createHmac('sha256', env('ZOOM_WEBHOOK_SECRET')).update(plain).digest('hex') } };
   }
   const rec = obj.id ? await byMeeting(store, obj.id) : null;
+  /* Oxirgi xabar — Zoom darslar sahifasida ko'rinadi (webhook haqiqatan kelayotganini bilish uchun) */
+  try { await store.set('meta/zoomhook', { at: ctx.stamp(), event: ev, meetingId: String(obj.id || ''), known: !!rec }); } catch (e) { }
   if (!rec) return { ok: true, ignored: true };
   if (ev === 'meeting.participant_joined' && obj.participant) {
     if (obj.uuid && !rec.uuid) rec.uuid = obj.uuid;
@@ -451,7 +454,8 @@ async function overview(store, fromIso) {
   /* Kalitlar haqiqatan ishlayaptimi — token olib ko'ramiz (keshlangan) */
   let auth = null;
   if (configured()) { try { await token(); auth = { ok: true }; } catch (e) { auth = { ok: false, error: e.message }; } }
-  return { configured: configured(), auth, webhook: webhookReady(), lessons: out };
+  const hook = await store.get('meta/zoomhook').catch(() => null);
+  return { configured: configured(), auth, webhook: webhookReady(), lastHook: hook || null, lessons: out };
 }
 
 /* ---------------- Mehmon havolasi (sinov darsiga keluvchi, botsiz) ----------------

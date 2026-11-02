@@ -86,7 +86,10 @@
         view.appendChild(h('div', { class: 'note warn', style: 'margin-bottom:12px' },
           'Webhook ulanmagan (ZOOM_WEBHOOK_SECRET): kim qo’shilgani dars tugagach aniqlanadi, jonli emas.'));
       } else {
-        view.appendChild(h('div', { class: 'note ok', style: 'margin-bottom:12px' }, '✓ Zoom ulandi, webhook ham ishlayapti.'));
+        var lh = d.lastHook;
+        view.appendChild(h('div', { class: 'note ' + (lh ? 'ok' : 'warn'), style: 'margin-bottom:12px' },
+          lh ? '✓ Zoom ulandi. Oxirgi Zoom xabari: ' + lh.at + ' (' + lh.event + ')'
+            : '✓ Zoom ulandi, lekin Zoom’dan hali birorta xabar (webhook) kelmagan. Kim qo’shilgani va yozuv dars tugagach Zoom’dan o‘zi so‘rab olinadi. Zoom ilovasida Event Subscriptions yoqilganini tekshiring.'));
       }
       var ls = d.lessons || [];
       if (!ls.length) {
