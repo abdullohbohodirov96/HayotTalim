@@ -68,7 +68,12 @@
       if (!page) { view.appendChild(UI.empty({ title: 'Sahifa topilmadi' })); view.style.minHeight = ''; return; }
       try {
         var sb = sectionBar();
-        if (sb) view.appendChild(sb);
+        if (sb) {
+          view.appendChild(sb);
+          /* Telefonda tanlangan tugma ko'rinmay qolmasin (masalan, 5-sahifa) */
+          var onB = sb.querySelector('.on');
+          if (onB && onB.offsetLeft + onB.offsetWidth > sb.clientWidth) sb.scrollLeft = onB.offsetLeft - 12;
+        }
         page(view, App.route, App);
       } catch (e) {
         console.error(e);
