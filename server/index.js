@@ -4052,6 +4052,11 @@ async function handleApi(req, res, url) {
   if (route === 'zoom/recording' && req.method === 'POST') {
     if (!A.can(user, 'group.edit')) return nope();
     const body = await readBody(req);
+    if (body.action === 'refetch') {
+      const rr = await zoom.refetchRecording(store, body.id, zoomCtx()).catch(e => ({ error: 'Zoom: ' + e.message, code: 502 }));
+      if (rr.ok) await writeAudit(user, 'Zoom: dars yozuvi qaytadan olindi', String(body.id || ''), rr.dur || '');
+      return send(res, rr.code || 200, rr);
+    }
     const r = await zoom.decideRecording(store, body.id, body.action !== 'reject', user.name || user.login, zoomCtx());
     delete r.job;
     if (r.ok && !r.already) await writeAudit(user, body.action === 'reject' ? 'Zoom: yozuv guruhga yuborilmadi' : 'Zoom: dars yozuvi guruhga yuborildi', String(body.id || ''), '');

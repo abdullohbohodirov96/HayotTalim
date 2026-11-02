@@ -134,7 +134,11 @@
                 catch (e) { UI.toast(e.message || 'Yuborilmadi', 'bad'); }
               }
             }, 'Qo’shilmaganlarga yana yuborish') : null,
-            l.recording && l.recording.shareUrl ? h('a', { class: 'btn sm', href: l.recording.shareUrl, target: '_blank', rel: 'noopener' }, '▶ Dars yozuvi') : null,
+            l.recording && l.recording.shareUrl ? h('a', { class: 'btn sm', href: l.recording.shareUrl, target: '_blank', rel: 'noopener' }, '▶ Dars yozuvi' + (l.recording.dur ? ' (' + l.recording.dur + ')' : '')) : null,
+            l.recording && App.can('group.edit') ? h('button', { class: 'btn sm', title: 'Noto‘g‘ri video kelgan bo‘lsa — Zoom’dan oxirgi seans yozuvini qaytadan olish va yana tasdiqqa yuborish', onclick: async function () {
+              try { var r = await D.api('POST', 'api/zoom/recording', { id: l.id, action: 'refetch' }); UI.toast('Yozuv qaytadan olindi' + (r.dur ? ' (' + r.dur + ')' : '') + (r.same ? ' — Zoom’da boshqa yozuv yo‘q' : '') + '. Tasdiqlang.', r.same ? 'info' : 'ok'); reload(App); }
+              catch (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); }
+            } }, '🔄 Yozuvni qaytadan olish') : null,
             /* Yozuv tayyor — rahbariyat ko'rib tasdiqlagach guruhga boradi */
             l.recPending && App.can('group.edit') ? h('button', { class: 'btn sm primary', onclick: async function () {
               if (!window.confirm('Dars yozuvi guruh chatiga yuborilsinmi?')) return;

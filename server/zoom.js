@@ -263,7 +263,8 @@ async function pollLive(store, rec) {
 }
 async function pollPast(store, rec) {
   try {
-    const id = rec.uuid ? uuidPath(rec.uuid) : rec.meetingId;
+    /* Raqam bo'yicha — konferensiyaning OXIRGI seansi (darsdan oldin sinab ochib-yopilgan bo'lsa ham, haqiqiy dars) */
+    const id = rec.meetingId;
     const j = await api('GET', '/past_meetings/' + id + '/participants?page_size=300');
     for (const p of (j.participants || [])) await markJoined(store, rec, p);
     return true;
@@ -303,15 +304,30 @@ async function writeAttendance(store, rec, ctx) {
 
 /* ---------------- Dars yozuvi ---------------- */
 async function fetchRecording(store, rec) {
-  const id = rec.uuid ? uuidPath(rec.uuid) : rec.meetingId;
+  /* Raqam bo'yicha — oxirgi seans yozuvi. Konferensiya yaratilgandagi uuid birinchi (masalan, sinov uchun
+     ochib-yopilgan 40 soniyalik) seansga tegishli bo'lishi mumkin — shuning uchun ishlatilmaydi. */
+  const id = rec.meetingId;
   const j = await api('GET', '/meetings/' + id + '/recordings');
   return recFromPayload(j);
 }
 function recFromPayload(j) {
-  const files = (j.recording_files || []).filter(f => f.file_type === 'MP4' && f.status !== 'processing')
-    .map(f => ({ size: Number(f.file_size || 0), url: f.download_url || '', play: f.play_url || '', type: f.recording_type || '' }));
+  const raw = (j.recording_files || []).filter(f => f.file_type === 'MP4' && f.status !== 'processing');
+  const files = raw.map(f => ({ size: Number(f.file_size || 0), url: f.download_url || '', play: f.play_url || '', type: f.recording_type || '',
+    sec: Math.max(0, Math.round((Date.parse(f.recording_end || '') - Date.parse(f.recording_start || '')) / 1000)) || 0 }));
   if (!files.length) return null;
-  return { shareUrl: j.share_url || '', password: j.recording_play_passcode || j.password || '', files };
+  const durSec = Math.max.apply(null, files.map(f => f.sec || 0)) || (Number(j.duration) || 0) * 60;
+  return { shareUrl: j.share_url || '', password: j.recording_play_passcode || j.password || '', files, durSec, start: j.start_time || '' };
+}
+function fmtDur(sec) {
+  sec = Math.round(Number(sec) || 0); if (!sec) return '';
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(x).padStart(2, '0');
+}
+/** Yozuv dars uchun juda qisqami (sinov seansi bo'lishi mumkin) — rejalashtirilgan vaqtning 25% idan va 10 daqiqadan kam */
+function tooShort(r, rec) {
+  if (!r || !r.durSec) return false;
+  const plan = (toMin(rec.end) - toMin(rec.start)) || 90;
+  return r.durSec < Math.min(10 * 60, plan * 60 * 0.25);
 }
 /* Yozuv tayyor bo'lganda — avval rahbariyatga (bot): ko'rib, «✅ Guruhga yuborish» bosilgandan keyingina
    guruh chatiga boradi. ERP «Zoom darslar» sahifasida ham shu tugma bor. */
@@ -322,6 +338,7 @@ async function askRecordingApproval(store, rec, ctx) {
   if (!ctx.notifyStaff) return;
   const r = rec.recording, link = recLink(r);
   const txt = '📹 Dars yozuvi tayyor — ' + rec.groupName + '\n📅 ' + rec.date + ' · ' + rec.start +
+    (r.durSec ? '\n⏱ Davomiyligi: ' + fmtDur(r.durSec) + (tooShort(r, rec) ? ' ⚠️ juda qisqa — haqiqiy dars yozuvimi, tekshiring' : '') : '') +
     (link ? '\n▶️ ' + link + (r.password ? '\n🔑 Parol: ' + r.password : '') : '') +
     '\n\nKo‘rib chiqing. «✅ Guruhga yuborish» ni bossangiz, o‘quvchilar guruhiga boradi.';
   try {
@@ -330,6 +347,20 @@ async function askRecordingApproval(store, rec, ctx) {
   } catch (e) { }
 }
 /** Tasdiq: guruhga yuborish (yoki rad etish). Takror bosilsa — ikkinchi marta yubormaydi. */
+/** Noto'g'ri video kelgan bo'lsa: yozuvni Zoom'dan qaytadan (oxirgi seans) olish va yana tasdiqqa yuborish */
+async function refetchRecording(store, id, ctx) {
+  const rec = await store.get(COL + String(id || ''));
+  if (!rec || !rec.meetingId) return { error: 'Dars topilmadi.', code: 404 };
+  const old = rec.recording;
+  const fr = await fetchRecording(store, rec);
+  if (!fr) return { error: 'Zoom’da bu dars yozuvi hali tayyor emas.', code: 404 };
+  const same = old && old.files && old.files[0] && fr.files[0] && old.files[0].url === fr.files[0].url;
+  ['recSent', 'recAsked', 'recPending', 'recRejected', 'recSending', 'recBy', 'recNote', 'recParts', 'recShort'].forEach(k => { delete rec[k]; });
+  rec.recording = fr;
+  await askRecordingApproval(store, rec, ctx);
+  await store.set(COL + rec.id, rec);
+  return { ok: true, durSec: fr.durSec || 0, dur: fmtDur(fr.durSec), same: !!same };
+}
 async function decideRecording(store, id, approve, who, ctx) {
   const rec = await store.get(COL + String(id || ''));
   if (!rec || !rec.recording) return { error: 'Yozuv topilmadi.', code: 404 };
@@ -449,7 +480,12 @@ async function tick(store, A, ctx, nowMs) {
     if (!rec.recSent && !rec.recording && now >= L.start + 30 && now <= L.end + 360 && (rec.recCheckMin == null || now - rec.recCheckMin >= 10)) {
       rec.recCheckMin = now; rec.recCheck = Date.now(); changed = true;
       try {
-        if (!rec.recording) rec.recording = await fetchRecording(store, rec);
+        if (!rec.recording) {
+          const fr = await fetchRecording(store, rec);
+          /* Juda qisqa (sinov seansi) — dars tugagach 2 soatgacha haqiqiy yozuvni kutamiz */
+          if (fr && tooShort(fr, rec) && now < L.end + 120) rec.recShort = fr.durSec;
+          else rec.recording = fr;
+        }
         if (rec.recording && !rec.recAsked) { await askRecordingApproval(store, rec, ctx); done.push('yozuv tayyor ' + id); }
       } catch (e) { rec.recNote = e.message; }
     }
@@ -495,7 +531,9 @@ async function webhook(store, body, ctx) {
     if (obj.uuid) rec.uuid = obj.uuid; rec.status = 'tugadi';
   } else if (ev === 'recording.completed') {
     const r = recFromPayload(obj);
-    if (r) {
+    const nowM = minOfDay(), endM = toMin(rec.end) || 0;
+    if (r && tooShort(r, rec) && todayIso() === rec.date && nowM < endM + 120) { rec.recShort = r.durSec; }
+    else if (r) {
       if (!r.shareUrl && obj.share_url) r.shareUrl = obj.share_url;
       rec.recording = r;
       if (!rec.recSent) await askRecordingApproval(store, rec, ctx);
@@ -516,7 +554,7 @@ async function overview(store, fromIso) {
       id: r.id, groupId: r.groupId, groupName: r.groupName, date: r.date, start: r.start, end: r.end,
       status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, openError: r.open ? '' : (r.openError || ''), joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
       sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recPending: !!(r.recording && !r.recSent && !r.recRejected), recRejected: !!r.recRejected, recBy: r.recBy || '', recNote: r.recNote || '',
-      recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password } : null,
+      recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password, dur: fmtDur(r.recording.durSec) } : null,
       joined: list.filter(x => r.joined && r.joined[x.s.id]).map(x => ({ id: x.s.id, name: stName(x.s), at: r.joined[x.s.id].at })),
       missing: list.filter(x => !(r.joined && r.joined[x.s.id])).map(x => ({ id: x.s.id, name: stName(x.s), tg: !!(x.s.telegram && x.s.telegram.id) })),
       guests: r.guests || []
@@ -560,7 +598,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  decideRecording, askRecordingApproval, guestLink, withName, linkFor,
+  refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };
