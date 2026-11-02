@@ -201,7 +201,12 @@ async function notifyStudents(store, rec, kind, ctx, onlyMissing) {
 async function notifyTeacher(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
   const st = g && g.teacherId ? await store.get('staff/' + g.teacherId) : null;
-  const chat = st && st.telegram && st.telegram.id ? String(st.telegram.id) : '';
+  let chat = st && st.telegram && st.telegram.id ? String(st.telegram.id) : '';
+  /* Ustoz ERP hisobini botga ulagan bo'lsa — Telegram hisob foydalanuvchida (users/) turadi */
+  if (!chat && g && g.teacherId) {
+    const u = (await listCol(store, 'users/')).filter(x => x && x.active !== false && x.staffId === g.teacherId && x.telegram && x.telegram.id)[0];
+    if (u) chat = String(u.telegram.id);
+  }
   if (!chat || !rec.startUrl) return false;
   const T = await templates(store), settings = (await store.get('meta/settings')) || {};
   await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });

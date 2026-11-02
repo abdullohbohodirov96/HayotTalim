@@ -31,7 +31,9 @@ const wd = A.weekdayOf(iso);
 
 db['groups/g1'] = { id: 'g1', code: 'B020', name: 'Arab A1', format: 'onlayn', status: 'faol', days: [wd], startTime: '18:00', endTime: '19:30', startDate: '2026-09-01', teacherId: 'st1', tgChat: '-100500' };
 db['groups/g2'] = { id: 'g2', code: 'X1', name: 'Oflayn', format: 'oflayn', roomId: 'r1', status: 'faol', days: [wd], startTime: '18:00', endTime: '19:30', startDate: '2026-09-01' };
-db['staff/st1'] = { id: 'st1', name: 'Ustoz', telegram: { id: '900' } };
+db['staff/st1'] = { id: 'st1', name: 'Ustoz' };
+/* Ustoz ERP hisobini botga ulagan — Telegram foydalanuvchi yozuvida */
+db['users/u_st1'] = { id: 'u_st1', role: 'oqituvchi', staffId: 'st1', active: true, telegram: { id: '900' } };
 [['s1', 'Madina', 'Karimova', '101'], ['s2', 'Sardor', 'Aliyev', '102'], ['s3', 'Bek', 'Toshev', null]].forEach(([id, f, l, tg], i) => {
   db['students/' + id] = { id, firstName: f, lastName: l, phone: '+99890000000' + i, telegram: tg ? { id: tg } : null };
   db['memberships/m' + id] = { id: 'm' + id, studentId: id, groupId: 'g1', status: 'faol' };
@@ -89,7 +91,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
 
   await zoom.tick(store, A, ctx, at(17, 0));
   ok('1 soat oldin: botga ulangan 2 o’quvchiga eslatma', kinds('h1').length === 2, kinds('h1').length);
-  ok('Ustozga «Darsni boshlash» havolasi', sent.some(m => m.chatId === '900' && /zoom\.us\/s\/777/.test(m.text)));
+  ok('Ustozga (botga ulangan ERP hisobi) «Darsni boshlash» havolasi', sent.some(m => m.chatId === '900' && /zoom\.us\/s\/777/.test(m.text)));
   ok('Har o’quvchiga ismi yozilgan havola', kinds('h1').every(m => /zoom\.us\/j\/777\?uname=/.test(m.text)) && /uname=Madina%20Karimova/.test(kinds('h1').filter(m => m.studentId === 's1')[0].text));
   await zoom.tick(store, A, ctx, at(17, 10));
   ok('Takroriy tick — qayta yubormaydi', kinds('h1').length === 2);
