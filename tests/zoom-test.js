@@ -154,6 +154,13 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const ov = await zoom.overview(store, '');
   ok('ERP ro’yxati: 2 qo’shildi, 1 qo’shilmadi', ov.lessons[0].joined.length === 2 && ov.lessons[0].missing.length === 1);
 
+  console.log('\n9. Mehmon havolasi (sinov darsi)');
+  const rg = db['zoomlesson/g1__' + iso];
+  const gl = await zoom.guestLink(store, rg, 'Dinara Karimova', {});
+  ok('Mehmonga shaxsiy havola berildi', gl.ok && /zoom\.us\/w\/777\?tk=Dinara/.test(gl.joinUrl), JSON.stringify(gl));
+  const gl2 = await zoom.guestLink(store, db['zoomlesson/g1__' + iso], 'dinara karimova', {});
+  ok('Shu ism qayta so‘ralsa — o‘sha havola, yangi ro‘yxat yo‘q', gl2.again && gl2.joinUrl === gl.joinUrl);
+  ok('Bo‘sh ism rad etiladi', !!(await zoom.guestLink(store, rg, '  ', {})).error);
   console.log('\n' + (fail ? '✗ XATOLAR BOR — ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o\'tdi, ' + fail + ' ta xato');
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -447,7 +447,32 @@ async function overview(store, fromIso) {
   return { configured: configured(), auth, webhook: webhookReady(), lessons: out };
 }
 
+/* ---------------- Mehmon havolasi (sinov darsiga keluvchi, botsiz) ----------------
+   Konferensiya ro'yxatdan o'tish bilan ochilgan: umumiy havola ism/email so'raydigan
+   formaga olib boradi. Mehmon uchun tizim o'zi ro'yxatdan o'tkazadi — shaxsiy havola
+   bosilganda forma ham, Zoom akkaunt ham so'ralmaydi. */
+async function guestLink(store, rec, name, settings) {
+  const nm = String(name || '').replace(/[<>\u0000]/g, '').trim().slice(0, 60);
+  if (!nm) return { error: 'Mehmonning ismini yozing.', code: 400 };
+  rec.guestRegs = rec.guestRegs || [];
+  const old = rec.guestRegs.filter(g => g.name.toLowerCase() === nm.toLowerCase())[0];
+  if (old) return { ok: true, joinUrl: old.joinUrl, name: old.name, again: true };
+  if (rec.guestRegs.length >= 50) return { error: 'Bu darsga 50 tadan ortiq mehmon qo‘shib bo‘lmaydi.', code: 400 };
+  const host = ((settings && settings.siteUrl) || process.env.SITE_URL || 'https://saboacademy.uz').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const parts = nm.split(/\s+/);
+  const r = await api('POST', '/meetings/' + rec.meetingId + '/registrants', {
+    email: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '@' + host,
+    first_name: parts[0].slice(0, 60), last_name: (parts.slice(1).join(' ') || '-').slice(0, 60)
+  });
+  const joinUrl = r.join_url || '';
+  if (!joinUrl) return { error: 'Zoom havola bermadi.', code: 502 };
+  rec.guestRegs.push({ name: nm, regId: String(r.registrant_id || r.id || ''), joinUrl });
+  await store.set(COL + rec.id, rec);
+  return { ok: true, joinUrl, name: nm };
+}
+
 module.exports = {
+  guestLink,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };

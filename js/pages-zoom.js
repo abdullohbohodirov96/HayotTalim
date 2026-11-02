@@ -17,6 +17,34 @@
   var ST = { yaratildi: ['Tayyor', 'info'], jonli: ['Jonli', 'ok'], tugadi: ['Tugadi', 'mute'], xato: ['Xato', 'bad'] };
   var STEP = [['h1', '1 soat oldin'], ['m15', '15 daq oldin'], ['start', 'Boshlanganda'], ['miss', 'Qo’shilmaganlarga']];
 
+  /* Mehmon (sinov darsi) uchun shaxsiy havola: ism yoziladi → tayyor havola nusxalanadi */
+  function guestDialog(l) {
+    var name = h('input', { class: 'input', placeholder: 'Masalan: Dinara', maxlength: 60 });
+    var out = h('div', {});
+    var m = UI.modal({ title: 'Mehmon havolasi', body: [
+      h('p', { class: 'muted' }, 'Sinov darsiga keladigan yoki botga ulanmagan odam uchun. Havolani bossa — ro‘yxatdan o‘tish, email va Zoom akkaunt so‘ralmaydi, to‘g‘ri darsga kiradi. Har bir odamga alohida havola oling.'),
+      h('label', { class: 'field' }, [h('span', {}, 'Ismi'), name]), out
+    ], actions: [
+      { label: 'Yopish' },
+      { label: 'Havola olish', cls: 'primary', onClick: async function (close, btn) {
+        if (!name.value.trim()) { UI.toast('Ismini yozing.', 'info'); return; }
+        btn.disabled = true;
+        try {
+          var r = await D.api('POST', 'api/zoom/guest', { id: l.id, name: name.value });
+          UI.clear(out);
+          var txt = '👋 Assalomu alaykum, ' + r.name + '!\n' + (l.groupName || '') + ' — sinov darsi ' + (l.date || '') + ', ' + (l.start || '') + ' da.\n\n👉 Darsga kirish: ' + r.joinUrl;
+          out.appendChild(h('div', { class: 'note ok', style: 'word-break:break-all' }, [h('b', {}, r.name + ' uchun havola: '), r.joinUrl]));
+          out.appendChild(h('div', { class: 'rowflex', style: 'gap:8px;margin-top:8px;flex-wrap:wrap' }, [
+            h('button', { class: 'btn sm primary', onclick: function () { UI.copy(r.joinUrl); } }, '📋 Havolani nusxalash'),
+            h('button', { class: 'btn sm', onclick: function () { UI.copy(txt); } }, '💬 Xabar bilan nusxalash')
+          ]));
+          name.value = '';
+        } catch (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); }
+        btn.disabled = false;
+      } }
+    ] });
+  }
+
   A.Pages.zoom = function (view, route, App) {
     App.guard('nav.groups');
     view.appendChild(UI.pageHead('Zoom darslar', 'Konferensiya o’zi ochiladi, o’quvchilarga havola va eslatma boradi, davomat va dars yozuvi avtomatik', [
@@ -93,7 +121,8 @@
           l.guests && l.guests.length ? h('p', { class: 'muted small' }, 'Ro’yxatda yo’q ismlar: ' + l.guests.join(', ')) : null,
           h('div', { class: 'zm-acts' }, [
             l.startUrl ? h('a', { class: 'btn primary sm', href: l.startUrl, target: '_blank', rel: 'noopener' }, 'Darsni boshlash (ustoz)') : null,
-            l.joinUrl ? h('button', { class: 'btn sm', onclick: function () { try { navigator.clipboard.writeText(l.joinUrl); UI.toast('Havola nusxalandi.', 'ok'); } catch (e) { } } }, 'Havolani nusxalash') : null,
+            l.joinUrl ? h('button', { class: 'btn sm', onclick: function () { try { navigator.clipboard.writeText(l.joinUrl); UI.toast('Umumiy havola nusxalandi (ochganda ism va email so‘raydi).', 'ok'); } catch (e) { } }, title: 'Umumiy havola — ochganda ism va email so‘raydi. Sinov darsiga keluvchiga «Mehmon havolasi» ni bering.' }, 'Umumiy havola') : null,
+            l.status !== 'tugadi' ? h('button', { class: 'btn sm', title: 'Sinov darsiga keladigan yoki botga ulanmagan odam uchun — forma va Zoom akkauntsiz kiradi', onclick: function () { guestDialog(l); } }, '👤 Mehmon havolasi') : null,
             l.missing.length && l.status !== 'tugadi' ? h('button', {
               class: 'btn sm', onclick: async function () {
                 try { var r = await D.api('POST', 'api/zoom/remind', { id: l.id }); UI.toast(r.sent + ' ta o’quvchiga yuborildi.', 'ok'); }

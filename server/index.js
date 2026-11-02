@@ -4022,6 +4022,18 @@ async function handleApi(req, res, url) {
     await writeAudit(user, 'Guruh kodi yangilandi', g.code || g.name, '');
     return send(res, 200, { ok: true, joinCode: g.joinCode });
   }
+  if (route === 'zoom/guest' && req.method === 'POST') {
+    if (!A.can(user, 'group.edit') && !A.can(user, 'attendance.mark')) return nope();
+    const body = await readBody(req);
+    const rec = await store.get(zoom.COL + String(body.id || ''));
+    if (!rec || !rec.meetingId) return send(res, 404, { error: 'Dars topilmadi.' });
+    if (!await ownsGroup(rec.groupId)) return nope('Bu guruh sizga tegishli emas.');
+    try {
+      const r = await zoom.guestLink(store, rec, body.name, (await store.get('meta/settings')) || {});
+      if (r.ok && !r.again) await writeAudit(user, 'Zoom: mehmon havolasi', rec.groupName, r.name);
+      return send(res, r.code || 200, r);
+    } catch (e) { return send(res, 502, { error: 'Zoom: ' + e.message }); }
+  }
   if (route === 'zoom/remind' && req.method === 'POST') {
     if (!A.can(user, 'group.edit') && !A.can(user, 'attendance.mark')) return nope();
     const body = await readBody(req);
