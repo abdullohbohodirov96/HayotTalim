@@ -112,7 +112,8 @@ async function createMeeting(store, A, L, ctx) {
   const mt = await api('POST', '/users/' + encodeURIComponent(env('ZOOM_USER') || 'me') + '/meetings', {
     topic: center + ' — ' + groupLabel(g) + ' (' + L.date + ')',
     type: 2, start_time: startIso, timezone: 'Asia/Tashkent', duration: Math.max(30, L.end - L.start),
-    default_password: false,   /* parolsiz: havolani bosgan darhol kiradi (akkaunt sozlamasida majburiy bo'lmasa) */
+    /* Kod (passcode) qoladi: Zoom kamida bitta himoyani talab qiladi (kod yoki kutish zali yoki akkaunt).
+       Kod havolaning ichida (pwd=) — havolani bosgan odamdan so'ralmaydi; kutish zali esa o'quvchini to'xtatib qo'yardi. */
     settings: {
       join_before_host: true, jbh_time: 15, waiting_room: false, mute_upon_entry: true,
       auto_recording: 'cloud', approval_type: 2,   /* ro'yxatdan o'tishsiz: havolani bosgan mehmon bo'lib kiradi */
@@ -358,9 +359,6 @@ async function tick(store, A, ctx, nowMs) {
     if (!rec.open && rec.meetingId && rec.status !== 'tugadi' && !rec.openTried) {
       rec.openTried = ctx.stamp(); changed = true;
       try { await api('PATCH', '/meetings/' + rec.meetingId, { settings: { approval_type: 2 } }); rec.open = true; done.push('ochiq ' + id); }
-      catch (e) { rec.openError = e.message; }
-      /* Parolni ham olib tashlashga urinamiz (akkauntda majburiy bo'lsa — Zoom rad etadi, havoladagi pwd baribir ishlaydi) */
-      try { await api('PATCH', '/meetings/' + rec.meetingId, { password: '' }); rec.noPass = true; }
       catch (e) { rec.openError = e.message; }
     }
     const step = async (key, cond, fn) => { if (!rec.sent[key] && cond) { await fn(); rec.sent[key] = ctx.stamp(); changed = true; done.push(key + ' ' + id); } };

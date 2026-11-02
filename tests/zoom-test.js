@@ -49,7 +49,7 @@ zoom.setFetch(async (url, opt) => {
     const b = JSON.parse(opt.body);
     ok('Konferensiya: cloud yozuv yoqilgan', b.settings.auto_recording === 'cloud');
     ok('Konferensiya: ro‘yxatdan o‘tishsiz (mehmon bo‘lib kiradi)', b.settings.approval_type === 2 && !b.settings.meeting_authentication);
-    ok('Konferensiya: parolsiz', b.default_password === false && !b.password);
+    ok('Konferensiya: kutish zali o‘chiq (kod havolada)', b.settings.waiting_room === false);
     ok('Konferensiya: Toshkent vaqti 18:00', b.start_time === iso + 'T18:00:00' && b.timezone === 'Asia/Tashkent');
     return J({ id: 777, uuid: 'UU==', join_url: 'https://zoom.us/j/777', start_url: 'https://zoom.us/s/777', password: 'p1' });
   }
