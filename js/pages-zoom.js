@@ -36,7 +36,9 @@
     load(App, function (d, err) {
       if (d === undefined) { view.appendChild(h('div', { class: 'card muted', style: 'padding:18px' }, 'Yuklanmoqda…')); return; }
       if (!d) { view.appendChild(h('div', { class: 'card', style: 'padding:18px' }, 'Yuklab bo’lmadi: ' + (err || ''))); return; }
-      if (!d.configured) {
+      if (!d.configured && !App.can('settings.edit')) {
+        view.appendChild(h('div', { class: 'note', style: 'margin-bottom:12px' }, 'Zoom hali ulanmagan — markaz rahbariyati ulaydi.'));
+      } else if (!d.configured) {
         view.appendChild(h('div', { class: 'card zm-setup' }, [
           h('b', {}, 'Zoom hali ulanmagan'),
           h('ol', {}, [
@@ -49,7 +51,8 @@
         ]));
       } else if (d.auth && !d.auth.ok) {
         view.appendChild(h('div', { class: 'note bad', style: 'margin-bottom:12px' },
-          'Zoom kalitlari ishlamadi: ' + d.auth.error + '. Render’dagi ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET ni tekshiring va Zoom ilovasi «Activated» ekanini ko’ring.'));
+          App.can('settings.edit') ? 'Zoom kalitlari ishlamadi: ' + d.auth.error + '. Render’dagi ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET ni tekshiring va Zoom ilovasi «Activated» ekanini ko’ring.'
+            : 'Zoom bilan bog‘lanishda muammo — markaz rahbariyatiga xabar bering.'));
       } else if (!d.webhook) {
         view.appendChild(h('div', { class: 'note ok', style: 'margin-bottom:12px' }, '✓ Zoom ulandi.'));
         view.appendChild(h('div', { class: 'note warn', style: 'margin-bottom:12px' },
