@@ -176,13 +176,14 @@ async function summary(store, student) {
       const t = mine.filter(z => z.date === today && z.meetingId && nowMin <= endMin(z) + 15)[0];
       if (t) {
         const reg = t.regs && t.regs[student.id];
-        const link = A.safeUrl((reg && reg.joinUrl) || t.joinUrl || '');
+        const zm = require('./zoom');
+        const link = A.safeUrl(zm.linkFor(t, student.id, student) || '');
         if (link) {
           g.zoomLink = link;
           g.zoomToday = {
             start: t.start || '', end: t.end || '', status: t.status || '',
-            personal: !!(reg && reg.joinUrl), joined: !!(t.joined && t.joined[student.id]),
-            password: (reg && reg.joinUrl) ? '' : String(t.password || '')
+            personal: !!((reg && reg.joinUrl) || t.open), joined: !!(t.joined && t.joined[student.id]),
+            password: ((reg && reg.joinUrl) || /[?&]pwd=/.test(link)) ? '' : String(t.password || '')
           };
         }
       }

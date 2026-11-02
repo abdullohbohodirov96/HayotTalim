@@ -823,6 +823,8 @@
     'Bu vaqt band: ': ['Это время занято: ', 'This slot is taken: ', 'هذا الوقت محجوز: '],
     'Sahifani ochib bo’lmadi. ': ['Не удалось открыть страницу. ', 'Could not open the page. ', 'تعذّر فتح الصفحة. '],
     'Tizimni ochib bo’lmadi': ['Не удалось открыть систему', 'Could not start the system', 'تعذّر تشغيل النظام'],
+    'Internet yo’q': ['Нет интернета', 'No internet', 'لا يوجد إنترنت'],
+    'Internetga ulaning — ulanishi bilan tizim o’zi ochiladi.': ['Подключитесь к интернету — система откроется сама.', 'Connect to the internet — the system will open by itself.', 'اتصل بالإنترنت — سيفتح النظام تلقائيًا.'],
     'Login yoki parol xato.': ['Неверный логин или пароль.', 'Wrong login or password.', 'اسم المستخدم أو كلمة المرور غير صحيحة.'],
     'Login va parolni kiriting.': ['Введите логин и пароль.', 'Enter login and password.', 'أدخل اسم المستخدم وكلمة المرور.'],
     'Bu maydon to’ldirilishi kerak.': ['Это поле обязательно.', 'This field is required.', 'هذا الحقل مطلوب.'],

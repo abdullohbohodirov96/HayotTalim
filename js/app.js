@@ -250,6 +250,12 @@
     }));
   }
   A.sectionBar = sectionBar;
+  /** Sahifa qaysi menyu bo'limida (yon menyu yozuvi) — sinovlar va yordam uchun */
+  A.navSectionLabel = function (pageId) {
+    var sec = sectionOf(pageId); if (!sec) return null;
+    var items = sectionItems(sec);
+    return items.length === 1 ? items[0].label : sec.label;
+  };
 
   function allowedNav() {
     return NAV.filter(function (n) { return App.can(n.perm); });
@@ -2497,6 +2503,8 @@
       inp.addEventListener('blur', function () { if (inp.value.trim() === '+998') inp.value = ''; });
       inp.addEventListener('input', function () {
         var d = inp.value.replace(/\D/g, '');
+        /* To'liq raqam (+998 bilan) tayyor «+998 » ustiga qo'yilsa yoki avto-to'ldirilsa — ikkinchi 998 olib tashlanadi */
+        if (d.length > 12 && d.indexOf('998998') === 0) d = d.slice(3);
         if (d.indexOf('998') !== 0) d = '998' + d.replace(/^998/, '');
         d = d.slice(0, 12);
         var p = d.slice(3);
@@ -4102,11 +4110,14 @@
       var boot = document.getElementById('boot');
       boot.hidden = false;
       UI.clear(boot);
-      boot.appendChild(h('div', { class: 'login' }, [
-        h('h1', {}, 'Tizimni ochib bo’lmadi'),
-        h('p', { class: 'sub' }, e.message || String(e)),
+      /* Internet yo'q bo'lsa — aniq aytamiz va internet qaytishi bilan o'zi qayta ochiladi */
+      var offline = navigator.onLine === false;
+      boot.appendChild(h('div', { class: 'login', id: offline ? 'boot-offline' : 'boot-error' }, [
+        h('h1', {}, offline ? 'Internet yo’q' : 'Tizimni ochib bo’lmadi'),
+        h('p', { class: 'sub' }, offline ? 'Internetga ulaning — ulanishi bilan tizim o’zi ochiladi.' : (e.message || String(e))),
         h('button', { class: 'btn primary', onclick: function () { location.reload(); } }, 'Qayta urinish')
       ]));
+      if (offline) window.addEventListener('online', function () { location.reload(); }, { once: true });
     }
   }
 

@@ -114,8 +114,7 @@ async function createMeeting(store, A, L, ctx) {
     type: 2, start_time: startIso, timezone: 'Asia/Tashkent', duration: Math.max(30, L.end - L.start),
     settings: {
       join_before_host: true, jbh_time: 15, waiting_room: false, mute_upon_entry: true,
-      auto_recording: 'cloud', approval_type: 0, registration_type: 1,
-      registrants_email_notification: false, registrants_confirmation_email: false,
+      auto_recording: 'cloud', approval_type: 2,   /* ro'yxatdan o'tishsiz: havolani bosgan mehmon bo'lib kiradi */
       meeting_authentication: false
     }
   });
@@ -123,21 +122,10 @@ async function createMeeting(store, A, L, ctx) {
     id: g.id + '__' + L.date, groupId: g.id, groupName: groupLabel(g), date: L.date,
     start: hm(L.start), end: hm(L.end), meetingId: String(mt.id), uuid: mt.uuid || '',
     joinUrl: mt.join_url || '', startUrl: mt.start_url || '', password: mt.password || '',
-    regs: {}, sent: {}, joined: {}, guests: [], status: 'yaratildi', createdAt: ctx.stamp()
+    regs: {}, open: true, sent: {}, joined: {}, guests: [], status: 'yaratildi', createdAt: ctx.stamp()
   };
-  /* Har o'quvchiga shaxsiy havola (ro'yxatdan o'tkazish) — kim kirganini aniq bilamiz.
-     Zoom tarifi ruxsat bermasa — umumiy havola, ism bo'yicha solishtiramiz. */
-  const host = (settings.siteUrl || process.env.SITE_URL || 'https://saboacademy.uz').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  for (const { s } of await members(store, g.id)) {
-    try {
-      const r = await api('POST', '/meetings/' + rec.meetingId + '/registrants', {
-        email: 's' + String(s.id).replace(/[^a-zA-Z0-9]/g, '') + '@' + host,
-        first_name: String(s.firstName || stName(s) || 'O’quvchi').slice(0, 60),
-        last_name: String(s.lastName || '').slice(0, 60) || '-'
-      });
-      rec.regs[s.id] = { regId: String(r.registrant_id || r.id || ''), joinUrl: r.join_url || '' };
-    } catch (e) { rec.regError = e.message; break; }
-  }
+  /* Ro'yxatdan o'tish yo'q — har kimga bitta havola, faqat ismi oldindan yozilgan bo'ladi
+     (uname): davomat ism bo'yicha aniqlanadi, odamdan forma ham, akkaunt ham so'ralmaydi. */
   await store.set(COL + rec.id, rec);
   return rec;
 }
@@ -179,7 +167,18 @@ function vars(rec, link, pass, settings) {
   return { guruh: rec.groupName, sana: rec.date, vaqt: rec.start + '–' + rec.end, havola: link || '', parol: pass || '',
     darslik: siteUrl(settings) + '/kabinet', ustoz_havola: rec.startUrl || '' };
 }
-function linkFor(rec, sid) { return (rec.regs && rec.regs[sid] && rec.regs[sid].joinUrl) || rec.joinUrl; }
+/** Zoom havolasiga ism qo'shish — kirganda ism oldindan yozilgan bo'ladi */
+function withName(url, name) {
+  const u = String(url || ''), n = String(name || '').trim();
+  if (!u || !n) return u;
+  return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'uname=' + encodeURIComponent(n.slice(0, 60));
+}
+function linkFor(rec, sid, s) {
+  if (rec.regs && rec.regs[sid] && rec.regs[sid].joinUrl) return rec.regs[sid].joinUrl;
+  return rec.open && s ? withName(rec.joinUrl, stName(s)) : rec.joinUrl;
+}
+/** Parol alohida kerakmi (havolada pwd= bo'lmasa) */
+function needPass(rec, link) { return rec.password && !/[?&]pwd=/.test(String(link || '')) && !/[?&]tk=/.test(String(link || '')) ? rec.password : ''; }
 async function notifyStudents(store, rec, kind, ctx, onlyMissing) {
   let n = 0;
   const T = await templates(store), settings = (await store.get('meta/settings')) || {};
@@ -188,8 +187,8 @@ async function notifyStudents(store, rec, kind, ctx, onlyMissing) {
     const chats = [];
     if (s.telegram && s.telegram.id) chats.push(String(s.telegram.id));
     if (!chats.length) continue;
-    const link = linkFor(rec, s.id);
-    const text = fill(T[kind], vars(rec, link, rec.password && !(rec.regs && rec.regs[s.id]) ? rec.password : '', settings));
+    const link = linkFor(rec, s.id, s);
+    const text = fill(T[kind], vars(rec, link, needPass(rec, link), settings));
     for (const chatId of chats) {
       await ctx.send({ kind: 'elon', chatId, studentId: s.id, text, dedupeKey: 'zoom:' + rec.id + ':' + kind + ':' + s.id });
       n++;
@@ -354,6 +353,12 @@ async function tick(store, A, ctx, nowMs) {
     }
     rec.sent = rec.sent || {};
     let changed = false;
+    /* Avval ro'yxatdan o'tish bilan ochilgan konferensiya — ochiq qilamiz (umumiy havola forma so'ramasin) */
+    if (!rec.open && rec.meetingId && rec.status !== 'tugadi' && !rec.openTried) {
+      rec.openTried = ctx.stamp(); changed = true;
+      try { await api('PATCH', '/meetings/' + rec.meetingId, { settings: { approval_type: 2 } }); rec.open = true; done.push('ochiq ' + id); }
+      catch (e) { rec.openError = e.message; }
+    }
     const step = async (key, cond, fn) => { if (!rec.sent[key] && cond) { await fn(); rec.sent[key] = ctx.stamp(); changed = true; done.push(key + ' ' + id); } };
     await step('h1', now >= L.start - 60 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
@@ -433,7 +438,7 @@ async function overview(store, fromIso) {
     const list = await members(store, r.groupId);
     out.push({
       id: r.id, groupId: r.groupId, groupName: r.groupName, date: r.date, start: r.start, end: r.end,
-      status: r.status, error: r.error || '', regError: r.regError || '', joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
+      status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
       sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recNote: r.recNote || '',
       recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password } : null,
       joined: list.filter(x => r.joined && r.joined[x.s.id]).map(x => ({ id: x.s.id, name: stName(x.s), at: r.joined[x.s.id].at })),
@@ -458,6 +463,12 @@ async function guestLink(store, rec, name, settings) {
   const old = rec.guestRegs.filter(g => g.name.toLowerCase() === nm.toLowerCase())[0];
   if (old) return { ok: true, joinUrl: old.joinUrl, name: old.name, again: true };
   if (rec.guestRegs.length >= 50) return { error: 'Bu darsga 50 tadan ortiq mehmon qo‘shib bo‘lmaydi.', code: 400 };
+  if (rec.open) {   /* ochiq konferensiya: ro'yxatsiz, ismli havola */
+    const joinUrl = withName(rec.joinUrl, nm);
+    rec.guestRegs.push({ name: nm, joinUrl });
+    await store.set(COL + rec.id, rec);
+    return { ok: true, joinUrl, name: nm };
+  }
   const host = ((settings && settings.siteUrl) || process.env.SITE_URL || 'https://saboacademy.uz').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   const parts = nm.split(/\s+/);
   const r = await api('POST', '/meetings/' + rec.meetingId + '/registrants', {
@@ -472,7 +483,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  guestLink,
+  guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };

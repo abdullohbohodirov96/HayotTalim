@@ -121,7 +121,8 @@
           l.guests && l.guests.length ? h('p', { class: 'muted small' }, 'Ro’yxatda yo’q ismlar: ' + l.guests.join(', ')) : null,
           h('div', { class: 'zm-acts' }, [
             l.startUrl ? h('a', { class: 'btn primary sm', href: l.startUrl, target: '_blank', rel: 'noopener' }, 'Darsni boshlash (ustoz)') : null,
-            l.joinUrl ? h('button', { class: 'btn sm', onclick: function () { try { navigator.clipboard.writeText(l.joinUrl); UI.toast('Umumiy havola nusxalandi (ochganda ism va email so‘raydi).', 'ok'); } catch (e) { } }, title: 'Umumiy havola — ochganda ism va email so‘raydi. Sinov darsiga keluvchiga «Mehmon havolasi» ni bering.' }, 'Umumiy havola') : null,
+            l.joinUrl ? h('button', { class: 'btn sm', onclick: function () { try { navigator.clipboard.writeText(l.joinUrl); UI.toast(l.open ? 'Havola nusxalandi — bosgan odam mehmon bo‘lib kiradi.' : 'Umumiy havola nusxalandi (ochganda ism va email so‘raydi).', 'ok'); } catch (e) { } },
+              title: l.open ? 'Umumiy havola — ro‘yxatdan o‘tishsiz, mehmon bo‘lib kiradi' : 'Umumiy havola — ochganda ism va email so‘raydi. Sinov darsiga keluvchiga «Mehmon havolasi» ni bering.' }, l.open ? 'Havolani nusxalash' : 'Umumiy havola') : null,
             l.status !== 'tugadi' ? h('button', { class: 'btn sm', title: 'Sinov darsiga keladigan yoki botga ulanmagan odam uchun — forma va Zoom akkauntsiz kiradi', onclick: function () { guestDialog(l); } }, '👤 Mehmon havolasi') : null,
             l.missing.length && l.status !== 'tugadi' ? h('button', {
               class: 'btn sm', onclick: async function () {

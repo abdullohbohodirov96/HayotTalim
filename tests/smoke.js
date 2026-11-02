@@ -1,6 +1,7 @@
 /* Brauzerda asosiy jarayonlarni tekshirish (Playwright) */
 const { chromium } = require('playwright');
 const path = require('path');
+const { openPage } = require('./_nav');
 
 const FILE = 'file://' + path.join(__dirname, '..', 'index.html');
 const shots = path.join(__dirname, '..', 'shots');
@@ -42,7 +43,7 @@ require('fs').mkdirSync(shots, { recursive: true });
     ['Jadval', '05-schedule'], ['Davomat', '06-attendance'], ['Moliya', '07-finance'],
     ['Hisobotlar', '08-reports'], ['Murojaatlar', '09-leads'], ['Xodimlar', '10-staff'],
     ['Sozlamalar', '11-settings']]) {
-      await page.click(`#nav button:has-text("${nav}")`);
+      await openPage(page, nav);
       await page.waitForTimeout(700);
       await page.screenshot({ path: path.join(shots, file + '.png'), fullPage: true });
       steps.push(nav + ' sahifasi ochildi');
@@ -68,7 +69,7 @@ require('fs').mkdirSync(shots, { recursive: true });
     await page.waitForTimeout(400);
 
     // O'quvchi qo'shish oqimi
-    await page.click('#nav button:has-text("O’quvchilar")');
+    await openPage(page, 'O’quvchilar');
     await page.waitForTimeout(400);
     await page.click('.page-actions button:has-text("O’quvchi qo’shish")');
     await page.waitForSelector('.modal');
@@ -97,15 +98,14 @@ require('fs').mkdirSync(shots, { recursive: true });
     await page.click('#tabbar button:has-text("Menyu")');
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(shots, 'm02-menu.png') });
-    await page.click('.modal .menu-item:has-text("O’quvchilar")');
+    await page.keyboard.press('Escape');
+    await openPage(page, 'O’quvchilar', { mobile: true });
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(shots, 'm03-students.png'), fullPage: true });
     const ov2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     steps.push('O’quvchilar ro’yxatida chiqish (px): ' + ov2);
 
-    await page.click('#tabbar button:has-text("Menyu")');
-    await page.waitForTimeout(300);
-    await page.click('.modal .menu-item:has-text("Moliya")');
+    await openPage(page, 'Moliya', { mobile: true });
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(shots, 'm04-finance.png'), fullPage: true });
 
@@ -119,9 +119,7 @@ require('fs').mkdirSync(shots, { recursive: true });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
 
-    await page.click('#tabbar button:has-text("Menyu")');
-    await page.waitForTimeout(300);
-    await page.click('.modal .menu-item:has-text("Davomat")');
+    await openPage(page, 'Davomat', { mobile: true });
     await page.waitForTimeout(800);
     await page.screenshot({ path: path.join(shots, 'm06-attendance.png'), fullPage: true });
     const attBtn = await page.locator('.att-opts button').first().boundingBox();
@@ -129,9 +127,7 @@ require('fs').mkdirSync(shots, { recursive: true });
     const ov3 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     steps.push('Davomat sahifasida chiqish (px): ' + ov3);
 
-    await page.click('#tabbar button:has-text("Menyu")');
-    await page.waitForTimeout(300);
-    await page.click('.modal .menu-item:has-text("Jadval")');
+    await openPage(page, 'Jadval', { mobile: true });
     await page.waitForTimeout(800);
     await page.screenshot({ path: path.join(shots, 'm07-schedule.png'), fullPage: true });
     const ov4 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -186,7 +182,7 @@ require('fs').mkdirSync(shots, { recursive: true });
   await page.waitForTimeout(400);
 
   // Suhbat
-  await page.click('#nav button:has-text("Suhbat")');
+  await openPage(page, 'Suhbat');
   await page.waitForTimeout(600);
   await page.fill('#chat-input', 'Salom jamoa, ertaga yig’ilish soat 10:00 da.');
   await page.click('.chat-form button[type=submit]');
@@ -195,7 +191,7 @@ require('fs').mkdirSync(shots, { recursive: true });
   steps.push('Chatga xabar yozildi, xabarlar soni: ' + msgCount);
 
   // Vazifa
-  await page.click('#nav button:has-text("Vazifalar")');
+  await openPage(page, 'Vazifalar');
   await page.waitForTimeout(500);
   await page.click('.page-actions button:has-text("Vazifa berish")');
   await page.waitForSelector('.modal');
@@ -208,13 +204,13 @@ require('fs').mkdirSync(shots, { recursive: true });
   steps.push('Vazifa qo’shildi, ro’yxatdagi qatorlar: ' + taskRows);
 
   // Bot
-  await page.click('#nav button:has-text("Telegram bot")');
+  await openPage(page, 'Telegram bot');
   await page.waitForTimeout(600);
   const botTiles = await page.locator('.tile').count();
   steps.push('Bot sahifasi ochildi, plitkalar: ' + botTiles);
 
   // Import oynasi
-  await page.click('#nav button:has-text("O’quvchilar")');
+  await openPage(page, 'O’quvchilar');
   await page.waitForTimeout(500);
   await page.click('.page-actions button:has-text("import")');
   await page.waitForSelector('.modal');
@@ -222,7 +218,7 @@ require('fs').mkdirSync(shots, { recursive: true });
   await page.keyboard.press('Escape');
 
   // Guruh kodlari
-  await page.click('#nav button:has-text("Guruhlar")');
+  await openPage(page, 'Guruhlar');
   await page.waitForTimeout(600);
   const codes = await page.locator('.card .pill.info').allInnerTexts();
   steps.push('Guruh kodlari: ' + codes.slice(0, 5).join(', '));

@@ -43,11 +43,17 @@ function section(t) { out.push('\n' + t); }
   section('2. Xizmat ishchisi ro’yxatdan o’tadi');
   await page.goto(BASE + '/#kirish');
   await page.waitForSelector('#login-user', { timeout: 20000 });
-  await page.waitForTimeout(1500);
-  const swState = await page.evaluate(async () => {
-    const r = await navigator.serviceWorker.getRegistration();
-    return r ? { scope: r.scope, has: !!(r.active || r.installing || r.waiting) } : null;
-  });
+  /* Ilova xizmat ishchisini sahifa to'liq yuklangach 3 soniyadan keyin ro'yxatdan o'tkazadi
+     (birinchi ochilishda internetni talashmasin) — shuning uchun kutamiz */
+  let swState = null;
+  for (let i = 0; i < 40 && !(swState && swState.has); i++) {
+    await page.waitForTimeout(500);
+    swState = await page.evaluate(async () => {
+      const r = await navigator.serviceWorker.getRegistration();
+      return r ? { scope: r.scope, has: !!(r.active || r.installing || r.waiting) } : null;
+    });
+  }
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)).catch(() => false);
   ok('Ro’yxatdan o’tdi', !!swState && swState.has, JSON.stringify(swState));
 
   await page.fill('#login-user', 'admin');
@@ -92,8 +98,11 @@ function section(t) { out.push('\n' + t); }
 
   section('5. Internetsiz ilova baribir ochiladi');
   await page.reload();
-  const opened = await page.waitForSelector('#login-user, #app', { timeout: 20000 }).then(() => true).catch(() => false);
+  /* Internetsiz kirib bo'lmaydi — lekin sahifa keshdan ochilishi va «Internet yo'q» deb aniq aytishi kerak */
+  const opened = await page.waitForSelector('#login-user, #app:not([hidden]), #boot-offline', { timeout: 20000 }).then(() => true).catch(() => false);
   ok('Sahifa keshdan ochildi', opened);
+  const offMsg = await page.evaluate(() => (document.getElementById('boot-offline') || document.body).innerText);
+  ok('Internet yo’qligi aniq aytildi (server xatosi deb emas)', /Internet yo/.test(offMsg) && !/Server hozir javob/.test(offMsg), offMsg.slice(0, 120));
 
   await ctx.setOffline(false);
   await page.waitForTimeout(500);

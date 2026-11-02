@@ -44,9 +44,11 @@ zoom.setFetch(async (url, opt) => {
   calls.push((opt && opt.method || 'GET') + ' ' + url.replace(/\?.*$/, ''));
   const J = (o, st) => ({ ok: (st || 200) < 300, status: st || 200, json: async () => o, arrayBuffer: async () => new ArrayBuffer(10) });
   if (/oauth\/token/.test(url)) return J({ access_token: 'T', expires_in: 3600 });
+  if (opt && opt.method === 'PATCH' && /\/meetings\/777$/.test(url)) { calls.push('PATCHBODY ' + opt.body); return { ok: true, status: 204, json: async () => ({}) }; }
   if (/\/users\/me\/meetings$/.test(url)) {
     const b = JSON.parse(opt.body);
     ok('Konferensiya: cloud yozuv yoqilgan', b.settings.auto_recording === 'cloud');
+    ok('Konferensiya: ro‘yxatdan o‘tishsiz (mehmon bo‘lib kiradi)', b.settings.approval_type === 2 && !b.settings.meeting_authentication);
     ok('Konferensiya: Toshkent vaqti 18:00', b.start_time === iso + 'T18:00:00' && b.timezone === 'Asia/Tashkent');
     return J({ id: 777, uuid: 'UU==', join_url: 'https://zoom.us/j/777', start_url: 'https://zoom.us/s/777', password: 'p1' });
   }
@@ -80,13 +82,13 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const rec = db['zoomlesson/g1__' + iso];
   ok('2 soat oldin konferensiya ochildi', rec && rec.meetingId === '777');
   ok('Oflayn guruhga konferensiya ochilmaydi', !db['zoomlesson/g2__' + iso]);
-  ok('3 o’quvchiga shaxsiy havola', rec && Object.keys(rec.regs).length === 3, JSON.stringify(rec && rec.regs));
+  ok('Ochiq konferensiya (ro‘yxatsiz)', rec && rec.open === true && !calls.some(c => /registrants/.test(c)), JSON.stringify(rec && rec.regs));
   ok('Hali eslatma yo’q', sent.length === 0);
 
   await zoom.tick(store, A, ctx, at(17, 0));
   ok('1 soat oldin: botga ulangan 2 o’quvchiga eslatma', kinds('h1').length === 2, kinds('h1').length);
   ok('Ustozga «Darsni boshlash» havolasi', sent.some(m => m.chatId === '900' && /zoom\.us\/s\/777/.test(m.text)));
-  ok('Har o’quvchiga O’Z havolasi', kinds('h1').every(m => /tk=/.test(m.text)) && /tk=Madina/.test(kinds('h1').filter(m => m.studentId === 's1')[0].text));
+  ok('Har o’quvchiga ismi yozilgan havola', kinds('h1').every(m => /zoom\.us\/j\/777\?uname=/.test(m.text)) && /uname=Madina%20Karimova/.test(kinds('h1').filter(m => m.studentId === 's1')[0].text));
   await zoom.tick(store, A, ctx, at(17, 10));
   ok('Takroriy tick — qayta yubormaydi', kinds('h1').length === 2);
   await zoom.tick(store, A, ctx, at(17, 45));
@@ -95,7 +97,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('Dars boshlanganda havola', kinds('start').length === 2);
 
   console.log('\n2. Webhook: kim qo’shildi');
-  const body = JSON.stringify({ event: 'meeting.participant_joined', payload: { object: { id: '777', uuid: 'UU==', participant: { registrant_id: 'R-Madina', user_name: 'Madina', join_time: '2026-10-19T13:02:00Z' } } } });
+  const body = JSON.stringify({ event: 'meeting.participant_joined', payload: { object: { id: '777', uuid: 'UU==', participant: { user_name: 'Madina Karimova', join_time: '2026-10-19T13:02:00Z' } } } });
   const ts = String(Math.floor(Date.now() / 1000));
   const sig = 'v0=' + crypto.createHmac('sha256', 'whsec').update('v0:' + ts + ':' + body).digest('hex');
   ok('To’g’ri imzo qabul qilinadi', zoom.verify(body, { 'x-zm-request-timestamp': ts, 'x-zm-signature': sig }));
@@ -106,7 +108,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   await zoom.webhook(store, { event: 'meeting.participant_joined', payload: { object: { id: '777', participant: { user_name: 'Bek Toshev', join_time: '2026-10-19T13:20:00Z' } } } }, ctx);
   await zoom.webhook(store, { event: 'meeting.participant_joined', payload: { object: { id: '777', participant: { user_name: 'Begona odam' } } } }, ctx);
   const r2 = db['zoomlesson/g1__' + iso];
-  ok('Madina qo’shildi (shaxsiy havola)', !!r2.joined.s1);
+  ok('Madina qo’shildi (ism bo‘yicha)', !!r2.joined.s1);
   ok('Bek ism bo’yicha topildi', !!r2.joined.s3);
   ok('Begona ism alohida ro’yxatda', r2.guests.indexOf('Begona odam') >= 0);
   const v = await zoom.webhook(store, { event: 'endpoint.url_validation', payload: { plainToken: 'abc' } }, ctx);
@@ -147,7 +149,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const sum = await kab.summary(store, await store.get('students/s1'));
   A.today = realToday;
   const kg = (sum.groups || []).filter(g => g.id === 'g1')[0];
-  ok('Kabinetda bugungi darsga O’Z havolasi', kg && kg.zoomLink === 'https://zoom.us/w/777?tk=Madina', kg && kg.zoomLink);
+  ok('Kabinetda bugungi darsga ismli havola', kg && kg.zoomLink === 'https://zoom.us/j/777?uname=Madina%20Karimova', kg && kg.zoomLink);
   ok('Qo’shilgani ko’rinadi', kg && kg.zoomToday && kg.zoomToday.joined === true);
   ok('Dars yozuvi kabinetda', kg && kg.recordings && kg.recordings[0] && /rec\/share\/abc/.test(kg.recordings[0].url), kg && JSON.stringify(kg.recordings));
 
@@ -157,10 +159,16 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   console.log('\n9. Mehmon havolasi (sinov darsi)');
   const rg = db['zoomlesson/g1__' + iso];
   const gl = await zoom.guestLink(store, rg, 'Dinara Karimova', {});
-  ok('Mehmonga shaxsiy havola berildi', gl.ok && /zoom\.us\/w\/777\?tk=Dinara/.test(gl.joinUrl), JSON.stringify(gl));
+  ok('Mehmonga ismli havola berildi (Zoom’ga so‘rovsiz)', gl.ok && gl.joinUrl === 'https://zoom.us/j/777?uname=Dinara%20Karimova', JSON.stringify(gl));
   const gl2 = await zoom.guestLink(store, db['zoomlesson/g1__' + iso], 'dinara karimova', {});
   ok('Shu ism qayta so‘ralsa — o‘sha havola, yangi ro‘yxat yo‘q', gl2.again && gl2.joinUrl === gl.joinUrl);
   ok('Bo‘sh ism rad etiladi', !!(await zoom.guestLink(store, rg, '  ', {})).error);
+  console.log('\n10. Eski (ro‘yxatli) konferensiya ochiq qilinadi');
+  const rr = db['zoomlesson/g1__' + iso];
+  rr.open = false; delete rr.openTried; rr.status = 'jonli';
+  await zoom.tick(store, A, ctx, at(18, 30));
+  ok('PATCH approval_type=2 yuborildi', calls.some(c => /PATCHBODY .*"approval_type":2/.test(c)));
+  ok('Endi ochiq', db['zoomlesson/g1__' + iso].open === true);
   console.log('\n' + (fail ? '✗ XATOLAR BOR — ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o\'tdi, ' + fail + ' ta xato');
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

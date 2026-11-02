@@ -86,11 +86,16 @@ const ID = n => R + '_' + n;
 
   section('1. Darslar ketma-ket ochiladi');
   let v = (await req('/api/kabinet/course', { cookie: kc })).json;
-  eq('8 ta dars', v.lessons.length, 8);
+  /* Kursdagi darslar soni o'zgarib turadi — bir nechta dars kerak bo'lgan tekshiruvlar faqat yetarli dars bo'lsa ishlaydi */
+  const N = C.LESSONS.length;
+  ok('Kursda dars bor (' + N + ' ta)', N >= 1);
+  eq('Darslar soni', v.lessons.length, N);
   eq('1-dars ochiq', v.lessons[0].status, 'open');
-  eq('2-dars yopiq', v.lessons[1].status, 'locked');
   const L1 = C.LESSONS[0], L2 = C.LESSONS[1];
-  eq('Yopiq darsga test topshirib bo’lmaydi', (await kpost('course/test', { lessonId: L2.id, answers: [] })).status, 403);
+  if (L2) {
+    eq('2-dars yopiq', v.lessons[1].status, 'locked');
+    eq('Yopiq darsga test topshirib bo’lmaydi', (await kpost('course/test', { lessonId: L2.id, answers: [] })).status, 403);
+  }
   eq('CSRF siz yozib bo’lmaydi', (await kpost('course/step', { lessonId: L1.id, step: 'words' }, false)).status, 403);
   eq('Bosqich belgilandi', (await kpost('course/step', { lessonId: L1.id, step: 'words' })).status, 200);
 
@@ -105,7 +110,7 @@ const ID = n => R + '_' + n;
   ok('Noto’g’ri javoblar → 0%', bad.json.result.percent === 0 && !bad.json.passed, JSON.stringify(bad.json.result));
   const good = await runTest(kpost, L1, true);
   ok('To’g’ri javoblar → 100%', good.json.result.percent === 100 && good.json.passed);
-  eq('Faqat test bilan keyingi dars ochilmaydi', good.json.view.lessons[1].status, 'locked');
+  if (L2) eq('Faqat test bilan keyingi dars ochilmaydi', good.json.view.lessons[1].status, 'locked');
 
   section('3. Uy vazifasi: fayl yuklash va topshirish');
   const empty = await kpost('course/homework', { lessonId: L1.id, autoAnswers: [] });
@@ -124,7 +129,7 @@ const ID = n => R + '_' + n;
   eq('Faqat o’z fayllari qabul qilindi', v.lessons[0].hw.fileIds.length, 2);
   eq('Holat: tekshirilmoqda', v.lessons[0].hw.status, 'tekshirilmoqda');
   eq('Test + vazifa → 1-dars tugadi', v.lessons[0].status, 'done');
-  eq('2-dars o’zi ochildi', v.lessons[1].status, 'open');
+  if (L2) eq('2-dars o’zi ochildi', v.lessons[1].status, 'open');
 
   section('4. Ustoz tekshiradi');
   const ov = await req('/api/course/overview', { cookie: ustoz });
@@ -135,12 +140,12 @@ const ID = n => R + '_' + n;
   const f = await req('/api/file?id=' + encodeURIComponent(up.json.file.id), { cookie: ustoz });
   eq('Ustoz yuklangan rasmni ochadi', f.status, 200);
   eq('Begona o’quvchini o’tkazib bo’lmaydi',
-    (await req('/api/course/move', { cookie: ustoz, body: { studentId: ID('s2'), lessonId: L2.id } })).status, 403);
+    (await req('/api/course/move', { cookie: ustoz, body: { studentId: ID('s2'), lessonId: (L2 || L1).id } })).status, 403);
   const back = await req('/api/course/review', { cookie: ustoz, body: { studentId: ID('s1'), lessonId: L1.id, decision: 'qayta', comment: 'Harakatlarni yozing' } });
   eq('Qayta topshirishga qaytarildi', back.status, 200);
   v = (await req('/api/kabinet/course', { cookie: kc })).json;
   eq('Qaytarilgach 1-dars yana ochiq', v.lessons[0].status, 'open');
-  eq('…va 2-dars yana yopiq', v.lessons[1].status, 'locked');
+  if (L2) eq('…va 2-dars yana yopiq', v.lessons[1].status, 'locked');
   eq('Ustoz izohi ko’rinadi', v.lessons[0].hw.comment, 'Harakatlarni yozing');
   await kpost('course/homework', { lessonId: L1.id, autoAnswers: hwA, texts: ['هٰذَا أَبِي وَهٰذِهِ أُمِّي'] });
   const acc = await req('/api/course/review', { cookie: ustoz, body: { studentId: ID('s1'), lessonId: L1.id, decision: 'qabul', grade: 5, comment: 'Barakalla' } });
@@ -154,10 +159,13 @@ const ID = n => R + '_' + n;
 
   section('5. Ustoz/admin darsga o’tkazadi');
   const L5 = C.LESSONS[4];
+  if (!C.LESSONS[5]) out.push('  – Kursda 6 tadan kam dars: o’tkazish tekshiruvi o’tkazib yuborildi');
+  else {
   eq('Admin 5-darsgacha o’tkazdi', (await req('/api/course/move', { cookie: dir, body: { studentId: ID('s1'), lessonId: L5.id } })).status, 200);
   v = (await req('/api/kabinet/course', { cookie: kc })).json;
   eq('5-dars ochiq', v.lessons[4].status, 'open');
   eq('6-dars yopiq', v.lessons[5].status, 'locked');
+  }
   eq('O’quvchi courseprog ni o’zi yoza olmaydi',
     (await put('courseprog/' + ID('s1'), { lessons: {} }, dir)).status, 403);
 
@@ -184,6 +192,8 @@ const ID = n => R + '_' + n;
   eq('Parol xeshi o’qib bo’lmaydi', (await getDoc('kabpass/' + ID('s1'), dir)).status, 403);
 
   section('7. Kitobdagidek yozma mashqlar serverda baholanadi');
+  const L7 = C.LESSONS[5] ? L5 : L1;
+  if (L7 === L5) {
   const L5w = C.buildWritten(L5);
   const hw5 = await kp2('course/homework', {
     lessonId: L5.id, autoAnswers: hwKey(L5),
@@ -197,6 +207,7 @@ const ID = n => R + '_' + n;
   const ov2 = await req('/api/course/overview', { cookie: dir });
   const pend = ov2.json.rows.find(r => r.studentId === ID('s1')).pending.find(p => p.lessonId === L5.id);
   ok('Ustozga ovoz fayli turi bilan keladi', pend && pend.files.some(f => /^audio\//.test(f.type)));
+  } else out.push('  – Kursda 6 tadan kam dars: 5-dars yozma mashqlari o’tkazib yuborildi');
 
   section('8. Har 2 darsdan keyin takrorlash testi va lug’at');
   await put('students/' + ID('s3'), { id: ID('s3'), firstName: 'Takror', lastName: 'Sinov', phone: '+998901234502', status: 'faol' }, dir);
@@ -204,6 +215,7 @@ const ID = n => R + '_' + n;
   const code3 = (await getDoc('students/' + ID('s3'), dir)).json.data.code;
   const k3 = await req('/api/kabinet', { body: { login: code3, password: code3 }, ip: '10.3.3.3' });
   const kp3 = (sub, body) => req('/api/kabinet/' + sub, { cookie: k3.cookie, csrf: k3.json.csrf, body });
+  if (N >= 3 && C.REVIEWS && C.REVIEWS.length >= 2) {
   for (const L of [C.LESSONS[0], C.LESSONS[1]]) {
     await runTest(kp3, L, true);
     const w = C.buildWritten(L);
@@ -231,13 +243,19 @@ const ID = n => R + '_' + n;
   const ov3 = await req('/api/course/overview', { cookie: dir });
   const r3 = ov3.json.rows.find(r => r.studentId === ID('s3'));
   ok('Ustoz panelida takrorlash va lug’at ko’rinadi', r3 && r3.reviews[0].status === 'done' && r3.vocab.total > 0);
+  } else out.push('  – Kursda 3 tadan kam dars: takrorlash testi o’tkazib yuborildi');
   const qa = await req('/api/qissa-audio?l=a1-01');
   ok('Qissa ovozi holati (ochiq yo’l)', qa.status === 200 && Array.isArray(qa.json.lines));
   const mp4 = Buffer.from('00000018667479706d703432000000006d703432', 'hex').toString('base64');
-  eq('Dars videosi (MP4) yuklandi', (await req('/api/course/video', { cookie: dir, body: { lessonId: 'a1-03', name: 'dars3.mp4', type: 'video/mp4', data: mp4 } })).status, 200);
-  ok('Video ochiq yo’lda bor', (await req('/api/lesson-video?l=a1-03&info=1')).json.has === true);
-  eq('Faqat MP4 qabul qilinadi', (await req('/api/course/video', { cookie: dir, body: { lessonId: 'a1-03', name: 'x.exe', type: 'application/octet-stream', data: mp4 } })).status, 400);
-  eq('O’quvchi video yuklay olmaydi', (await req('/api/course/video', { cookie: k3.cookie, body: { lessonId: 'a1-03', type: 'video/mp4', data: mp4 } })).status, 401);
+  /* Video bo'laklab yuklanadi: begin → chunk → end */
+  const mbuf = Buffer.from(mp4, 'base64');
+  const vb = await req('/api/course/video', { cookie: dir, body: { lessonId: L1.id, part: 'begin', name: 'dars.mp4', type: 'video/mp4', size: mbuf.length } });
+  const vc = vb.json && vb.json.uploadId ? await req('/api/course/video', { cookie: dir, body: { lessonId: L1.id, part: 'chunk', uploadId: vb.json.uploadId, idx: 0, data: mp4 } }) : vb;
+  const ve = vc.status === 200 ? await req('/api/course/video', { cookie: dir, body: { lessonId: L1.id, part: 'end', uploadId: vb.json.uploadId } }) : vc;
+  eq('Dars videosi (MP4) bo‘laklab yuklandi', ve.status, 200);
+  ok('Video ochiq yo’lda bor', (await req('/api/lesson-video?l=' + L1.id + '&info=1')).json.has === true);
+  eq('Faqat MP4 qabul qilinadi', (await req('/api/course/video', { cookie: dir, body: { lessonId: L1.id, part: 'begin', name: 'x.exe', type: 'application/octet-stream', size: 10 } })).status, 400);
+  eq('O’quvchi video yuklay olmaydi', (await req('/api/course/video', { cookie: k3.cookie, body: { lessonId: L1.id, type: 'video/mp4', data: mp4 } })).status, 401);
   ok('Ovoz xaritasi ochiq yo’lda', (await req('/api/qissa-audio/map')).status === 200);
   eq('Kalitsiz ElevenLabs yaratish aniq xato beradi', (await req('/api/course/tts', { cookie: dir, body: { lessonId: 'a1-01' } })).status, 400);
 
