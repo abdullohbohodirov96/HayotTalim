@@ -389,21 +389,112 @@
   var HARAKAT = [['َ', 'fatha'], ['ِ', 'kasra'], ['ُ', 'damma'], ['ْ', 'sukun'], ['ّ', 'shadda'], ['ً', 'tanvin -an'], ['ٍ', 'tanvin -in'], ['ٌ', 'tanvin -un'], ['ٰ', 'kichik alif'], ['ـ', 'cho‘zish']];
   var AR_KEYS = ['ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج', 'د', 'ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ط', 'ئ', 'ء', 'ؤ', 'ر', 'ى', 'ة', 'و', 'ز', 'ظ', 'ذ', 'أ', 'إ', 'آ', 'لا', '،', '؟', '؛'];
 
+
+  /* =================== DAFTAR SHABLONLARI =================== */
+  var FORMS6 = [
+    ['الْمَاضِي', 'Moziy', 'nb-c1'], ['الْمُضَارِع', 'Muzori’', 'nb-c2'], ['الْأَمْر', 'Amr', 'nb-c3'],
+    ['الْمَصْدَر', 'Masdar', 'nb-c4'], ['اسْمُ الْفَاعِل', 'Ismi fo‘il', 'nb-c5'], ['اسْمُ الْمَفْعُول', 'Ismi maf’ul', 'nb-c6']
+  ];
+  var VERBS6 = [
+    [['كَتَبَ', 'yozdi'], ['يَكْتُبُ', 'yozadi'], ['اُكْتُبْ', 'yoz!'], ['كِتَابَةٌ', 'yozish'], ['كَاتِبٌ', 'yozuvchi'], ['مَكْتُوبٌ', 'yozilgan']],
+    [['فَتَحَ', 'ochdi'], ['يَفْتَحُ', 'ochadi'], ['اِفْتَحْ', 'och!'], ['فَتْحٌ', 'ochish'], ['فَاتِحٌ', 'ochuvchi'], ['مَفْتُوحٌ', 'ochiq, ochilgan']],
+    [['عَلِمَ', 'bildi'], ['يَعْلَمُ', 'biladi'], ['اِعْلَمْ', 'bil!'], ['عِلْمٌ', 'bilish, ilm'], ['عَالِمٌ', 'biluvchi, olim'], ['مَعْلُومٌ', 'ma’lum']]
+  ];
+  var PRON = [
+    ['هُوَ', 'u (erkak)'], ['هُمَا', 'u ikkovi (erkak)'], ['هُمْ', 'ular (erkak)'],
+    ['هِيَ', 'u (ayol)'], ['هُمَا', 'u ikkovi (ayol)'], ['هُنَّ', 'ular (ayol)'],
+    ['أَنْتَ', 'sen (erkak)'], ['أَنْتُمَا', 'sizlar ikkovingiz (erkak)'], ['أَنْتُمْ', 'sizlar (erkak)'],
+    ['أَنْتِ', 'sen (ayol)'], ['أَنْتُمَا', 'sizlar ikkovingiz (ayol)'], ['أَنْتُنَّ', 'sizlar (ayol)'],
+    ['أَنَا', 'men'], ['نَحْنُ', 'biz']
+  ];
+  /* كَتَبَ — moziy, muzori', amr (faqat 2-shaxs) */
+  var KATABA = [
+    ['كَتَبَ', 'u yozdi', 'يَكْتُبُ', 'u yozadi', '', ''],
+    ['كَتَبَا', 'ikkovi yozdi', 'يَكْتُبَانِ', 'ikkovi yozadi', '', ''],
+    ['كَتَبُوا', 'ular yozdi', 'يَكْتُبُونَ', 'ular yozadi', '', ''],
+    ['كَتَبَتْ', 'u yozdi', 'تَكْتُبُ', 'u yozadi', '', ''],
+    ['كَتَبَتَا', 'ikkovi yozdi', 'تَكْتُبَانِ', 'ikkovi yozadi', '', ''],
+    ['كَتَبْنَ', 'ular yozdi', 'يَكْتُبْنَ', 'ular yozadi', '', ''],
+    ['كَتَبْتَ', 'sen yozding', 'تَكْتُبُ', 'sen yozasan', 'اُكْتُبْ', 'yoz!'],
+    ['كَتَبْتُمَا', 'ikkovingiz yozdingiz', 'تَكْتُبَانِ', 'ikkovingiz yozasiz', 'اُكْتُبَا', 'ikkovingiz yozing!'],
+    ['كَتَبْتُمْ', 'sizlar yozdingiz', 'تَكْتُبُونَ', 'sizlar yozasiz', 'اُكْتُبُوا', 'yozinglar!'],
+    ['كَتَبْتِ', 'sen yozding', 'تَكْتُبِينَ', 'sen yozasan', 'اُكْتُبِي', 'yoz!'],
+    ['كَتَبْتُمَا', 'ikkovingiz yozdingiz', 'تَكْتُبَانِ', 'ikkovingiz yozasiz', 'اُكْتُبَا', 'ikkovingiz yozing!'],
+    ['كَتَبْتُنَّ', 'sizlar yozdingiz', 'تَكْتُبْنَ', 'sizlar yozasiz', 'اُكْتُبْنَ', 'yozinglar!'],
+    ['كَتَبْتُ', 'men yozdim', 'أَكْتُبُ', 'men yozaman', '', ''],
+    ['كَتَبْنَا', 'biz yozdik', 'نَكْتُبُ', 'biz yozamiz', '', '']
+  ];
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function cellAr(v) { return '<td class="nb-ar" dir="rtl">' + (v ? esc(v) : '<br>') + '</td>'; }
+  function cellM(v) { return '<td class="nb-m" dir="ltr">' + (v ? esc(v) : '<br>') + '</td>'; }
+  function formsTable(rows, empty) {
+    var hd = '<tr><th class="nb-num">№</th>' + FORMS6.map(function (f) {
+      return '<th class="nb-h ' + f[2] + '">' + f[0] + '<small>' + f[1] + '</small></th><th class="nb-m">Ma’nosi</th>';
+    }).join('') + '</tr>';
+    var body = '', n = 0;
+    rows.forEach(function (r) { n++; body += '<tr><td class="nb-num">' + n + '</td>' + r.map(function (c) { return cellAr(c[0]) + cellM(c[1]); }).join('') + '</tr>'; });
+    for (var i = 0; i < empty; i++) { n++; body += '<tr><td class="nb-num">' + n + '</td>' + FORMS6.map(function () { return cellAr('') + cellM(''); }).join('') + '</tr>'; }
+    return '<table class="nb-tbl" dir="rtl"><thead>' + hd + '</thead><tbody>' + body + '</tbody></table>';
+  }
+  function conjTable(verb, filled) {
+    var hd = '<tr><th class="nb-h nb-c1">الضَّمِير<small>Olmosh</small></th><th class="nb-m">Ma’nosi</th>' +
+      '<th class="nb-h nb-c2">الْمَاضِي<small>Moziy</small></th><th class="nb-m">Ma’nosi</th>' +
+      '<th class="nb-h nb-c3">الْمُضَارِع<small>Muzori’</small></th><th class="nb-m">Ma’nosi</th>' +
+      '<th class="nb-h nb-c4">الْأَمْر<small>Amr</small></th><th class="nb-m">Ma’nosi</th></tr>';
+    var body = PRON.map(function (p, i) {
+      var r = filled ? KATABA[i] : ['', '', '', '', '', ''];
+      var second = i >= 6 && i <= 11;
+      return '<tr><td class="nb-pr" dir="rtl">' + p[0] + '</td>' + cellM(p[1]) + cellAr(r[0]) + cellM(r[1]) + cellAr(r[2]) + cellM(r[3]) +
+        (second ? cellAr(r[4]) + cellM(r[5]) : '<td class="nb-na">—</td><td class="nb-na">—</td>') + '</tr>';
+    }).join('');
+    return '<h2 dir="ltr">Fe’l: <span class="nb-verb" dir="rtl">' + (verb ? esc(verb[0]) : '……') + '</span> — ' + (verb ? esc(verb[1]) : '……') + '</h2>' +
+      '<table class="nb-tbl" dir="rtl"><thead>' + hd + '</thead><tbody>' + body + '</tbody></table>';
+  }
+  var NB_TEMPLATES = [
+    { id: 'blank', icon: '📄', title: 'Bo‘sh daftar', sub: 'Toza sahifa — xohlagan narsangizni yozasiz', name: 'Yangi daftar', html: function () { return '<p><br></p>'; } },
+    { id: 'forms', icon: '📊', title: 'Fe’l shakllari', sub: 'Moziy · Muzori’ · Amr · Masdar · Ismi fo‘il · Ismi maf’ul — har birining ma’nosi bilan', name: 'Fe’l shakllari',
+      html: function () { return '<h2>Fe’llarning 6 shakli</h2>' + formsTable(VERBS6, 7) + '<p><br></p>'; } },
+    { id: 'conj', icon: '🔤', title: 'Fe’l tuslash (namuna)', sub: 'كَتَبَ fe’li 14 olmosh bilan: moziy, muzori’, amr va ma’nolari', name: 'Fe’l tuslash: كَتَبَ',
+      html: function () { return conjTable(['كَتَبَ', 'yozmoq'], true) + '<p><br></p>'; } },
+    { id: 'conj0', icon: '✏️', title: 'Fe’l tuslash (bo‘sh)', sub: '14 olmosh tayyor — fe’lni o‘zingiz tuslab yozasiz', name: 'Fe’l tuslash',
+      html: function () { return conjTable(null, false) + '<p><br></p>'; } }
+  ];
+  function tplCard(t, onPick) {
+    return h('button', { type: 'button', class: 'nb-tpl nb-tpl-' + t.id, onclick: function () { onPick(t); } }, [
+      h('div', { class: 'nb-tpl-pv', 'aria-hidden': 'true' }, tplPreview(t.id)),
+      h('b', {}, [t.icon + ' ', t.title]), h('small', {}, t.sub)
+    ]);
+  }
+  function tplPreview(id) {
+    if (id === 'blank') return h('div', { class: 'pv-blank' }, [h('i'), h('i'), h('i')]);
+    var cols = id === 'forms' ? 13 : 8, rows = id === 'forms' ? 5 : 7, out = [];
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+      var cls = r === 0 ? (c % 2 ? 'h' + ((c >> 1) % 6 + 1) : 'hm') : (c % 2 ? '' : 'm');
+      if (id === 'forms') cls = r === 0 ? (c === 0 ? 'hm' : (c % 2 ? 'h' + (((c - 1) >> 1) % 6 + 1) : 'hm')) : (c === 0 ? 'm' : (c % 2 ? '' : 'm'));
+      out.push(h('span', { class: cls }));
+    }
+    return h('div', { class: 'pv-grid', style: 'grid-template-columns:repeat(' + cols + ',1fr)' }, out);
+  }
+  function createFromTemplate(t, App) {
+    D.api('POST', 'api/notebook', { title: t.name, html: t.html() }).then(function (r) { App.go('notebook', { id: r.notebook.id }); })
+      .catch(function (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); });
+  }
+
   A.Pages.notebook = function (view, route, App) {
     if (!App.can('curriculum.view') && !App.can('lesson.log')) return App.guard('curriculum.view');
     if (route && route.id) { editor(view, route.id, App); return; }
-    view.appendChild(UI.pageHead('Kitoblar va daftar', 'Darsda tushuntirish uchun yozuvlar — arabcha va o‘zbekcha', [
-      h('button', { class: 'btn primary', onclick: function () {
-        D.api('POST', 'api/notebook', { title: 'Yangi daftar', html: '' }).then(function (r) { App.go('notebook', { id: r.notebook.id }); })
-          .catch(function (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); });
-      } }, [UI.icon('plus'), 'Yangi daftar'])
-    ]));
+    view.appendChild(UI.pageHead('Kitoblar va daftar', 'Darsda tushuntirish uchun yozuvlar — arabcha va o‘zbekcha', []));
     view.appendChild(tabsBar(App, 'daftar'));
+    view.appendChild(h('div', { class: 'nb-tpls-wrap' }, [
+      h('h3', { class: 'nb-tpls-h' }, 'Yangi daftar ochish — shablonni tanlang'),
+      h('div', { class: 'nb-tpls' }, NB_TEMPLATES.map(function (t) { return tplCard(t, function (x) { createFromTemplate(x, App); }); }))
+    ]));
+    view.appendChild(h('h3', { class: 'nb-tpls-h' }, 'Mening daftarlarim'));
     var box = h('div', {}, h('p', { class: 'muted' }, 'Yuklanmoqda…'));
     view.appendChild(box);
     D.api('GET', 'api/notebooks').then(function (r) {
       UI.clear(box);
-      if (!r.notebooks.length) { box.appendChild(UI.empty({ title: 'Hali daftar yo‘q', text: '«Yangi daftar» ni bosing — darsda yozib tushuntirasiz, keyin yana ochasiz.' })); return; }
+      if (!r.notebooks.length) { box.appendChild(UI.empty({ title: 'Hali daftar yo‘q', text: 'Yuqoridan shablon tanlang — darsda yozib tushuntirasiz, keyin guruhga yuborasiz.' })); return; }
       box.appendChild(h('div', { class: 'nb-grid' }, r.notebooks.map(function (n) {
         return h('div', { class: 'nb-card' }, [
           h('button', { type: 'button', class: 'nb-open', onclick: function () { App.go('notebook', { id: n.id }); } }, [
@@ -448,6 +539,108 @@
         if (n && n !== ed) { n.setAttribute('dir', d); n.style.textAlign = d === 'rtl' ? 'right' : 'left'; later(); }
       }
       function b(label, title, fn, cls) { return h('button', { type: 'button', class: 'nb-b ' + (cls || ''), title: title, onmousedown: function (e) { e.preventDefault(); }, onclick: fn }, label); }
+      /* ---- jadval bilan ishlash ---- */
+      function curCell() {
+        var sel = window.getSelection(); if (!sel.rangeCount) return null;
+        var n = sel.getRangeAt(0).startContainer;
+        while (n && n !== ed && !(n.nodeType === 1 && /^(TD|TH)$/.test(n.tagName))) n = n.parentNode;
+        return n && n !== ed ? n : null;
+      }
+      function needCell() { var c = curCell(); if (!c) UI.toast('Avval jadval ichidagi katakni bosing.', 'info'); return c; }
+      function renumber(tbl) {
+        Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr'), function (tr, i) {
+          var f = tr.firstElementChild; if (f && f.classList.contains('nb-num')) f.textContent = String(i + 1);
+        });
+      }
+      function emptyLike(td) {
+        var c = document.createElement(td.tagName === 'TH' ? 'td' : td.tagName.toLowerCase());
+        c.className = td.className; if (td.getAttribute('dir')) c.setAttribute('dir', td.getAttribute('dir'));
+        c.innerHTML = c.classList.contains('nb-num') ? '' : '<br>';
+        return c;
+      }
+      function addRow(after) {
+        var td = needCell(); if (!td) return;
+        var tr = td.parentNode, tbl = tr.closest('table');
+        var src = tr.parentNode.tagName === 'THEAD' ? (tbl.querySelector('tbody tr') || tr) : tr;
+        var nr = document.createElement('tr');
+        Array.prototype.forEach.call(src.children, function (c) { nr.appendChild(emptyLike(c)); });
+        if (tr.parentNode.tagName === 'THEAD') { var tb = tbl.querySelector('tbody') || tbl.appendChild(document.createElement('tbody')); tb.insertBefore(nr, tb.firstChild); }
+        else tr.parentNode.insertBefore(nr, after ? tr.nextSibling : tr);
+        renumber(tbl); later();
+      }
+      function delRow() {
+        var td = needCell(); if (!td) return;
+        var tr = td.parentNode, tbl = tr.closest('table');
+        if (tr.parentNode.tagName === 'THEAD') { UI.toast('Sarlavha qatorini o‘chirib bo‘lmaydi.', 'info'); return; }
+        if (tbl.querySelectorAll('tbody tr').length <= 1) { UI.toast('Oxirgi qator qoldi.', 'info'); return; }
+        tr.remove(); renumber(tbl); later();
+      }
+      function addCol() {
+        var td = needCell(); if (!td) return;
+        var idx = Array.prototype.indexOf.call(td.parentNode.children, td), tbl = td.closest('table');
+        Array.prototype.forEach.call(tbl.rows, function (tr) {
+          var ref = tr.children[idx]; if (!ref) return;
+          var c = document.createElement(ref.tagName.toLowerCase());
+          c.innerHTML = '<br>'; if (ref.tagName === 'TH') { c.className = 'nb-m'; c.textContent = 'Yangi'; }
+          tr.insertBefore(c, ref.nextSibling);
+        });
+        later();
+      }
+      function delCol() {
+        var td = needCell(); if (!td) return;
+        var idx = Array.prototype.indexOf.call(td.parentNode.children, td), tbl = td.closest('table');
+        if (td.parentNode.children.length <= 1) return;
+        Array.prototype.forEach.call(tbl.rows, function (tr) { if (tr.children[idx]) tr.children[idx].remove(); });
+        later();
+      }
+      function delTable() {
+        var td = needCell(); if (!td) return;
+        if (!window.confirm('Butun jadval o‘chirilsinmi?')) return;
+        td.closest('table').remove(); later();
+      }
+      function insertHtmlAtCursor(html) {
+        ed.focus();
+        var c = curCell();
+        if (c) { /* jadval ichida bo'lsa — jadvaldan keyin qo'yamiz */
+          var tb = c.closest('table'), r = document.createRange(); r.setStartAfter(tb); r.collapse(true);
+          var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        }
+        document.execCommand('insertHTML', false, html); later();
+      }
+      function newTable() {
+        var rows = '', i, j;
+        for (i = 0; i < 4; i++) { rows += '<tr>'; for (j = 0; j < 4; j++) rows += '<td><br></td>'; rows += '</tr>'; }
+        insertHtmlAtCursor('<table class="nb-tbl" dir="auto"><thead><tr><th>Sarlavha</th><th>Sarlavha</th><th>Sarlavha</th><th>Sarlavha</th></tr></thead><tbody>' + rows + '</tbody></table><p><br></p>');
+      }
+      function tplMenu() {
+        var m = UI.modal({ title: 'Shablon qo‘shish', wide: true, body: [
+          h('p', { class: 'muted' }, 'Tanlangan shablon daftarning kursor turgan joyiga qo‘shiladi.'),
+          h('div', { class: 'nb-tpls' }, NB_TEMPLATES.filter(function (t) { return t.id !== 'blank'; }).map(function (t) {
+            return tplCard(t, function (x) { m.close(); insertHtmlAtCursor(x.html()); });
+          }))
+        ], actions: [{ label: 'Yopish' }] });
+      }
+      ed.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        var c = curCell(); if (!c) return;
+        e.preventDefault();
+        var cells = Array.prototype.slice.call(c.closest('table').querySelectorAll('td,th'));
+        var i = cells.indexOf(c) + (e.shiftKey ? -1 : 1);
+        if (i >= cells.length && !e.shiftKey) { addRow(true); cells = Array.prototype.slice.call(c.closest('table').querySelectorAll('td,th')); }
+        var nx = cells[Math.max(0, i)]; if (!nx) return;
+        var r = document.createRange(); r.selectNodeContents(nx); r.collapse(false);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      });
+      var tblBar = h('div', { class: 'nb-bar nb-bar2' }, [
+        b('📋 Shablon', 'Fe’l jadvali va boshqa shablonlarni qo‘shish', tplMenu, 'wide'),
+        b('▦ Jadval', 'Yangi bo‘sh jadval', newTable, 'wide'),
+        h('span', { class: 'nb-sep' }),
+        b('+ qator', 'Pastiga qator qo‘shish', function () { addRow(true); }, 'wide'),
+        b('− qator', 'Qatorni o‘chirish', delRow, 'wide'),
+        b('+ ustun', 'Yoniga ustun qo‘shish', addCol, 'wide'),
+        b('− ustun', 'Ustunni o‘chirish', delCol, 'wide'),
+        b('🗑 jadval', 'Jadvalni o‘chirish', delTable, 'wide')
+      ]);
       var COLS = ['#111111', '#c62828', '#1565c0', '#2e7d32', '#ef6c00', '#6a1b9a'];
       var kb = h('div', { class: 'nb-kb', style: 'display:none' }, [
         h('div', { class: 'nb-kb-row' }, AR_KEYS.map(function (k) { return b(k, k, function () { ins(k); }, 'ar'); })),
@@ -470,14 +663,82 @@
         b('⌨ عربي', 'Arabcha klaviatura va harakatlar', function () { kb.style.display = kb.style.display === 'none' ? 'block' : 'none'; }, 'wide'),
         b('↶', 'Bekor qilish', function () { cmd('undo'); }), b('↷', 'Qaytarish', function () { cmd('redo'); }), b('⌀', 'Formatni tozalash', function () { cmd('removeFormat'); })
       ]));
+      function saveNow() { clearTimeout(t); state.textContent = 'Saqlanmoqda…'; return D.api('POST', 'api/notebook', { id: nb.id, title: title.value, html: ed.innerHTML }).then(function () { state.textContent = '✓ Saqlangan'; }); }
       view.insertBefore(h('div', { class: 'nb-head' }, [
         h('button', { class: 'btn', onclick: function () { clearTimeout(t); save(); App.go('notebook'); } }, [UI.icon('back'), 'Daftarlar']),
         title, state,
+        h('button', { class: 'btn', onclick: function () { saveNow().then(function () { exportMenu(nb, title.value); }).catch(function (e) { UI.toast(e.message, 'bad'); }); } }, ['⬇️ ', 'Yuklab olish']),
+        h('button', { class: 'btn', onclick: function () { saveNow().then(function () { sendDialog(nb, title.value); }).catch(function (e) { UI.toast(e.message, 'bad'); }); } }, ['📤 ', 'Guruhga yuborish']),
         h('button', { class: 'btn primary', onclick: function () { present(ed.innerHTML, title.value); } }, [UI.icon('play'), 'Darsda ko‘rsatish'])
       ]), box);
-      box.appendChild(bar); box.appendChild(kb); box.appendChild(ed);
+      box.appendChild(bar); box.appendChild(tblBar); box.appendChild(kb); box.appendChild(ed);
       ed.focus();
     }).catch(function (e) { UI.clear(box); box.appendChild(h('div', { class: 'note bad' }, e.message || 'Daftar topilmadi')); });
+  }
+
+
+  /* =================== Yuklab olish va guruhga yuborish =================== */
+  function exportUrl(nb, fmt, inline) { return 'api/notebook/export?id=' + encodeURIComponent(nb.id) + '&fmt=' + fmt + (inline ? '&inline=1' : ''); }
+  function download(url) { var a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+  function exportMenu(nb, title) {
+    function opt(icon, name, sub, fn) {
+      return h('button', { type: 'button', class: 'nb-exp', onclick: function () { m.close(); fn(); } }, [h('span', { class: 'nb-exp-i' }, icon), h('div', {}, [h('b', {}, name), h('small', {}, sub)])]);
+    }
+    var m = UI.modal({ title: 'Daftarni yuklab olish', body: [
+      h('p', { class: 'muted' }, '«' + (title || 'Daftar') + '» — jadvallar va arabcha yozuvlar bilan.'),
+      h('div', { class: 'nb-exps' }, [
+        opt('📄', 'PDF / chop etish', 'Ochilgan oynada «PDF sifatida saqlash» ni tanlang', function () { printNb(nb); }),
+        opt('📝', 'Word (.doc)', 'Word, Google Docs yoki telefonda ochiladi va tahrirlanadi', function () { download(exportUrl(nb, 'doc')); }),
+        opt('🌐', 'Veb-sahifa (.html)', 'Har qanday telefon va kompyuterda ochiladi', function () { download(exportUrl(nb, 'html')); })
+      ])
+    ], actions: [{ label: 'Yopish' }] });
+  }
+  function printNb(nb) {
+    var w = window.open('', '_blank');
+    if (!w) { UI.toast('Brauzer yangi oynani to‘sdi — ruxsat bering.', 'bad'); return; }
+    w.document.write('<p style="font-family:sans-serif;padding:20px">Tayyorlanmoqda…</p>');
+    fetch(exportUrl(nb, 'html', true), { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
+      w.document.open(); w.document.write(html); w.document.close();
+      setTimeout(function () { try { w.focus(); w.print(); } catch (e) { } }, 900);
+    }).catch(function () { w.close(); UI.toast('Tayyorlab bo‘lmadi.', 'bad'); });
+  }
+  var SEND_TEXT = '📒 Mana sizlarga yangi o‘tilgan mavzular bo‘yicha daftar. Shuni ko‘chirib olinglar!';
+  function sendDialog(nb, title) {
+    var sel = h('select', { class: 'input' }, h('option', { value: '' }, 'Yuklanmoqda…'));
+    var info = h('p', { class: 'muted nb-send-info' }, '');
+    var txt = h('textarea', { class: 'input', rows: 3, maxlength: 900 });
+    txt.value = lsGet('nb-send-text') || SEND_TEXT;
+    var groups = [];
+    function showInfo() {
+      var g = groups.filter(function (x) { return x.id === sel.value; })[0];
+      info.textContent = !g ? '' : g.tg ? '✅ Guruhning Telegram chatiga fayl bo‘lib boradi.' : 'ℹ️ Guruh chatga ulanmagan — botga ulangan har bir o‘quvchiga shaxsan boradi.';
+    }
+    sel.addEventListener('change', function () { lsSet('nb-send-group', sel.value); showInfo(); });
+    D.api('GET', 'api/notebook/groups').then(function (r) {
+      groups = r.groups || [];
+      UI.clear(sel);
+      if (!groups.length) { sel.appendChild(h('option', { value: '' }, 'Guruh yo‘q')); return; }
+      var last = lsGet('nb-send-group');
+      groups.forEach(function (g) { sel.appendChild(h('option', { value: g.id }, g.name + (g.tg ? '' : ' (chatsiz)'))); });
+      if (groups.some(function (g) { return g.id === last; })) sel.value = last;
+      showInfo();
+    }).catch(function (e) { UI.clear(sel); sel.appendChild(h('option', { value: '' }, e.message || 'Xato')); });
+    UI.modal({ title: 'Daftarni guruhga yuborish', body: [
+      h('p', {}, ['📒 ', h('b', {}, title || 'Daftar'), ' — o‘quvchilarga fayl bo‘lib boradi, telefonda ochib, saqlab olishadi.']),
+      h('label', { class: 'field' }, [h('span', {}, 'Guruh'), sel]), info,
+      h('label', { class: 'field' }, [h('span', {}, 'Xabar matni'), txt])
+    ], actions: [
+      { label: 'Bekor qilish' },
+      { label: '📤 Yuborish', cls: 'primary', onClick: function (close, btn) {
+        if (!sel.value) { UI.toast('Guruhni tanlang.', 'info'); return; }
+        btn.disabled = true; btn.textContent = 'Yuborilmoqda…';
+        lsSet('nb-send-text', txt.value);
+        D.api('POST', 'api/notebook/send', { id: nb.id, groupId: sel.value, text: txt.value }).then(function (r) {
+          close();
+          UI.toast(r.where === 'group' ? 'Guruh chatiga yuborildi ✅' : r.sent + ' ta o‘quvchiga yuborildi ✅' + (r.failed ? ' (' + r.failed + ' tasiga bormadi)' : ''), 'ok');
+        }).catch(function (e) { btn.disabled = false; btn.textContent = '📤 Yuborish'; UI.toast(e.message || 'Yuborilmadi', 'bad'); });
+      } }
+    ] });
   }
 
   /* Darsda katta qilib ko'rsatish (Zoom'da ekran ulashish uchun qulay) */

@@ -1448,6 +1448,20 @@ function startMaintenance() {
   return t;
 }
 
+/* Telegramga fayl yuborish (daftar va h.k.) */
+async function sendTgDocument(chatId, buf, name, caption) {
+  const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
+  if (!tokenTg) throw new Error('bot token yo‘q');
+  const fd = new FormData();
+  fd.append('chat_id', String(chatId));
+  if (caption) fd.append('caption', String(caption).slice(0, 1000));
+  fd.append('document', new Blob([buf], { type: 'text/html' }), name);
+  const r = await fetch('https://api.telegram.org/bot' + tokenTg + '/sendDocument', { method: 'POST', body: fd });
+  const j = await r.json().catch(() => ({}));
+  if (!j.ok) throw new Error(j.description || ('HTTP ' + r.status));
+  return j.result;
+}
+
 /* ---------------- Zoom avtomatikasi ---------------- */
 function zoomCtx() {
   return {
@@ -3889,6 +3903,59 @@ async function handleApi(req, res, url) {
     else if (route === 'notebook' && req.method === 'GET') r = await books.getNotebook(store, uid, url.searchParams.get('id'));
     else if (route === 'notebook' && req.method === 'POST') r = await books.saveNotebook(store, uid, await readBody(req), stamp);
     else if (route === 'notebook/delete' && req.method === 'POST') r = await books.deleteNotebook(store, uid, (await readBody(req)).id);
+    else if (route === 'notebook/export' && req.method === 'GET') {
+      const g0 = await books.getNotebook(store, uid, url.searchParams.get('id'));
+      if (g0.error) return send(res, g0.code, g0);
+      const fmt = url.searchParams.get('fmt') === 'doc' ? 'doc' : 'html';
+      const st0 = (await store.get('meta/settings')) || {};
+      const body = books.exportHtml(g0.notebook, { fmt, center: st0.centerName || st0.name || 'Sabo Academy' });
+      const fname = books.exportName(g0.notebook, fmt);
+      return send(res, 200, (fmt === 'doc' ? '\ufeff' : '') + body, {
+        'Content-Type': (fmt === 'doc' ? 'application/msword' : 'text/html') + '; charset=utf-8',
+        'Content-Disposition': url.searchParams.get('inline') ? 'inline' : 'attachment; filename="daftar.' + fmt + '"; filename*=UTF-8\'\'' + encodeURIComponent(fname)
+      });
+    }
+    /* Daftarni guruhga yuborish: qaysi guruhlarga yubora oladi */
+    else if (route === 'notebook/groups' && req.method === 'GET') {
+      const all = (await store.list('groups/')).map(x => x.data).filter(g => g && g.status !== 'yakunlangan' && g.status !== 'o’chirilgan');
+      const out = [];
+      for (const g of all) {
+        if (!(await ownsGroup(g.id))) continue;
+        out.push({ id: g.id, name: String(g.name || g.id), tg: !!g.tgChat, status: g.status || '' });
+      }
+      out.sort((a, b) => a.name.localeCompare(b.name));
+      r = { groups: out };
+    }
+    else if (route === 'notebook/send' && req.method === 'POST') {
+      const b0 = await readBody(req);
+      const g0 = await books.getNotebook(store, uid, b0.id);
+      if (g0.error) return send(res, g0.code, g0);
+      const grp = await store.get('groups/' + String(b0.groupId || ''));
+      if (!grp || !(await ownsGroup(grp.id))) return send(res, 404, { error: 'Guruh topilmadi.' });
+      if (!process.env.TELEGRAM_BOT_TOKEN) return send(res, 400, { error: 'Telegram bot ulanmagan (TELEGRAM_BOT_TOKEN yo‘q).' });
+      const st0 = (await store.get('meta/settings')) || {};
+      const fname = books.exportName(g0.notebook, 'html');
+      const buf = Buffer.from(books.exportHtml(g0.notebook, { center: st0.centerName || st0.name || 'Sabo Academy' }), 'utf8');
+      const caption = String(b0.text || '').replace(/[<>]/g, '').trim().slice(0, 900) ||
+        '📒 Mana sizlarga yangi o‘tilgan mavzular bo‘yicha daftar. Shuni ko‘chirib olinglar!';
+      const chats = [];
+      if (grp.tgChat && b0.to !== 'students') chats.push(String(grp.tgChat));
+      else {
+        for (const m of (await store.list('memberships/')).map(x => x.data)) {
+          if (!m || m.groupId !== grp.id || m.status !== 'faol') continue;
+          const stu = await store.get('students/' + m.studentId);
+          if (stu && stu.telegram && stu.telegram.id) chats.push(String(stu.telegram.id));
+        }
+      }
+      if (!chats.length) return send(res, 400, { error: grp.tgChat ? 'Yuboriladigan o‘quvchi yo‘q.' : 'Guruh Telegram chatiga ulanmagan va o‘quvchilar botga ulanmagan.' });
+      let ok = 0, fail = 0, lastErr = '';
+      for (const chatId of [...new Set(chats)]) {
+        try { await sendTgDocument(chatId, buf, fname, caption); ok++; } catch (e) { fail++; lastErr = e.message; }
+      }
+      writeAudit(user, 'notebook.send', 'notebook', { id: g0.notebook.id, groupId: grp.id, ok, fail });
+      if (!ok) return send(res, 502, { error: 'Yuborilmadi: ' + lastErr });
+      r = { ok: true, sent: ok, failed: fail, where: chats.length === 1 && grp.tgChat && b0.to !== 'students' ? 'group' : 'students' };
+    }
     if (r) return send(res, r.code || 200, r);
   }
   /* Xabar matnlari: o'qish (ko'rish) — Zoom bo'limini ko'radiganlar, o'zgartirish — guruhni tahrirlay oladiganlar */
