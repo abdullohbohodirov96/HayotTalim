@@ -164,10 +164,8 @@ function siteUrl(settings) { return String((settings && settings.siteUrl) || pro
 function fill(tpl, v) {
   return String(tpl).replace(/\{(guruh|sana|vaqt|havola|parol|darslik|ustoz_havola)\}/g, (m, k) => {
     if (k === 'parol') return v.parol ? '\n🔑 Parol: <code>' + esc(v.parol) + '</code>' : '';
-    if (k === 'havola') {
-      const wc = browserLink(v.havola);
-      return esc(v.havola || '') + (wc ? '\n📱 Telefonda Zoom ilovasi yo‘q bo‘lsa — ilovasiz, brauzerda kiring: ' + esc(wc) : '');
-    }
+    /* Faqat bitta havola — ilovasiz, brauzerda ochiladigan (Zoom o'rnatish shart emas) */
+    if (k === 'havola') return esc(browserLink(v.havola) || v.havola || '');
     return esc(v[k] == null ? '' : v[k]);
   });
 }

@@ -4077,7 +4077,7 @@ async function handleApi(req, res, url) {
     try {
       const r = await zoom.guestLink(store, rec, body.name, (await store.get('meta/settings')) || {});
       if (r.ok && !r.again) await writeAudit(user, 'Zoom: mehmon havolasi', rec.groupName, r.name);
-      if (r.ok && r.joinUrl) r.browserUrl = zoom.browserLink(r.joinUrl);
+      if (r.ok && r.joinUrl) { r.appUrl = r.joinUrl; r.joinUrl = zoom.browserLink(r.joinUrl) || r.joinUrl; }
       return send(res, r.code || 200, r);
     } catch (e) { return send(res, 502, { error: 'Zoom: ' + e.message }); }
   }

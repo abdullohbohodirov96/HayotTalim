@@ -32,9 +32,8 @@
         try {
           var r = await D.api('POST', 'api/zoom/guest', { id: l.id, name: name.value });
           UI.clear(out);
-          var txt = '👋 Assalomu alaykum, ' + r.name + '!\n' + (l.groupName || '') + ' — sinov darsi ' + (l.date || '') + ', ' + (l.start || '') + ' da.\n\n👉 Darsga kirish: ' + r.joinUrl + (r.browserUrl ? '\n📱 Telefonda Zoom ilovasi yo‘q bo‘lsa — ilovasiz, brauzerda kiring: ' + r.browserUrl : '');
-          out.appendChild(h('div', { class: 'note ok', style: 'word-break:break-all' }, [h('b', {}, r.name + ' uchun havola: '), r.joinUrl,
-            r.browserUrl ? h('div', { class: 'small', style: 'margin-top:6px' }, [h('b', {}, 'Ilovasiz (brauzerda): '), r.browserUrl]) : null]));
+          var txt = '👋 Assalomu alaykum, ' + r.name + '!\n' + (l.groupName || '') + ' — sinov darsi ' + (l.date || '') + ', ' + (l.start || '') + ' da.\n\n👉 Darsga kirish: ' + r.joinUrl;
+          out.appendChild(h('div', { class: 'note ok', style: 'word-break:break-all' }, [h('b', {}, r.name + ' uchun havola: '), r.joinUrl]));
           out.appendChild(h('div', { class: 'rowflex', style: 'gap:8px;margin-top:8px;flex-wrap:wrap' }, [
             h('button', { class: 'btn sm primary', onclick: function () { UI.copy(r.joinUrl); } }, '📋 Havolani nusxalash'),
             h('button', { class: 'btn sm', onclick: function () { UI.copy(txt); } }, '💬 Xabar bilan nusxalash')
