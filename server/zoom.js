@@ -117,7 +117,9 @@ async function createMeeting(store, A, L, ctx) {
     settings: {
       join_before_host: true, jbh_time: 15, waiting_room: false, mute_upon_entry: true,
       auto_recording: 'cloud', approval_type: 2,   /* ro'yxatdan o'tishsiz: havolani bosgan mehmon bo'lib kiradi */
-      meeting_authentication: false
+      meeting_authentication: false,
+      /* Kirishda o'quvchidan bir marta rozilik so'raladi — keyin ustoz uning mikrofonini o'zi yoqa oladi */
+      request_permission_to_unmute_participants: true
     }
   });
   const rec = {
