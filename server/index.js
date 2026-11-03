@@ -1243,7 +1243,8 @@ function kabHash(pw, salt) { return crypto.scryptSync(String(pw), salt, 32).toSt
 async function kabPassOk(student, pw) {
   const rec = await store.get('kabpass/' + student.id);
   if (rec && rec.salt && rec.hash) {
-    const a = Buffer.from(kabHash(pw, rec.salt), 'hex'), b = Buffer.from(rec.hash, 'hex');
+    /* Asinxron scrypt: tekshiruv paytida server boshqa o'quvchilarga javob berishda davom etadi */
+    const a = await new Promise((res, rej) => crypto.scrypt(String(pw), rec.salt, 32, (e, k) => e ? rej(e) : res(k))), b = Buffer.from(rec.hash, 'hex');
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   }
   /* Parol qo'yilmagan — boshlang'ich parol shaxsiy kod */

@@ -115,7 +115,10 @@ async function createMeeting(store, A, L, ctx) {
     /* Kod (passcode) qoladi: Zoom kamida bitta himoyani talab qiladi (kod yoki kutish zali yoki akkaunt).
        Kod havolaning ichida (pwd=) — havolani bosgan odamdan so'ralmaydi; kutish zali esa o'quvchini to'xtatib qo'yardi. */
     settings: {
-      join_before_host: true, jbh_time: 15, waiting_room: false, mute_upon_entry: true,
+      /* Dars (va yozuv) faqat USTOZ (organizator) kirganda boshlanadi. Undan oldin kirgan
+         o'quvchi «Organizator kutilmoqda» ekranida turadi va ustoz kirishi bilan o'zi
+         darsga tushadi — bo'sh xonaning keraksiz yozuvi bo'lmaydi. */
+      join_before_host: false, waiting_room: false, mute_upon_entry: true,
       auto_recording: 'cloud', approval_type: 2,   /* ro'yxatdan o'tishsiz: havolani bosgan mehmon bo'lib kiradi */
       meeting_authentication: false,
       /* Kirishda o'quvchidan bir marta rozilik so'raladi — keyin ustoz uning mikrofonini o'zi yoqa oladi */
@@ -149,7 +152,7 @@ const TPL_DEF = {
     '📌 <b>تعليمات مهمّة:</b>\n' +
     '1️⃣ يُرجى الدخول من هذا الرابط فقط، فهو يفتح الدرس بصلاحية المضيف. هذا الرابط خاص بالمعلّم، لا يُرسَل للطلاب.\n' +
     '2️⃣ الطلاب يصلهم رابطهم تلقائيًا من البوت قبل الدرس بـ30 دقيقة، ويدخلون مباشرة دون تطبيق ودون انتظار.\n' +
-    '3️⃣ التسجيل يبدأ تلقائيًا مع بدء الدرس. لا حاجة للضغط على «تسجيل»، ويُرجى عدم إيقافه.\n' +
+    '3️⃣ يبدأ الدرس والتسجيل تلقائيًا عند دخول المعلّم فقط. الطلاب الذين يدخلون قبله ينتظرون، ثم ينضمّون تلقائيًا. لا حاجة للضغط على «تسجيل»، ويُرجى عدم إيقافه.\n' +
     '4️⃣ يدخل الطلاب والميكروفون مغلق. لتشغيل صوت طالب: «المشاركون» ← بجانب اسمه «تشغيل الصوت». إن وافق الطالب مسبقًا يُفتح صوته فورًا، وإلا يضغط هو على «موافق».\n' +
     '5️⃣ لكتم صوت الجميع: «المشاركون» ← «كتم صوت الجميع».\n' +
     '6️⃣ عند الخروج المؤقت يُضغط «مغادرة الاجتماع» وليس «إنهاء للجميع»، وإلا يبدأ تسجيل جديد ويضيع التسجيل الكامل.\n' +
