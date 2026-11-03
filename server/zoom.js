@@ -369,8 +369,24 @@ async function fetchRecording(store, rec) {
   /* Raqam bo'yicha — oxirgi seans yozuvi. Konferensiya yaratilgandagi uuid birinchi (masalan, sinov uchun
      ochib-yopilgan 40 soniyalik) seansga tegishli bo'lishi mumkin — shuning uchun ishlatilmaydi. */
   const id = rec.meetingId;
-  const j = await api('GET', '/meetings/' + id + '/recordings');
-  return recFromPayload(j);
+  let best = null, firstErr = null;
+  try { best = recFromPayload(await api('GET', '/meetings/' + id + '/recordings')); } catch (e) { firstErr = e; }
+  /* Dars bir necha seansga bo'linib qolgan bo'lishi mumkin (o'rtada «Tugatish» bosilib qayta ochilgan).
+     Shu kungi barcha seanslar ko'rib chiqiladi va ENG UZUN yozuv olinadi — oxirgi qisqa bo'lak emas. */
+  try {
+    const inst = await api('GET', '/past_meetings/' + id + '/instances');
+    const day = String(rec.date || '');
+    for (const m of (inst && inst.meetings) || []) {
+      if (!m || !m.uuid) continue;
+      if (day && m.start_time && new Date(Date.parse(m.start_time) + 5 * 3600 * 1000).toISOString().slice(0, 10) !== day) continue;
+      try {
+        const r = recFromPayload(await api('GET', '/meetings/' + uuidPath(m.uuid) + '/recordings'));
+        if (r && (!best || (r.durSec || 0) > (best.durSec || 0))) best = r;
+      } catch (e) { /* bu seansda yozuv yo'q */ }
+    }
+  } catch (e) { /* seanslar ro'yxati olinmadi — oxirgi seans yozuvi bilan qolamiz */ }
+  if (!best && firstErr) throw firstErr;
+  return best;
 }
 function recFromPayload(j) {
   const raw = (j.recording_files || []).filter(f => f.file_type === 'MP4' && f.status !== 'processing');
@@ -665,7 +681,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  browserLink, livePick, LIVE_POOL, refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
+  browserLink, livePick, LIVE_POOL, _fetchRecording: (s, r) => fetchRecording(s, r), refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };

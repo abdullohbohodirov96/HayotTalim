@@ -59,6 +59,8 @@ zoom.setFetch(async (url, opt) => {
     const b = JSON.parse(opt.body);
     return J({ registrant_id: 'R-' + b.first_name, join_url: 'https://zoom.us/w/777?tk=' + b.first_name });
   }
+  if (/past_meetings\/777\/instances/.test(url)) return J({ meetings: multiInst ? [{ uuid: '/long==', start_time: iso + 'T03:00:00Z' }, { uuid: 'short==', start_time: iso + 'T05:00:00Z' }] : [] });
+  if (multiInst && /\/meetings\/%252Flong%253D%253D\/recordings$/.test(url)) return J({ share_url: 'https://zoom.us/rec/share/LONG', recording_files: [{ file_type: 'MP4', file_size: 900, download_url: 'https://zoom.us/dl/L', recording_start: '2026-11-03T03:00:00Z', recording_end: '2026-11-03T04:15:00Z' }] });
   if (/past_meetings/.test(url)) return J({ participants: [] });
   if (/metrics/.test(url)) return J({}, 400);
   if (/\/recordings$/.test(url)) {
@@ -67,6 +69,7 @@ zoom.setFetch(async (url, opt) => {
   return J({ message: 'nomaʼlum ' + url }, 404);
 });
 
+let multiInst = false;
 const sent = [], groupMsgs = [], staffMsgs = [], otherStaff = [];
 let n = 0;
 const ctx = {
@@ -189,6 +192,10 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('Yozuv tasdig‘i faqat direktorga (adminlarga emas)', !otherStaff.some(t => /yozuv/i.test(t)), JSON.stringify(otherStaff));
   console.log('\n11. Sinov seansi (40 soniya) haqiqiy dars yozuvi o‘rniga ketmaydi');
   ok('Yozuv konferensiya raqami bo‘yicha (oxirgi seans) so‘raladi', calls.some(c => /\/meetings\/777\/recordings$/.test(c)) && !calls.some(c => /\/meetings\/UU/.test(c)));
+  multiInst = true;
+  const frM = await zoom._fetchRecording(store, { meetingId: '777', date: iso });
+  ok('Dars bir necha seansga bo‘lingan bo‘lsa — eng uzun yozuv olinadi', frM && /LONG/.test(frM.shareUrl) && frM.durSec === 75 * 60, JSON.stringify(frM));
+  multiInst = false;
   const z = zoom.tooShort({ durSec: 40 }, { start: '18:00', end: '19:30' });
   ok('40 soniyalik yozuv «juda qisqa» deb topiladi', z === true && zoom.tooShort({ durSec: 75 * 60 }, { start: '18:00', end: '19:30' }) === false);
   ok('Davomiylik ko‘rinishi', zoom.fmtDur(4712) === '1:18:32' && zoom.fmtDur(40) === '0:40');
