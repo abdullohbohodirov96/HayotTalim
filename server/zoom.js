@@ -109,17 +109,22 @@ async function createMeeting(store, A, L, ctx) {
   const settings = (await store.get('meta/settings')) || {};
   const center = settings.centerName || 'Sabo Academy';
   const startIso = L.date + 'T' + hm(L.start) + ':00';
+  /* «Organizator kirganda yozish» faqat Zoom webhook'lari haqiqatan kelib turgan bo'lsa (oxirgi 7 kunda) —
+     aks holda organizator kirganini bilolmaymiz va yozuv umuman boshlanmay qolardi. */
+  const hook = await store.get('meta/zoomhook').catch(() => null);
+  const hostRec = webhookReady() && !!(hook && hook.at && Date.now() - Date.parse(String(hook.at).replace(' ', 'T') + '+05:00') < 7 * 86400000);
   const mt = await api('POST', '/users/' + encodeURIComponent(env('ZOOM_USER') || 'me') + '/meetings', {
     topic: center + ' — ' + groupLabel(g) + ' (' + L.date + ')',
     type: 2, start_time: startIso, timezone: 'Asia/Tashkent', duration: Math.max(30, L.end - L.start),
     /* Kod (passcode) qoladi: Zoom kamida bitta himoyani talab qiladi (kod yoki kutish zali yoki akkaunt).
        Kod havolaning ichida (pwd=) — havolani bosgan odamdan so'ralmaydi; kutish zali esa o'quvchini to'xtatib qo'yardi. */
     settings: {
-      /* Dars (va yozuv) faqat USTOZ (organizator) kirganda boshlanadi. Undan oldin kirgan
-         o'quvchi «Organizator kutilmoqda» ekranida turadi va ustoz kirishi bilan o'zi
-         darsga tushadi — bo'sh xonaning keraksiz yozuvi bo'lmaydi. */
-      join_before_host: false, waiting_room: false, mute_upon_entry: true,
-      auto_recording: 'cloud', approval_type: 2,   /* ro'yxatdan o'tishsiz: havolani bosgan mehmon bo'lib kiradi */
+      /* O'quvchilar ustozdan oldin ham kirib turadi, lekin YOZUV faqat organizator (ustoz/administrator —
+         markaz akkaunti bilan) kirganda boshlanadi: webhook «qo'shildi» xabarida organizatorni taniymiz va
+         Zoom API orqali bulutga yozishni yoqamiz (startRecordingIfHost). Webhook ulanmagan bo'lsa —
+         eski usul: yozuv dars boshlanishi bilan avtomatik. */
+      join_before_host: true, jbh_time: 0, waiting_room: false, mute_upon_entry: true,
+      auto_recording: hostRec ? 'none' : 'cloud', approval_type: 2,   /* ro'yxatdan o'tishsiz: havolani bosgan mehmon bo'lib kiradi */
       meeting_authentication: false,
       /* Kirishda o'quvchidan bir marta rozilik so'raladi — keyin ustoz uning mikrofonini o'zi yoqa oladi */
       request_permission_to_unmute_participants: true
@@ -129,6 +134,7 @@ async function createMeeting(store, A, L, ctx) {
     id: g.id + '__' + L.date, groupId: g.id, groupName: groupLabel(g), date: L.date,
     start: hm(L.start), end: hm(L.end), meetingId: String(mt.id), uuid: mt.uuid || '',
     joinUrl: mt.join_url || '', startUrl: mt.start_url || '', password: mt.password || '',
+    hostId: String(mt.host_id || ''), recMode: hostRec ? 'host' : 'auto',
     regs: {}, open: true, sent: {}, joined: {}, guests: [], status: 'yaratildi', createdAt: ctx.stamp()
   };
   /* Ro'yxatdan o'tish yo'q — har kimga bitta havola, faqat ismi oldindan yozilgan bo'ladi
@@ -152,7 +158,7 @@ const TPL_DEF = {
     '📌 <b>تعليمات مهمّة:</b>\n' +
     '1️⃣ يُرجى الدخول من هذا الرابط فقط، فهو يفتح الدرس بصلاحية المضيف. هذا الرابط خاص بالمعلّم، لا يُرسَل للطلاب.\n' +
     '2️⃣ الطلاب يصلهم رابطهم تلقائيًا من البوت قبل الدرس بـ30 دقيقة، ويدخلون مباشرة دون تطبيق ودون انتظار.\n' +
-    '3️⃣ يبدأ الدرس والتسجيل تلقائيًا عند دخول المعلّم فقط. الطلاب الذين يدخلون قبله ينتظرون، ثم ينضمّون تلقائيًا. لا حاجة للضغط على «تسجيل»، ويُرجى عدم إيقافه.\n' +
+    '3️⃣ يمكن للطلاب الدخول قبل المعلّم، لكن التسجيل يبدأ تلقائيًا فقط عند دخول المعلّم من هذا الرابط. لا حاجة للضغط على «تسجيل»، ويُرجى عدم إيقافه.\n' +
     '4️⃣ يدخل الطلاب والميكروفون مغلق. لتشغيل صوت طالب: «المشاركون» ← بجانب اسمه «تشغيل الصوت». إن وافق الطالب مسبقًا يُفتح صوته فورًا، وإلا يضغط هو على «موافق».\n' +
     '5️⃣ لكتم صوت الجميع: «المشاركون» ← «كتم صوت الجميع».\n' +
     '6️⃣ عند الخروج المؤقت يُضغط «مغادرة الاجتماع» وليس «إنهاء للجميع»، وإلا يبدأ تسجيل جديد ويضيع التسجيل الكامل.\n' +
@@ -545,6 +551,13 @@ async function tick(store, A, ctx, nowMs) {
     await step('h1', now >= L.start - 30 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
     await step('start', now >= L.start && now < L.end, () => notifyStudents(store, rec, 'start', ctx));
+    /* Yozuv organizator kirganda boshlanadi — 15 daqiqa o'tib ham boshlanmagan bo'lsa, direktorga eslatma */
+    if (rec.recMode === 'host' && !rec.recStartedAt && !rec.recStartWarned && now >= L.start + 15 && now < L.end) {
+      rec.recStartWarned = ctx.stamp(); changed = true;
+      const notifyW = ctx.notifyDirectors || ctx.notifyStaff;
+      if (notifyW) await notifyW('⚠️ ' + rec.groupName + ' — dars boshlanganiga 15 daqiqa bo‘ldi, lekin yozuv hali boshlanmadi.\n' +
+        'Ustoz (organizator havolasi bilan) hali kirmagan bo‘lishi mumkin. Kirgach yozuv o‘zi boshlanadi; boshlanmasa — Zoom’da «Запись» ni bosing.').catch(() => { });
+    }
     /* Dars ketayotganda guruh chatiga: 15 va 30 daqiqada (dars tugashiga 5 daqiqadan ko'p qolgan bo'lsa) */
     await step('g15', now >= L.start + 15 && now < L.start + 28 && now < L.end - 5, () => notifyGroupLive(store, rec, 'g15', ctx).catch(() => { }));
     await step('g30', now >= L.start + 30 && now < L.end - 5, () => notifyGroupLive(store, rec, 'g30', ctx).catch(() => { }));
@@ -593,6 +606,39 @@ async function byMeeting(store, meetingId) {
   const all = await listCol(store, COL);
   return all.filter(r => String(r.meetingId) === String(meetingId)).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0] || null;
 }
+/* ---------------- Yozuvni organizator kirganda boshlash ---------------- */
+async function staffEmails(store) {
+  const out = {};
+  for (const col of ['users/', 'staff/']) {
+    (await listCol(store, col)).forEach(u => { if (u && u.active !== false && u.email) out[String(u.email).toLowerCase().trim()] = 1; });
+  }
+  return out;
+}
+/** Qo'shilgan odam organizatormi: markaz Zoom akkaunti (host) yoki xodim email'i bilan kirgan */
+async function isHostJoin(store, rec, obj, p) {
+  const pid = String(p.id || p.user_id_zoom || '');
+  const host = String(obj.host_id || rec.hostId || '');
+  if (pid && host && pid === host) return true;
+  const em = String(p.email || '').toLowerCase().trim();
+  return !!em && !!(await staffEmails(store))[em];
+}
+async function startRecording(store, rec, ctx, who) {
+  if (rec.recStartedAt) return true;
+  try {
+    await api('PATCH', '/live_meetings/' + encodeURIComponent(rec.meetingId) + '/events', { method: 'recording.start' });
+    rec.recStartedAt = ctx.stamp(); rec.recStartBy = who || ''; delete rec.recStartError;
+    return true;
+  } catch (e) {
+    rec.recStartError = e.message;
+    if (!rec.recStartWarned) {
+      rec.recStartWarned = ctx.stamp();
+      const notify = ctx.notifyDirectors || ctx.notifyStaff;
+      if (notify) await notify('⚠️ ' + rec.groupName + ' — yozuv avtomatik boshlanmadi.\nZoom javobi: ' + e.message +
+        '\n\nDarsda «Запись» → «Записать в облако» tugmasini qo‘lda bosing.').catch(() => { });
+    }
+    return false;
+  }
+}
 async function webhook(store, body, ctx) {
   const ev = String(body.event || '');
   const obj = (body.payload && body.payload.object) || {};
@@ -608,6 +654,10 @@ async function webhook(store, body, ctx) {
     if (obj.uuid && !rec.uuid) rec.uuid = obj.uuid;
     await markJoined(store, rec, obj.participant);
     rec.status = 'jonli';
+    /* Organizator (ustoz yoki administrator) kirdi — endi yozuv boshlanadi */
+    if (rec.recMode === 'host' && !rec.recStartedAt && await isHostJoin(store, rec, obj, obj.participant)) {
+      await startRecording(store, rec, ctx, String(obj.participant.user_name || ''));
+    }
   } else if (ev === 'meeting.started') {
     if (obj.uuid) rec.uuid = obj.uuid; rec.status = 'jonli';
   } else if (ev === 'meeting.ended') {

@@ -59,6 +59,7 @@ zoom.setFetch(async (url, opt) => {
     const b = JSON.parse(opt.body);
     return J({ registrant_id: 'R-' + b.first_name, join_url: 'https://zoom.us/w/777?tk=' + b.first_name });
   }
+  if (/\/live_meetings\/888\/events$/.test(url)) { liveCalls.push(opt.body); return J({}, 204); }
   if (/past_meetings\/777\/instances/.test(url)) return J({ meetings: multiInst ? [{ uuid: '/long==', start_time: iso + 'T03:00:00Z' }, { uuid: 'short==', start_time: iso + 'T05:00:00Z' }] : [] });
   if (multiInst && /\/meetings\/%252Flong%253D%253D\/recordings$/.test(url)) return J({ share_url: 'https://zoom.us/rec/share/LONG', recording_files: [{ file_type: 'MP4', file_size: 900, download_url: 'https://zoom.us/dl/L', recording_start: '2026-11-03T03:00:00Z', recording_end: '2026-11-03T04:15:00Z' }] });
   if (/past_meetings/.test(url)) return J({ participants: [] });
@@ -69,7 +70,7 @@ zoom.setFetch(async (url, opt) => {
   return J({ message: 'nomaʼlum ' + url }, 404);
 });
 
-let multiInst = false;
+let multiInst = false; const liveCalls = [];
 const sent = [], groupMsgs = [], staffMsgs = [], otherStaff = [];
 let n = 0;
 const ctx = {
@@ -190,6 +191,15 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('Shu ism qayta so‘ralsa — o‘sha havola, yangi ro‘yxat yo‘q', gl2.again && gl2.joinUrl === gl.joinUrl);
   ok('Bo‘sh ism rad etiladi', !!(await zoom.guestLink(store, rg, '  ', {})).error);
   ok('Yozuv tasdig‘i faqat direktorga (adminlarga emas)', !otherStaff.some(t => /yozuv/i.test(t)), JSON.stringify(otherStaff));
+  console.log('\n10b. Yozuv faqat organizator (ustoz/administrator) kirganda boshlanadi');
+  db['zoomlesson/gH__' + iso] = { id: 'gH__' + iso, groupId: 'g1', groupName: 'H guruh', date: iso, start: '18:00', end: '19:30', meetingId: '888', hostId: 'HOST1', recMode: 'host', sent: {}, joined: {}, guests: [], regs: {} };
+  await zoom.webhook(store, { event: 'meeting.participant_joined', payload: { object: { id: '888', host_id: 'HOST1', participant: { id: '', user_name: 'Madina Karimova' } } } }, ctx);
+  ok('O‘quvchi kirdi — yozuv boshlanmadi', liveCalls.length === 0 && !db['zoomlesson/gH__' + iso].recStartedAt);
+  await zoom.webhook(store, { event: 'meeting.participant_joined', payload: { object: { id: '888', host_id: 'HOST1', participant: { id: 'HOST1', user_name: 'Ustoz Suhayib' } } } }, ctx);
+  ok('Organizator kirdi — bulutga yozish yoqildi (Zoom API)', liveCalls.length === 1 && /recording\.start/.test(liveCalls[0]) && !!db['zoomlesson/gH__' + iso].recStartedAt, JSON.stringify(liveCalls));
+  await zoom.webhook(store, { event: 'meeting.participant_joined', payload: { object: { id: '888', host_id: 'HOST1', participant: { id: 'HOST1', user_name: 'Ustoz Suhayib' } } } }, ctx);
+  ok('Organizator qayta kirsa — ikkinchi marta yoqilmaydi', liveCalls.length === 1);
+
   console.log('\n11. Sinov seansi (40 soniya) haqiqiy dars yozuvi o‘rniga ketmaydi');
   ok('Yozuv konferensiya raqami bo‘yicha (oxirgi seans) so‘raladi', calls.some(c => /\/meetings\/777\/recordings$/.test(c)) && !calls.some(c => /\/meetings\/UU/.test(c)));
   multiInst = true;
