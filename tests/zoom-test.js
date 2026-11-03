@@ -124,6 +124,15 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   console.log('\n3. Qo’shilmaganlarga qayta xabar');
   await zoom.tick(store, A, ctx, at(18, 11));
   ok('Faqat qo’shilmagan Sardorga xabar', kinds('miss').length === 1 && kinds('miss')[0].studentId === 's2', JSON.stringify(kinds('miss').map(m => m.studentId)));
+  /* Dars ketayotganda guruh chatiga 15 va 30 daqiqada qiziqtiruvchi eslatma (bitta, ilovasiz havola) */
+  const liveMsgs = () => groupMsgs.filter(m => zoom.LIVE_POOL.g15.concat(zoom.LIVE_POOL.g30).some(t => m.text.indexOf(t.split('</b>')[0].replace(/^.*<b>/, '')) >= 0));
+  await zoom.tick(store, A, ctx, at(18, 16));
+  ok('15 daqiqada guruhga eslatma', liveMsgs().length === 1, JSON.stringify(groupMsgs.slice(-1)));
+  await zoom.tick(store, A, ctx, at(18, 20));
+  ok('Takroriy tick — 15 daqiqalik eslatma qayta ketmaydi', liveMsgs().length === 1);
+  await zoom.tick(store, A, ctx, at(18, 31));
+  ok('30 daqiqada guruhga ikkinchi eslatma (boshqa matn)', liveMsgs().length === 2 && liveMsgs()[0].text !== liveMsgs()[1].text);
+  ok('Eslatmalarda faqat bitta havola — ilovasiz (brauzer)', liveMsgs().every(m => (m.text.match(/https?:\/\//g) || []).length === 1 && /app\.zoom\.us\/wc\/join\/|zoom\.us\/j\/777/.test(m.text)), JSON.stringify(liveMsgs().map(m => m.text)));
 
   console.log('\n4. Davomat va yozuv');
   await zoom.tick(store, A, ctx, at(19, 41));

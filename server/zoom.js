@@ -238,6 +238,41 @@ async function notifyTeacher(store, rec, ctx) {
   await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });
   return true;
 }
+/* Dars boshlangach guruh chatiga 15 va 30 daqiqada — har kuni boshqacha matn (bir xil bo'lib zeriktirmasin) */
+const LIVE_POOL = {
+  g15: [
+    '🔥 <b>Dars qizib ketdi!</b>\n\n📚 {guruh} — o‘quvchilar allaqachon mashq qilyapti. Hali kirmagan bo‘lsangiz, kech emas — hoziroq qo‘shiling 👇\n\n👉 {havola}{parol}',
+    '🎙 <b>Darsda jonli muloqot ketyapti!</b>\n\nO‘quvchilar ustoz bilan birga gapiryapti va takrorlayapti. Siz ham qo‘shiling 👇\n\n👉 {havola}{parol}',
+    '⏱ <b>Dars boshlanganiga 15 daqiqa bo‘ldi</b>\n\n📚 {guruh} — eng qiziq qismi endi boshlanyapti. Kirib oling 👇\n\n👉 {havola}{parol}',
+    '✨ <b>Bugungi dars juda qiziq!</b>\n\nO‘quvchilar savollarga javob beryapti. Siz ham ishtirok eting — har bir dars keyingisiga poydevor 👇\n\n👉 {havola}{parol}',
+    '📣 <b>Guruhdoshlaringiz darsda!</b>\n\nKechikkan bo‘lsangiz ham qo‘shiling — darsning asosiy qismi hali oldinda 👇\n\n👉 {havola}{parol}',
+    '🚀 <b>Dars to‘liq quvvat bilan ketyapti!</b>\n\n📚 {guruh}. Bitta bosish — va siz ham darsdasiz 👇\n\n👉 {havola}{parol}'
+  ],
+  g30: [
+    '💪 <b>Dars davom etyapti — yarmiga yetdik!</b>\n\n📚 {guruh}. Hali ham qo‘shilsangiz bo‘ladi, mashqlar ketyapti 👇\n\n👉 {havola}{parol}',
+    '🗣 <b>Hozir darsda gapirish mashqi!</b>\n\nO‘quvchilar arabcha jumla tuzyapti. Bunday imkoniyatni qo‘ldan boy bermang 👇\n\n👉 {havola}{parol}',
+    '⭐ <b>Bugun o‘quvchilar zo‘r natija ko‘rsatyapti!</b>\n\nSiz ham qo‘shilib, bilimingizni mustahkamlang 👇\n\n👉 {havola}{parol}',
+    '⏳ <b>Darsning ikkinchi yarmi boshlandi</b>\n\nTakrorlash va yangi mavzu davom etyapti. Hali ulgurasiz 👇\n\n👉 {havola}{parol}',
+    '🤝 <b>Sizni darsda kutyapmiz!</b>\n\n📚 {guruh} — ustoz va guruhdoshlaringiz shu yerda. Bitta bosish kifoya 👇\n\n👉 {havola}{parol}',
+    '📖 <b>Darsni o‘tkazib yubormang!</b>\n\nBugungi mavzu keyingi darslar uchun juda muhim. Hoziroq qo‘shiling 👇\n\n👉 {havola}{parol}'
+  ]
+};
+/** Kun va guruhga qarab matn tanlash: qayta urinishda o'sha matn, ertasi kuni boshqasi */
+function livePick(kind, rec) {
+  const pool = LIVE_POOL[kind] || [];
+  let h = 0; String(rec.groupId || '').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; });
+  const day = Math.floor(Date.parse(String(rec.date || '1970-01-01') + 'T00:00:00Z') / 86400000) || 0;
+  return pool.length ? pool[(day + h) % pool.length] : '';
+}
+/** Dars ketayotganda guruh chatiga eslatma (faqat bitta, ilovasiz havola bilan) */
+async function notifyGroupLive(store, rec, kind, ctx) {
+  const g = await store.get('groups/' + rec.groupId);
+  const T = await templates(store);
+  if (!g || !g.tgChat || !T.groupOn || !ctx.sendGroup) return false;
+  const settings = (await store.get('meta/settings')) || {};
+  await ctx.sendGroup(g, fill(livePick(kind, rec), vars(rec, rec.joinUrl, needPass(rec, rec.joinUrl), settings)));
+  return true;
+}
 /** Guruhning Telegram chatiga umumiy e'lon (guruh botga ulangan bo'lsa) */
 async function notifyGroup(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
@@ -491,6 +526,9 @@ async function tick(store, A, ctx, nowMs) {
     await step('h1', now >= L.start - 30 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
     await step('start', now >= L.start && now < L.end, () => notifyStudents(store, rec, 'start', ctx));
+    /* Dars ketayotganda guruh chatiga: 15 va 30 daqiqada (dars tugashiga 5 daqiqadan ko'p qolgan bo'lsa) */
+    await step('g15', now >= L.start + 15 && now < L.start + 28 && now < L.end - 5, () => notifyGroupLive(store, rec, 'g15', ctx).catch(() => { }));
+    await step('g30', now >= L.start + 30 && now < L.end - 5, () => notifyGroupLive(store, rec, 'g30', ctx).catch(() => { }));
     if (!rec.sent.miss && now >= L.start + MISS_AFTER_MIN && now < L.end) {
       if (!webhookReady()) await pollLive(store, rec);
       await step('miss', true, () => notifyStudents(store, rec, 'miss', ctx, true));
@@ -624,7 +662,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  browserLink, refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
+  browserLink, livePick, LIVE_POOL, refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };
