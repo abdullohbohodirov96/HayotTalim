@@ -164,12 +164,23 @@ function siteUrl(settings) { return String((settings && settings.siteUrl) || pro
 function fill(tpl, v) {
   return String(tpl).replace(/\{(guruh|sana|vaqt|havola|parol|darslik|ustoz_havola)\}/g, (m, k) => {
     if (k === 'parol') return v.parol ? '\n🔑 Parol: <code>' + esc(v.parol) + '</code>' : '';
+    if (k === 'havola') {
+      const wc = browserLink(v.havola);
+      return esc(v.havola || '') + (wc ? '\n📱 Telefonda Zoom ilovasi yo‘q bo‘lsa — ilovasiz, brauzerda kiring: ' + esc(wc) : '');
+    }
     return esc(v[k] == null ? '' : v[k]);
   });
 }
 function vars(rec, link, pass, settings) {
   return { guruh: rec.groupName, sana: rec.date, vaqt: rec.start + '–' + rec.end, havola: link || '', parol: pass || '',
     darslik: siteUrl(settings) + '/kabinet', ustoz_havola: rec.startUrl || '' };
+}
+/** Ilovasiz kirish havolasi: Zoom'ning brauzer versiyasi (app.zoom.us/wc/join/ID?pwd=…).
+    O'quvchi telefoniga Zoom o'rnatmasdan Safari/Chrome'da darsga kiradi. */
+function browserLink(url) {
+  const m = /^https:\/\/[a-z0-9.-]*zoom\.us\/j\/(\d{9,12})(\?[^#\s]*)?/i.exec(String(url || ''));
+  if (!m) return '';
+  return 'https://app.zoom.us/wc/join/' + m[1] + (m[2] || '');
 }
 /** Zoom havolasiga ism qo'shish — kirganda ism oldindan yozilgan bo'ladi */
 function withName(url, name) {
@@ -600,7 +611,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
+  browserLink, refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };
