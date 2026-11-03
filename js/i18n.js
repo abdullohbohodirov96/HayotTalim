@@ -15,6 +15,11 @@
   var T = {
 
     /* --- 2026-11-02: tarjimasiz qolgan matnlar --- */
+    'Sinov darsida': ['На пробном уроке', 'On trial lesson', 'في الدرس التجريبي'],
+    'Sinov darsi': ['Пробный урок', 'Trial lesson', 'الدرس التجريبي'],
+    'sana belgilanmagan': ['дата не назначена', 'no date set', 'لم يُحدَّد التاريخ'],
+    'murojaatlardan': ['из заявок', 'from leads', 'من الطلبات'],
+    'Hozircha a’zo yo’q — faqat sinov darsiga yozilganlar bor.': ['Пока нет участников — только записанные на пробный урок.', 'No members yet — only trial-lesson sign-ups.', 'لا أعضاء بعد — فقط المسجلون في الدرس التجريبي.'],
     'O’chiq': ['Выключено', 'Off', 'متوقف'],
     'Yoqilgan (saytda ko’rinadi)': ['Включено (видно на сайте)', 'On (shown on the website)', 'مفعّل (يظهر في الموقع)'],
     'Oddiy — darslar ketma-ket ochiladi': ['Обычный — уроки открываются по порядку', 'Standard — lessons open one by one', 'عادي — تُفتح الدروس بالتتابع'],
@@ -1524,6 +1529,10 @@
 
   /* Ichida o'zgaruvchi bo'lgan iboralar uchun bo'lak tarjimalari */
   var FRAG = {
+    'Sinov darsiga yozilganlar — ': ['Записаны на пробный урок — ', 'Signed up for trial lesson — ', 'المسجلون في الدرس التجريبي — '],
+    'Guruh a’zolari — ': ['Участники группы — ', 'Group members — ', 'أعضاء المجموعة — '],
+    'band joy: ': ['занято мест: ', 'seats taken: ', 'المقاعد المحجوزة: '],
+    ' (o’tdi)': [' (прошёл)', ' (passed)', ' (انتهى)'],
     /* Sanadagi oy nomi («02 noyabr 2026») */
     ' yanvar ': [' января ', ' January ', ' يناير '],
     ' fevral ': [' февраля ', ' February ', ' فبراير '],

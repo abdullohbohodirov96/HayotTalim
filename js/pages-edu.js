@@ -253,19 +253,22 @@
       ]));
 
     view.appendChild(tgGroupCard(g, App));
-    /* Shu guruhga sinov darsiga keladiganlar (murojaatlardan, o'quvchi hisobi yo'q) */
-    (function () {
-      var today = A.today();
-      var tl = D.all('leads').filter(function (l) {
-        return l.groupId === g.id && !l.studentId && l.trialDate && String(l.trialDate).slice(0, 10) >= today &&
-          A.stageOf(D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0], l.stage).type !== 'lost';
-      }).sort(function (a, b) { return String(a.trialDate + a.trialTime).localeCompare(String(b.trialDate + b.trialTime)); });
-      if (!tl.length) return;
-      view.appendChild(UI.card('Sinov darsiga keladiganlar — ' + tl.length + ' ta', UI.table([
-        { label: 'Ism', render: function (l) { return h('b', {}, l.name || '—'); } },
-        { label: 'Telefon', render: function (l) { return UI.phoneLink(l.phone); } },
-        { label: 'Sinov', render: function (l) { return A.dateLabel(String(l.trialDate).slice(0, 10)) + (l.trialTime ? ', ' + l.trialTime : ''); } }
-      ], tl, { onRow: function (l) { if (A.leadForm && App.can('lead.edit')) A.leadForm(l, App); } }), null, null, true));
+    /* Shu guruhga sinov darsiga yozilganlar — guruhlar ro'yxatida joy egallaganlar
+       bilan AYNAN bir xil to'plam (sinov bosqichidagi murojaatlar) + sanasi oldinda
+       turgan sinovlar. Ular «O'quvchilar» bo'limida a'zolar bilan birga ko'rinadi. */
+    var trials = (function () {
+      var today = A.today(), seen = {}, out = [];
+      var add = function (l) { if (l && !seen[l.id]) { seen[l.id] = 1; out.push(l); } };
+      (A.trialLeadsOf ? A.trialLeadsOf(g.id) : []).forEach(add);
+      D.all('leads').forEach(function (l) {
+        if (l.groupId !== g.id || !l.trialDate || String(l.trialDate).slice(0, 10) < today) return;
+        if (l.studentId && Q.membershipsOf(l.studentId).some(function (m) { return m.groupId === g.id && m.status === 'faol'; })) return;
+        if (A.stageOf(D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0], l.stage).type === 'lost') return;
+        add(l);
+      });
+      return out.sort(function (x, y) {
+        return String((x.trialDate || '9999') + (x.trialTime || '')).localeCompare(String((y.trialDate || '9999') + (y.trialTime || '')));
+      });
     })();
     /* Guruh kodi: o'quvchi botga yozsa — raqami tasdiqlanib darhol ulanadi */
     if (g.joinCode && (App.can('group.edit') || App.can('attendance.mark'))) {
@@ -299,6 +302,8 @@
     var members = Q.membersOf(g.id);
     var tiles = h('div', { class: 'tiles' });
     tiles.appendChild(UI.tile({ label: 'O’quvchilar', value: members.length, hint: g.limit ? 'limit ' + g.limit : '' }));
+    if (trials.length) tiles.appendChild(UI.tile({ label: 'Sinov darsida', value: trials.length,
+      hint: g.limit ? 'band joy: ' + (members.length + trials.length) + ' / ' + g.limit : 'murojaatlardan' }));
     /* Narx kelgusi oydan o'zgartirilgan bo'lsa — shu yerda aytiladi.
        Aks holda "narxni o'zgartirdim, lekin raqam o'sha" degan
        tushunmovchilik chiqardi.                                     */
@@ -333,7 +338,7 @@
     ], tab, function (id) { App.go('group', { id: g.id, tab: id }); }));
 
     if (tab === 'oquvchilar') {
-      view.appendChild(UI.card(null, members.length ? UI.table([
+      view.appendChild(UI.card(trials.length ? 'Guruh a’zolari — ' + members.length + ' ta' : null, (members.length || trials.length) ? (members.length ? UI.table([
         { label: 'O’quvchi', render: function (m) { return h('b', {}, Q.studentName(m.studentId)); } },
         {
           label: 'Telefon', render: function (m) {
@@ -353,11 +358,30 @@
             return A.balancePill(Q.balance(m.studentId), Q.overdue(m.studentId));
           }
         } : { label: '', render: function () { return ''; } }
-      ], members, { onRow: function (m) { App.go('student', { id: m.studentId }); } }) : UI.empty({
+      ], members, { onRow: function (m) { App.go('student', { id: m.studentId }); } }) : h('p', { class: 'muted' }, 'Hozircha a’zo yo’q — faqat sinov darsiga yozilganlar bor.')) : UI.empty({
         title: 'Guruh bo’sh',
         text: 'O’quvchi qo’shing — u shu guruhning oylik hisoblariga kiradi.',
         action: App.can('student.edit') ? { label: 'O’quvchi qo’shish', onClick: function () { addStudentToGroup(g, App); } } : null
       }), null, null, true));
+      if (trials.length) {
+        view.appendChild(UI.card('Sinov darsiga yozilganlar — ' + trials.length + ' ta', UI.table([
+          { label: 'Ism', render: function (l) { return h('b', {}, [l.name || '—', ' ', UI.pill('Sinov', 'warn')]); } },
+          { label: 'Telefon', render: function (l) { return UI.phoneLink ? UI.phoneLink(l.phone) : h('span', { class: 'mono small' }, l.phone || '—'); } },
+          {
+            label: 'Sinov darsi', render: function (l) {
+              if (!l.trialDate) return h('span', { class: 'muted' }, 'sana belgilanmagan');
+              var d = String(l.trialDate).slice(0, 10);
+              return h('span', { class: d < A.today() ? 'muted' : '' }, A.dateLabel(d) + (l.trialTime ? ', ' + l.trialTime : '') + (d < A.today() ? ' (o’tdi)' : ''));
+            }
+          },
+          {
+            label: 'Holat', render: function (l) {
+              var st = A.stageOf(D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0], l.stage) || {};
+              return UI.pill(st.label || l.stage || '—', 'info');
+            }
+          }
+        ], trials, { onRow: function (l) { if (A.leadForm && App.can('lead.edit')) A.leadForm(l, App); } }), null, null, true));
+      }
     }
 
     if (tab === 'jadval' || tab === 'davomat') {
