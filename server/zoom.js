@@ -143,7 +143,18 @@ const TPL_DEF = {
   start: '🔴 <b>Dars boshlandi!</b> Hoziroq qo’shiling\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
   miss: '❗ <b>Siz hali darsga qo’shilmadingiz.</b> Dars davom etyapti — hoziroq kiring\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
   group: '📣 <b>Bugun dars bor!</b>\n\n📚 {guruh}\n📅 {sana} · 🕒 {vaqt}\n\n👉 Zoom havola: {havola}{parol}\n📖 Darslik: {darslik}\n\nKechikmang, darsda ko’rishguncha! 🙂',
-  teacher: '👩‍🏫 <b>Darsni boshlash</b> (ustoz uchun)\n📚 {guruh} · {vaqt}\n\n{ustoz_havola}'
+  /* Ustoz arab tilida so'zlashadi — unga keladigan xabar arabcha va to'liq yo'riqnoma bilan */
+  teacher: '👨‍🏫 <b>بدء الدرس</b> (للمعلّم)\n\n📚 {guruh}\n📅 {sana} · 🕒 {vaqt} (بتوقيت طشقند)\n\n' +
+    '👉 <b>رابط بدء الدرس (بصلاحية المضيف):</b>\n{ustoz_havola}\n\n' +
+    '📌 <b>تعليمات مهمّة:</b>\n' +
+    '1️⃣ يُرجى الدخول من هذا الرابط فقط، فهو يفتح الدرس بصلاحية المضيف. هذا الرابط خاص بالمعلّم، لا يُرسَل للطلاب.\n' +
+    '2️⃣ الطلاب يصلهم رابطهم تلقائيًا من البوت قبل الدرس بـ30 دقيقة، ويدخلون مباشرة دون تطبيق ودون انتظار.\n' +
+    '3️⃣ التسجيل يبدأ تلقائيًا مع بدء الدرس. لا حاجة للضغط على «تسجيل»، ويُرجى عدم إيقافه.\n' +
+    '4️⃣ يدخل الطلاب والميكروفون مغلق. لتشغيل صوت طالب: «المشاركون» ← بجانب اسمه «تشغيل الصوت». إن وافق الطالب مسبقًا يُفتح صوته فورًا، وإلا يضغط هو على «موافق».\n' +
+    '5️⃣ لكتم صوت الجميع: «المشاركون» ← «كتم صوت الجميع».\n' +
+    '6️⃣ عند الخروج المؤقت يُضغط «مغادرة الاجتماع» وليس «إنهاء للجميع»، وإلا يبدأ تسجيل جديد ويضيع التسجيل الكامل.\n' +
+    '7️⃣ في نهاية الدرس فقط: «إنهاء الاجتماع للجميع». يُرسَل التسجيل للطلاب بعد موافقة المدير.\n\n' +
+    'بالتوفيق 🌿'
 };
 const TPL_KEYS = Object.keys(TPL_DEF);
 async function templates(store) {
@@ -151,6 +162,8 @@ async function templates(store) {
   const out = {}; TPL_KEYS.forEach(k => { out[k] = typeof t[k] === 'string' && t[k].trim() ? t[k] : TPL_DEF[k]; });
   /* Eslatma endi 30 daqiqa oldin ketadi — saqlangan eski matndagi «1 soatdan keyin» ham moslanadi */
   if (/1 soatdan keyin/.test(out.h1)) out.h1 = out.h1.replace(/1 soatdan keyin/g, '30 daqiqadan keyin');
+  /* Ustoz xabarining eski (o'zbekcha) standart matni saqlangan bo'lsa — yangi arabcha yo'riqnoma */
+  if (/Darsni boshlash<\/b> \(ustoz uchun\)/.test(out.teacher) && out.teacher.length < 120) out.teacher = TPL_DEF.teacher;
   out.groupOn = t.groupOn !== false;
   return out;
 }
