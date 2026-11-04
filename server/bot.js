@@ -43,7 +43,12 @@ async function tg(method, params) {
     body: JSON.stringify(params || {})
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(method + ': ' + (data.description || 'xato'));
+  if (!data.ok) {
+    const err = new Error(method + ': ' + (data.description || 'xato'));
+    /* Guruh «supergroup»ga aylansa Telegram yangi raqamni aytadi */
+    if (data.parameters && data.parameters.migrate_to_chat_id) err.migrateTo = String(data.parameters.migrate_to_chat_id);
+    throw err;
+  }
   return data.result;
 }
 async function sendMessage(chatId, text, keyboard, inline) {
@@ -1157,9 +1162,27 @@ async function onGroupUpdate(chatId, title, text) {
 }
 
 /** ERP’dan guruhga xabar yuborish */
+/** Telegram guruhi «supergroup»ga aylanganda chat raqami o'zgaradi — ERP dagi guruhlarni yangilaymiz */
+async function migrateGroupChat(oldId, newId) {
+  oldId = String(oldId || ''); newId = String(newId || '');
+  if (!oldId || !newId || oldId === newId || !store) return 0;
+  let n = 0;
+  for (const r of await store.list('groups/')) {
+    const g = r.data;
+    if (g && String(g.tgChat || '') === oldId) { g.tgChat = newId; await store.set(r.path, g); n++; }
+  }
+  return n;
+}
 async function sendToGroup(group, text) {
   if (!group || !group.tgChat) return { ok: false, error: 'Guruh Telegramga ulanmagan.' };
-  await sendMessage(group.tgChat, String(text || '').slice(0, 3500));
+  const body = String(text || '').slice(0, 3500);
+  try { await sendMessage(group.tgChat, body); }
+  catch (e) {
+    if (!e.migrateTo) throw e;
+    await migrateGroupChat(group.tgChat, e.migrateTo);
+    group.tgChat = e.migrateTo;
+    await sendMessage(group.tgChat, body);
+  }
   return { ok: true };
 }
 
@@ -2167,6 +2190,11 @@ async function poll() {
           /member|administrator/.test(String((cm.new_chat_member || {}).status || ''))) {
           try { await linkGroupChat(cm.chat.id, cm.chat.title, ''); }   // faqat yo'riqnoma
           catch (e) { console.error('bot guruh:', e.message); }
+          continue;
+        }
+        /* Guruh «supergroup»ga aylandi — eski raqamni yangisiga almashtiramiz */
+        if (u.message && u.message.migrate_to_chat_id) {
+          try { await migrateGroupChat(u.message.chat && u.message.chat.id, u.message.migrate_to_chat_id); } catch (e) { console.error('bot migrate:', e.message); }
           continue;
         }
         if (u.message && (u.message.text || u.message.contact)) {
