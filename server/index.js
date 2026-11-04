@@ -2939,6 +2939,21 @@ async function handleApi(req, res, url) {
     const r = await zoom.webhook(store, body, zoomCtx());
     return send(res, 200, r.reply || { ok: true });
   }
+  /* ---------- ZOOM: ustoz havolasi (kirishsiz, imzo bilan) — har bosilganda Zoom'dan yangi start_url ---------- */
+  if (route === 'zoom/start' && req.method === 'GET') {
+    const r = await zoom.freshStart(store, url.searchParams.get('l'), url.searchParams.get('k')).catch(() => ({ error: 'link' }));
+    if (r.url) {
+      res.writeHead(302, { Location: r.url, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
+      return res.end();
+    }
+    const msg = r.error === 'past'
+      ? ['انتهى هذا الدرس. رابط الدرس القادم يصلك قبل بدايته بـ30 دقيقة.', 'Bu dars tugagan. Keyingi dars havolasi dars boshlanishidan 30 daqiqa oldin keladi.']
+      : ['الرابط غير صالح. يُرجى طلب رابط جديد من الإدارة.', 'Havola noto‘g‘ri. Administratordan yangi havola so‘rang.'];
+    res.writeHead(r.error === 'past' ? 410 : 404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
+    return res.end('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Zoom</title>' +
+      '<body style="font:18px/1.6 system-ui,sans-serif;max-width:520px;margin:15vh auto;padding:0 20px;text-align:center;color:#0f4a40">' +
+      '<p dir="rtl" style="font-size:20px">' + msg[0] + '</p><p>' + msg[1] + '</p></body>');
+  }
   if (route === 'form' && req.method === 'GET') {
     const f = await forms.bySlug(store, String(url.searchParams.get('slug') || ''));
     if (!f || f.active === false) return send(res, 404, { error: 'Forma topilmadi.' });

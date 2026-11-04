@@ -195,7 +195,34 @@ function fill(tpl, v) {
 }
 function vars(rec, link, pass, settings) {
   return { guruh: rec.groupName, sana: rec.date, vaqt: rec.start + '–' + rec.end, havola: link || '', parol: pass || '',
-    darslik: siteUrl(settings) + '/kabinet', ustoz_havola: rec.startUrl || '' };
+    darslik: siteUrl(settings) + '/kabinet', ustoz_havola: startLink(settings, rec) };
+}
+/* Ustoz (organizator) havolasi. Zoom'ning start_url'i ~2 soatda eskiradi, konferensiya esa darsdan 2 soat
+   oldin ochiladi — dars vaqtida bosilganda havola allaqachon eskirgan bo'lardi. Shuning uchun ustozga
+   o'zimizning doimiy havolamizni beramiz: bosilganda Zoom'dan YANGI start_url olinadi va o'shanga yo'naltiriladi.
+   Havola imzolangan (taxmin qilib bo'lmaydi) va faqat shu dars kuni ishlaydi. */
+function startSig(id) {
+  return crypto.createHmac('sha256', 'zoom-start:' + (env('ZOOM_CLIENT_SECRET') || env('ZOOM_WEBHOOK_SECRET')))
+    .update(String(id)).digest('hex').slice(0, 32);
+}
+function startPath(rec) { return '/api/zoom/start?l=' + encodeURIComponent(rec.id) + '&k=' + startSig(rec.id); }
+function startLink(settings, rec) {
+  return configured() && rec.meetingId && rec.id ? siteUrl(settings) + startPath(rec) : (rec.startUrl || '');
+}
+async function freshStart(store, id, k, ms) {
+  id = String(id || ''); k = String(k || '');
+  if (!configured() || !/^[A-Za-z0-9_-]{1,100}__\d{4}-\d{2}-\d{2}$/.test(id) || !/^[0-9a-f]{32}$/.test(k)) return { error: 'link' };
+  if (!crypto.timingSafeEqual(Buffer.from(k), Buffer.from(startSig(id)))) return { error: 'link' };
+  const rec = await store.get(COL + id);
+  if (!rec || !rec.meetingId) return { error: 'link' };
+  const endM = toMin(rec.end);
+  const today = todayIso(ms);
+  if (rec.date < today || (rec.date === today && endM != null && minOfDay(ms) > endM + 60)) return { error: 'past' };
+  try {
+    const mt = await api('GET', '/meetings/' + rec.meetingId);
+    if (mt && mt.start_url) return { url: mt.start_url };
+  } catch (e) { /* Zoom javob bermasa — oddiy kirish havolasi (dars baribir boshlanadi) */ }
+  return { url: rec.joinUrl || '', fallback: true };
 }
 /** Ilovasiz kirish havolasi: Zoom'ning brauzer versiyasi (app.zoom.us/wc/join/ID?pwd=…).
     O'quvchi telefoniga Zoom o'rnatmasdan Safari/Chrome'da darsga kiradi. */
@@ -242,7 +269,7 @@ async function notifyTeacher(store, rec, ctx) {
     const u = (await listCol(store, 'users/')).filter(x => x && x.active !== false && x.staffId === g.teacherId && x.telegram && x.telegram.id)[0];
     if (u) chat = String(u.telegram.id);
   }
-  if (!chat || !rec.startUrl) return false;
+  if (!chat || !(rec.startUrl || rec.meetingId)) return false;
   const T = await templates(store), settings = (await store.get('meta/settings')) || {};
   await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });
   return true;
@@ -685,7 +712,7 @@ async function overview(store, fromIso) {
     const list = await members(store, r.groupId);
     out.push({
       id: r.id, groupId: r.groupId, groupName: r.groupName, date: r.date, start: r.start, end: r.end,
-      status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, openError: r.open ? '' : (r.openError || ''), joinUrl: r.joinUrl || '', startUrl: r.startUrl || '',
+      status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, openError: r.open ? '' : (r.openError || ''), joinUrl: r.joinUrl || '', startUrl: configured() && r.meetingId && r.id ? startPath(r) : (r.startUrl || ''),
       sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recPending: !!(r.recording && !r.recSent && !r.recRejected), recRejected: !!r.recRejected, recBy: r.recBy || '', recNote: r.recNote || '',
       recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password, dur: fmtDur(r.recording.durSec) } : null,
       joined: list.filter(x => r.joined && r.joined[x.s.id]).map(x => ({ id: x.s.id, name: stName(x.s), at: r.joined[x.s.id].at })),
@@ -732,6 +759,6 @@ async function guestLink(store, rec, name, settings) {
 
 module.exports = {
   browserLink, livePick, LIVE_POOL, _fetchRecording: (s, r) => fetchRecording(s, r), refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
-  COL, configured, webhookReady, tick, webhook, verify, overview, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
+  COL, configured, webhookReady, tick, webhook, verify, overview, freshStart, startLink, startPath, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };

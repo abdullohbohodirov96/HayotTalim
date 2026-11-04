@@ -46,6 +46,7 @@ zoom.setFetch(async (url, opt) => {
   calls.push((opt && opt.method || 'GET') + ' ' + url.replace(/\?.*$/, ''));
   const J = (o, st) => ({ ok: (st || 200) < 300, status: st || 200, json: async () => o, arrayBuffer: async () => new ArrayBuffer(10) });
   if (/oauth\/token/.test(url)) return J({ access_token: 'T', expires_in: 3600 });
+  if ((!opt || !opt.method || opt.method === 'GET') && /\/meetings\/777$/.test(url)) { if (zoomDown) return J({ message: 'xato' }, 500); return J({ id: 777, start_url: 'https://zoom.us/s/777?zak=FRESH' }); }
   if (opt && opt.method === 'PATCH' && /\/meetings\/777$/.test(url)) { calls.push('PATCHBODY ' + opt.body); return { ok: true, status: 204, json: async () => ({}) }; }
   if (/\/users\/me\/meetings$/.test(url)) {
     const b = JSON.parse(opt.body);
@@ -70,7 +71,7 @@ zoom.setFetch(async (url, opt) => {
   return J({ message: 'nomaʼlum ' + url }, 404);
 });
 
-let multiInst = false; const liveCalls = [];
+let multiInst = false, zoomDown = false; const liveCalls = [];
 const sent = [], groupMsgs = [], staffMsgs = [], otherStaff = [];
 let n = 0;
 const ctx = {
@@ -98,7 +99,9 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('1 soat oldin hali havola ketmaydi', kinds('h1').length === 0);
   await zoom.tick(store, A, ctx, at(17, 30));
   ok('30 daqiqa oldin: botga ulangan 2 o’quvchiga havola', /30 daqiqadan keyin/.test((kinds('h1')[0] || {}).text || '') && kinds('h1').length === 2, kinds('h1').length);
-  ok('Ustozga (botga ulangan ERP hisobi) «Darsni boshlash» havolasi', sent.some(m => m.chatId === '900' && /zoom\.us\/s\/777/.test(m.text)));
+  const tMsg = sent.filter(m => m.chatId === '900')[0];
+  ok('Ustozga (botga ulangan ERP hisobi) «Darsni boshlash» havolasi — doimiy (eskirmaydigan)', tMsg && /\/api\/zoom\/start\?l=g1__2026-10-19&amp;k=[0-9a-f]{32}/.test(tMsg.text), tMsg && tMsg.text);
+  ok('Ustoz xabarida eskiradigan Zoom start_url yo‘q', tMsg && !/zoom\.us\/s\/777/.test(tMsg.text));
   ok('Har o’quvchiga ismi yozilgan havola', kinds('h1').every(m => /zoom\.us\/j\/777\?uname=/.test(m.text)) && /uname=Madina%20Karimova/.test(kinds('h1').filter(m => m.studentId === 's1')[0].text));
   await zoom.tick(store, A, ctx, at(17, 35));
   ok('Takroriy tick — qayta yubormaydi', kinds('h1').length === 2);
@@ -218,6 +221,29 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   await zoom.tick(store, A, ctx, at(18, 30));
   ok('PATCH approval_type=2 yuborildi', calls.some(c => /PATCHBODY .*"approval_type":2/.test(c)));
   ok('Endi ochiq', db['zoomlesson/g1__' + iso].open === true);
+  console.log('\n11. Ustoz havolasi — har bosilganda yangi start_url');
+  const lid = 'g1__' + iso, tsig = (zoom.startPath({ id: lid }).match(/k=([0-9a-f]+)/) || [])[1];
+  const f1 = await zoom.freshStart(store, lid, tsig, at(17, 55));
+  ok('To‘g‘ri imzo — Zoom’dan YANGI start_url', f1.url === 'https://zoom.us/s/777?zak=FRESH', JSON.stringify(f1));
+  const f2 = await zoom.freshStart(store, lid, tsig, at(20, 0));
+  ok('Dars vaqtidan keyin ham (1 soatgacha) ishlaydi', f2.url === 'https://zoom.us/s/777?zak=FRESH');
+  ok('Soxta imzo rad etiladi', (await zoom.freshStart(store, lid, '0'.repeat(32), at(18, 0))).error === 'link');
+  ok('Imzosiz rad etiladi', (await zoom.freshStart(store, lid, '', at(18, 0))).error === 'link');
+  ok('Boshqa dars imzosi bilan rad etiladi', (await zoom.freshStart(store, 'g2__' + iso, tsig, at(18, 0))).error === 'link');
+  ok('Yo‘l bo‘yicha hujum rad etiladi', (await zoom.freshStart(store, '../users/admin', tsig, at(18, 0))).error === 'link');
+  const hid = 'gH__' + iso, hsig = (zoom.startPath({ id: hid }).match(/k=([0-9a-f]+)/) || [])[1];
+  db['zoomlesson/' + hid].end = '19:30'; db['zoomlesson/' + hid].joinUrl = 'https://zoom.us/j/888';
+  const f4 = await zoom.freshStart(store, hid, hsig, at(20, 45));
+  ok('Dars (19:30) tugaganidan 1 soatdan ko‘p o‘tgach — eskirgan', f4.error === 'past', JSON.stringify(f4));
+  ok('Dars tugaganidan 50 daqiqa o‘tgach — hali ishlaydi', !!(await zoom.freshStart(store, hid, hsig, at(20, 20))).url);
+  ok('Ertasi kuni — eskirgan', (await zoom.freshStart(store, lid, tsig, at(18, 0) + 86400000)).error === 'past');
+  zoomDown = true;
+  const f3 = await zoom.freshStart(store, lid, tsig, at(18, 0));
+  ok('Zoom javob bermasa — oddiy kirish havolasi', f3.url === 'https://zoom.us/j/777' && f3.fallback === true, JSON.stringify(f3));
+  zoomDown = false;
+  const tov = await zoom.overview(store, iso);
+  const ovl = (tov.lessons || []).filter(l => l.id === lid)[0];
+  ok('ERP «Darsni boshlash (ustoz)» tugmasi ham doimiy havola', ovl && /^\/api\/zoom\/start\?l=/.test(ovl.startUrl), ovl && ovl.startUrl);
   console.log('\n' + (fail ? '✗ XATOLAR BOR — ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o\'tdi, ' + fail + ' ta xato');
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
