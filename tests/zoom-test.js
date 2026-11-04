@@ -109,6 +109,7 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   ok('15 daqiqa oldin eslatma', kinds('m15').length === 2);
   await zoom.tick(store, A, ctx, at(18, 0));
   ok('Dars boshlanganda havola', kinds('start').length === 2);
+  ok('Dars boshlanganda guruh chatiga ham «Dars boshlandi»', groupMsgs.some(m => /Dars boshlandi/.test(m.text) && /zoom\.us|app\.zoom\.us/.test(m.text)), JSON.stringify(groupMsgs.map(m => m.text.slice(0, 40))));
 
   console.log('\n2. Webhook: kim qo’shildi');
   const body = JSON.stringify({ event: 'meeting.participant_joined', payload: { object: { id: '777', uuid: 'UU==', participant: { user_name: 'Madina Karimova', join_time: '2026-10-19T13:02:00Z' } } } });

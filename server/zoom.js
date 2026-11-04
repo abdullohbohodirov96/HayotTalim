@@ -309,6 +309,15 @@ async function notifyGroupLive(store, rec, kind, ctx) {
   await ctx.sendGroup(g, fill(livePick(kind, rec), vars(rec, rec.joinUrl, needPass(rec, rec.joinUrl), settings)));
   return true;
 }
+/** Dars boshlanganda guruh chatiga «Dars boshlandi» (o'quvchilarning ko'pi faqat guruh chatida) */
+async function notifyGroupStart(store, rec, ctx) {
+  const g = await store.get('groups/' + rec.groupId);
+  const T = await templates(store);
+  if (!g || !g.tgChat || !T.groupOn || !ctx.sendGroup) return false;
+  const settings = (await store.get('meta/settings')) || {};
+  await ctx.sendGroup(g, fill(T.start, vars(rec, rec.joinUrl, needPass(rec, rec.joinUrl), settings)));
+  return true;
+}
 /** Guruhning Telegram chatiga umumiy e'lon (guruh botga ulangan bo'lsa) */
 async function notifyGroup(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
@@ -577,7 +586,7 @@ async function tick(store, A, ctx, nowMs) {
     /* Havola darsdan 30 daqiqa oldin: o'quvchilarga, ustozga (organizator havolasi) va guruh chatiga */
     await step('h1', now >= L.start - 30 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
-    await step('start', now >= L.start && now < L.end, () => notifyStudents(store, rec, 'start', ctx));
+    await step('start', now >= L.start && now < L.end, async () => { await notifyStudents(store, rec, 'start', ctx); await notifyGroupStart(store, rec, ctx).catch(() => { }); });
     /* Yozuv organizator kirganda boshlanadi — 15 daqiqa o'tib ham boshlanmagan bo'lsa, direktorga eslatma */
     if (rec.recMode === 'host' && !rec.recStartedAt && !rec.recStartWarned && now >= L.start + 15 && now < L.end) {
       rec.recStartWarned = ctx.stamp(); changed = true;
