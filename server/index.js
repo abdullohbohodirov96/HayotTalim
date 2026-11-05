@@ -1484,6 +1484,8 @@ function registerZoomButtons() {
 }
 try { registerZoomButtons(); } catch (e) { console.error('zoom tugmalari:', e.message); }
 
+/* Telegram guruhi supergroup'ga aylanganda eski → yangi chat raqami (jarayon davomida) */
+const tgMigrated = {};
 function zoomCtx() {
   return {
     stamp,
@@ -1501,8 +1503,12 @@ function zoomCtx() {
     sendVideo: async (chatId, buf, caption, meta) => {
       const tokenTg = process.env.TELEGRAM_BOT_TOKEN;
       if (!tokenTg) throw new Error('bot token yo‘q');
+      /* Guruh «supergroup»ga aylangan bo'lsa — yangi raqam (keyingi bo'laklar ham shu raqamga) */
+      const old = String(chatId);
+      if (tgMigrated[old]) chatId = tgMigrated[old];
+      const once = async (cid) => {
       const fd = new FormData();
-      fd.append('chat_id', String(chatId));
+      fd.append('chat_id', String(cid));
       fd.append('caption', caption);
       fd.append('parse_mode', 'HTML');
       fd.append('supports_streaming', 'true');
@@ -1512,8 +1518,17 @@ function zoomCtx() {
       if (meta && meta.thumb) fd.append('thumbnail', new Blob([meta.thumb], { type: 'image/jpeg' }), 'muqova.jpg');
       fd.append('video', new Blob([buf], { type: 'video/mp4' }), 'dars.mp4');
       const r = await fetch('https://api.telegram.org/bot' + tokenTg + '/sendVideo', { method: 'POST', body: fd });
-      const j = await r.json().catch(() => ({}));
-      if (!j.ok) throw new Error(j.description || ('HTTP ' + r.status));
+      return r.json().catch(() => ({ description: 'HTTP ' + r.status }));
+      };
+      let j = await once(chatId);
+      const mig = j && !j.ok && j.parameters && j.parameters.migrate_to_chat_id;
+      if (mig) {
+        const nid = String(mig);
+        tgMigrated[old] = nid; tgMigrated[String(chatId)] = nid;
+        try { await require('./bot').migrateGroupChat(old, nid); } catch (e) { }
+        j = await once(nid);
+      }
+      if (!j.ok) throw new Error(j.description || 'Telegram xatosi');
     }
   };
 }

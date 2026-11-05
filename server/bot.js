@@ -2390,4 +2390,4 @@ const quiz = {
       .sort((a, b) => String(b.date + b.slot).localeCompare(String(a.date + a.slot))).slice(0, 30);
   }
 };
-module.exports = { notifyDirectors, onButton, ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
+module.exports = { migrateGroupChat, notifyDirectors, onButton, ensureGroupInvite, start, stop, setTransport, withClaimLock, normCode, wake, notifyStaff, notifyUser, dropStaffCache, trackLead, trackTrial, sendToGroup, enqueue, tg, confirmClaimManual, makeGroupLinkToken, init, _test, quiz };
