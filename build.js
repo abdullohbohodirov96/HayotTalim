@@ -189,6 +189,7 @@ const head = `<!doctype html>
 <title>${SITE_TITLE}</title>
 <meta name="description" content="${SITE_DESC}">
 <meta name="theme-color" content="#0B4A2E">
+<meta name="facebook-domain-verification" content="f3oqegkrdtku2vrd9bcrmn193s0vzx">
 <link rel="canonical" href="${SITE_URL}/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 
