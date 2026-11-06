@@ -5201,3 +5201,8 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .rb-zb:hover{background:rgba(255,255,255,.18)}
 .rb-zl{min-width:50px;height:28px;border:0;border-radius:7px;background:rgba(255,255,255,.18);color:#fff;font:700 12.5px/1 inherit;font-family:inherit;cursor:pointer}
 @media (max-width:720px){.rb-zl{min-width:44px}.rb-zb{width:26px}}
+
+/* ---- Instagram bot paneli (iframe) ---- */
+.igbot-wrap{display:flex;flex-direction:column;min-height:420px}
+.igbot-frame{width:100%;min-height:420px;border:1px solid var(--border,#e3e9e6);border-radius:14px;background:#fff;display:block}
+@media (max-width:760px){.igbot-frame{border-radius:10px}}

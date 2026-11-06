@@ -198,6 +198,7 @@
     { id: 'chat', label: 'Suhbat', icon: 'chat', perm: 'nav.chat' },
     { id: 'tasks', label: 'Vazifalar', icon: 'task', perm: 'nav.tasks' },
     { id: 'bot', label: 'Telegram bot', icon: 'bot', perm: 'nav.bot' },
+    { id: 'igbot', label: 'Instagram bot', icon: 'chat', perm: 'nav.bot' },
     { id: 'settings', label: 'Sozlamalar', icon: 'gear', perm: 'settings.edit' }
   ];
 
@@ -212,7 +213,7 @@
     { id: 's-fin', label: 'Moliya', icon: 'wallet', items: ['finance'] },
     { id: 's-reports', label: 'Hisobotlar', icon: 'chart', items: ['reports', 'progress', 'studentProgress'] },
     { id: 's-team', label: 'Xodimlar va vazifalar', icon: 'badge', items: ['staff', 'tasks'] },
-    { id: 's-comm', label: 'Aloqa', icon: 'chat', items: ['chat', 'bot'] },
+    { id: 's-comm', label: 'Aloqa', icon: 'chat', items: ['chat', 'bot', 'igbot'] },
     { id: 's-set', label: 'Sozlamalar', icon: 'gear', items: ['settings'] }
   ];
   /* Ichki sahifalar qaysi menyu bandiga tegishli */

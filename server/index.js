@@ -2,6 +2,7 @@
    Ishga tushirish:  node server/index.js                                  */
 'use strict';
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -5060,6 +5061,67 @@ setInterval(() => {
   }
 }, FLOOD_WIN).unref();
 
+/* ------------------------------------------------------------------
+   Instagram bot paneli — Mac'dagi server (sabo-bot/dashboard.py) tunnel
+   orqali ulanadi. Bu yerda faqat PROXY: /bot-panel/... -> BOT_PANEL_URL/...
+   Kirish: ERP sessiyasi (direktor/admin/menejer). Panelga maxfiy kalit
+   (BOT_PANEL_KEY) sarlavha bilan uzatiladi — foydalanuvchi parol termaydi.
+   Render env: BOT_PANEL_URL=https://<mac>.<tailnet>.ts.net  BOT_PANEL_KEY=...
+------------------------------------------------------------------ */
+const BOT_PANEL_URL = String(process.env.BOT_PANEL_URL || '').replace(/\/+$/, '');
+const BOT_PANEL_KEY = String(process.env.BOT_PANEL_KEY || '');
+const BOT_PANEL_ROLES = ['direktor', 'admin', 'menejer'];
+async function botPanelProxy(req, res, url) {
+  const user = await currentUser(req);
+  if (!user || BOT_PANEL_ROLES.indexOf(user.role) < 0) {
+    res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end('<p style="font-family:sans-serif;padding:24px">Bu bo\u2019lim faqat ERP administratorlari uchun. <a href="/">Kirish</a></p>');
+  }
+  if (!BOT_PANEL_URL) {
+    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end('<p style="font-family:sans-serif;padding:24px">Bot paneli hali ulanmagan (BOT_PANEL_URL sozlanmagan).</p>');
+  }
+  const sub = url.pathname.replace(/^\/bot-panel\/?/, '/');
+  let target;
+  try { target = new URL(BOT_PANEL_URL + sub + url.search); } catch (e) {
+    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('BOT_PANEL_URL noto\u2019g\u2019ri');
+  }
+  const mod = target.protocol === 'https:' ? https : http;
+  const headers = {};
+  for (const k of Object.keys(req.headers)) {
+    if (['host', 'cookie', 'connection', 'accept-encoding', 'content-length', 'transfer-encoding'].indexOf(k) >= 0) continue;
+    headers[k] = req.headers[k];
+  }
+  if (req.headers['content-length']) headers['content-length'] = req.headers['content-length'];
+  headers['x-panel-key'] = BOT_PANEL_KEY;
+  headers['x-forwarded-proto'] = 'https';
+  headers['x-forwarded-prefix'] = '/bot-panel';
+  headers['x-erp-user'] = encodeURIComponent(String(user.name || user.login || user.id || ''));
+  const up = mod.request(target, { method: req.method, headers }, (ur) => {
+    const h = {};
+    for (const k of Object.keys(ur.headers)) {
+      if (['x-frame-options', 'content-security-policy', 'set-cookie', 'connection', 'transfer-encoding'].indexOf(k) >= 0) continue;
+      h[k] = ur.headers[k];
+    }
+    /* ERP ichida iframe bilan ochiladi — faqat o'z saytimizdan */
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('X-Frame-Options');
+    h['x-frame-options'] = 'SAMEORIGIN';
+    h['content-security-policy'] = "default-src 'self' 'unsafe-inline' data: https://fonts.googleapis.com https://fonts.gstatic.com; frame-ancestors 'self'";
+    h['cache-control'] = 'no-store';
+    res.writeHead(ur.statusCode || 502, h);
+    ur.pipe(res);
+  });
+  up.on('error', () => {
+    try {
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('<p style="font-family:sans-serif;padding:24px">Bot paneli (Mac) hozir ulanmagan \u2014 kompyuter yoniq va internetga ulanganmi?</p>');
+    } catch (x) { }
+  });
+  req.on('aborted', () => { try { up.destroy(); } catch (x) { } });
+  req.pipe(up);
+}
+
 const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (req, res) => {
   securityHeaders(res);
   /* Render sog'liq tekshiruvi hech qachon to'xtatilmaydi */
@@ -5080,6 +5142,8 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
   /* Odam murojaati — baza hozir uyg'oq (orqa fon ishlari shundan foydalanadi) */
   if (url.pathname !== '/api/health' && (url.pathname.indexOf('/api/') === 0 || url.pathname === '/' || url.pathname === '/index.html')) quiet.human();
   try {
+    if (url.pathname === '/bot-panel') { res.writeHead(302, { Location: '/bot-panel/' + url.search, 'Cache-Control': 'no-store' }); return res.end(); }
+    if (url.pathname.indexOf('/bot-panel/') === 0) return await botPanelProxy(req, res, url);
     if (url.pathname.indexOf('/api/') === 0) return await handleApi(req, res, url);
     if (url.pathname === '/maxfiylik' || url.pathname === '/privacy') return serveStatic(req, res, '/maxfiylik.html');
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {

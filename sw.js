@@ -37,6 +37,7 @@ const SHELL = [
   './js/qissa-video.js',
   './js/speak.js',
   './js/bot.js',
+  './js/igbot.js',
   './js/import.js',
   './js/seed.js',
   './js/pwa.js',
