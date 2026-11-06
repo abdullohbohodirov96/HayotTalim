@@ -1495,11 +1495,11 @@ function zoomCtx() {
     notifyStaff: (text, opts) => require('./bot').notifyStaff(text, opts),
     /* Dars yozuvi tasdig'i — hozircha faqat direktorga */
     notifyDirectors: (text, opts) => require('./bot').notifyDirectors(text, opts),
-    sendBigVideo: async (chatId, url, caption) => {
+    sendBigVideo: async (chatId, url, caption, opts) => {
       const bv = require('./bigvideo');
       if (!(await bv.available())) throw new Error('ffmpeg yo‘q');
       const send = zoomCtx().sendVideo;
-      return bv.splitAndSend(url, (buf, i, n, meta) => send(chatId, buf, caption + (n > 1 ? '\n🎬 ' + i + '/' + n + '-qism' : ''), meta));
+      return bv.splitAndSend(url, (buf, i, n, meta) => send(chatId, buf, caption + (n > 1 ? '\n🎬 ' + i + '/' + n + '-qism' : ''), meta), opts);
     },
     sendVideo: async (chatId, buf, caption, meta) => {
       const tokenTg = process.env.TELEGRAM_BOT_TOKEN;

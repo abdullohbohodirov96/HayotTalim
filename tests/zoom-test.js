@@ -245,6 +245,26 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const tov = await zoom.overview(store, iso);
   const ovl = (tov.lessons || []).filter(l => l.id === lid)[0];
   ok('ERP «Darsni boshlash (ustoz)» tugmasi ham doimiy havola', ovl && /^\/api\/zoom\/start\?l=/.test(ovl.startUrl), ovl && ovl.startUrl);
+  console.log('\n12. Yozuvni yuklab olish (Zoom 401)');
+  let dlCalls = [];
+  zoom.setFetch(async (url, opt) => {
+    const h = (opt && opt.headers && opt.headers.Authorization) || '';
+    dlCalls.push(url + (h ? ' [' + h + ']' : ''));
+    const R = (st, o) => ({ ok: st < 300, status: st, json: async () => o || {}, arrayBuffer: async () => new ArrayBuffer(10) });
+    if (/oauth\/token/.test(url)) return R(200, { access_token: 'T', expires_in: 3600 });
+    if (/download_access_token/.test(url)) return R(200, { download_access_token: 'DAT' });
+    if (/zoom\.us\/dl\/B/.test(url)) return h === 'Bearer T' ? R(200) : R(401);
+    if (/zoom\.us\/dl\/D/.test(url)) return /access_token=DAT/.test(url) ? R(200) : R(401);
+    return R(401);
+  });
+  const d1 = await zoom.zoomDownload('https://zoom.us/dl/B', { meetingId: '777' });
+  ok('Bearer sarlavhasi bilan yuklab olinadi (havolada kalit yo‘q)', d1.ok && /\[Bearer T\]/.test(dlCalls.filter(c => /dl\/B/.test(c))[0]) && !/access_token/.test(dlCalls.filter(c => /dl\/B/.test(c))[0]), dlCalls.join(' | '));
+  dlCalls = [];
+  const d2 = await zoom.zoomDownload('https://zoom.us/dl/D', { meetingId: '777' });
+  ok('Bearer ishlamasa — maxsus yuklab olish kaliti bilan', d2.ok && dlCalls.some(c => /meetings\/777\/recordings\?include_fields=download_access_token/.test(c)), dlCalls.join(' | '));
+  let err = '';
+  try { await zoom.zoomDownload('https://zoom.us/dl/X', { meetingId: '777' }); } catch (e) { err = e.message; }
+  ok('Hech biri ishlamasa — aniq xato', /HTTP 401/.test(err), err);
   console.log('\n' + (fail ? '✗ XATOLAR BOR — ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o\'tdi, ' + fail + ' ta xato');
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -512,6 +512,35 @@ async function decideRecording(store, id, approve, who, ctx) {
   })();
   return { ok: true, sending: true, job };
 }
+/* Zoom yozuv faylini yuklab olish. Zoom endi kalitni havola ichida (?access_token=) qabul qilmayapti (HTTP 401):
+   1) Authorization: Bearer sarlavhasi bilan; 2) eski usul (?access_token=); 3) maxsus yuklab olish kaliti
+   (GET /meetings/{uuid}/recordings?include_fields=download_access_token). Birinchi ishlagani qaytadi. */
+async function zoomDownload(url, rec) {
+  const t = await token();
+  const add = (u, k) => u + (u.indexOf('?') >= 0 ? '&' : '?') + 'access_token=' + encodeURIComponent(k);
+  const tries = [
+    () => fetchImpl(url, { headers: { Authorization: 'Bearer ' + t } }),
+    () => fetchImpl(add(url, t))
+  ];
+  if (rec && (rec.recording && rec.recording.uuid || rec.uuid || rec.meetingId)) {
+    tries.push(async () => {
+      const id = (rec.recording && rec.recording.uuid) || rec.uuid || rec.meetingId;
+      const j = await api('GET', '/meetings/' + uuidPath(id) + '/recordings?include_fields=download_access_token');
+      if (!j || !j.download_access_token) throw new Error('download_access_token yo‘q');
+      return fetchImpl(add(url, j.download_access_token));
+    });
+  }
+  let last = '';
+  for (const tr of tries) {
+    try {
+      const res = await tr();
+      if (res && res.ok) return res;
+      last = 'HTTP ' + (res && res.status);
+      try { if (res && res.body && res.body.cancel) await res.body.cancel(); } catch (e) { }
+    } catch (e) { last = e.message; }
+  }
+  throw new Error('Zoom’dan yuklab bo‘lmadi (' + last + ')');
+}
 async function sendRecording(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
   if (!g || !g.tgChat) { rec.recNote = 'Guruh Telegramga ulanmagan'; return false; }
@@ -521,8 +550,7 @@ async function sendRecording(store, rec, ctx) {
   const small = (r.files || []).filter(f => f.size > 0 && f.size <= TG_VIDEO_MAX && f.url).sort((a, b) => b.size - a.size)[0];
   if (small && ctx.sendVideo && !ctx.sendBigVideo) {
     try {
-      const t = await token();
-      const res = await fetchImpl(small.url + (small.url.indexOf('?') >= 0 ? '&' : '?') + 'access_token=' + encodeURIComponent(t));
+      const res = await zoomDownload(small.url, rec);
       if (res.ok) {
         const buf = Buffer.from(await res.arrayBuffer());
         await ctx.sendVideo(g.tgChat, buf, caption);
@@ -537,9 +565,7 @@ async function sendRecording(store, rec, ctx) {
       .sort((a, b) => ((pref.indexOf(a.type) + 1 || 99) - (pref.indexOf(b.type) + 1 || 99)) || (b.size - a.size))[0];
     if (big) {
       try {
-        const t = await token();
-        const url = big.url + (big.url.indexOf('?') >= 0 ? '&' : '?') + 'access_token=' + encodeURIComponent(t);
-        const res = await ctx.sendBigVideo(g.tgChat, url, caption);
+        const res = await ctx.sendBigVideo(g.tgChat, big.url, caption, { fetch: () => zoomDownload(big.url, rec) });
         rec.recParts = res && res.parts; delete rec.recNote;
         return true;
       } catch (e) { rec.recNote = 'Video bo‘lib yuborilmadi (' + e.message + ') — havola yuborildi'; }
@@ -769,5 +795,5 @@ async function guestLink(store, rec, name, settings) {
 module.exports = {
   browserLink, livePick, LIVE_POOL, _fetchRecording: (s, r) => fetchRecording(s, r), refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, freshStart, startLink, startPath, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
-  todaysLessons, markJoined, writeAttendance, setFetch, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
+  todaysLessons, markJoined, writeAttendance, setFetch, zoomDownload, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };
