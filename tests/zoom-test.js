@@ -245,6 +245,13 @@ const kinds = k => sent.filter(m => m.dedupeKey.indexOf(':' + k + ':') > 0);
   const tov = await zoom.overview(store, iso);
   const ovl = (tov.lessons || []).filter(l => l.id === lid)[0];
   ok('ERP «Darsni boshlash (ustoz)» tugmasi ham doimiy havola', ovl && /^\/api\/zoom\/start\?l=/.test(ovl.startUrl), ovl && ovl.startUrl);
+  const lr = db['zoomlesson/g1__' + iso];
+  lr.recNote = 'Video bo‘lib yuborilmadi (Zoom’dan yuklab bo‘lmadi (HTTP 401)) — havola yuborildi'; delete lr.recParts;
+  const dec3 = await zoom.decideRecording(store, 'g1__' + iso, true, 'Direktor', ctx);
+  ok('Avval faqat havola ketgan bo‘lsa — video qayta yuboriladi', dec3.sending === true, JSON.stringify(dec3));
+  if (dec3.job) await dec3.job;
+  db['zoomlesson/g1__' + iso].recNote = ''; db['zoomlesson/g1__' + iso].recSent = 'x'; const dec4 = await zoom.decideRecording(store, 'g1__' + iso, true, 'Direktor', ctx);
+  ok('Video yuborilgan bo‘lsa — qayta yuborilmaydi', dec4.already === 'sent');
   console.log('\n12. Yozuvni yuklab olish (Zoom 401)');
   let dlCalls = [];
   zoom.setFetch(async (url, opt) => {

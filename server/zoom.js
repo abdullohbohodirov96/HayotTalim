@@ -436,7 +436,7 @@ function recFromPayload(j) {
     sec: Math.max(0, Math.round((Date.parse(f.recording_end || '') - Date.parse(f.recording_start || '')) / 1000)) || 0 }));
   if (!files.length) return null;
   const durSec = Math.max.apply(null, files.map(f => f.sec || 0)) || (Number(j.duration) || 0) * 60;
-  return { shareUrl: j.share_url || '', password: j.recording_play_passcode || j.password || '', files, durSec, start: j.start_time || '' };
+  return { uuid: j.uuid || '', shareUrl: j.share_url || '', password: j.recording_play_passcode || j.password || '', files, durSec, start: j.start_time || '' };
 }
 function fmtDur(sec) {
   sec = Math.round(Number(sec) || 0); if (!sec) return '';
@@ -485,7 +485,9 @@ async function refetchRecording(store, id, ctx) {
 async function decideRecording(store, id, approve, who, ctx) {
   const rec = await store.get(COL + String(id || ''));
   if (!rec || !rec.recording) return { error: 'Yozuv topilmadi.', code: 404 };
-  if (rec.recSent) return { ok: true, already: 'sent', by: rec.recBy || '' };
+  /* Avval faqat havola ketgan bo'lsa (video yuklanmagan) — videoni qayta yuborishga ruxsat */
+  const linkOnly = rec.recSent && !rec.recParts && /havola yuborildi|Video yuborilmadi/.test(rec.recNote || '');
+  if (rec.recSent && !linkOnly) return { ok: true, already: 'sent', by: rec.recBy || '' };
   if (!approve) {
     rec.recPending = false; rec.recRejected = ctx.stamp(); rec.recBy = who || '';
     await store.set(COL + rec.id, rec);
@@ -522,28 +524,35 @@ async function zoomDownload(url, rec) {
     () => fetchImpl(url, { headers: { Authorization: 'Bearer ' + t } }),
     () => fetchImpl(add(url, t))
   ];
-  if (rec && (rec.recording && rec.recording.uuid || rec.uuid || rec.meetingId)) {
+  if (rec && (rec.recording && rec.recording.uuid || rec.meetingId)) {
     tries.push(async () => {
-      const id = (rec.recording && rec.recording.uuid) || rec.uuid || rec.meetingId;
+      const id = (rec.recording && rec.recording.uuid) || rec.meetingId;
       const j = await api('GET', '/meetings/' + uuidPath(id) + '/recordings?include_fields=download_access_token');
       if (!j || !j.download_access_token) throw new Error('download_access_token yo‘q');
       return fetchImpl(add(url, j.download_access_token));
     });
   }
-  let last = '';
-  for (const tr of tries) {
+  const log = [];
+  for (let i = 0; i < tries.length; i++) {
     try {
-      const res = await tr();
+      const res = await tries[i]();
       if (res && res.ok) return res;
-      last = 'HTTP ' + (res && res.status);
+      log.push((i + 1) + '-usul: HTTP ' + (res && res.status));
       try { if (res && res.body && res.body.cancel) await res.body.cancel(); } catch (e) { }
-    } catch (e) { last = e.message; }
+    } catch (e) { log.push((i + 1) + '-usul: ' + String(e.message || e).slice(0, 120)); }
   }
-  throw new Error('Zoom’dan yuklab bo‘lmadi (' + last + ')');
+  throw new Error('Zoom’dan yuklab bo‘lmadi [v2] (' + log.join('; ') + ')');
 }
 async function sendRecording(store, rec, ctx) {
   const g = await store.get('groups/' + rec.groupId);
   if (!g || !g.tgChat) { rec.recNote = 'Guruh Telegramga ulanmagan'; return false; }
+  /* Fayl havolalari eskirgan bo'lishi mumkin (yozuv Zoom'da kesilgan/tahrirlangan) — yuborishdan oldin yangilaymiz */
+  if (rec.meetingId) {
+    try {
+      const fr = await fetchRecording(store, rec);
+      if (fr && fr.files && fr.files.length) rec.recording = Object.assign({}, rec.recording, fr);
+    } catch (e) { /* eski havolalar bilan urinib ko'ramiz */ }
+  }
   const r = rec.recording;
   const caption = '📹 <b>Dars yozuvi</b> — ' + esc(rec.groupName) + '\n📅 ' + rec.date + ' · ' + rec.start;
   /* Kichik fayl bo'lsa — videoning o'zi guruhga; katta bo'lsa — ko'rish havolasi */
@@ -748,7 +757,7 @@ async function overview(store, fromIso) {
     out.push({
       id: r.id, groupId: r.groupId, groupName: r.groupName, date: r.date, start: r.start, end: r.end,
       status: r.status, error: r.error || '', regError: r.regError || '', open: !!r.open, openError: r.open ? '' : (r.openError || ''), joinUrl: r.joinUrl || '', startUrl: configured() && r.meetingId && r.id ? startPath(r) : (r.startUrl || ''),
-      sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recPending: !!(r.recording && !r.recSent && !r.recRejected), recRejected: !!r.recRejected, recBy: r.recBy || '', recNote: r.recNote || '',
+      sent: r.sent || {}, attMarked: !!r.attMarked, recSent: !!r.recSent, recPending: !!(r.recording && !r.recSent && !r.recRejected), recRejected: !!r.recRejected, recBy: r.recBy || '', recNote: r.recNote || '', recParts: r.recParts || 0,
       recording: r.recording ? { shareUrl: r.recording.shareUrl, password: r.recording.password, dur: fmtDur(r.recording.durSec) } : null,
       joined: list.filter(x => r.joined && r.joined[x.s.id]).map(x => ({ id: x.s.id, name: stName(x.s), at: r.joined[x.s.id].at })),
       missing: list.filter(x => !(r.joined && r.joined[x.s.id])).map(x => ({ id: x.s.id, name: stName(x.s), tg: !!(x.s.telegram && x.s.telegram.id) })),

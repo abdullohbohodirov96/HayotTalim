@@ -149,6 +149,12 @@
               try { await D.api('POST', 'api/zoom/recording', { id: l.id, action: 'reject' }); UI.toast('Guruhga yuborilmaydi.', 'ok'); reload(App); }
               catch (e) { UI.toast(e.message || 'Bo‘lmadi', 'bad'); }
             } }, '❌ Yubormaslik') : null,
+            /* Avval faqat havola ketgan (video yuklanmagan) — videoni qayta yuborish */
+            l.recSent && !l.recParts && /havola yuborildi|Video yuborilmadi/.test(l.recNote || '') && App.user && App.user.role === 'direktor' ? h('button', { class: 'btn sm primary', onclick: async function () {
+              if (!window.confirm('Dars videosi guruhga qayta (fayl qilib) yuborilsinmi?')) return;
+              try { await D.api('POST', 'api/zoom/recording', { id: l.id }); UI.toast('Video yuklanmoqda — tayyor bo‘lgach guruhga boradi.', 'ok'); reload(App); }
+              catch (e) { UI.toast(e.message || 'Yuborilmadi', 'bad'); }
+            } }, '🎬 Videoni qayta yuborish') : null,
             l.recNote ? h('span', { class: 'muted small' }, l.recNote) : null
           ])
         ]));
