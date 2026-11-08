@@ -80,6 +80,7 @@ function seoText(o) {
   FAQ.forEach(f => parts.push('<h3>' + esc(f.q) + '</h3><p>' + esc(f.a) + '</p>'));
   parts.push('<h2>Bog‘lanish</h2>');
   if (phone) parts.push('<p>Telefon: <a href="tel:' + esc(tel) + '">' + esc(phone) + '</a></p>');
+  parts.push('<p>Yuridik shaxs: <strong>YaTT Bahodirov Abdulloh Baxromjon o‘g‘li · Toshkent sh., Yunusobod t., Nurziyo ko‘chasi 32</strong></p>');
   parts.push('<p>Email: <a href="mailto:' + esc(EMAIL) + '">' + esc(EMAIL) + '</a></p>');
   if (o.address) parts.push('<p>Manzil: ' + esc(o.address) + '</p>');
   (o.links || []).forEach(l => parts.push('<p><a href="' + esc(l.url) + '">' + esc(l.label) + '</a></p>'));

@@ -2646,7 +2646,10 @@
         ])
       ]),
       h('div', { class: 'foot-bar' }, [
-        h('span', {}, '© ' + new Date().getFullYear() + ' ' + name),
+        h('div', { class: 'foot-legal' }, [
+          h('span', {}, '© ' + new Date().getFullYear() + ' ' + name),
+          h('span', { class: 'foot-line', id: 'foot-legal' }, 'YaTT Bahodirov Abdulloh Baxromjon o‘g‘li · Toshkent sh., Yunusobod t., Nurziyo ko‘chasi 32')
+        ]),
         h('div', { class: 'rowflex' }, [
           h('button', {
             class: 'btn sm ghost', type: 'button',
