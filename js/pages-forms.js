@@ -191,7 +191,7 @@
       ]
     };
     var fInfo = UI.field({ label: 'Qo’shimcha ma’lumot (kontaktlar bo’limida chiqadi)', type: 'textarea', rows: 2, value: f.info || '',
-      placeholder: 'Masalan: darslar dushanba–shanba, 1-dars bepul.' });
+      placeholder: 'Masalan: darslar dushanba–shanba, dars vaqti 20:30.' });
     var fContact = UI.field({ label: 'Kontaktlar va ma’lumot bo’limi', type: 'select', value: f.contact === false ? 'off' : 'on',
       options: [{ value: 'on', label: 'Ko’rsatilsin' }, { value: 'off', label: 'Ko’rsatilmasin' }] });
 

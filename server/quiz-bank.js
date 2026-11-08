@@ -575,7 +575,7 @@ module.exports = [
     explain: 'بِالتَّوْفِيق — «omad!», masalan imtihon yoki yangi ish oldidan aytiladi.' },
   { id: 'w8d7s3', kind: 'Viktorina', question: '🎓 Sabo Academy’da A0 kursi harflardan erkin o‘qishgacha necha oyda olib chiqadi?',
     options: ['2 oyda', '6 oyda', '1 yilda', '2 yilda'], correct: 0,
-    explain: 'A0 — 2 oy, 24 dars: harflar, to‘g‘ri maxraj va o‘qish. Birinchi dars bepul! 🎁' },
+    explain: 'A0 — 2 oy, 24 dars: harflar, to‘g‘ri maxraj va o‘qish. Darsga yozilish — saytda yoki botda. 🎯' },
 
   /* ---------- Jumlalar va suhbat (o‘rgatuvchi, kunduzgi 14:00 slotida) ---------- */
   { id: 'jm01', kind: 'Jumla', question: '🗣 «كَيْفَ حَالُكَ؟» (kayfa ḥāluka?) jumlasi nimani anglatadi?',

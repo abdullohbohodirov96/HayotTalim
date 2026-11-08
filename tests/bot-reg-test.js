@@ -87,7 +87,7 @@ const last = id => sent.filter(m => m.chatId === String(id)).slice(-1)[0] || {};
   /* Oddiy /start: kod so'raydi va ro'yxat tugmasini ko'rsatadi */
   await B.onMessage({ chat: { id: 777, type: 'private' }, from: { id: 777 }, text: '/start' });
   ok('Oddiy /start — savol taklifi va ro’yxat tugmasi', /savolingizni yozing/i.test(last(777).text) &&
-    JSON.stringify(last(777).keyboard || '').indexOf('Bepul darsga') >= 0);
+    JSON.stringify(last(777).keyboard || '').indexOf('Darsga yozilish') >= 0);
   /* Savollarga javob */
   const ask = t => B.onMessage({ chat: { id: 888, type: 'private' }, from: { id: 888, first_name: 'Dilnoza', username: 'dil' }, text: t });
   await ask('/start');
@@ -108,7 +108,7 @@ const last = id => sent.filter(m => m.chatId === String(id)).slice(-1)[0] || {};
   const ld = (await store.list('leads/')).map(x => x.data).filter(l => /yotoqxona/.test(l.note || ''))[0];
   ok('Savol murojaatga yozildi (raqam bilan)', !!ld && A.phoneDigits(ld.phone) === '935554433' && (await store.list('leads/')).length === before + 1, JSON.stringify(ld));
   ok('Javob: administratorga yuborildi', /administratorga yuborildi/.test(last(888).text));
-  await B.onMessage({ chat: { id: 777, type: 'private' }, from: { id: 777 }, text: 'Bepul darsga yozilish' });
+  await B.onMessage({ chat: { id: 777, type: 'private' }, from: { id: 777 }, text: 'Darsga yozilish' });
   ok('Tugma ro’yxatni boshlaydi', /Ismingiz/.test(last(777).text));
   ok('Belgi tozalanadi', B.regSrc('dars_reels<script>') === 'reelsscript');
 

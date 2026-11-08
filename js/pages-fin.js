@@ -1665,10 +1665,10 @@
         { name: 'promoSeats', label: 'Joylar soni', type: 'number', value: p.seats || 20 },
         { name: 'promoEndDate', label: 'Chegirma tugash sanasi', type: 'date', value: p.endDate || '' },
         { name: 'promoEndTime', label: 'Tugash vaqti', type: 'time', value: p.endTime || '23:59' },
-        { name: 'freeTitle', label: 'Bepul dars mavzusi', value: fl.title || '', full: true,
+        { name: 'freeTitle', label: 'Birinchi dars mavzusi', value: fl.title || '', full: true,
           placeholder: 'masalan: Arab harflarini 1 kunda o’qishni o’rganing' },
-        { name: 'freeDate', label: 'Bepul dars sanasi', type: 'date', value: fl.date || '' },
-        { name: 'freeTime', label: 'Bepul dars vaqti', type: 'time', value: fl.time || '20:30' },
+        { name: 'freeDate', label: 'Birinchi dars sanasi', type: 'date', value: fl.date || '' },
+        { name: 'freeTime', label: 'Birinchi dars vaqti', type: 'time', value: fl.time || '20:30' },
         {
           name: 'freeChannel', label: 'Yopiq kanal havolasi', value: fl.channel || '', full: true,
           placeholder: 'https://t.me/+…',
@@ -1676,7 +1676,7 @@
           validate: function (v) { return v && !A.safeUrl(v) ? 'Havola https:// bilan boshlanishi kerak.' : null; }
         }
       ]);
-      return UI.card('Zapusk va bepul dars', [
+      return UI.card('Zapusk va birinchi dars', [
         h('p', { class: 'small muted', style: 'margin-top:0' },
           h('span', null, 'Band joylar'), ': ' + used + (p.seats ? ' / ' + p.seats : '') + '. ',
           h('span', null, 'O’quvchini guruhga yozayotganda "Zapusk chegirmasi" belgilansa, joy band hisoblanadi.')),

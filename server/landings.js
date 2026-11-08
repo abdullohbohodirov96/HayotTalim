@@ -7,7 +7,7 @@
 
    Sahifalar serverda tayyor HTML bo'lib chiqadi: katta skriptlar yo'q,
    tashqi shrift yo'q — telefonda ham bir zumda ochiladi. Har birida
-   «Tekin darsga yozilish» (Telegram bot) va telefon bor.
+   «Darsga yozilish» (Telegram bot) va telefon bor.
 
    Qoidalar (site-content.js dagidek): narx yozilmaydi, diniy ibora
    ishlatilmaydi, faqat markaz aytgan haqiqiy ma'lumot.                    */
@@ -37,15 +37,15 @@ const PAGES = [
   {
     slug: 'arab-tili-kursi', lang: 'uz', group: 'kurs',
     title: 'Arab tili kursi — noldan, misrlik ustoz bilan | Sabo Academy',
-    desc: 'Arab tili kursi noldan: misrlik ustoz bilan jonli onlayn darslar, haftada 3 marta. Ayollar, erkaklar va bolalar uchun alohida guruhlar. Tekin darsga yoziling.',
+    desc: 'Arab tili kursi noldan: misrlik ustoz bilan jonli onlayn darslar, haftada 3 marta. Ayollar, erkaklar va bolalar uchun alohida guruhlar. Darsga yoziling.',
     h1: 'Arab tili kursi — noldan gapirishgacha',
     lead: 'Sabo Academy’da arab tilini alifbodan boshlab o‘rganasiz va taxminan 1 yilda arabcha matnni tushunib o‘qish hamda kundalik suhbat darajasiga yetasiz. Darslar jonli, ustoz — misrlik, asosiy urg‘u gapirishga.',
-    extra: [['Kurs kimlar uchun?', 'Arab tilini umuman bilmaydiganlar, harflarni biladigan, lekin gapira olmaydiganlar, hamda bilimini mustahkamlamoqchi bo‘lganlar uchun. Darajangizni bepul test bilan aniqlab, mos guruhga qo‘shilasiz.']]
+    extra: [['Kurs kimlar uchun?', 'Arab tilini umuman bilmaydiganlar, harflarni biladigan, lekin gapira olmaydiganlar, hamda bilimini mustahkamlamoqchi bo‘lganlar uchun. Darajangizni test bilan aniqlab, mos guruhga qo‘shilasiz.']]
   },
   {
     slug: 'arab-tilini-organish', lang: 'uz', group: 'kurs',
     title: 'Arab tilini o‘rganish noldan — 1 yilda gapiring | Sabo Academy',
-    desc: 'Arab tilini noldan o‘rganmoqchimisiz? Harflardan boshlab tizimli darslar, misrlik ustoz, haftada 3 marta jonli dars. Bepul daraja testi va tekin dars.',
+    desc: 'Arab tilini noldan o‘rganmoqchimisiz? Harflardan boshlab tizimli darslar, misrlik ustoz, haftada 3 marta jonli dars. Onlayn daraja testi va jonli darslar.',
     h1: 'Arab tilini noldan o‘rganish',
     lead: 'Arab tilini o‘zingiz o‘rganishga urinib, bir joyda to‘xtab qolgan bo‘lsangiz — tizimli yo‘l kerak. Sabo Academy’da har bir bosqich aniq: avval harflar va o‘qish, keyin grammatika va eng muhimi — gapirish.',
     extra: [['Arab tilini o‘rganish qancha vaqt oladi?', 'Muntazam shug‘ullansangiz, noldan taxminan 1 yilda tushunish va gapirish darajasiga chiqasiz. Birinchi oyning o‘zida harflarni o‘qiy boshlaysiz.']]
@@ -69,7 +69,7 @@ const PAGES = [
   {
     slug: 'arab-alifbosi', lang: 'uz', group: 'kurs',
     title: 'Arab alifbosini o‘rganish — harflar va to‘g‘ri talaffuz | Sabo Academy',
-    desc: 'Arab alifbosi noldan: 28 harf, har bir harfning chiqish joyi (maxraj), unlilar va o‘qish. Misrlik ustoz bilan to‘g‘ri talaffuz. Tekin darsga yoziling.',
+    desc: 'Arab alifbosi noldan: 28 harf, har bir harfning chiqish joyi (maxraj), unlilar va o‘qish. Misrlik ustoz bilan to‘g‘ri talaffuz. Darsga yoziling.',
     h1: 'Arab alifbosini o‘rganish',
     lead: 'Arab tili alifbodan boshlanadi. 28 harfni, har birining og‘izdagi chiqish joyini va unlilarni (a, i, u) ustoz bilan jonli o‘rganasiz — talaffuz boshidan to‘g‘ri qo‘yiladi.',
     extra: [['Alifboni o‘rganish qancha vaqt oladi?', 'Odatda birinchi oyda harflarni tanib, so‘zlarni o‘qiy boshlaysiz. Kabinetdagi interaktiv mashqlar bilan har kuni takrorlab borasiz.']]
@@ -77,7 +77,7 @@ const PAGES = [
   {
     slug: 'arab-tili-ayollar-uchun', lang: 'uz', group: 'kurs',
     title: 'Ayollar va qizlar uchun arab tili kursi — alohida guruh | Sabo Academy',
-    desc: 'Ayollar va qizlar uchun alohida guruhlarda arab tili: onlayn jonli darslar, haftada 3 marta, guruhda 10 kishigacha. Qulay va samimiy muhit. Tekin darsga yoziling.',
+    desc: 'Ayollar va qizlar uchun alohida guruhlarda arab tili: onlayn jonli darslar, haftada 3 marta, guruhda 10 kishigacha. Qulay va samimiy muhit. Darsga yoziling.',
     h1: 'Ayollar va qizlar uchun arab tili kursi',
     lead: 'Ayollar va qizlar uchun guruhlar alohida tuziladi. Darslar onlayn — uydan, o‘zingizga qulay vaqtda qatnashasiz.',
     extra: [['Guruhda nechta odam bo‘ladi?', 'Guruhda 10 kishigacha — ustoz har bir o‘quvchiga vaqt ajratadi va har kim gapirib ko‘radi.']]
@@ -85,7 +85,7 @@ const PAGES = [
   {
     slug: 'arab-tili-bolalar-uchun', lang: 'uz', group: 'kurs',
     title: 'Bolalar uchun arab tili — o‘yin va suhbat orqali | Sabo Academy',
-    desc: 'Bolalar uchun arab tili kursi: alohida bolalar guruhi, harflar, o‘qish va oddiy suhbat. Onlayn jonli darslar va interaktiv mashqlar. Tekin darsga yoziling.',
+    desc: 'Bolalar uchun arab tili kursi: alohida bolalar guruhi, harflar, o‘qish va oddiy suhbat. Onlayn jonli darslar va interaktiv mashqlar. Darsga yoziling.',
     h1: 'Bolalar uchun arab tili',
     lead: 'Bolalar uchun alohida guruhlar bor. Harflar, o‘qish va oddiy suhbatni jonli darsda o‘rganadi, uyda esa kabinetdagi interaktiv mashqlar bilan takrorlaydi — ota-ona natijani ko‘rib boradi.',
     extra: [['Ota-ona farzandining natijasini ko‘ra oladimi?', 'Ha. Davomat, uy vazifalari va baholar ota-ona kabinetida va Telegram bot orqali ko‘rinadi.']]
@@ -125,9 +125,9 @@ const PAGES = [
       ['Можно ли выучить арабский с нуля?', 'Да. Уроки начинаются с алфавита: буквы, чтение, затем грамматика и разговор.'],
       ['Уроки онлайн или офлайн?', 'Уроки проходят онлайн в Zoom вживую — можно заниматься из любого города Узбекистана и из-за рубежа.'],
       ['Что если я пропущу урок?', 'Каждый урок записывается. Запись, домашнее задание и комментарии преподавателя остаются в личном кабинете.'],
-      ['Как записаться на бесплатный урок?', 'Напишите нашему Telegram-боту или позвоните — администратор свяжется с вами и отправит ссылку на пробный урок.']
+      ['Как записаться на урок?', 'Напишите нашему Telegram-боту или позвоните — администратор свяжется с вами и отправит ссылку на пробный урок.']
     ],
-    ui: { why: 'Как проходит обучение', road: 'Ваш результат', faq: 'Частые вопросы', cta: 'Записаться на бесплатный урок', call: 'Позвонить', more: 'Другие страницы', home: 'Главная страница', crumb: 'Курсы арабского языка' }
+    ui: { why: 'Как проходит обучение', road: 'Ваш результат', faq: 'Частые вопросы', cta: 'Записаться на урок', call: 'Позвонить', more: 'Другие страницы', home: 'Главная страница', crumb: 'Курсы арабского языка' }
   },
   {
     slug: 'kr/arab-tili-kursi', lang: 'uz-Cyrl', group: 'kurs',
@@ -154,7 +154,7 @@ const PAGES = [
   }
 ];
 
-const UI_UZ = { why: 'Darslar qanday o‘tadi', road: 'Natijangiz', faq: 'Ko‘p so‘raladigan savollar', cta: 'Tekin darsga yozilish', call: 'Qo‘ng‘iroq qilish', more: 'Boshqa sahifalar', home: 'Bosh sahifa', crumb: 'Arab tili' };
+const UI_UZ = { why: 'Darslar qanday o‘tadi', road: 'Natijangiz', faq: 'Ko‘p so‘raladigan savollar', cta: 'Darsga yozilish', call: 'Qo‘ng‘iroq qilish', more: 'Boshqa sahifalar', home: 'Bosh sahifa', crumb: 'Arab tili' };
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);

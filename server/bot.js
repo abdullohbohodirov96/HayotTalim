@@ -1192,7 +1192,8 @@ async function sendToGroup(group, text) {
    hudud → murojaat (lead) yaratiladi va yopiq kanal havolasi beriladi.
    "dars_" dan keyingi qism reklama belgisi (src) bo'lib saqlanadi —
    qaysi reklama nechta odam olib kelgani Murojaatlar hisobotida ko'rinadi. */
-const REG_BTN = 'Bepul darsga yozilish';
+const REG_BTN = 'Darsga yozilish';
+const REG_BTN_OLD = ['Bepul darsga yozilish', 'Tekin darsga yozilish'];
 const REG_PHONE_BTN = '📱 Raqamni yuborish';
 const FAQ_BTN = '❓ Savollar';
 const ADMIN_BTN = '📞 Administrator';
@@ -1283,7 +1284,7 @@ async function startRegistration(chatId, src, from) {
   const s = await settings();
   const fl = s.freeLesson || {};
   await sendMessage(chatId,
-    'Assalomu alaykum! ' + (fl.title ? '«' + esc(fl.title) + '» bepul darsiga' : 'Bepul darsga') +
+    'Assalomu alaykum! ' + (fl.title ? '«' + esc(fl.title) + '» darsiga' : 'Darsga') +
     ' yozilish uchun 3 ta qisqa savol.\n\n<b>Ismingiz nima?</b>',
     first ? [[{ text: first }]] : null);
 }
@@ -1314,7 +1315,7 @@ async function finishRegistration(chatId, st, from) {
       funnelId: funnel ? funnel.id : '', name: r.name, phone: r.phone,
       courseId: '', source: 'Bot', src: r.src || '', region: r.region || '', district: '',
       ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
-      note: 'Bepul darsga ro’yxatdan o’tdi' + (r.phoneVerified ? '' : ' (raqam qo’lda yozilgan — tasdiqlanmagan)'),
+      note: 'Darsga ro’yxatdan o’tdi' + (r.phoneVerified ? '' : ' (raqam qo’lda yozilgan — tasdiqlanmagan)'),
       nextContact: A.today(), phoneVerified: !!r.phoneVerified,
       chatId: String(chatId), tgUser: String((from && from.username) || '').slice(0, 40),
       createdAt: stamp(), viaBot: true, freeLessonAt: stamp()
@@ -1383,13 +1384,13 @@ async function handleRegistration(chatId, text, contact, from, st) {
   if (st.step === 'registered' && text !== '/start') {
     const hit = text ? faq.answer(text, faq.context(await settings())) : null;
     /* Salomlashsa — ro'yxatda ekanini eslatamiz; boshqa savolga javob beramiz */
-    if (text && text !== REG_BTN && text.charAt(0) !== '/' && !(hit && hit.id === 'salom') &&
+    if (text && text !== REG_BTN && REG_BTN_OLD.indexOf(text) < 0 && text.charAt(0) !== '/' && !(hit && hit.id === 'salom') &&
         [FAQ_BTN, ADMIN_BTN, STUDENT_BTN].indexOf(text) < 0) {
       await guestQuestion(chatId, text, from, st); return true;
     }
     if ([FAQ_BTN, ADMIN_BTN, STUDENT_BTN].indexOf(text) >= 0) return false;
     const s = await settings();
-    await sendMessage(chatId, 'Siz bepul darsga yozilgansiz ✅\n\n' + freeLessonText(s) +
+    await sendMessage(chatId, 'Siz darsga yozilgansiz ✅\n\n' + freeLessonText(s) +
       '\n\nSavolingiz bo’lsa, administrator tez orada siz bilan bog’lanadi.');
     return true;
   }
@@ -1719,7 +1720,7 @@ async function onMessage(msg) {
   }
 
   /* Bepul darsga ro'yxat — tugma yoki davom etayotgan qadam */
-  if (!student && text === REG_BTN) return startRegistration(chatId, '', msg.from || {});
+  if (!student && (text === REG_BTN || REG_BTN_OLD.indexOf(text) >= 0)) return startRegistration(chatId, '', msg.from || {});
   if (!student && /^reg_|^registered$/.test(String(st.step || ''))) {
     if (await handleRegistration(chatId, text, msg.contact, msg.from || {}, st)) return;
   }
@@ -1739,8 +1740,8 @@ async function onMessage(msg) {
     await setState(chatId, st);
     await sendMessage(chatId,
       conf.welcome + '\n\nMen ' + esc((await settings()).centerName || 'Sabo Academy') + ' yordamchisiman 🤖 ' +
-      'Kurslar, darslar vaqti, tekin dars va daraja testi haqidagi <b>savolingizni yozing</b> — darhol javob beraman.\n\n' +
-      '🎁 Birinchi dars tekin — «' + REG_BTN + '» tugmasini bosing.\n' +
+      'Kurslar, darslar vaqti, dars vaqtlari va daraja testi haqidagi <b>savolingizni yozing</b> — darhol javob beraman.\n\n' +
+      '📝 Darsga yozilish uchun «' + REG_BTN + '» tugmasini bosing.\n' +
       '🎓 Markaz o’quvchisi bo’lsangiz — «' + STUDENT_BTN + '» (administrator bergan havola orqali ulanasiz).' +
       (st.leadId ? '' : '\n\n📱 Avval pastdagi «' + REG_PHONE_BTN + '» tugmasini bosing — o’quvchi bo’lsangiz darhol hisobingizga ulayman.'),
       st.leadId ? GUEST_MENU : [[{ text: REG_PHONE_BTN, request_contact: true }]].concat(GUEST_MENU));
@@ -2285,9 +2286,9 @@ function botProfileTexts(name) {
   return {
     name: String(name).slice(0, 64),
     description: (name + ' — arab va xorijiy tillar markazi 🗣️\n\n' +
-      'Bu bot orqali:\n🎁 Tekin darsga yozilasiz\n❓ Savollaringizga darhol javob olasiz\n' +
+      'Bu bot orqali:\n📝 Darsga yozilasiz\n❓ Savollaringizga darhol javob olasiz\n' +
       '🎓 O‘quvchilar: to‘lov, davomat, dars jadvali va kabinet\n\nBoshlash uchun «Start» ni bosing 👇').slice(0, 512),
-    short: (name + ' — arab tilini gapirib o‘rganamiz. Tekin dars va savollar uchun bot.').slice(0, 120)
+    short: (name + ' — arab tilini gapirib o‘rganamiz. Darsga yozilish va savollar uchun bot.').slice(0, 120)
   };
 }
 async function syncBotProfile() {

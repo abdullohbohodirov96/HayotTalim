@@ -1187,7 +1187,7 @@
           ]));
         }
         box.appendChild(h('div', { class: 'gm-prizes' }, [
-          prize('🥇', '1-o’rin', 'Tekin o’qiydi'), prize('🥈', '2-o’rin', '50% chegirma'), prize('🥉', '3-o’rin', '20% chegirma')
+          prize('🥇', '1-o’rin', '100% grant'), prize('🥈', '2-o’rin', '50% chegirma'), prize('🥉', '3-o’rin', '20% chegirma')
         ]));
         box.appendChild(card('Top o’quvchilar — butun markaz', [board(t.top)]));
         (t.groups || []).forEach(function (g) {

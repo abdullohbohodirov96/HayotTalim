@@ -38,7 +38,7 @@ const TITLE = NAME + ' — arab tili kurslari, onlayn va offline';
 
 /* ~155 belgi: kim, nima, qanday, chaqiruv */
 const DESC = NAME + ' xorijiy tillar markazi: arab tilini noldan 1 yilda o‘rganing. ' +
-  'Jonli darslar, ayollar, erkaklar va bolalar uchun alohida guruhlar. Tekin darsga yoziling!';
+  'Jonli darslar, ayollar, erkaklar va bolalar uchun alohida guruhlar. Darsga yoziling!';
 
 const FAQ = [
   { q: 'Arab tilini noldan o‘rgansam bo‘ladimi?',
@@ -52,9 +52,9 @@ const FAQ = [
   { q: 'Darsni qoldirib ketsam nima bo‘ladi?',
     a: 'Har bir dars yozib olinadi. Yozuv, uy vazifasi va ustoz izohlari shaxsiy kabinetingizda turadi — ortda qolmaysiz.' },
   { q: 'Darajamni qanday bilaman?',
-    a: 'Saytdagi bepul daraja testini topshiring: 20 ta savol, 10 daqiqa. Natijaga qarab sizga mos guruh tavsiya qilinadi.' },
-  { q: 'Tekin dars qanday o‘tadi?',
-    a: '“Tekin darsga yozilish” tugmasini bosing va raqamingizni qoldiring. Administratorimiz bog‘lanadi va jonli ochiq dars havolasini yuboradi.' }
+    a: 'Saytdagi daraja testini topshiring: 20 ta savol, 10 daqiqa. Natijaga qarab sizga mos guruh tavsiya qilinadi.' },
+  { q: 'Darsga qanday yozilaman?',
+    a: '“Darsga yozilish” tugmasini bosing va raqamingizni qoldiring. Administratorimiz bog‘lanadi, guruh va dars vaqtini kelishib olasiz.' }
 ];
 
 /* JavaScript ishlatmaydigan robotlar va qidiruv tizimlari uchun matn.
@@ -73,8 +73,8 @@ function seoText(o) {
     '<h2>Arab tili kursi: A0 (alifbo) dan C2 gacha</h2>',
     '<ul><li>1-oy: harflar va o‘qish</li><li>3-oy: ravon o‘qish va to‘g‘ri talaffuz</li>' +
       '<li>6-oy: ma’noni tushunish, asosiy grammatika</li><li>12-oy: arabcha gaplashish (A2–B1)</li></ul>',
-    '<h2>Tekin dars va bepul daraja testi</h2>',
-    '<p>Birinchi dars — tekin. Raqamingizni qoldiring yoki qo‘ng‘iroq qiling. Darajangizni saytdagi bepul test bilan 10 daqiqada aniqlang.</p>',
+    '<h2>Darsga yozilish va daraja testi</h2>',
+    '<p>Raqamingizni qoldiring yoki qo‘ng‘iroq qiling — mos guruhga yozib qo‘yamiz. Darajangizni saytdagi test bilan 10 daqiqada aniqlang.</p>',
     '<h2>Ko‘p so‘raladigan savollar</h2>'
   ];
   FAQ.forEach(f => parts.push('<h3>' + esc(f.q) + '</h3><p>' + esc(f.a) + '</p>'));

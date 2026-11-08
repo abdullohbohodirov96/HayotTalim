@@ -105,7 +105,7 @@ async function api(p, o = {}) {
     desc.length >= 90 && desc.length <= 170, desc);
   eq('Ikkita tavsif yo’q', (html.match(/name="description"/gi) || []).length, 1);
   ok('Tavsifda qidiruv so’zi bor', /arab tilini/i.test(desc), desc);
-  ok('Tavsifda tekin dars chaqiruvi bor', /tekin dars/i.test(desc), desc);
+  ok('Tavsifda darsga yozilish chaqiruvi bor', /darsga yoziling/i.test(desc) && !/tekin|bepul/i.test(desc), desc);
   ok('Canonical havola bor', /<link rel="canonical" href="https?:\/\/[^"]+"/.test(html));
   eq('Canonical BITTA', (html.match(/rel="canonical"/gi) || []).length, 1);
   const canon = (html.match(/<link rel="canonical" href="([^"]*)"/i) || [])[1] || '';

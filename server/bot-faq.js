@@ -31,20 +31,20 @@ const TOPICS = [
     id: 'salom', weight: 0.5,
     keys: ['salom', 'assalom', 'privet', 'zdravstv', 'hello', 'hayrli kun', 'xayrli kun'],
     answer: c => 'Salom! ' + c.name + ' botiga xush kelibsiz 😊\n\n' +
-      'Kurslar, darslar vaqti, tekin dars yoki daraja testi haqida savolingizni yozing — darhol javob beraman.'
+      'Kurslar, darslar vaqti, dars vaqti yoki daraja testi haqida savolingizni yozing — darhol javob beraman.'
   },
   {
     id: 'narx', weight: 2,
     keys: ['narx', 'necha pul', 'qancha pul', 'qancha turadi', 'tolov', 'oylik', 'summa', 'som', 'sena', 'stoim', 'skolko', 'price', 'pul'],
     answer: c => 'Kurs narxi va amaldagi chegirmalarni administratorimiz shaxsan aytadi — har kim uchun mos guruh va to‘lov variantini tanlab beradi.\n\n' +
-      '👉 Eng yaxshi yo‘l: avval <b>tekin darsga</b> yoziling. Dars oxirida kursga qabul ochiladi va chegirma beriladi.\n' +
+      '👉 Eng yaxshi yo‘l: <b>darsga yoziling</b> — administrator siz bilan bog‘lanib, mos guruh va vaqtni tanlab beradi.\n' +
       '📞 ' + c.phone
   },
   {
     id: 'tekin', weight: 2,
     keys: ['tekin', 'bepul', 'besplat', 'sinov dars', 'probn', 'ochiq dars', 'free'],
-    answer: c => '🎁 <b>Birinchi dars — tekin.</b>\n\nJonli ochiq darsda usulimizni ko‘rasiz, ustoz bilan tanishasiz va keyin qaror qilasiz. ' +
-      'Dars oxirida kursga qabul va chegirma bo‘ladi.\n\nYozilish uchun pastdagi «Bepul darsga yozilish» tugmasini bosing — 3 ta qisqa savol, 1 daqiqa.'
+    answer: c => '📝 <b>Kurs pullik, joylar cheklangan.</b>\n\nBirinchi darsdanoq usulimizni ko‘rasiz va ustoz bilan tanishasiz. ' +
+      'Narx va chegirmani administrator aytib beradi.\n\nYozilish uchun pastdagi «Darsga yozilish» tugmasini bosing — 3 ta qisqa savol, 1 daqiqa.'
   },
   {
     id: 'vaqt', weight: 1.5,
@@ -84,12 +84,12 @@ const TOPICS = [
     id: 'ustoz', weight: 1,
     keys: ['ustoz', 'oqituvchi', 'muallim', 'domla', 'prepodav', 'uchitel', 'teacher'],
     answer: () => '👨‍🏫 Darslarni tajribali ustozlar olib boradi — noldan boshlovchilar bilan ishlashni biladi: har bir harf va qoidani sabr bilan, tushunarli qilib o‘rgatadi.\n\n' +
-      'Ustoz bilan <b>tekin darsda</b> tanishasiz.'
+      'Ustoz bilan <b>birinchi darsda</b> tanishasiz.'
   },
   {
     id: 'daraja', weight: 1.5,
     keys: ['daraja', 'test', 'uroven', 'level', 'qaysi guruhga', 'darajam'],
-    answer: c => '📝 Darajangizni <b>bepul test</b> bilan aniqlang: 20 ta savol, 10 daqiqa.\n' + c.site + '/#test\n\n' +
+    answer: c => '📝 Darajangizni <b>daraja testi</b> bilan aniqlang: 20 ta savol, 10 daqiqa.\n' + c.site + '/#test\n\n' +
       'Natijaga qarab sizga mos guruh tavsiya qilinadi.'
   },
   {
@@ -116,13 +116,13 @@ const TOPICS = [
     id: 'sayt', weight: 2,
     keys: ['sayt', 'web', 'veb', 'website', 'ssilka', 'silka', 'internet manzil'],
     answer: c => '🌐 Saytimiz: ' + c.site + '\n\n' +
-      'Saytda:\n• tekin darsga yozilish\n• bepul daraja testi — ' + c.site + '/#test\n' +
+      'Saytda:\n• darsga yozilish\n• daraja testi — ' + c.site + '/#test\n' +
       '• ustozlar bilan tanishish\n• o‘quvchi kabineti — ' + c.site + '/#kabinet'
   },
   {
     id: 'chegirma', weight: 1.5,
     keys: ['chegirma', 'skidka', 'aksiya', 'arzon'],
-    answer: () => '🎉 Chegirma <b>tekin dars oxirida</b> ochiladi — kursga birinchi yozilganlar uchun. Tekin darsga yoziling, shartlarni o‘sha yerda aytamiz.'
+    answer: () => '🎉 Chegirma kursga birinchi yozilganlar uchun. Darsga yoziling — shartlarni administrator aytib beradi.'
   },
   {
     id: 'tillar', weight: 1,

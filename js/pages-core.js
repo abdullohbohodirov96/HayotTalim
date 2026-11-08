@@ -673,7 +673,7 @@
     var s = D.settings || {};
     var fl = s.freeLesson || {};
     var def = fl.title
-      ? 'Eslatma: «' + fl.title + '» bepul darsi ' + (fl.date ? A.dateLabel(fl.date) : 'tez orada') +
+      ? 'Eslatma: «' + fl.title + '» darsi ' + (fl.date ? A.dateLabel(fl.date) : 'tez orada') +
         (fl.time ? ', soat ' + fl.time : '') + ' da boshlanadi.' + (fl.channel ? '\nKanal: ' + fl.channel : '')
       : '';
     var fText = UI.field({ label: 'Xabar matni', type: 'textarea', value: def, rows: 5, full: true });
@@ -940,7 +940,7 @@
     /* Sinov darsi = tanlangan guruhning keyingi darsi (kun va soat guruh jadvalidan) */
     var trialMsg = h('div', { class: 'trial-msg' });
     var trialBox = h('div', { class: 'lead-trial' }, [
-      h('div', { class: 'lead-lbl' }, 'Bepul sinov darsi'),
+      h('div', { class: 'lead-lbl' }, 'Birinchi dars'),
       trialMsg,
       h('p', { class: 'small muted', style: 'margin:0' },
         'O’quvchi hisobi ochilmaydi. Darsdan 1 soat oldin va dars tugagach menejerga Telegram’da eslatma keladi — darsdan keyin yana qo’ng’iroq qilasiz.')
@@ -977,7 +977,7 @@
           .then(function (r) { return r.json(); })
           .then(function (j) { if (j && j.link) { invCache[g.id] = j.link; paintTrial(); } }).catch(function () { });
       }
-      var txt = nm + ', sizni bepul sinov darsiga yozib qo’ydim ✅\n📅 ' + A.dateLabel(d) + (tm ? ', soat ' + tm : '') +
+      var txt = nm + ', sizni birinchi darsga yozib qo’ydim ✅\n📅 ' + A.dateLabel(d) + (tm ? ', soat ' + tm : '') +
         (inv ? '\n👥 Telegram guruhimiz havolasi: ' + inv : '') + '\nDars oldidan yana eslatib qo’yaman. Savol bo’lsa, shu yerga yozing.';
       trialMsg.appendChild(h('div', { class: 'trial-copy' }, [
         h('pre', {}, txt),
