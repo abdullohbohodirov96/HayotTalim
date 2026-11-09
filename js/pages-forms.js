@@ -63,7 +63,29 @@
         h('span', { class: 'small muted' }, d.slice(8))
       ]);
     })) : h('p', { class: 'muted' }, 'Hali hech kim ochmagan. Havolani ulashing — statistika shu yerda yig’iladi.');
+    /* Davr bo'yicha: bugun / 7 kun / 30 kun (kunlik yozuvlardan yig'iladi) */
+    function sumDays(n) {
+      var t = A.today(), from = A.addDays(t, -(n - 1)), r = { v: 0, s: 0, c: 0 };
+      Object.keys(st.days || {}).forEach(function (d) {
+        if (d >= from && d <= t) { var x = st.days[d] || {}; r.v += x.v || 0; r.s += x.s || 0; r.c += x.c || 0; }
+      });
+      return r;
+    }
+    var periods = h('div', { class: 'fstat-per' }, [['Bugun', 1], ['Shu hafta (7 kun)', 7], ['Shu oy (30 kun)', 30]].map(function (pp) {
+      var r = sumDays(pp[1]);
+      return h('div', { class: 'fstat-box' }, [
+        h('div', { class: 'fstat-h' }, pp[0]),
+        h('div', { class: 'fstat-row' }, [
+          h('div', {}, [h('b', {}, String(r.v)), h('span', {}, 'kirdi')]),
+          h('div', {}, [h('b', {}, String(r.s)), h('span', {}, 'boshladi')]),
+          h('div', {}, [h('b', {}, String(r.c)), h('span', {}, 'yubordi')])
+        ]),
+        h('div', { class: 'small muted' }, r.v ? 'Konversiya: ' + pct(r.c, r.v) + '% (kirganlardan yuborgan)' : 'Hali kirgan yo‘q')
+      ]);
+    }));
     return UI.card(f.title + ' — statistika', [
+      periods,
+      h('label', { class: 'small muted', style: 'display:block;margin:12px 0 6px' }, 'Butun davr bo‘yicha'),
       funnel,
       h('div', { class: 'grid2', style: 'margin-top:12px' }, [
         h('div', {}, [h('label', { class: 'small muted' }, 'Savollar bo’yicha: qancha odam shu savolgacha yetdi'), steps]),
