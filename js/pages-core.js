@@ -516,6 +516,15 @@
     if (route.due) leads = leads.filter(function (l) {
       return !isClosed(funnel, l.stage) && l.nextContact && l.nextContact <= today;
     });
+    /* Sana bo'yicha filtr (murojaat kelgan kun): from..to, ikkalasi ham kiritiladi */
+    var dFrom = route.from || '', dTo = route.to || '';
+    function inDate(l) {
+      var d = String(l.createdAt || '').slice(0, 10);
+      if (!dFrom && !dTo) return true;
+      if (!d) return false;
+      return (!dFrom || d >= dFrom) && (!dTo || d <= dTo);
+    }
+    leads = leads.filter(inDate);
     if (stageFilter !== 'all') leads = leads.filter(function (l) { return l.stage === stageFilter; });
     leads = A.sortBy(leads, 'createdAt', 'desc');
 
@@ -544,15 +553,15 @@
 
     var counts = {};
     stages.forEach(function (s) {
-      counts[s.id] = allLeads.filter(function (l) { return inFunnel(l) && l.stage === s.id; }).length;
+      counts[s.id] = allLeads.filter(function (l) { return inFunnel(l) && inDate(l) && l.stage === s.id; }).length;
     });
     var segs = h('div', { class: 'filters' }, [
-      h('div', { class: 'seg' }, [{ id: 'all', label: 'Barchasi (' + allLeads.filter(inFunnel).length + ')' }]
+      h('div', { class: 'seg' }, [{ id: 'all', label: 'Barchasi (' + allLeads.filter(function (l) { return inFunnel(l) && inDate(l); }).length + ')' }]
         .concat(stages.map(function (s) { return { id: s.id, label: s.label + ' (' + counts[s.id] + ')' }; }))
         .map(function (s) {
           return h('button', {
             type: 'button', 'aria-pressed': stageFilter === s.id ? 'true' : 'false',
-            onclick: function () { App.go('leads', { funnelId: funnel.id, stage: s.id }); }
+            onclick: function () { App.go('leads', { funnelId: funnel.id, stage: s.id, from: dFrom || undefined, to: dTo || undefined }); }
           }, s.label);
         })),
       route.due ? h('button', { class: 'btn sm', onclick: function () { App.go('leads', { funnelId: funnel.id }); } }, 'Filtrni olib tashlash') : null,
@@ -561,7 +570,38 @@
       }, [UI.icon('bot'), 'Botdagilarga xabar']) : null
     ]);
     view.appendChild(segs);
-    view.appendChild(leadStatsCard(allLeads.filter(inFunnel), funnel));
+
+    /* --- Sana filtri: tez tugmalar + istalgan oraliq --- */
+    function goDate(f, t) {
+      App.go('leads', { funnelId: funnel.id, stage: stageFilter !== 'all' ? stageFilter : undefined, from: f || undefined, to: t || undefined });
+    }
+    var yest = A.addDays(today, -1);
+    var presets = [
+      { id: 'all', label: 'Hammasi', f: '', t: '' },
+      { id: 'bugun', label: 'Bugun', f: today, t: today },
+      { id: 'kecha', label: 'Kecha', f: yest, t: yest },
+      { id: '7', label: '7 kun', f: A.addDays(today, -6), t: today },
+      { id: '30', label: '30 kun', f: A.addDays(today, -29), t: today },
+      { id: 'oy', label: 'Shu oy', f: today.slice(0, 8) + '01', t: today }
+    ];
+    var inF = h('input', { type: 'date', value: dFrom, 'aria-label': 'Sanadan', max: today });
+    var inT = h('input', { type: 'date', value: dTo, 'aria-label': 'Sanagacha', max: today });
+    function applyRange() {
+      var f = inF.value, t = inT.value;
+      if (f && t && f > t) { var x = f; f = t; t = x; }
+      goDate(f, t);
+    }
+    inF.onchange = applyRange; inT.onchange = applyRange;
+    view.appendChild(h('div', { class: 'filters lead-dates' }, [
+      h('span', { class: 'small muted', style: 'font-weight:600' }, '📅 Kelgan sana:'),
+      h('div', { class: 'seg' }, presets.map(function (pr) {
+        var on = pr.f === dFrom && pr.t === dTo;
+        return h('button', { type: 'button', 'aria-pressed': on ? 'true' : 'false', onclick: function () { goDate(pr.f, pr.t); } }, pr.label);
+      })),
+      h('label', { class: 'lead-range' }, [inF, h('span', { class: 'muted' }, '—'), inT])
+    ]));
+
+    view.appendChild(leadStatsCard(allLeads.filter(function (l) { return inFunnel(l) && inDate(l); }), funnel));
 
     if (!leads.length) {
       view.appendChild(UI.card(null, UI.empty({
@@ -574,6 +614,14 @@
 
     view.appendChild(UI.card(null, UI.table([
       { label: 'Ism', render: function (l) { return h('b', {}, l.name); } },
+      {
+        label: 'Kelgan', render: function (l) {
+          var st = String(l.createdAt || '').replace('T', ' ');
+          if (!st) return h('span', { class: 'muted' }, '—');
+          var d = st.slice(0, 10), dl = d === today ? 'Bugun' : (d === yest ? 'Kecha' : A.dateLabel(d));
+          return h('div', { class: 'lead-when', title: st }, [h('span', {}, dl), h('span', { class: 'muted small mono' }, st.slice(11, 16))]);
+        }
+      },
       /* Raqam bosilsa telefon o'zi teradi — qo'lda ko'chirish shart emas */
       { label: 'Telefon', render: function (l) { return UI.phoneLink(l.phone); } },
       leads.some(function (l) { return l.groupId; }) ? { label: 'Guruh', render: function (l) { var g = l.groupId && D.one('groups', l.groupId); return g ? g.name : h('span', { class: 'muted' }, '—'); } } : null,

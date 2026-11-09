@@ -2116,6 +2116,11 @@ legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 6px}
 .msg{max-width:78%;padding:8px 11px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:13.5px}
 .msg.me{align-self:flex-end;background:var(--brand-soft);border-color:transparent}
 .msg .meta{font-size:10.5px;color:var(--muted);margin-top:3px}
+.msg-day{align-self:center;margin:6px 0 2px}
+.msg-day span{display:inline-block;padding:3px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:11px;font-weight:600;color:var(--muted)}
+.msg-who{font-size:11px;font-weight:700;color:var(--brand);margin-bottom:2px}
+.msg-txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-time{float:right;margin:6px 0 -3px 10px;font-size:10.5px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
 .chat-form{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
 .chat-form input{flex:1;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface)}
 .chat-unread{background:var(--bad);color:#fff;border-radius:999px;font-size:10.5px;font-weight:700;padding:1px 6px;min-width:18px;text-align:center}
@@ -5216,3 +5221,9 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 
 .foot-legal{display:flex;flex-direction:column;gap:4px}
 .foot-legal .foot-line{font-size:12px;opacity:.75}
+
+/* Murojaatlar: sana filtri va «Kelgan» ustuni */
+.lead-dates{align-items:center;gap:8px 10px}
+.lead-range{display:inline-flex;align-items:center;gap:6px}
+.lead-range input{height:34px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:inherit;font:inherit;font-size:13px}
+.lead-when{display:flex;flex-direction:column;line-height:1.25;white-space:nowrap}

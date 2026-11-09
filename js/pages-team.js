@@ -84,10 +84,22 @@
     });
 
     var msgs = h('div', { class: 'chat-msgs' });
+    /* SMS uslubi: kun almashganda sana ajratgichi, har xabar ichida o'ng pastda vaqt */
+    var lastDay = '';
+    function dayTitle(d) {
+      if (!d) return '';
+      if (d === A.today()) return 'Bugun';
+      if (d === A.addDays(A.today(), -1)) return 'Kecha';
+      return A.dateLabel(d);
+    }
     (active.messages || []).forEach(function (m) {
-      msgs.appendChild(h('div', { class: 'msg' + (m.from === me.id ? ' me' : '') }, [
-        h('div', {}, m.text),
-        h('div', { class: 'meta' }, (m.from === me.id ? 'Siz' : userName(m.from)) + ' · ' + m.at)
+      var st = String(m.at || '').replace('T', ' ');
+      var day = st.slice(0, 10), tm = st.slice(11, 16);
+      if (day && day !== lastDay) { lastDay = day; msgs.appendChild(h('div', { class: 'msg-day' }, h('span', {}, dayTitle(day)))); }
+      var mine = m.from === me.id;
+      msgs.appendChild(h('div', { class: 'msg' + (mine ? ' me' : '') }, [
+        mine ? null : h('div', { class: 'msg-who' }, userName(m.from)),
+        h('div', { class: 'msg-txt' }, [m.text, h('span', { class: 'msg-time', title: st }, tm)])
       ]));
     });
     if (!(active.messages || []).length) {
