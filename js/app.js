@@ -2907,6 +2907,7 @@
     function paintPromo(p, fl) {
       var box = document.getElementById('promo-band');
       if (!box) return;
+      fl = null; /* «Birinchi dars» kartasi saytda ko'rsatilmaydi */
       UI.clear(box);
       if (!p && !fl) { box.hidden = true; return; }
       box.hidden = false;
