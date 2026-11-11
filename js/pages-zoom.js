@@ -214,12 +214,14 @@
 
   /* ---------- Xabar matnlari ---------- */
   var TPL = [
-    ['group', 'Guruh chatiga e’lon (30 daqiqa oldin)'],
+    ['g60', 'Guruh chatiga: 1 soat oldin (havolasiz)'],
+    ['group', 'Guruh chatiga: 5 daqiqa oldin (havola bilan)'],
     ['h1', 'O’quvchiga: 30 daqiqa oldin'],
     ['m15', 'O’quvchiga: 15 daqiqa oldin'],
     ['start', 'O’quvchiga: dars boshlanganda'],
     ['miss', 'Qo’shilmaganlarga (10 daqiqadan keyin)'],
-    ['teacher', 'Ustozga: darsni boshlash havolasi']
+    ['t60', 'Ustozga: 1 soat oldin eslatma (arabcha)'],
+    ['teacher', 'Ustozga: darsni boshlash havolasi (30 daqiqa oldin)']
   ];
   var SAMPLE = { guruh: 'A0 · Ayollar kechki', sana: '2026-11-02', vaqt: '20:00–21:20', havola: 'https://us06web.zoom.us/j/81234567890', parol: '', darslik: 'https://saboacademy.uz/kabinet', ustoz_havola: 'https://us06web.zoom.us/s/81234567890?zak=…' };
   function preview(t) {

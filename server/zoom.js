@@ -151,7 +151,11 @@ const TPL_DEF = {
   m15: '⏳ <b>15 daqiqadan keyin dars boshlanadi</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
   start: '🔴 <b>Dars boshlandi!</b> Hoziroq qo’shiling\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
   miss: '❗ <b>Siz hali darsga qo’shilmadingiz.</b> Dars davom etyapti — hoziroq kiring\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}',
-  group: '📣 <b>Bugun dars bor!</b>\n\n📚 {guruh}\n📅 {sana} · 🕒 {vaqt}\n\n👉 Zoom havola: {havola}{parol}\n📖 Darslik: {darslik}\n\nKechikmang, darsda ko’rishguncha! 🙂',
+  /* Guruh chatiga: 1 soat oldin — havolasiz eslatma; 5 daqiqa oldin — havola */
+  g60: '⏰ <b>Bugun darsingiz bor!</b>\n\n📚 {guruh}\n🕒 Bugun soat {vaqt}\n\nKechikmasdan kiring! Darsga kirish havolasi dars boshlanishidan 5 daqiqa oldin shu yerga tashlanadi 🙂',
+  group: '🔔 <b>5 daqiqadan keyin dars boshlanadi!</b>\n\n📚 {guruh}\n🕒 {vaqt}\n\n👉 Darsga kirish: {havola}{parol}\n📖 Darslik: {darslik}\n\nKechikmang, darsda ko’rishguncha! 🙂',
+  /* Ustozga 1 soat oldin — faqat arabcha eslatma */
+  t60: '⏰ <b>تذكير بالدرس</b>\n\nلديك درس اليوم:\n📚 {guruh}\n🕒 الساعة {vaqt} (بتوقيت طشقند)\n\nيُرجى الاستعداد والدخول في الوقت المحدد. سيصلك رابط بدء الدرس قبل الدرس بـ30 دقيقة 🌿',
   /* Ustoz arab tilida so'zlashadi — unga keladigan xabar arabcha va to'liq yo'riqnoma bilan */
   teacher: '👨‍🏫 <b>بدء الدرس</b> (للمعلّم)\n\n📚 {guruh}\n📅 {sana} · 🕒 {vaqt} (بتوقيت طشقند)\n\n' +
     '👉 <b>رابط بدء الدرس (بصلاحية المضيف):</b>\n{ustoz_havola}\n\n' +
@@ -173,6 +177,8 @@ async function templates(store) {
   if (/1 soatdan keyin/.test(out.h1)) out.h1 = out.h1.replace(/1 soatdan keyin/g, '30 daqiqadan keyin');
   /* Ustoz xabarining eski (o'zbekcha) standart matni saqlangan bo'lsa — yangi arabcha yo'riqnoma */
   if (/Darsni boshlash<\/b> \(ustoz uchun\)/.test(out.teacher) && out.teacher.length < 120) out.teacher = TPL_DEF.teacher;
+  /* Guruh e'loni endi 5 daqiqa oldin ketadi — eski «Bugun dars bor!» matni saqlangan bo'lsa, yangisi */
+  if (/^📣 <b>Bugun dars bor!<\/b>/.test(out.group)) out.group = TPL_DEF.group;
   out.groupOn = t.groupOn !== false;
   return out;
 }
@@ -272,6 +278,33 @@ async function notifyTeacher(store, rec, ctx) {
   if (!chat || !(rec.startUrl || rec.meetingId)) return false;
   const T = await templates(store), settings = (await store.get('meta/settings')) || {};
   await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });
+  return true;
+}
+async function teacherChat(store, groupId) {
+  const g = await store.get('groups/' + groupId);
+  const st = g && g.teacherId ? await store.get('staff/' + g.teacherId) : null;
+  let chat = st && st.telegram && st.telegram.id ? String(st.telegram.id) : '';
+  if (!chat && g && g.teacherId) {
+    const u = (await listCol(store, 'users/')).filter(x => x && x.active !== false && x.staffId === g.teacherId && x.telegram && x.telegram.id)[0];
+    if (u) chat = String(u.telegram.id);
+  }
+  return chat;
+}
+/** Ustozga 1 soat oldin arabcha eslatma (havolasiz — havola 30 daqiqa oldin alohida keladi) */
+async function notifyTeacherSoon(store, rec, ctx) {
+  const chat = await teacherChat(store, rec.groupId);
+  if (!chat) return false;
+  const T = await templates(store), settings = (await store.get('meta/settings')) || {};
+  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':t60', text: fill(T.t60, vars(rec, '', '', settings)) });
+  return true;
+}
+/** Guruh chatiga 1 soat oldin: «Bugun darsingiz bor, kechikmasdan kiring» (havolasiz) */
+async function notifyGroupSoon(store, rec, ctx) {
+  const g = await store.get('groups/' + rec.groupId);
+  const T = await templates(store);
+  if (!g || !g.tgChat || !T.groupOn || !ctx.sendGroup) return false;
+  const settings = (await store.get('meta/settings')) || {};
+  await ctx.sendGroup(g, fill(T.g60, vars(rec, '', '', settings)));
   return true;
 }
 /* Dars boshlangach guruh chatiga 15 va 30 daqiqada — har kuni boshqacha matn (bir xil bo'lib zeriktirmasin) */
@@ -619,7 +652,12 @@ async function tick(store, A, ctx, nowMs) {
     }
     const step = async (key, cond, fn) => { if (!rec.sent[key] && cond) { await fn(); rec.sent[key] = ctx.stamp(); changed = true; done.push(key + ' ' + id); } };
     /* Havola darsdan 30 daqiqa oldin: o'quvchilarga, ustozga (organizator havolasi) va guruh chatiga */
-    await step('h1', now >= L.start - 30 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); await notifyGroup(store, rec, ctx).catch(() => { }); });
+    /* 1 soat oldin: guruh chatiga havolasiz eslatma va ustozga arabcha eslatma */
+    await step('g60', now >= L.start - 60 && now < L.start - 5, async () => { await notifyGroupSoon(store, rec, ctx).catch(() => { }); await notifyTeacherSoon(store, rec, ctx).catch(() => { }); });
+    /* 30 daqiqa oldin: o'quvchilarga shaxsiy havola va ustozga organizator havolasi */
+    await step('h1', now >= L.start - 30 && now < L.end, async () => { await notifyStudents(store, rec, 'h1', ctx); await notifyTeacher(store, rec, ctx); });
+    /* 5 daqiqa oldin: guruh chatiga darsga kirish havolasi */
+    await step('g5', now >= L.start - 5 && now < L.end, () => notifyGroup(store, rec, ctx).catch(() => { }));
     await step('m15', now >= L.start - 15 && now < L.end, () => notifyStudents(store, rec, 'm15', ctx));
     await step('start', now >= L.start && now < L.end, async () => { await notifyStudents(store, rec, 'start', ctx); await notifyGroupStart(store, rec, ctx).catch(() => { }); });
     /* Yozuv organizator kirganda boshlanadi — 15 daqiqa o'tib ham boshlanmagan bo'lsa, direktorga eslatma */
