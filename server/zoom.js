@@ -485,8 +485,22 @@ function tooShort(r, rec) {
 /* Yozuv tayyor bo'lganda — avval rahbariyatga (bot): ko'rib, «✅ Guruhga yuborish» bosilgandan keyingina
    guruh chatiga boradi. ERP «Zoom darslar» sahifasida ham shu tugma bor. */
 function recLink(r) { return r.shareUrl || (r.files && r.files[0] && r.files[0].play) || ''; }
+/** Dars tugadimi (yozuvni avtomatik yuborish vaqti): dars tugashiga 5 daqiqa qolganda yoki keyingi kunlar */
+function lessonOver(rec, ms) {
+  const today = todayIso(ms);
+  if (String(rec.date || '') < today) return true;
+  const endM = toMin(rec.end);
+  return String(rec.date || '') === today && endM != null && minOfDay(ms) >= endM - 5;
+}
+/* Yozuv tayyor: haqiqiy dars yozuvi (juda qisqa emas) — rahbariyatdan so'ramasdan, dars tugagach avtomatik
+   guruhga yuboriladi (sendRecording eng uzun seansni qayta oladi). Juda qisqa bo'lsa — eskicha, tasdiqqa. */
 async function askRecordingApproval(store, rec, ctx) {
   if (rec.recAsked || rec.recSent || !rec.recording) return;
+  if (!tooShort(rec.recording, rec)) {
+    if (!lessonOver(rec)) return;             /* dars hali ketyapti — tugagach yuboriladi */
+    rec.recAsked = ctx.stamp(); rec.recAuto = ctx.stamp(); rec.recPending = true;
+    return;                                    /* yuborish — yozuv saqlangandan keyin (autoSend) */
+  }
   rec.recPending = true;
   const notify = ctx.notifyDirectors || ctx.notifyStaff;
   if (!notify) return;
@@ -500,6 +514,13 @@ async function askRecordingApproval(store, rec, ctx) {
     rec.recAsked = ctx.stamp();
   } catch (e) { }
 }
+/** Avtomatik yuborish navbatda bo'lsa — guruhga yuborishni boshlaydi (yozuv store'ga saqlangandan keyin chaqiriladi) */
+async function autoSend(store, id, ctx) {
+  const rec = await store.get(COL + String(id || ''));
+  if (!rec || !rec.recAuto || rec.recSent || rec.recRejected || !rec.recording) return null;
+  if (rec.recSending && Date.now() - Number(rec.recSending) < 90 * 60 * 1000) return null;
+  return decideRecording(store, rec.id, true, 'avtomatik', ctx);
+}
 /** Tasdiq: guruhga yuborish (yoki rad etish). Takror bosilsa — ikkinchi marta yubormaydi. */
 /** Noto'g'ri video kelgan bo'lsa: yozuvni Zoom'dan qaytadan (oxirgi seans) olish va yana tasdiqqa yuborish */
 async function refetchRecording(store, id, ctx) {
@@ -510,9 +531,11 @@ async function refetchRecording(store, id, ctx) {
   if (!fr) return { error: 'Zoom’da bu dars yozuvi hali tayyor emas.', code: 404 };
   const same = old && old.files && old.files[0] && fr.files[0] && old.files[0].url === fr.files[0].url;
   ['recSent', 'recAsked', 'recPending', 'recRejected', 'recSending', 'recBy', 'recNote', 'recParts', 'recShort'].forEach(k => { delete rec[k]; });
+  ['recAuto'].forEach(k => { delete rec[k]; });
   rec.recording = fr;
   await askRecordingApproval(store, rec, ctx);
   await store.set(COL + rec.id, rec);
+  if (rec.recAuto) await autoSend(store, rec.id, ctx).catch(() => null);
   return { ok: true, durSec: fr.durSec || 0, dur: fmtDur(fr.durSec), same: !!same };
 }
 async function decideRecording(store, id, approve, who, ctx) {
@@ -697,6 +720,7 @@ async function tick(store, A, ctx, nowMs) {
     /* Yozuv bor, lekin rahbariyatga xabar hali ketmagan (masalan, webhook orqali kelgan) */
     if (rec.recording && !rec.recSent && !rec.recAsked && !rec.recRejected) { await askRecordingApproval(store, rec, ctx); changed = true; }
     if (changed) await store.set(COL + id, rec);
+    if (rec.recAuto && !rec.recSent && !rec.recSending) { const r = await autoSend(store, id, ctx).catch(() => null); if (r && r.sending) done.push('yozuv yuborilyapti ' + id); }
   }
   return { done };
 }
@@ -782,6 +806,7 @@ async function webhook(store, body, ctx) {
     }
   } else return { ok: true, ignored: true };
   await store.set(COL + rec.id, rec);
+  if (rec.recAuto && !rec.recSent) await autoSend(store, rec.id, ctx).catch(() => null);
   return { ok: true };
 }
 
@@ -840,7 +865,7 @@ async function guestLink(store, rec, name, settings) {
 }
 
 module.exports = {
-  browserLink, livePick, LIVE_POOL, _fetchRecording: (s, r) => fetchRecording(s, r), refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, guestLink, withName, linkFor,
+  browserLink, livePick, LIVE_POOL, _fetchRecording: (s, r) => fetchRecording(s, r), refetchRecording, fmtDur, tooShort, decideRecording, askRecordingApproval, autoSend, guestLink, withName, linkFor,
   COL, configured, webhookReady, tick, webhook, verify, overview, freshStart, startLink, startPath, notifyStudents, createMeeting, templates, saveTemplates, fill, vars, TPL_DEF, isOnline,
   todaysLessons, markJoined, writeAttendance, setFetch, zoomDownload, _t: { toMin, hm, todayIso, minOfDay, uuidPath, recFromPayload }
 };
