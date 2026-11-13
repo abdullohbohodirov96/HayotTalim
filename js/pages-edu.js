@@ -262,8 +262,10 @@
       (A.trialLeadsOf ? A.trialLeadsOf(g.id) : []).forEach(add);
       D.all('leads').forEach(function (l) {
         if (l.groupId !== g.id || !l.trialDate || String(l.trialDate).slice(0, 10) < today) return;
-        if (l.studentId && Q.membershipsOf(l.studentId).some(function (m) { return m.groupId === g.id && m.status === 'faol'; })) return;
-        if (A.stageOf(D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0], l.stage).type === 'lost') return;
+        /* Faol o'quvchi (eski o'quvchi yoki allaqachon o'tkazilgan) — sinovchi emas */
+        if (A.activeStudentOf ? A.activeStudentOf(l) : (l.studentId && Q.membershipsOf(l.studentId).some(function (m) { return m.groupId === g.id && m.status === 'faol'; }))) return;
+        var ty = A.stageOf(D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0], l.stage).type;
+        if (ty === 'lost' || ty === 'won') return;
         add(l);
       });
       return out.sort(function (x, y) {

@@ -5237,3 +5237,62 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .fstat-row b{font-size:22px;font-variant-numeric:tabular-nums}
 .fstat-row span{font-size:11.5px;color:var(--muted)}
 @media (max-width:760px){.fstat-per{grid-template-columns:1fr}}
+
+/* ===== Murojaatlar: filtr tugmasi + katta panel ===== */
+.lf-bar{display:flex;flex-direction:column;gap:8px;margin:10px 0 12px}
+.lf-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lf-btn{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line-strong);background:var(--surface);color:inherit;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.04);transition:transform .12s,box-shadow .12s}
+.lf-btn:hover{box-shadow:0 4px 14px rgba(0,0,0,.08);transform:translateY(-1px)}
+.lf-btn svg{width:17px;height:17px}
+.lf-btn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.lf-n{font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#fff;color:var(--brand);font-size:11.5px;display:inline-flex;align-items:center;justify-content:center}
+.lf-q{flex:1;min-width:160px;max-width:340px;height:40px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:inherit;font:inherit;font-size:13.5px}
+.lf-count{font-size:12.5px;font-weight:700;color:var(--muted);margin-inline-start:auto}
+.lf-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lf-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 11px;border-radius:20px;background:var(--brand-soft,rgba(16,120,90,.1));color:var(--brand);font-size:12.5px;font-weight:600}
+.lf-chip button{border:0;background:rgba(0,0,0,.08);color:inherit;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:14px;line-height:1}
+.lf-clear{border:0;background:none;color:var(--muted);font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer}
+.lf-panel{display:flex;flex-direction:column;gap:16px}
+.lf-sec h4{margin:0 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lf-opts{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.lf-opt{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;border:1px solid var(--line-strong);background:var(--surface);color:inherit;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.lf-opt small{font-size:11px;color:var(--muted);font-weight:700}
+.lf-opt.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.lf-opt.on small{color:rgba(255,255,255,.8)}
+.lf-opt.zero{opacity:.55}
+.lf-range{display:inline-flex;align-items:center;gap:6px}
+.lf-range input,.lf-two select{height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:inherit;font:inherit;font-size:13px}
+.lf-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lf-two label{display:flex;flex-direction:column}
+.lf-due{grid-column:1/-1;flex-direction:row!important;align-items:center;gap:8px;font-size:13.5px;font-weight:600}
+@media (max-width:640px){.lf-two{grid-template-columns:1fr}.lf-q{max-width:none;order:3;flex-basis:100%}}
+
+/* ===== Sinov darsi nazorati ===== */
+.tc-card{padding:14px 16px;margin-bottom:4px}
+.tc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tc-head h3{margin:0;font-size:16px}
+.tc-fix{background:var(--bad-soft,#fde8e6);color:var(--bad,#c0392b);border-color:transparent;font-weight:700}
+.tc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+.tc-tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.tc-tile:hover:not([disabled]){transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.07)}
+.tc-tile[disabled]{opacity:.45;cursor:default}
+.tc-tile b{font-size:22px;line-height:1.1}
+.tc-tile span{font-size:12.5px;font-weight:600}
+.tc-tile small{font-size:11px;color:var(--muted)}
+.tc-tile.ok b{color:var(--ok)}.tc-tile.bad b{color:var(--bad)}.tc-tile.warn b{color:var(--warn)}.tc-tile.info b{color:var(--info,var(--brand))}
+.tc-tile.on{outline:2px solid var(--brand);background:var(--brand-soft,rgba(16,120,90,.08))}
+.tc-badges{display:flex;flex-wrap:wrap;gap:4px}
+/* Murojaat oynasi: sinov to'lovi */
+.trial-pay{display:flex;flex-direction:column;gap:9px;margin:10px 0;padding:11px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.tp-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tp-l{font-size:12.5px;font-weight:700;color:var(--muted);min-width:120px}
+.tp-seg{display:inline-flex;gap:6px;flex-wrap:wrap}
+.tp-b{padding:7px 12px;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface);color:inherit;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.tp-b.on.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.tp-b.on.warn{background:var(--warn);border-color:var(--warn);color:#fff}
+.tp-b.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.tp-b.on{background:var(--muted);border-color:var(--muted);color:#fff}
+.tp-amts{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tp-chip{padding:6px 10px;border-radius:9px;border:1px solid var(--line-strong);background:var(--surface);color:inherit;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.tp-chip.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.tp-amt{width:110px;height:34px;padding:0 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:inherit;font:inherit}
