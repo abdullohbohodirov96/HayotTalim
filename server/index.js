@@ -4122,6 +4122,48 @@ async function handleApi(req, res, url) {
     await zoomTick();
     return send(res, 200, { ok: true });
   }
+  /* Guruhni TO'LIQ o'chirish (direktor/admin). dry:true — nima o'chishini sanab beradi.
+     To'lov qilingan guruh o'chirilmaydi (moliya buzilmasin) — «Yakunlash» taklif qilinadi.
+     O'chadi: guruh, a'zoliklar, to'lanmagan hisoblar, darslar/davomat, Zoom darslari, uy vazifa,
+     testlar va guruhga bog'liq boshqa yozuvlar. O'quvchilar va murojaatlar O'CHMAYDI
+     (murojaatdan faqat guruh bog'lanishi olinadi). Hammasi bitta savatcha yozuvi — bir bosishda tiklanadi. */
+  if (route === 'groups/delete' && req.method === 'POST') {
+    if (!(user.role === 'direktor' || A.can(user, 'settings.edit'))) return nope('Guruhni faqat direktor yoki administrator o‘chiradi.');
+    const body = await readBody(req);
+    const gid = String(body.id || '');
+    if (!/^[A-Za-z0-9_\-.]+$/.test(gid)) return send(res, 400, { error: 'Noto’g’ri.' });
+    const g = await store.get('groups/' + gid);
+    if (!g) return send(res, 404, { error: 'Guruh topilmadi.' });
+    const rowsOf = async c => (await store.list(c + '/')).map(r => ({ path: r.path || (c + '/' + (r.data && r.data.id)), data: r.data })).filter(r => r.data);
+    const mems = (await rowsOf('memberships')).filter(r => r.data.groupId === gid);
+    const memIds = new Set(mems.map(r => r.data.id));
+    const invs = (await rowsOf('invoices')).filter(r => r.data.groupId === gid || memIds.has(r.data.membershipId));
+    const invIds = new Set(invs.map(r => r.data.id));
+    const pays = (await rowsOf('payments')).filter(r => r.data.groupId === gid || memIds.has(r.data.membershipId) ||
+      (r.data.allocations || []).some(a => invIds.has(a.invoiceId)));
+    const KEEP = new Set(['users', 'staff', 'teachers', 'courses', 'rooms', 'students', 'groups', 'memberships', 'invoices', 'payments',
+      'expenses', 'payroll', 'audit', 'leads', 'chats', 'botreq', 'botout', 'botin', 'forms', 'formsub', 'formstat', 'reviews', 'parents', 'files', 'placements', 'funnels', 'tasks']);
+    const extra = [];
+    for (const c of COLLECTIONS.concat(['zoomlesson'])) {
+      if (KEEP.has(c)) continue;
+      (await rowsOf(c)).forEach(r => { if (r.data.groupId === gid || (c === 'pauses' && memIds.has(r.data.membershipId))) extra.push(r); });
+    }
+    const leads = (await rowsOf('leads')).filter(r => r.data.groupId === gid);
+    const counts = { students: new Set(mems.map(r => r.data.studentId)).size, memberships: mems.length, invoices: invs.length, payments: pays.length, other: extra.length, leads: leads.length };
+    if (pays.length) return send(res, 200, { ok: false, blocked: true, counts, error: 'Bu guruhda ' + pays.length + ' ta to‘lov bor — moliya hisobi buzilmasligi uchun to‘liq o‘chirib bo‘lmaydi. Guruhni «Yakunlash» mumkin.' });
+    if (body.dry) return send(res, 200, { ok: true, dry: true, counts });
+    const want = String(g.code || g.name || '').trim().toLowerCase();
+    if (!want || String(body.confirm || '').trim().toLowerCase() !== want) return send(res, 400, { error: 'Tasdiqlash uchun guruh kodini to‘g‘ri yozing: ' + (g.code || g.name) });
+    const bundle = [{ path: 'groups/' + gid, data: g }].concat(mems, invs, extra);
+    const tid = 'tr_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+    await store.set('trash/' + tid, { id: tid, path: 'groups/' + gid, title: 'Guruh: ' + (g.code ? g.code + ' · ' : '') + (g.name || '') + ' (' + bundle.length + ' ta yozuv bilan)', at: stamp(), by: user.name || user.login, data: g, bundle: bundle.map(b => ({ path: b.path, data: stripSecrets(b.path, b.data) })), leadIds: leads.map(r => r.data.id) });
+    for (const b of bundle) await store.del(b.path);
+    for (const r of leads) { const l = Object.assign({}, r.data); delete l.groupId; l.note = (l.note ? l.note + '\n' : '') + stamp().slice(0, 10) + ': «' + (g.name || gid) + '» guruhi o‘chirildi'; await store.set(r.path, l); }
+    trashSweep();
+    await writeAudit(user, 'Guruh to‘liq o‘chirildi', (g.code ? g.code + ' · ' : '') + (g.name || gid),
+      counts.memberships + ' ta a’zolik, ' + counts.invoices + ' ta hisob, ' + counts.other + ' ta boshqa yozuv; ' + counts.leads + ' ta murojaatdan guruh olib tashlandi. Savatchadan tiklash mumkin.');
+    return send(res, 200, { ok: true, counts, trashId: tid });
+  }
   if (route === 'groups/joincode' && req.method === 'POST') {
     if (!A.can(user, 'group.edit')) return nope();
     const body = await readBody(req);
@@ -4715,7 +4757,11 @@ async function handleApi(req, res, url) {
     const t = await store.get('trash/' + id);
     if (!t || !t.path) return send(res, 404, { error: 'Topilmadi.' });
     if (await store.get(t.path)) return send(res, 409, { error: 'Bu yozuv allaqachon mavjud.' });
-    await store.set(t.path, t.data);
+    if (Array.isArray(t.bundle) && t.bundle.length) {
+      /* Guruh barcha bog'liq yozuvlari bilan qaytadi (mavjud bo'lganlari ustiga yozilmaydi) */
+      for (const b of t.bundle) { if (b && b.path && b.data && !(await store.get(b.path))) await store.set(b.path, b.data); }
+      for (const lid of (t.leadIds || [])) { const l = await store.get('leads/' + lid); if (l && !l.groupId) { l.groupId = t.data.id; await store.set('leads/' + lid, l); } }
+    } else await store.set(t.path, t.data);
     await store.del('trash/' + id);
     await writeAudit(user, 'O‘chirilgan yozuv tiklandi', t.title || t.path, 'O‘chirgan: ' + (t.by || '—') + ' · ' + (t.at || ''));
     return send(res, 200, { ok: true, path: t.path });

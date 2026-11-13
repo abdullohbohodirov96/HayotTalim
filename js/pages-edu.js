@@ -117,19 +117,23 @@
       var tfill = g.limit ? Math.min(100 - fill, Math.round(trials.length / g.limit * 100)) : 0;
       /* Qarz bitta o'tishda tayyorlangan xaritadan olinadi */
       var debt = App.can('finance.debts') ? Q.groupDebt(g.id) : 0;
-      grid.appendChild(h('button', {
-        class: 'card', type: 'button',
-        style: 'text-align:left;cursor:pointer;padding:0;border-width:1px;font:inherit;color:inherit',
-        onclick: function () { App.go('group', { id: g.id }); }
+      var cardEl = h('div', {
+        class: 'card gcard', role: 'link', tabindex: '0', 'aria-label': g.name,
+        style: 'text-align:left;cursor:pointer;padding:0;border-width:1px;font:inherit;color:inherit;position:relative',
+        onclick: function (e) { if (e.target.closest('.gmenu-wrap')) return; App.go('group', { id: g.id }); },
+        onkeydown: function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target === cardEl) { e.preventDefault(); App.go('group', { id: g.id }); } }
       }, h('div', { class: 'card-body', style: 'display:flex;flex-direction:column;gap:9px' }, [
-        h('div', { class: 'rowflex', style: 'justify-content:space-between' }, [
+        h('div', { class: 'rowflex', style: 'justify-content:space-between;align-items:flex-start;gap:6px' }, [
           h('h3', { style: 'font-size:15px' }, [
             groupLevel(g) ? h('span', { class: 'pill ok', style: 'margin-inline-end:6px' }, groupLevel(g)) : null,
             g.code ? h('span', { class: 'pill info', style: 'margin-inline-end:6px' }, g.code) : null,
             g.name,
             groupAudience(g) ? h('span', { class: 'pill', style: 'margin-inline-start:6px' }, AUD[groupAudience(g)]) : null
           ]),
-          g.status === 'faol' ? UI.pill('Faol', 'ok') : (g.status === 'rejalashtirilgan' ? UI.pill('Rejalashtirilgan', 'info') : UI.pill('Yakunlangan', 'mute'))
+          h('div', { class: 'rowflex', style: 'gap:4px;flex-shrink:0' }, [
+            g.status === 'faol' ? UI.pill('Faol', 'ok') : (g.status === 'rejalashtirilgan' ? UI.pill('Rejalashtirilgan', 'info') : UI.pill('Yakunlangan', 'mute')),
+            App.can('group.edit') ? groupMenu(g, App) : null
+          ])
         ]),
         h('div', { class: 'small muted' }, Q.courseName(g.courseId) + ' · ' + Q.staffName(g.teacherId)),
         h('div', { class: 'small' }, (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join(', ') +
@@ -145,10 +149,94 @@
           h('span', { class: 'mono' }, A.som(A.feeForMonth(g, (g.startDate && String(g.startDate).slice(0, 7) > A.thisMonth()) ? String(g.startDate).slice(0, 7) : A.thisMonth())) + ' so’m/oy')
         ]),
         debt > 0 ? UI.pill('Qarzdorlik ' + A.som(debt), 'warn') : null
-      ])));
+      ]));
+      grid.appendChild(cardEl);
     });
     view.appendChild(grid);
   };
+
+  /* ---------- Guruh kartasidagi «⋮» menyu: sozlamalar, ochish, yakunlash, to'liq o'chirish ---------- */
+  function closeGroupMenus() { document.querySelectorAll('.gmenu.open').forEach(function (m) { m.classList.remove('open'); }); }
+  if (!window.__gmenuDoc) { window.__gmenuDoc = 1; document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('.gmenu-wrap')) closeGroupMenus(); }); document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeGroupMenus(); }); }
+  function groupMenu(g, App) {
+    var canDel = App.user && (App.user.role === 'direktor' || App.can('settings.edit'));
+    function item(icon, label, fn, cls) {
+      return h('button', { type: 'button', role: 'menuitem', class: 'gmenu-i' + (cls ? ' ' + cls : ''), onclick: function (e) { e.stopPropagation(); closeGroupMenus(); fn(); } }, [UI.icon(icon), label]);
+    }
+    var menu = h('div', { class: 'gmenu', role: 'menu' }, [
+      item('gear', 'Sozlamalar (tahrirlash)', function () { groupForm(g, App); }),
+      item('right', 'Guruhni ochish', function () { App.go('group', { id: g.id }); }),
+      g.status === 'yakunlangan'
+        ? item('play', 'Qayta faollashtirish', function () { setGroupStatus(g, 'faol', App); })
+        : item('check', 'Guruhni yakunlash (arxiv)', function () { setGroupStatus(g, 'yakunlangan', App); }),
+      canDel ? h('div', { class: 'gmenu-sep' }) : null,
+      canDel ? item('trash', 'Guruhni to‘liq o‘chirish', function () { deleteGroupFlow(g, App); }, 'bad') : null
+    ]);
+    var btn = h('button', {
+      type: 'button', class: 'gmenu-btn', title: 'Guruh sozlamalari', 'aria-label': 'Guruh sozlamalari', 'aria-haspopup': 'menu',
+      onclick: function (e) { e.stopPropagation(); var was = menu.classList.contains('open'); closeGroupMenus(); if (!was) menu.classList.add('open'); }
+    }, h('span', { 'aria-hidden': 'true' }, '⋮'));
+    return h('div', { class: 'gmenu-wrap' }, [btn, menu]);
+  }
+  async function setGroupStatus(g, st, App) {
+    var ok = await UI.confirm(st === 'yakunlangan' ? 'Guruhni yakunlash' : 'Guruhni faollashtirish',
+      st === 'yakunlangan' ? '«' + g.name + '» yakunlangan guruhlar qatoriga o‘tadi. Ma’lumotlari (o‘quvchilar, to‘lovlar, davomat) saqlanib qoladi.' : '«' + g.name + '» yana faol guruhlar qatoriga qaytadi.',
+      st === 'yakunlangan' ? 'Yakunlash' : 'Faollashtirish');
+    if (!ok) return;
+    await D.save('groups', Object.assign({}, g, { status: st }));
+    await A.Ops.audit(App.user, st === 'yakunlangan' ? 'Guruh yakunlandi' : 'Guruh qayta faollashtirildi', g.name, '');
+    UI.toast('Saqlandi.', 'ok'); App.render();
+  }
+  async function deleteGroupFlow(g, App) {
+    var counts, blocked = '', mems = Q.membershipsOfGroup ? Q.membershipsOfGroup(g.id) : D.all('memberships').filter(function (m) { return m.groupId === g.id; });
+    if (D.mode === 'server') {
+      try {
+        var r = await D.api('POST', 'api/groups/delete', { id: g.id, dry: true });
+        counts = r.counts || {}; if (r.blocked) blocked = r.error || 'O‘chirib bo‘lmaydi.';
+      } catch (e) { UI.toast(e.message || 'Xato', 'bad'); return; }
+    } else counts = { students: mems.length, memberships: mems.length, invoices: 0, payments: 0, other: 0, leads: 0 };
+    var key = String(g.code || g.name || '');
+    var inp = h('input', { type: 'text', placeholder: key, autocomplete: 'off', style: 'width:100%' });
+    var list = h('ul', { class: 'gdel-list' }, [
+      h('li', {}, '👥 ' + counts.students + ' ta o‘quvchining shu guruhdagi a’zoligi (o‘quvchilarning o‘zi o‘chmaydi)'),
+      h('li', {}, '🧾 ' + counts.invoices + ' ta to‘lanmagan hisob'),
+      h('li', {}, '📚 ' + counts.other + ' ta dars, davomat, Zoom, uy vazifa va boshqa yozuv'),
+      counts.leads ? h('li', {}, '🎯 ' + counts.leads + ' ta murojaatdan shu guruh olib tashlanadi (murojaatlar qoladi)') : null
+    ]);
+    var body = blocked
+      ? h('div', {}, [h('p', { class: 'gdel-warn' }, '⛔ ' + blocked), h('p', { class: 'small muted' }, 'Guruhni «Yakunlash» bilan arxivga o‘tkazing: ro‘yxatdan chiqadi, lekin to‘lov va davomat tarixi saqlanadi.')])
+      : h('div', {}, [
+        h('p', { class: 'gdel-warn' }, '⚠️ «' + g.name + '» guruhi butunlay o‘chiriladi. Birga o‘chadi:'),
+        list,
+        h('p', { class: 'small muted' }, 'Xato bo‘lsa, Sozlamalar → Savatcha bo‘limidan bir bosishda hammasini qaytarish mumkin.'),
+        h('label', { class: 'field' }, [h('span', {}, 'Tasdiqlash uchun guruh kodini yozing: ' + key), inp])
+      ]);
+    UI.modal({
+      title: 'Guruhni o‘chirish', body: body,
+      actions: blocked
+        ? [{ label: 'Yopish' }, { label: 'Yakunlash (arxiv)', cls: 'primary', onClick: function (close) { close(); setGroupStatus(g, 'yakunlangan', App); } }]
+        : [{ label: 'Bekor qilish' }, {
+          label: 'Butunlay o‘chirish', cls: 'danger', onClick: async function (close) {
+            if (inp.value.trim().toLowerCase() !== key.trim().toLowerCase()) { UI.toast('Guruh kodini to‘g‘ri yozing: ' + key, 'bad'); inp.focus(); return false; }
+            try {
+              if (D.mode === 'server') {
+                await D.api('POST', 'api/groups/delete', { id: g.id, confirm: inp.value.trim() });
+                delete D.col.groups[g.id];
+                ['memberships', 'invoices', 'lessonlog', 'zoomlesson', 'makeups', 'homework', 'quizzes', 'quizres'].forEach(function (c) {
+                  var col = D.col[c] || {}; Object.keys(col).forEach(function (id) { if (col[id] && (col[id].groupId === g.id)) delete col[id]; });
+                });
+                Object.values(D.col.leads || {}).forEach(function (l) { if (l && l.groupId === g.id) delete l.groupId; });
+                D._emit && D._emit();
+              } else {
+                for (var i = 0; i < mems.length; i++) await D.remove('memberships', mems[i].id);
+                await D.remove('groups', g.id);
+              }
+              close(); UI.toast('Guruh o‘chirildi.', 'ok'); App.go('groups');
+            } catch (e) { UI.toast(e.message || 'O‘chirib bo‘lmadi', 'bad'); return false; }
+          }
+        }]
+    });
+  }
 
   /* ================= GURUH KARTASI ================= */
 
