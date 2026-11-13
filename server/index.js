@@ -1972,6 +1972,18 @@ function leadTrack(oldLead, d, user, noAnsTap) {
     if (oldLead && oldLead[k] !== undefined) d[k] = oldLead[k]; else delete d[k];
   });
   delete d.noAnswerAdd;
+  /* Sinov darsi to'lovi va kelgani: faqat ruxsat etilgan qiymatlar; kim/qachon to'laganini server yozadi */
+  d.trialPay = d.trialPay === 'paid' ? 'paid' : (d.trialPay === 'unpaid' ? 'unpaid' : (oldLead && oldLead.trialPay) || undefined);
+  if (d.trialPay === undefined) delete d.trialPay;
+  const amt = Math.round(Number(d.trialAmount) || 0);
+  d.trialAmount = d.trialPay === 'paid' && amt > 0 && amt <= 10000000 ? amt : 0;
+  if (!d.trialAmount) delete d.trialAmount;
+  d.trialCame = ['keldi', 'kelmadi'].indexOf(d.trialCame) >= 0 ? d.trialCame : '';
+  if (!d.trialCame) delete d.trialCame;
+  if (d.trialPay === 'paid') {
+    if (oldLead && oldLead.trialPay === 'paid' && oldLead.trialPaidAt) { d.trialPaidAt = oldLead.trialPaidAt; d.trialPaidBy = oldLead.trialPaidBy; }
+    else { d.trialPaidAt = now; d.trialPaidBy = who; }
+  } else { delete d.trialPaidAt; delete d.trialPaidBy; }
   const from = oldLead ? String(oldLead.stage || '') : '';
   const to = String(d.stage || '');
   if (!oldLead || from !== to) {
@@ -1982,6 +1994,41 @@ function leadTrack(oldLead, d, user, noAnsTap) {
     d.noAnswer = (Number(d.noAnswer) || 0) + 1;
     d.noAnswerLog = (Array.isArray(d.noAnswerLog) ? d.noAnswerLog : []).concat([{ at: now, by: who }]).slice(-20);
   }
+}
+
+/* Sinov darsi xabarlari adminlarga (bot sozlamalaridagi xodimlar chatlari):
+   1) murojaat sinov darsiga yangi yozilsa (yoki boshqa guruhga ko'chirilsa) — qaysi guruhga, qachon;
+   2) sinov darsi uchun to'lov belgilansa — summa bilan. Yozilish bilan birga to'langan bo'lsa — bitta xabar. */
+const isTrialSt = st => /sinov/i.test(String(st || ''));
+function somFmt(n) { return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+async function trialNotify(oldLead, d, user, bot) {
+  if (!d || !bot || !bot.notifyStaff) return;
+  const was = !!(oldLead && isTrialSt(oldLead.stage)), now = isTrialSt(d.stage);
+  const booked = now && (!was || String(oldLead.groupId || '') !== String(d.groupId || ''));
+  const paidNow = d.trialPay === 'paid' && !(oldLead && oldLead.trialPay === 'paid');
+  if (!booked && !paidNow) return;
+  const g = d.groupId ? await store.get('groups/' + String(d.groupId)) : null;
+  const gName = g ? (g.code ? g.code + ' · ' : '') + (g.name || '') : 'guruh tanlanmagan';
+  const when = d.trialDate ? String(d.trialDate).slice(0, 10).split('-').reverse().join('.') + (d.trialTime ? ', soat ' + d.trialTime : '') : 'kuni belgilanmagan';
+  /* Eski o'quvchimi (shu raqam faol o'quvchida bormi) — ogohlantirish */
+  let old = '';
+  const dg = String(d.phone || '').replace(/\D/g, '').slice(-9);
+  if (dg.length === 9) {
+    const sts = (await store.list('students/')).map(x => x.data).filter(s => s && String(s.phone || '').replace(/\D/g, '').slice(-9) === dg);
+    if (sts.length) {
+      const ms = (await store.list('memberships/')).map(x => x.data);
+      const act = sts.filter(s => ms.some(m => m && m.studentId === s.id && m.status === 'faol'))[0];
+      if (act) old = '\n⚠️ Diqqat: bu raqam faol o‘quvchiga tegishli (' + [act.lastName, act.firstName].filter(Boolean).join(' ') + ') — eski o‘quvchi bo‘lishi mumkin';
+    }
+  }
+  const who = String(user.name || user.login || '');
+  const pay = d.trialPay === 'paid' ? '💰 To‘ladi' + (d.trialAmount ? ': ' + somFmt(d.trialAmount) + ' so‘m' : '') : '⏳ Hali to‘lamagan';
+  const head = booked ? (was ? '🔁 Sinov darsi guruhi o‘zgardi' : '🎯 Yangi sinov darsi') : '💰 Sinov darsi uchun to‘lov qilindi';
+  const lines = [head, '👤 ' + (d.name || '—'), '📞 ' + (d.phone || '—'), '👥 Guruh: ' + gName];
+  if (booked) lines.push('📅 Sinov: ' + when);
+  lines.push(booked ? pay : '💵 Summa: ' + (d.trialAmount ? somFmt(d.trialAmount) + ' so‘m' : 'kiritilmagan'));
+  lines.push('✍️ ' + (booked ? 'Yozdi: ' : 'Belgiladi: ') + who);
+  await bot.notifyStaff(lines.join('\n') + old);
 }
 
 /* To'liq dostup: o'quvchining kurs va alifbo progressiga `all` belgisi —
@@ -4785,6 +4832,7 @@ async function handleApi(req, res, url) {
         const bot = require('./bot');
         if (p.indexOf('users/') === 0) bot.dropStaffCache();
         if (p.indexOf('leads/') === 0) bot.trackTrial(Object.assign({ id: p.split('/')[1] }, body.data));
+        if (p.indexOf('leads/') === 0) trialNotify(oldLead, body.data, user, bot).catch(e => console.error('trialNotify:', e.message));
         const d = body.data;
         if (p.indexOf('tasks/') === 0 && d.assigneeId && d.assigneeId !== user.id &&
           (!oldTask || oldTask.assigneeId !== d.assigneeId) && d.status !== 'bajarildi') {

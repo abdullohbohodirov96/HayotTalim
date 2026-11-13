@@ -1,0 +1,43 @@
+/* Sinov darsi: to'lov maydonlarini tekshirish (server) va adminlarga xabar.
+   Ishga tushirish: node tests/trial-notify-test.js */
+'use strict';
+const fs = require('fs'), path = require('path');
+const src = fs.readFileSync(path.join(__dirname, '..', 'server', 'index.js'), 'utf8');
+const a = src.indexOf('const isTrialSt'), b = src.indexOf("/* To'liq dostup");
+const lt = src.slice(src.indexOf('function leadTrack('), src.indexOf('/* Sinov darsi xabarlari adminlarga'));
+const db = { 'groups/g1': { id: 'g1', name: 'Arab A0 ayollar', code: 'A003' }, 'students/s1': { id: 's1', phone: '+998 90 111 22 99', firstName: 'Shahlo', lastName: 'Eski' }, 'memberships/m1': { studentId: 's1', status: 'faol' } };
+const store = { get: async k => db[k], list: async p => Object.keys(db).filter(k => k.startsWith(p)).map(k => ({ data: db[k] })) };
+const stamp = () => '2026-11-13 17:10';
+const out = []; const bot = { notifyStaff: async t => out.push(t) };
+let T; eval(src.slice(a, b) + lt + ';T={trialNotify,leadTrack}');
+let pass = 0, fail = 0;
+const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (x ? '  → ' + x : '')); } };
+(async () => {
+  const u = { name: 'Munisa' };
+  const d = { name: 'Zarina', phone: '+998901112244', stage: 'sinov', groupId: 'g1', trialDate: '2026-11-16', trialTime: '15:00', trialPay: 'unpaid' };
+  T.leadTrack(null, d, u); await T.trialNotify(null, d, u, bot);
+  ok('Yangi sinov — adminlarga guruh, sana va «to‘lamagan» bilan xabar', out.length === 1 && /Yangi sinov darsi/.test(out[0]) && /A003 · Arab A0 ayollar/.test(out[0]) && /16\.11\.2026, soat 15:00/.test(out[0]) && /Hali to‘lamagan/.test(out[0]), out[0]);
+  const d2 = Object.assign({}, d, { trialPay: 'paid', trialAmount: '30000', trialPaidAt: 'soxta', trialPaidBy: 'soxta' });
+  T.leadTrack(d, d2, u); await T.trialNotify(d, d2, u, bot);
+  ok('To‘lov belgilansa — «to‘lov qilindi» xabari summa bilan', out.length === 2 && /to‘lov qilindi/.test(out[1]) && /30 000 so‘m/.test(out[1]), out[1]);
+  ok('Kim/qachon to‘laganini server yozadi (mijoz yuborgani e’tiborsiz)', d2.trialPaidAt === '2026-11-13 17:10' && d2.trialPaidBy === 'Munisa' && d2.trialAmount === 30000);
+  const d3 = Object.assign({}, d2, { note: 'x' });
+  T.leadTrack(d2, d3, u); await T.trialNotify(d2, d3, u, bot);
+  ok('Qayta saqlansa — takroriy xabar yo‘q', out.length === 2);
+  const d4 = { name: 'Shahlo', phone: '+998901112299', stage: 'sinov', groupId: 'g1', trialPay: 'paid', trialAmount: 40000, trialCame: '<b>' };
+  T.leadTrack(null, d4, u); await T.trialNotify(null, d4, u, bot);
+  ok('Yozilish bilan birga to‘langan — bitta xabar, to‘lov summasi bilan', out.length === 3 && /Yangi sinov darsi/.test(out[2]) && /To‘ladi: 40 000/.test(out[2]));
+  ok('Eski o‘quvchi raqami — ogohlantirish', /faol o‘quvchiga tegishli/.test(out[2]));
+  ok('Noto‘g‘ri «keldi» qiymati olib tashlanadi', d4.trialCame === undefined);
+  const d5 = { name: 'X', stage: 'yangi', trialPay: 'paid', trialAmount: -5 };
+  T.leadTrack(null, d5, u);
+  ok('Manfiy summa qabul qilinmaydi', d5.trialAmount === undefined);
+  const d6 = { name: 'Y', stage: 'sinov', groupId: 'g1', trialPay: 'xyz' };
+  T.leadTrack(null, d6, u);
+  ok('Noma’lum to‘lov holati saqlanmaydi', d6.trialPay === undefined);
+  const d7 = Object.assign({}, d, { groupId: 'g2' });
+  T.leadTrack(d, d7, u); await T.trialNotify(d, d7, u, bot);
+  ok('Boshqa guruhga ko‘chirilsa — «guruhi o‘zgardi» xabari', /guruhi o‘zgardi/.test(out[out.length - 1]));
+  console.log('\n' + (fail ? '✗ XATOLAR BOR — ' : '✓ HAMMASI O’TDI — ') + pass + ' ta o\'tdi, ' + fail + ' ta xato');
+  process.exit(fail ? 1 : 0);
+})();
