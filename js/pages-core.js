@@ -1292,7 +1292,22 @@
         h('button', { class: 'btn sm', type: 'button', onclick: function () { UI.copy(txt); } }, [UI.icon('link'), 'Xabarni nusxalash'])
       ]));
     }
-    if (f.get('groupId')) f.get('groupId').input.addEventListener('change', paintTrial);
+    /* Guruh tanlansa — holat avtomatik «Sinov darsi»ga o'tadi (agar hozirgi holat sinovdan oldingi bo'lsa:
+       yangi, bog'lanildi va h.k.; yopilgan yoki sinovdan keyingi holatlar o'zgarmaydi) */
+    function autoTrialStage() {
+      var gid = f.get('groupId').input.value;
+      if (!gid) return;
+      var sts = A.funnelStages(curFunnel);
+      var tIdx = -1; sts.forEach(function (st, i) { if (tIdx < 0 && isTrialStage(curFunnel, st.id)) tIdx = i; });
+      var cIdx = -1; sts.forEach(function (st, i) { if (st.id === stage) cIdx = i; });
+      var cur = sts[cIdx];
+      if (tIdx < 0 || cIdx === tIdx || (cur && (cur.type === 'won' || cur.type === 'lost')) || (cIdx > tIdx)) return;
+      stage = sts[tIdx].id;
+      paintStages();
+      stageBox.dispatchEvent(new Event('change', { bubbles: true }));
+      UI.toast('Holat «' + sts[tIdx].label + '» ga o‘tkazildi', 'ok');
+    }
+    if (f.get('groupId')) f.get('groupId').input.addEventListener('change', function () { autoTrialStage(); paintTrial(); });
 
     /* --- tepa qism: kim, raqam, qayerdan --- */
     var student = lead.studentId ? D.one('students', lead.studentId) : null;
