@@ -5385,3 +5385,5 @@ body.lesson-mode .nb-head{margin-bottom:6px}
   .tc-card,.fn-card{padding:10px 12px}
   .tc-head{margin-bottom:8px}
 }
+.gcard>.card-body>.gmenu-wrap{position:absolute;top:12px;right:12px;z-index:5}
+.gcard .gmenu{left:auto;right:0}

@@ -123,17 +123,15 @@
         onclick: function (e) { if (e.target.closest('.gmenu-wrap')) return; App.go('group', { id: g.id }); },
         onkeydown: function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target === cardEl) { e.preventDefault(); App.go('group', { id: g.id }); } }
       }, h('div', { class: 'card-body', style: 'display:flex;flex-direction:column;gap:9px' }, [
-        h('div', { class: 'rowflex', style: 'justify-content:space-between;align-items:flex-start;gap:6px' }, [
+        App.can('group.edit') ? groupMenu(g, App) : null,
+        h('div', { class: 'rowflex', style: 'justify-content:space-between;align-items:flex-start;gap:6px' + (App.can('group.edit') ? ';padding-right:34px' : '') }, [
           h('h3', { style: 'font-size:15px' }, [
             groupLevel(g) ? h('span', { class: 'pill ok', style: 'margin-inline-end:6px' }, groupLevel(g)) : null,
             g.code ? h('span', { class: 'pill info', style: 'margin-inline-end:6px' }, g.code) : null,
             g.name,
             groupAudience(g) ? h('span', { class: 'pill', style: 'margin-inline-start:6px' }, AUD[groupAudience(g)]) : null
           ]),
-          h('div', { class: 'rowflex', style: 'gap:4px;flex-shrink:0' }, [
-            g.status === 'faol' ? UI.pill('Faol', 'ok') : (g.status === 'rejalashtirilgan' ? UI.pill('Rejalashtirilgan', 'info') : UI.pill('Yakunlangan', 'mute')),
-            App.can('group.edit') ? groupMenu(g, App) : null
-          ])
+          g.status === 'faol' ? UI.pill('Faol', 'ok') : (g.status === 'rejalashtirilgan' ? UI.pill('Rejalashtirilgan', 'info') : UI.pill('Yakunlangan', 'mute'))
         ]),
         h('div', { class: 'small muted' }, Q.courseName(g.courseId) + ' · ' + Q.staffName(g.teacherId)),
         h('div', { class: 'small' }, (g.days || []).map(function (d) { return A.WEEKDAYS_SHORT[d - 1]; }).join(', ') +
