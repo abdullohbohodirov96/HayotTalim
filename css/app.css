@@ -5416,3 +5416,42 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .lf-bar .filters{margin-bottom:10px}
 .lf-stages .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
 .lf-stages .seg button{white-space:nowrap}
+
+/* ===== Aloqa: brend logotiplari bilan kartalar ===== */
+.brand-ico{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;color:#fff;background:var(--st-ink,#0b3b2e)}
+.brand-ico svg{width:22px;height:22px;fill:currentColor;display:block}
+.brand-ico .ico{width:20px;height:20px;color:#fff}
+.b-tg{background:#26A5E4}
+.b-ig{background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%)}
+.b-fb{background:#0866FF}
+.b-yt{background:#FF0000}
+.b-gm{background:#fff;color:#EA4335}
+.b-tel{background:linear-gradient(135deg,#1f9d6a,#0b6b4f)}
+.apply-left .apply-soc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.cc{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;text-decoration:none;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#fff;transition:transform .15s,background .15s,border-color .15s;min-width:0}
+.cc:hover{transform:translateY(-2px);background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25)}
+.cc-t{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
+.cc-t b{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-t span{font-size:12px;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-go{flex:none;opacity:.45;font-size:16px;transition:transform .15s,opacity .15s}
+.cc:hover .cc-go{opacity:.9;transform:translateX(3px)}
+.tg-cta{display:flex !important;align-items:center;gap:12px;width:100%;justify-content:flex-start;padding:12px 16px !important;
+  background:#26A5E4 !important;color:#fff !important;border:0 !important;border-radius:16px !important;box-shadow:0 10px 24px rgba(38,165,228,.28)}
+.tg-cta:hover{background:#1f93cc !important}
+.tg-cta .brand-ico{background:rgba(255,255,255,.18)}
+.tg-cta-t{display:flex;flex-direction:column;text-align:left;line-height:1.25}
+.tg-cta-t b{font-size:15px}
+.tg-cta-t span{font-size:12px;opacity:.85;font-weight:500}
+.apply-left .site-contact{margin-top:12px;padding:10px 14px !important}
+.apply-left .site-contact .contact-row{padding:6px 0;font-size:13px;color:rgba(255,255,255,.75)}
+/* Pastki qism: yumaloq brend tugmalari */
+.foot-soc{flex-direction:row !important;flex-wrap:wrap;gap:10px !important}
+.soc-round{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;transition:transform .15s,box-shadow .15s}
+.soc-round .brand-ico{width:44px;height:44px;border-radius:50%}
+.soc-round:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.15)}
+.foot-ic{display:inline-flex !important;align-items:center;gap:8px}
+.foot-ic .ico{width:16px;height:16px;color:var(--st-gold,#c99a2e)}
+.foot-gm .brand-ico{width:18px;height:18px;border-radius:4px;background:transparent}
+.foot-gm .brand-ico svg{width:16px;height:16px}
+@media (max-width:560px){.apply-left .apply-soc{grid-template-columns:1fr}}

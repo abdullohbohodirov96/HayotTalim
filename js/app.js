@@ -2551,8 +2551,8 @@
             benefit('check', 'Dars oxirida kursga qabul va chegirma'),
             benefit('layers', 'Mos guruh va qulay vaqt taklifi')
           ]),
-          h('a', { class: 'btn primary lg', id: 'apply-bot-btn', hidden: true, target: '_blank', rel: 'noopener' },
-            [UI.icon('bot'), 'Telegram bot orqali yozilish']),
+          h('a', { class: 'btn lg tg-cta', id: 'apply-bot-btn', hidden: true, target: '_blank', rel: 'noopener' },
+            [h('span', { class: 'tg-cta-ico', id: 'apply-bot-ico' }), h('span', { class: 'tg-cta-t' }, [h('b', {}, 'Telegram orqali yozilish'), h('span', { id: 'apply-bot-user' }, '')])]),
           h('div', { class: 'apply-soc', id: 'apply-soc', hidden: true }),
           h('div', { class: 'site-contact', id: 'contact-box' }, [
             h('div', { class: 'contact-row', id: 'site-phone-row', hidden: true }, [
@@ -2635,8 +2635,8 @@
         ]),
         h('div', { class: 'foot-col' }, [
           h('b', {}, 'Bog’lanish'),
-          h('a', { class: 'foot-link', id: 'foot-phone', href: '#ariza' }, ''),
-          h('a', { class: 'foot-link', id: 'foot-mail', href: 'mailto:saboacademyuz@gmail.com' }, 'saboacademyuz@gmail.com'),
+          h('a', { class: 'foot-link foot-ic', href: '#ariza', id: 'foot-phone-a' }, [UI.icon('phone'), h('span', { id: 'foot-phone' }, '')]),
+          h('a', { class: 'foot-link foot-ic', id: 'foot-mail', href: 'mailto:saboacademyuz@gmail.com' }, [h('span', { class: 'foot-gm' }), 'saboacademyuz@gmail.com']),
           h('span', { class: 'foot-line', id: 'foot-addr' }, ''),
           h('span', { class: 'foot-line', id: 'foot-hours' }, '')
         ]),
@@ -2852,15 +2852,16 @@
       /* Telefon — uch joyda */
       if (d.phone) {
         var tel = 'tel:' + String(d.phone).replace(/[^+0-9]/g, '');
-        show('site-phone-row');
         var pl = document.getElementById('site-phone-link');
         if (pl) { pl.textContent = d.phone; pl.href = tel; }
         [['site-call', 'site-call-text'], ['hero-tel', 'hero-tel-text']].forEach(function (pair) {
           var a = document.getElementById(pair[0]);
           if (a) { a.href = tel; setText(pair[1], d.phone); }
         });
-        var fp = document.getElementById('foot-phone');
-        if (fp) { fp.textContent = d.phone; fp.href = tel; }
+        var fp = document.getElementById('foot-phone'), fpa = document.getElementById('foot-phone-a');
+        if (fp) fp.textContent = d.phone;
+        if (fpa) fpa.href = tel;
+        var gmx = document.querySelector('.foot-gm'); if (gmx && !gmx.firstChild) gmx.appendChild(brandIco('gm'));
         /* Telefondagi pastki tasmadagi qo'ng'iroq tugmasi */
         var cb = document.getElementById('cta-bar-tel');
         if (cb) cb.href = tel;
@@ -2875,7 +2876,6 @@
         if (hh) { hh.hidden = false; hh.textContent = hrs; }
       }
       if (d.telegram) {
-        show('site-tg-row');
         var tg = document.getElementById('site-tg');
         var u = String(d.telegram).replace(/^@/, '');
         if (tg) { tg.textContent = '@' + u; tg.href = 'https://t.me/' + u; }
@@ -2883,7 +2883,11 @@
       paintSocial(d);
       botUser = String(d.telegram || '').replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '');
       var abb = document.getElementById('apply-bot-btn');
-      if (abb && botUser) { abb.hidden = false; abb.href = botLink(); }
+      if (abb && botUser) {
+        abb.hidden = false; abb.href = botLink();
+        var bi = document.getElementById('apply-bot-ico'); if (bi && !bi.firstChild) bi.appendChild(brandIco('tg'));
+        setText('apply-bot-user', '@' + botUser + ' · 1 daqiqada');
+      }
       paintPromo(d.promo, d.freeLesson);
       paintBadge(d.heroBadge);
       paintProof(d.heroProof);
@@ -3012,6 +3016,29 @@
       }
       return out;
     }
+    /* Rasmiy brend belgilari (Simple Icons, CC0) — har xizmat o'z logotipi va rangi bilan */
+    var BRAND = {"tg": "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z", "ig": "M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077", "fb": "M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z", "yt": "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z", "gm": "M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"};
+    function brandIco(k) {
+      var ns = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+      if (BRAND[k]) { var p = document.createElementNS(ns, 'path'); p.setAttribute('d', BRAND[k]); svg.appendChild(p); }
+      return h('span', { class: 'brand-ico b-' + k }, BRAND[k] ? svg : UI.icon('phone'));
+    }
+    function handleOf(l) {
+      var u = String(l.url || '').replace(/[?#].*$/, '').replace(/\/+$/, '');
+      if (l.logo === 'fb') return 'Sabo Academy';
+      var last = u.split('/').pop() || '';
+      return last ? '@' + last.replace(/^@/, '') : '';
+    }
+    /* Aloqa kartasi: logotip · nomi va manzili · strelka */
+    function contactCard(k, title, sub, href, track) {
+      var ext = !/^tel:|^mailto:/.test(href);
+      return h('a', {
+        class: 'cc cc-' + k, href: href, target: ext ? '_blank' : null, rel: ext ? 'noopener' : null,
+        onclick: track ? function () { A.track(track, { place: 'aloqa' }); } : null
+      }, [brandIco(k), h('span', { class: 'cc-t' }, [h('b', {}, title), sub ? h('span', {}, sub) : null]), h('span', { class: 'cc-go', 'aria-hidden': 'true' }, '→')]);
+    }
     var SOC_LOGO = {
       tg: { src: 'assets/logo-telegram.png', alt: 'Telegram' },
       ig: { src: 'assets/logo-instagram.png', alt: 'Instagram' }
@@ -3038,24 +3065,21 @@
       if (box) {
         UI.clear(box);
         if (!links.length) box.appendChild(h('span', { class: 'foot-line' }, 'Tez orada'));
-        else links.forEach(function (l) { box.appendChild(socBtn(l)); });
+        else links.forEach(function (l) {
+          box.appendChild(h('a', { class: 'soc-round b-' + l.logo, href: l.url, target: '_blank', rel: 'noopener',
+            title: l.name + (l.sub ? ' · ' + l.sub : ''), 'aria-label': l.name }, brandIco(l.logo)));
+        });
       }
       /* Ariza blokidagi katta tugmalar */
       var big = document.getElementById('apply-soc');
       if (big) {
         UI.clear(big);
-        /* Bot uchun yuqorida alohida katta tugma bor — bu yerda takrorlanmaydi.
-           Birinchi bo'lib qo'ng'iroq tugmasi turadi. */
+        /* Aloqa kartalari: har biri o'z logotipi bilan. Bot uchun yuqorida alohida katta tugma bor. */
         var phoneNow = String(d.phone || '').trim();
-        if (phoneNow) {
-          big.appendChild(h('a', {
-            class: 'soc-btn soc-tel big', href: 'tel:' + phoneNow.replace(/[^+0-9]/g, ''),
-            title: 'Qo’ng’iroq qilish', onclick: function () { A.track('phone_click', { place: 'ariza' }); }
-          }, [h('span', { class: 'soc-ico' }, UI.icon('phone')),
-            h('span', { class: 'soc-txt' }, [h('b', {}, phoneNow)])]));
-        }
-        links.filter(function (l) { return l.name !== 'Telegram bot'; }).slice(0, 3)
-          .forEach(function (l) { big.appendChild(socBtn(l, true)); });
+        if (phoneNow) big.appendChild(contactCard('tel', 'Qo’ng’iroq qilish', phoneNow, 'tel:' + phoneNow.replace(/[^+0-9]/g, ''), 'phone_click'));
+        links.filter(function (l) { return l.name !== 'Telegram bot'; }).forEach(function (l) {
+          big.appendChild(contactCard(l.logo, l.name + (l.sub ? ' · ' + l.sub : ''), handleOf(l), l.url));
+        });
         big.hidden = !big.children.length;
       }
     }
