@@ -421,6 +421,14 @@ async function notifyStaff(text, opts) {
   const ids = await staffChatIds();
   let buttons = opts && Array.isArray(opts.buttons) ? opts.buttons : null;
   if (leadId) {
+    /* Taqsimlash yoqilgan bo'lsa — kimga mas'ul ekani xabarda aniq ko'rinsin */
+    try {
+      const lead0 = await store.get('leads/' + leadId);
+      if (lead0 && lead0.ownerStaffId) {
+        const ow = (await store.list('users/')).map(x => x.data).filter(u => u && u.id === lead0.ownerStaffId)[0];
+        if (ow) text += '\n👤 Mas’ul: <b>' + esc(ow.name || ow.login || '') + '</b>';
+      }
+    } catch (e) { }
     const nl = text.indexOf('\n');
     const bs = ((await settings()).bot) || {};
     const wf = Number(bs.remindFrom == null ? 9 : bs.remindFrom), wt = Number(bs.remindTo == null ? 19 : bs.remindTo);
@@ -1246,6 +1254,7 @@ async function saveGuestQuestion(chatId, st, from, q, phone) {
       chatId: String(chatId), tgUser: String((from && from.username) || '').slice(0, 40),
       createdAt: stamp(), viaBot: true
     };
+    await require('./lead-split').assign(store, lead);
   }
   await store.set('leads/' + lead.id, lead);
   st.leadId = lead.id;
@@ -1320,6 +1329,7 @@ async function finishRegistration(chatId, st, from) {
       chatId: String(chatId), tgUser: String((from && from.username) || '').slice(0, 40),
       createdAt: stamp(), viaBot: true, freeLessonAt: stamp()
     };
+    await require('./lead-split').assign(store, lead);
   }
   await store.set('leads/' + lead.id, lead);
   st.step = 'registered'; st.leadId = lead.id;
@@ -1445,6 +1455,7 @@ async function phoneOnboard(chatId, contact, from, st) {
       note: 'Telegram botga kirdi va raqamini qoldirdi', nextContact: A.today(), phoneVerified: true,
       chatId: String(chatId), tgUser: String(from.username || '').slice(0, 40), createdAt: stamp(), viaBot: true
     };
+    await require('./lead-split').assign(store, lead);
   }
   await store.set('leads/' + lead.id, lead);
   st.leadId = lead.id; st.phone = phone; st.step = st.step === 'start' ? 'code' : st.step;

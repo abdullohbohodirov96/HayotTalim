@@ -160,14 +160,14 @@ async function saveLead(ctx, leadgenId) {
     capi().onLeadSaved(before, dup).catch(() => { });
   } else {
     id = 'led_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
-    await store.set('leads/' + id, {
+    await store.set('leads/' + id, await require('./lead-split').assign(store, {
       id, funnelId: funnel ? funnel.id : '', name: p.name || 'Noma’lum', phone, phone2,
       courseId: '', source: 'Target (' + (L.platform === 'ig' ? 'Instagram' : L.platform === 'fb' ? 'Facebook' : 'Meta') + ')',
       src: ad, ownerStaffId: '', stage: stages[0] ? stages[0].id : 'yangi',
       region: p.fields.region || '', wantTime: p.fields.wantTime || '', startLevel: p.fields.startLevel || '',
       audience: p.fields.audience || '', email: p.fields.email || '', age: p.fields.age || '',
       note: '', metaAnswers, nextContact: A.today(), createdAt: stamp(), viaMeta: true, metaLeadId: leadgenId
-    });
+    }));
   }
   if (!dup) capi().onLeadSaved(null, await store.get('leads/' + id)).catch(() => { });
   await store.set(key, { leadId: id, at: stamp() });

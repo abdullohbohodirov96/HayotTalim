@@ -560,6 +560,8 @@
         [UI.icon('plus'), 'Murojaat qo’shish']) : null,
       App.can('lead.import') ? h('button', { class: 'btn', onclick: function () { A.importModal('leads', App, funnel.id); } },
         [UI.icon('upload'), 'Excel’dan import']) : null,
+      App.can('settings.edit') ? h('button', { class: 'btn', title: 'Yangi murojaatlarni menejerlar orasida foiz bo‘yicha taqsimlash', onclick: function () { leadSplitModal(App); } },
+        [UI.icon('sliders'), 'Taqsimlash', (D.settings && D.settings.leadSplit && D.settings.leadSplit.enabled) ? h('span', { class: 'lsp-on' }, 'yoqiq') : null]) : null,
       h('button', {
         class: 'btn', onclick: function () {
           UI.exportCsv('murojaatlar-' + funnel.name + '.csv',
@@ -1020,6 +1022,57 @@
       }, 0);
     }
     return bar;
+  }
+
+  /* ---- Murojaatlarni menejerlar orasida taqsimlash (masalan 80% / 20%) ----
+     Faqat «mas'ul» belgilanadi; murojaatlar hammaga ko'rinib turaveradi. */
+  function leadSplitModal(App) {
+    var cfg = (D.settings && D.settings.leadSplit) || {};
+    var rules = {}; (cfg.rules || []).forEach(function (r) { rules[r.userId] = Number(r.pct) || 0; });
+    var users = D.all('users').filter(function (u) { return u.active !== false && ['menejer', 'admin', 'direktor'].indexOf(u.role) >= 0; })
+      .sort(function (a, b) { var o = { menejer: 0, admin: 1, direktor: 2 }; return (o[a.role] - o[b.role]) || String(a.name).localeCompare(String(b.name)); });
+    var on = h('input', { type: 'checkbox', checked: cfg.enabled ? 'checked' : null });
+    var since = A.addDays(A.today(), -30);
+    var recent = D.all('leads').filter(function (l) { return String(l.createdAt || '').slice(0, 10) >= since; });
+    var sumEl = h('b', {}, '');
+    var inputs = users.map(function (u) {
+      var inp = h('input', { type: 'number', min: '0', max: '100', step: '5', inputmode: 'numeric', class: 'lsp-in', value: rules[u.id] || '' });
+      inp.addEventListener('input', recalc);
+      var got = recent.filter(function (l) { return l.ownerStaffId === u.id; }).length;
+      return { u: u, inp: inp, row: h('div', { class: 'lsp-row' }, [
+        h('div', { class: 'lsp-name' }, [h('b', {}, u.name || u.login), h('span', { class: 'small muted' }, ' · ' + (A.ROLES[u.role] || u.role))]),
+        h('span', { class: 'small muted lsp-got', title: 'Oxirgi 30 kunda unga biriktirilgan murojaatlar' }, got + ' ta / 30 kun'),
+        h('label', { class: 'lsp-pct' }, [inp, h('span', {}, '%')])
+      ]) };
+    });
+    function total() { return inputs.reduce(function (a, x) { return a + (Number(x.inp.value) || 0); }, 0); }
+    function recalc() { var t = total(); sumEl.textContent = t + '%'; sumEl.style.color = t === 100 ? 'var(--ok)' : 'var(--bad)'; }
+    recalc();
+    UI.modal({
+      title: 'Murojaatlarni taqsimlash',
+      body: h('div', { class: 'lsp' }, [
+        h('label', { class: 'lsp-switch' }, [on, h('span', {}, [h('b', {}, 'Avtomatik taqsimlash yoqilsin'), h('br'),
+          h('span', { class: 'small muted' }, 'Saytdan, botdan, target formadan va qo‘lda (mas’ulsiz) qo‘shilgan har bir yangi murojaatga mas’ul o‘zi biriktiriladi.')])]),
+        h('div', { class: 'lsp-list' }, inputs.map(function (x) { return x.row; })),
+        h('div', { class: 'lsp-sum' }, ['Jami: ', sumEl, h('span', { class: 'small muted' }, ' (100% bo‘lishi kerak)')]),
+        h('p', { class: 'small muted' }, 'Masalan 80% / 20%: har 10 ta murojaatdan 8 tasi birinchi, 2 tasi ikkinchi menejerga, navbat bilan (A, A, B, A, A …). ' +
+          'Murojaatlar hammaga ko‘rinib turadi — faqat kim mas’ul ekani belgilanadi va Telegram xabarida «👤 Mas’ul: …» deb yoziladi. ' +
+          'O‘z murojaatlarini ko‘rish uchun: ⚙ Filtr → Mas’ul.')
+      ]),
+      actions: [{ label: 'Bekor qilish' }, {
+        label: 'Saqlash', cls: 'primary', onClick: async function (close) {
+          var rs = inputs.map(function (x) { return { userId: x.u.id, pct: Math.max(0, Math.min(100, Math.round(Number(x.inp.value) || 0))) }; })
+            .filter(function (r) { return r.pct > 0; });
+          if (on.checked && total() !== 100) { UI.toast('Foizlar yig‘indisi 100% bo‘lishi kerak (hozir ' + total() + '%).', 'bad'); return; }
+          if (on.checked && !rs.length) { UI.toast('Kamida bitta xodimga foiz yozing.', 'bad'); return; }
+          try {
+            await D.saveSettings(Object.assign({}, D.settings, { leadSplit: { enabled: on.checked, rules: rs } }));
+            close(); UI.toast(on.checked ? 'Taqsimlash yoqildi: ' + rs.map(function (r) { var u = D.one('users', r.userId); return (u ? u.name : r.userId) + ' ' + r.pct + '%'; }).join(' · ') : 'Taqsimlash o‘chirildi.', 'ok');
+            App.go('leads', {});
+          } catch (e) { UI.toast(e.message || 'Saqlanmadi', 'bad'); }
+        }
+      }]
+    });
   }
 
   function leadBroadcast(list, funnel, App) {

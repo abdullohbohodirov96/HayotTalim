@@ -5387,3 +5387,15 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 }
 .gcard>.card-body>.gmenu-wrap{position:absolute;top:12px;right:12px;z-index:5}
 .gcard .gmenu{left:auto;right:0}
+
+/* Murojaatlarni taqsimlash */
+.lsp-on{margin-left:6px;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--ok,#1a7f4b);color:#fff}
+.lsp{display:flex;flex-direction:column;gap:12px}
+.lsp-switch{display:flex;gap:10px;align-items:flex-start}
+.lsp-switch input{margin-top:4px;width:18px;height:18px}
+.lsp-list{display:flex;flex-direction:column;gap:6px}
+.lsp-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line,#e5e7eb);border-radius:10px}
+.lsp-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lsp-pct{display:flex;align-items:center;gap:4px}
+.lsp-in{width:72px;text-align:right}
+@media (max-width:560px){.lsp-got{display:none}}

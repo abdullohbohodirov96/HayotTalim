@@ -13,6 +13,7 @@ const { createStore } = require('./store');
 const { A, settingsForClient, writePermFor, readBlocked, safeUser, safeStaff, safeStudent, visibleData, teacherCanSee, GENERAL_CHAT } = require('./shared');
 const backup = require('./backup');
 const kabinet = require('./kabinet');
+const leadSplit = require('./lead-split');
 const gamify = require('./gamify');
 const pace = require('./pace');
 const books = require('./books');
@@ -2732,12 +2733,12 @@ async function handleApi(req, res, url) {
     if (r.name || r.phone) {
       try {
         const lid = 'ld_test_' + r.resultId;
-        await store.set('leads/' + lid, {
+        await store.set('leads/' + lid, await leadSplit.assign(store, {
           id: lid, name: r.name || 'Daraja testi', phone: r.phone || '',
           source: 'Daraja testi', stage: 'yangi',
           note: 'Daraja: ' + r.level + ' (' + r.score + '/' + r.total + ')',
           level: r.level, createdAt: stamp()
-        });
+        }));
         if (r.phone) {
           try {
             require('./bot').notifyStaff('Daraja testi topshirildi\nIsm: ' + (r.name || '—') + '\nTelefon: ' + r.phone +
@@ -3077,7 +3078,7 @@ async function handleApi(req, res, url) {
     /* Forma javoblari STRUKTURA sifatida formAnswers da saqlanadi va
        murojaat kartasida chiroyli ro'yxat bo'lib ko'rinadi — endi ular
        Izoh (note) ga tiqilmaydi, Izoh administrator uchun bo'sh qoladi. */
-    await store.set('leads/' + lid, {
+    await store.set('leads/' + lid, await leadSplit.assign(store, {
       id: lid, funnelId: funnel ? funnel.id : '', name: chk.name || 'Forma: ' + f.title,
       phone: chk.phone || '', courseId: f.courseId || '',
       source: 'Forma: ' + f.title, ownerStaffId: '',
@@ -3085,7 +3086,7 @@ async function handleApi(req, res, url) {
       note: '',
       formId: f.id, formTitle: f.title, formAnswers: chk.answers, formSubId: sid,
       nextContact: A.today(), ip: fip, createdAt: stamp(), viaForm: true
-    });
+    }));
     await store.set(forms.SUB + sid, {
       id: sid, formId: f.id, formTitle: f.title, answers: chk.answers,
       name: chk.name, phone: chk.phone, leadId: lid, ip: fip, at: stamp()
@@ -3194,7 +3195,7 @@ async function handleApi(req, res, url) {
     const course = courseId ? await store.get('courses/' + courseId) : null;
     const stages = A.funnelStages(funnel);
     const id = 'led_' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
-    await store.set('leads/' + id, {
+    await store.set('leads/' + id, await leadSplit.assign(store, {
       id, funnelId: funnel.id, name, phone,
       courseId: course ? course.id : '',
       source: 'Sayt', src, region, district, ownerStaffId: '',
@@ -3207,7 +3208,7 @@ async function handleApi(req, res, url) {
          berilmaydi (leads ro'yxati xodimga ochiq, saytga emas).   */
       ip: leadIp,
       createdAt: stamp(), viaSite: true
-    });
+    }));
     await writeAudit(null, 'Saytdan murojaat', name, phone + (course ? ' · ' + course.name : ''));
 
     const text = 'Yangi murojaat (sayt)\n' +
@@ -3258,7 +3259,7 @@ async function handleApi(req, res, url) {
 
     const stages = A.funnelStages(funnel);
     const id = 'led_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    await store.set('leads/' + id, {
+    await store.set('leads/' + id, await leadSplit.assign(store, {
       id, funnelId: funnel.id,
       name, phone,
       courseId: '', source: String(body.source || funnel.autoSource || 'Webhook'),
@@ -3266,7 +3267,7 @@ async function handleApi(req, res, url) {
       note: text.slice(0, 500),
       nextContact: new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10),
       createdAt: stamp(), viaIntake: true
-    });
+    }));
     try {
       require('./bot').notifyStaff('Yangi murojaat (' + String(body.source || funnel.autoSource || 'Webhook') + ')\nIsm: ' + (name || '—') +
         '\nTelefon: ' + (phone || '—') + (text ? '\nIzoh: ' + text.slice(0, 500) : ''), { leadId: id }).catch(() => { });
@@ -4912,6 +4913,8 @@ async function handleApi(req, res, url) {
         }
       }
       if (p.indexOf('leads/') === 0 && body.data && typeof body.data === 'object') leadTrack(oldLead, body.data, user, noAnsTap);
+      /* Yangi murojaat mas'ulsiz qo'shilsa — taqsimlash (foiz) bo'yicha mas'ul tanlanadi */
+      if (p.indexOf('leads/') === 0 && !oldLead && body.data && typeof body.data === 'object' && !body.data.ownerStaffId) await leadSplit.assign(store, body.data);
       const oldTask = p.indexOf('tasks/') === 0 ? await store.get(p) : null;
       /* O'quvchi: «to'liq dostup» faqat direktor/admin (settings.edit) qo'ya oladi */
       if (p.indexOf('students/') === 0 && body.data && typeof body.data === 'object') {

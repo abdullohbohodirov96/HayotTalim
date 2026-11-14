@@ -72,6 +72,8 @@ async function listCol(store, col) {
 function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function normName(s) { return String(s || '').toLowerCase().replace(/[^a-zа-яёўқғҳ0-9]+/gi, ' ').trim(); }
 function stName(s) { return [s.firstName, s.lastName].filter(Boolean).join(' ') || s.name || ''; }
+/* Xabar takrorini to'sish kaliti: dars vaqti o'zgarsa (rec.tv) — yangi vaqt bilan qayta yuboriladi */
+function dk(rec) { return rec.id + (rec.tv ? '~' + rec.tv : ''); }
 function isOnline(g) { return g && (g.format === 'onlayn' || (!g.format && !g.roomId)); }
 function groupLabel(g) { return (g.code ? g.code + ' · ' : '') + (g.name || ''); }
 
@@ -260,7 +262,7 @@ async function notifyStudents(store, rec, kind, ctx, onlyMissing) {
     const link = linkFor(rec, s.id, s);
     const text = fill(T[kind], vars(rec, link, needPass(rec, link), settings));
     for (const chatId of chats) {
-      await ctx.send({ kind: 'elon', chatId, studentId: s.id, text, dedupeKey: 'zoom:' + rec.id + ':' + kind + ':' + s.id });
+      await ctx.send({ kind: 'elon', chatId, studentId: s.id, text, dedupeKey: 'zoom:' + dk(rec) + ':' + kind + ':' + s.id });
       n++;
     }
   }
@@ -277,7 +279,7 @@ async function notifyTeacher(store, rec, ctx) {
   }
   if (!chat || !(rec.startUrl || rec.meetingId)) return false;
   const T = await templates(store), settings = (await store.get('meta/settings')) || {};
-  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });
+  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + dk(rec) + ':teacher', text: fill(T.teacher, vars(rec, rec.joinUrl, '', settings)) });
   return true;
 }
 async function teacherChat(store, groupId) {
@@ -295,7 +297,7 @@ async function notifyTeacherSoon(store, rec, ctx) {
   const chat = await teacherChat(store, rec.groupId);
   if (!chat) return false;
   const T = await templates(store), settings = (await store.get('meta/settings')) || {};
-  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + rec.id + ':t60', text: fill(T.t60, vars(rec, '', '', settings)) });
+  await ctx.send({ kind: 'elon', chatId: chat, dedupeKey: 'zoom:' + dk(rec) + ':t60', text: fill(T.t60, vars(rec, '', '', settings)) });
   return true;
 }
 /** Guruh chatiga 1 soat oldin: «Bugun darsingiz bor, kechikmasdan kiring» (havolasiz) */
@@ -667,6 +669,26 @@ async function tick(store, A, ctx, nowMs) {
     }
     rec.sent = rec.sent || {};
     let changed = false;
+    /* Dars vaqti o'zgartirildi (guruh jadvali yoki shu kungi dars ko'chirildi), konferensiya esa eski vaqtda ochilgan.
+       Dars hali boshlanmagan bo'lsa: Zoom'dagi vaqtni yangilaymiz, eslatmalar yangi vaqt bilan qaytadan ketadi.
+       Havola o'zgarmaydi — avval yuborilgan havola ham ishlayveradi. */
+    if (rec.meetingId && !rec.sent.start && rec.status !== 'tugadi' && (rec.start !== hm(L.start) || rec.end !== hm(L.end))) {
+      const old = rec.start;
+      try { await api('PATCH', '/meetings/' + rec.meetingId, { start_time: iso + 'T' + hm(L.start) + ':00', timezone: 'Asia/Tashkent', duration: Math.max(30, L.end - L.start) }); }
+      catch (e) { rec.timeSyncError = e.message; }
+      /* Ustozning organizator havolasi vaqt o'tib eskiradi — yangisini olamiz */
+      try { const m2 = await api('GET', '/meetings/' + rec.meetingId); if (m2 && m2.start_url) rec.startUrl = m2.start_url; } catch (e) { }
+      const wasSent = ['g60', 'h1', 'g5', 'm15'].some(k => rec.sent[k]);
+      rec.start = hm(L.start); rec.end = hm(L.end); rec.tv = (rec.tv || 0) + 1;
+      rec.timeLog = [].concat(rec.timeLog || [], [{ from: old, to: rec.start, at: ctx.stamp() }]).slice(-5);
+      ['g60', 'h1', 'g5', 'm15'].forEach(k => { delete rec.sent[k]; });
+      changed = true; done.push('vaqt ' + old + '→' + rec.start + ' ' + id);
+      if (wasSent && ctx.sendGroup && rec.start !== old) {
+        const g = await store.get('groups/' + rec.groupId);
+        const T = await templates(store);
+        if (g && g.tgChat && T.groupOn) await ctx.sendGroup(g, '⚠️ <b>Dars vaqti o‘zgardi!</b>\n\n📚 ' + rec.groupName + '\n🕒 Bugun soat <b>' + rec.start + '</b> da (avval ' + old + ' edi)\n\nDarsga kirish havolasi o‘zgarmaydi.').catch(() => { });
+      }
+    }
     /* Avval ro'yxatdan o'tish bilan ochilgan konferensiya — ochiq qilamiz (umumiy havola forma so'ramasin) */
     if (!rec.open && rec.meetingId && rec.status !== 'tugadi' && !rec.openTried) {
       rec.openTried = ctx.stamp(); changed = true;
