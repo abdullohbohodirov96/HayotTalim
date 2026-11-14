@@ -1973,6 +1973,16 @@ function leadTrack(oldLead, d, user, noAnsTap) {
     if (oldLead && oldLead[k] !== undefined) d[k] = oldLead[k]; else delete d[k];
   });
   delete d.noAnswerAdd;
+  /* Izohlar tarixi: har yangi izoh vaqti va muallifi bilan alohida saqlanadi (mijoz o'zgartira olmaydi) */
+  {
+    const oldNote = oldLead ? String(oldLead.note || '') : '';
+    let nn = String(d.newNote || '').trim(); delete d.newNote;
+    if (!nn && String(d.note || '').trim() && String(d.note || '') !== oldNote) nn = String(d.note).trim();   // eski usulda yozilgan
+    d.notes = oldLead && Array.isArray(oldLead.notes) ? oldLead.notes : [];
+    if (!d.notes.length) delete d.notes;
+    d.note = oldLead ? oldNote : '';
+    if (nn) require('./lead-notes').addNote(d, nn, who, now);
+  }
   /* Sinov darsi to'lovi va kelgani: faqat ruxsat etilgan qiymatlar; kim/qachon to'laganini server yozadi */
   d.trialPay = d.trialPay === 'paid' ? 'paid' : (d.trialPay === 'unpaid' ? 'unpaid' : (oldLead && oldLead.trialPay) || undefined);
   if (d.trialPay === undefined) delete d.trialPay;

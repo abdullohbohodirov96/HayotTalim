@@ -5399,3 +5399,17 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .lsp-pct{display:flex;align-items:center;gap:4px}
 .lsp-in{width:72px;text-align:right}
 @media (max-width:560px){.lsp-got{display:none}}
+
+/* Murojaat izohlari tarixi */
+.ln-count{margin-left:8px;font-size:11px;font-weight:600;padding:1px 8px;border-radius:10px;background:var(--soft,#eef2f0);color:var(--muted,#667)}
+.ln-in{width:100%;resize:vertical;min-height:58px}
+.ln-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:280px;overflow:auto}
+.ln-item{display:flex;gap:12px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line,#e5e7eb);border-radius:10px;background:var(--card,#fff)}
+.ln-item.last{border-color:var(--accent,#0b6b4f);box-shadow:inset 3px 0 0 var(--accent,#0b6b4f)}
+.ln-text{flex:1;min-width:0;white-space:pre-wrap;word-break:break-word;font-size:14px}
+.ln-tag{display:inline-block;margin-right:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:6px;background:var(--accent,#0b6b4f);color:#fff;vertical-align:1px}
+.ln-meta{flex:none;display:flex;flex-direction:column;align-items:flex-end;text-align:right;font-size:12px;line-height:1.35;color:var(--muted,#667)}
+.ln-meta b{font-size:14px;color:var(--text,#111);font-variant-numeric:tabular-nums}
+.ln-by{font-size:11px;opacity:.85}
+.ln-cell{display:flex;flex-direction:column;max-width:240px}
+.ln-cell-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

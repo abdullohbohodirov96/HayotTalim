@@ -654,6 +654,15 @@
       },
       leads.some(function (l) { return l.region; }) ? { label: 'Hudud', render: function (l) { return l.region ? (l.region + (l.district ? ', ' + l.district : '')) : h('span', { class: 'muted' }, '—'); } } : null,
       { label: 'Mas’ul', render: function (l) { return Q.ownerName(l.ownerStaffId); } },
+      leads.some(function (l) { return l.note; }) ? {
+        label: 'Oxirgi izoh', render: function (l) {
+          if (!l.note) return h('span', { class: 'muted' }, '—');
+          var ns = Array.isArray(l.notes) ? l.notes : [], last = ns[ns.length - 1], w = last && noteWhen(last.at);
+          return h('div', { class: 'ln-cell', title: l.note }, [
+            h('span', { class: 'ln-cell-t' }, String(l.note).split('\n').pop()),
+            w ? h('span', { class: 'muted small mono' }, w.day.split(' · ')[0] + ' ' + w.time + (ns.length > 1 ? ' · ' + ns.length + ' ta' : '')) : null]);
+        }
+      } : null,
       {
         label: 'Keyingi aloqa', render: function (l) {
           if (!l.nextContact) return h('span', { class: 'muted' }, '—');
@@ -897,7 +906,7 @@
       var l = list[i], st = activeStudentOf(l);
       var rec = Object.assign({}, l, { stage: won.id });
       if (st && !rec.studentId) rec.studentId = st.id;
-      rec.note = (l.note ? l.note + '\n' : '') + A.today() + ': eski o‘quvchi — sinovdan chiqarildi';
+      A.addLeadNote(rec, 'Eski o‘quvchi — sinovdan chiqarildi', App.user && App.user.name); rec.newNote = 'Eski o‘quvchi — sinovdan chiqarildi';
       await D.save('leads', rec);
     }
     await A.Ops.audit(App.user, 'Eski o’quvchilar sinovdan chiqarildi', list.length + ' ta', won.label);
@@ -1146,6 +1155,50 @@
     return det;
   }
   A.historyBlock = historyBlock;
+  /* Izoh vaqti: «14.11.2026 · Shanba · 17:09» */
+  function noteWhen(at) {
+    var s = String(at || '').replace('T', ' ');
+    if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return null;
+    var d = s.slice(0, 10), p = d.split('-'), wd = A.WEEKDAYS[A.weekdayOf(d) - 1] || '';
+    var td = A.today(), lbl = d === td ? 'Bugun' : (d === A.addDays(td, -1) ? 'Kecha' : p[2] + '.' + p[1] + '.' + p[0]);
+    return { day: lbl + (lbl === 'Bugun' || lbl === 'Kecha' ? '' : ' · ' + wd), time: s.slice(11, 16) };
+  }
+  /** Mijoz tomonida ham izoh qo'shish (server bilan bir xil qoida) */
+  A.addLeadNote = function (lead, text, by, at) {
+    var t = String(text || '').trim(); if (!lead || !t) return lead;
+    var notes = Array.isArray(lead.notes) ? lead.notes.slice() : [];
+    var old = String(lead.note || '').trim();
+    if (!notes.length && old && old !== t) notes.push({ at: '', by: '', text: old, legacy: true });
+    notes.push({ at: at || A.nowStamp(), by: by || '', text: t });
+    lead.notes = notes.slice(-100); lead.note = t;
+    return lead;
+  };
+  function leadNotesBox(lead, noteVal, movedFromNote, isNew) {
+    var notes = Array.isArray(lead.notes) ? lead.notes.slice() : [];
+    var legacy = String(movedFromNote ? noteVal : (lead.note || '')).trim();
+    if (!notes.length && legacy) {
+      /* Avvalgi yagona izoh: avtomatik kelgan murojaatda — kelgan vaqti, aks holda vaqti yozilmagan */
+      var auto = lead.viaSite || lead.viaForm || lead.viaBot || lead.viaMeta || lead.viaIntake;
+      notes.push({ at: auto ? lead.createdAt : '', by: '', text: legacy, legacy: true });
+    }
+    notes.reverse();
+    var ta = h('textarea', { class: 'ln-in', rows: 2, placeholder: isNew ? 'Izoh (ixtiyoriy): masalan, kechki guruh kerak, ertaga sinovga keladi' : 'Yangi izoh yozing — «Saqlash» bosilganda vaqti bilan qo‘shiladi' });
+    var list = h('div', { class: 'ln-list' }, notes.map(function (n, i) {
+      var w = noteWhen(n.at);
+      return h('div', { class: 'ln-item' + (i === 0 ? ' last' : '') }, [
+        h('div', { class: 'ln-text' }, [i === 0 ? h('span', { class: 'ln-tag' }, 'Oxirgi') : null, n.text]),
+        h('div', { class: 'ln-meta' }, w
+          ? [h('b', {}, w.time), h('span', {}, w.day), n.by ? h('span', { class: 'ln-by' }, n.by) : null]
+          : [h('span', { class: 'muted' }, 'avvalgi izoh'), h('span', { class: 'muted' }, 'vaqti yozilmagan')])
+      ]);
+    }));
+    var node = h('div', { class: 'lead-sec ln' }, [
+      h('div', { class: 'lead-lbl' }, ['Izohlar', notes.length ? h('span', { class: 'ln-count' }, notes.length + ' ta') : null]),
+      ta,
+      notes.length ? list : null
+    ]);
+    return { node: node, value: function () { return String(ta.value || '').trim(); } };
+  }
   function leadLogRows(lead, funnel) {
     var ev = [];
     (lead.stageLog || []).forEach(function (e) { if (e.from) ev.push({ at: e.at, t: '📌 ' + A.stageOf(funnel, e.from).label + ' → ' + A.stageOf(funnel, e.to).label, by: e.by }); });
@@ -1338,12 +1391,10 @@
           owners.map(function (u) { return { value: u.id, label: u.name + ' · ' + (A.ROLES[u.role] || u.role) }; }),
           (lead.ownerStaffId && !D.one('users', lead.ownerStaffId) && D.one('staff', lead.ownerStaffId))
             ? [{ value: lead.ownerStaffId, label: D.one('staff', lead.ownerStaffId).name }] : [])
-      },
-      {
-        name: 'note', label: 'Izoh', type: 'textarea', value: noteVal, full: true, rows: 3,
-        placeholder: 'Masalan: 27.10 — gaplashdik, kechki guruh kerak, ertaga sinovga keladi'
       }
     ]);
+    /* --- Izohlar: har biri alohida, sana · hafta kuni · soat:daqiqa bilan; eng oxirgisi tepada --- */
+    var notesBox = leadNotesBox(lead, noteVal, movedFromNote, isNew);
 
     /* --- kam o'zgaradiganlar --- */
     var fx = UI.form([
@@ -1564,6 +1615,7 @@
     function collect() {
       if (!f.validate() || !fx.validate()) { if (!fx.validate()) extra.open = true; return null; }
       var v = Object.assign({}, fx.values(), f.values(), { stage: stage });
+      var nn = notesBox.value();
       var g = v.groupId ? D.one('groups', v.groupId) : null;
       if (g && g.courseId) v.courseId = g.courseId;
       if (movedFromNote) v.metaAnswers = answers;
@@ -1581,6 +1633,8 @@
         }
       }
       var rec0 = Object.assign({}, lead, v, { phone: A.normPhone(v.phone) });
+      if (movedFromNote && !nn) rec0.note = noteVal;
+      if (nn) { A.addLeadNote(rec0, nn, App.user && App.user.name); rec0.newNote = nn; }
       if (v.phone2 && A.phoneDigits(v.phone2).length >= 7) rec0.phone2 = A.normPhone(v.phone2); else delete rec0.phone2;
       return rec0;
     }
@@ -1606,7 +1660,7 @@
           h('summary', {}, 'Forma javoblari' + (lead.formTitle ? ' — ' + lead.formTitle : '')),
           A.formAnswersBlock(lead)
         ]) : null,
-        f.node, dupBox, extra,
+        f.node, notesBox.node, dupBox, extra,
         !isNew ? historyBlock('leads/' + lead.id, App, function () { App.render(); }, leadLogRows(lead, curFunnel)) : null
       ].filter(Boolean),
       actions: [

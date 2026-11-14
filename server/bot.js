@@ -692,7 +692,7 @@ async function trialTick(nowMs) {
     } else {
       trials.delete(id); lead.trialPostAt = stamp();
       lead.nextContact = tashkentNow(now).date;
-      lead.note = [lead.note, 'Sinov darsi o‘tdi (' + String(lead.trialDate).slice(0, 10) + ' ' + when + ') — qayta aloqa'].filter(Boolean).join('\n').slice(0, 1500);
+      require('./lead-notes').addNote(lead, 'Sinov darsi o‘tdi (' + String(lead.trialDate).slice(0, 10) + ' ' + when + ') — qayta aloqa', 'Bot', stamp());
       text = '🎓 <b>Sinov darsi tugadi — hoziroq qo‘ng‘iroq qiling!</b>\n\n' + leadInfoText(lead) +
         (g ? '\n🎓 Guruh: ' + esc(g.name || '') : '') +
         '\n\n1) Darsga keldimi? 2) Taassuroti qanday? 3) Guruhga yozish va to‘lov.\n' +
@@ -741,7 +741,6 @@ async function onCallback(cq) {
   const who = (u && u.name) || [cq.from && cq.from.first_name, cq.from && cq.from.last_name].filter(Boolean).join(' ') || 'Xodim';
   if (!lead.contactedAt) {
     lead.contactedAt = stamp(); lead.contactedBy = who;
-    lead.note = [lead.note, 'Bog‘lanildi: ' + who + ' (' + lead.contactedAt + ')'].filter(Boolean).join(' · ').slice(0, 1500);
     await store.set('leads/' + id, lead);
   }
   if (cq.message) {
@@ -1240,7 +1239,7 @@ async function saveGuestQuestion(chatId, st, from, q, phone) {
   let lead = st.leadId ? await store.get('leads/' + st.leadId) : null;
   const name = String((from && (from.first_name || '')) + ' ' + ((from && from.last_name) || '')).trim().slice(0, 60) || 'Telegram';
   if (lead) {
-    lead = Object.assign({}, lead, { note: (lead.note ? lead.note + '\n' : '') + 'Botdan savol: ' + q, nextContact: A.today() });
+    lead = require('./lead-notes').addNote(Object.assign({}, lead, { nextContact: A.today() }), 'Botdan savol: ' + q, 'Bot', stamp());
   } else {
     const funnels = await listCol('funnels');
     const funnel = funnels.filter(f => f.isDefault)[0] || funnels[0];
