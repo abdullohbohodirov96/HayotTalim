@@ -5413,3 +5413,6 @@ body.lesson-mode .nb-head{margin-bottom:6px}
 .ln-by{font-size:11px;opacity:.85}
 .ln-cell{display:flex;flex-direction:column;max-width:240px}
 .ln-cell-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lf-bar .filters{margin-bottom:10px}
+.lf-stages .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.lf-stages .seg button{white-space:nowrap}

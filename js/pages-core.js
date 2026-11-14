@@ -934,8 +934,8 @@
     function chip(text, clear) {
       chips.push(h('span', { class: 'lf-chip' }, [text, h('button', { type: 'button', 'aria-label': 'Olib tashlash', onclick: function () { var nf = JSON.parse(JSON.stringify(F)); clear(nf); goF(nf); } }, '×')]));
     }
-    if (F.stage.length) chip('Holat: ' + F.stage.map(function (id) { return A.stageOf(funnel, id).label; }).join(', '), function (nf) { nf.stage = []; });
-    if (F.from || F.to) chip('📅 ' + dateText(F), function (nf) { nf.from = nf.to = ''; });
+    /* Holat va sana — tepadagi doimiy tugmalarda ko'rinadi; chip faqat bir nechta holat tanlanganda */
+    if (F.stage.length > 1) chip('Holat: ' + F.stage.map(function (id) { return A.stageOf(funnel, id).label; }).join(', '), function (nf) { nf.stage = []; });
     if (F.trial) chip('🎯 ' + (STATE_L[F.trial] || F.trial), function (nf) { nf.trial = ''; });
     if (F.pay) chip(F.pay === 'paid' ? '💰 To‘lagan' : '⏳ To‘lamagan', function (nf) { nf.pay = ''; });
     if (F.came) chip({ keldi: '✅ Keldi', kelmadi: '❌ Kelmadi', none: 'Kelgani belgilanmagan' }[F.came], function (nf) { nf.came = ''; });
@@ -950,7 +950,30 @@
     q.addEventListener('search', function () { if (!q.value && F.q) { var nf = JSON.parse(JSON.stringify(F)); nf.q = ''; goF(nf); } });
     var btn = h('button', { type: 'button', class: 'lf-btn' + (chips.length ? ' on' : ''), title: 'Filtr', onclick: function () { openPanel(); } }, [
       UI.icon('sliders'), h('span', {}, 'Filtr'), chips.length ? h('i', { class: 'lf-n' }, String(chips.length)) : null]);
+    /* --- Avvalgidek: holat tugmalari (soni bilan) va kelgan sana — doim ko'rinib turadi --- */
+    function setF(patch) { var nf = JSON.parse(JSON.stringify(F)); Object.keys(patch).forEach(function (k) { nf[k] = patch[k]; }); goF(nf); }
+    function cntWith(patch) { var f2 = Object.assign({}, F, patch); return allLeads.filter(function (l) { return match(l, f2); }).length; }
+    var curStage = F.stage.length === 1 ? F.stage[0] : (F.stage.length ? 'multi' : 'all');
+    var stageSeg = h('div', { class: 'filters lf-stages' }, [h('div', { class: 'seg' },
+      [{ id: 'all', label: 'Barchasi', n: cntWith({ stage: [] }) }].concat(stages.map(function (st) { return { id: st.id, label: st.label, n: cntWith({ stage: [st.id] }) }; }))
+        .map(function (s) {
+          return h('button', { type: 'button', 'aria-pressed': curStage === s.id ? 'true' : 'false',
+            onclick: function () { setF({ stage: s.id === 'all' ? [] : [s.id] }); } }, s.label + ' (' + s.n + ')');
+        }))]);
+    var inF = h('input', { type: 'date', value: F.from || '', 'aria-label': 'Sanadan', max: today });
+    var inT = h('input', { type: 'date', value: F.to || '', 'aria-label': 'Sanagacha', max: today });
+    function applyRange() { var f = inF.value, t = inT.value; if (f && t && f > t) { var x = f; f = t; t = x; } setF({ from: f, to: t }); }
+    inF.onchange = applyRange; inT.onchange = applyRange;
+    var dateRow = h('div', { class: 'filters lead-dates' }, [
+      h('span', { class: 'small muted', style: 'font-weight:600' }, '📅 Kelgan sana:'),
+      h('div', { class: 'seg' }, [{ id: 'all', label: 'Hammasi', f: '', t: '' }].concat(PRESETS).map(function (pr) {
+        var on = pr.f === (F.from || '') && pr.t === (F.to || '');
+        return h('button', { type: 'button', 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ from: pr.f, to: pr.t }); } }, pr.label);
+      })),
+      h('label', { class: 'lead-range' }, [inF, h('span', { class: 'muted' }, '—'), inT])
+    ]);
     var bar = h('div', { class: 'lf-bar' }, [
+      stageSeg, dateRow,
       h('div', { class: 'lf-top' }, [btn, q,
         h('span', { class: 'lf-count' }, shown + ' ta'),
         App.can('bot.broadcast') && A.Bot ? h('button', { class: 'btn sm lf-bc', title: 'Botdagilarga xabar', onclick: onBroadcast }, [UI.icon('bot'), h('span', {}, 'Botdagilarga xabar')]) : null]),
