@@ -708,7 +708,7 @@
         label: 'Keyingi aloqa', render: function (l) {
           if (!l.nextContact) return h('span', { class: 'muted' }, '—');
           var late = l.nextContact <= today && !isClosed(funnel, l.stage);
-          return h('span', { class: late ? 'pill bad' : 'mono' }, A.dateLabel(l.nextContact));
+          return h('span', { class: late ? 'pill bad' : 'mono' }, A.dateLabel(l.nextContact) + (l.nextContactTime ? ' · ' + l.nextContactTime : ''));
         }
       },
       {
@@ -813,7 +813,8 @@
         if (l.trialCame) badges.push(UI.pill(l.trialCame === 'keldi' ? '✅ Keldi' : '❌ Kelmadi', l.trialCame === 'keldi' ? 'ok' : 'bad'));
         if (l.trialDate) badges.push(UI.pill('📅 ' + trialLabel(l), ts === 'today' ? 'warn' : 'info'));
       }
-      if (late) badges.push(UI.pill('📞 ' + A.dateLabel(l.nextContact), 'bad'));
+      if (late) badges.push(UI.pill('📞 ' + A.dateLabel(l.nextContact) + (l.nextContactTime ? ' ' + l.nextContactTime : ''), 'bad'));
+      else if (l.nextContactTime && l.nextContact && !isClosed(funnel, l.stage)) badges.push(UI.pill('⏰ ' + A.dateLabel(l.nextContact) + ' ' + l.nextContactTime, 'info'));
       var el = h('div', {
         class: 'kb-card', draggable: canEdit ? 'true' : null, tabindex: '0', role: 'button', 'aria-label': l.name,
         onclick: function (e) { if (e.target.closest('a,button')) return; if (canEdit) leadForm(l, App); },
@@ -1220,6 +1221,45 @@
     return det;
   }
   A.historyBlock = historyBlock;
+  /* ---- Brauzer bildirishnomasi: qayta aloqa vaqti (ERP ochiq turganda) ---- */
+  A.askNotifyPermission = function () {
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) { }
+  };
+  var remWatchT = null;
+  A.startLeadReminders = function (App) {
+    if (remWatchT || !('Notification' in window)) return;
+    function shownKey(k) { try { var o = JSON.parse(localStorage.getItem('ht_remshown') || '{}'); return o[k]; } catch (e) { return false; } }
+    function markShown(k) { try { var o = JSON.parse(localStorage.getItem('ht_remshown') || '{}'); o[k] = Date.now(); var ks = Object.keys(o); if (ks.length > 300) ks.slice(0, ks.length - 300).forEach(function (x) { delete o[x]; }); localStorage.setItem('ht_remshown', JSON.stringify(o)); } catch (e) { } }
+    function check() {
+      if (Notification.permission !== 'granted' || !App.user) return;
+      var me = App.user, now = Date.now();
+      D.all('leads').forEach(function (l) {
+        if (!l.nextContact || !l.nextContactTime) return;
+        var mine = l.ownerStaffId ? (l.ownerStaffId === me.id || (me.staffId && l.ownerStaffId === me.staffId)) : (l.remById ? l.remById === me.id : App.can('lead.edit'));
+        if (!mine) return;
+        var at = Date.parse(String(l.nextContact).slice(0, 10) + 'T' + l.nextContactTime + ':00+05:00');
+        if (!at || now < at - 15 * 60000 || now > at + 10 * 60000) return;
+        var fn = D.one('funnels', l.funnelId) || A.DEFAULT_FUNNELS[0];
+        if (isClosed(fn, l.stage)) return;
+        var kind = now >= at ? 'at' : 'pre', k = l.id + '_' + l.nextContact + '_' + l.nextContactTime + '_' + kind;
+        if (shownKey(k) || (kind === 'pre' && shownKey(k.replace(/_pre$/, '_at')))) return;
+        markShown(k);
+        var title = kind === 'pre' ? '⏰ 15 daqiqadan keyin qayta aloqa' : '📞 Qayta aloqa vaqti keldi';
+        var opts = { body: (l.name || '') + ' · ' + (l.phone || '') + (l.note ? '\n' + String(l.note).split('\n').pop().slice(0, 120) : ''),
+          tag: 'lead-' + l.id, icon: 'assets/icon-192.png', requireInteraction: kind === 'at' };
+        try {
+          var n = new Notification(title, opts);
+          n.onclick = function () { try { window.focus(); } catch (e) { } leadForm(l, App); n.close(); };
+        } catch (e) {
+          /* Telefonda (Android) bildirishnoma faqat service worker orqali */
+          try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (reg) { reg.showNotification(title, opts); }); } catch (x) { }
+        }
+        UI.toast(title + ': ' + (l.name || ''), 'info');
+      });
+    }
+    remWatchT = setInterval(check, 30000); setTimeout(check, 3000);
+  };
+
   /* Izoh vaqti: «14.11.2026 · Shanba · 17:09» */
   function noteWhen(at) {
     var s = String(at || '').replace('T', ' ');
@@ -1430,6 +1470,7 @@
       },
       { name: 'phone2', label: 'Qo’shimcha telefon', value: lead.phone2 || '', placeholder: 'ixtiyoriy' },
       { name: 'nextContact', label: 'Keyingi bog’lanish', type: 'date', value: lead.nextContact },
+      { name: 'nextContactTime', label: 'Vaqti (eslatma)', type: 'time', value: lead.nextContactTime || '', hint: '15 daqiqa oldin va o‘sha vaqtda Telegram + bildirishnoma' },
       {
         /* Qaysi guruhga yozilmoqchi — o'quvchiga o'tkazganda shu guruh o'zi tanlanadi */
         name: 'groupId', label: 'Guruh (sinov darsi shu guruhda)', type: 'select', value: lead.groupId,
@@ -1681,6 +1722,8 @@
       if (!f.validate() || !fx.validate()) { if (!fx.validate()) extra.open = true; return null; }
       var v = Object.assign({}, fx.values(), f.values(), { stage: stage });
       var nn = notesBox.value();
+      if (v.nextContactTime && !v.nextContact) v.nextContact = A.today();
+      if (v.nextContactTime) A.askNotifyPermission();
       var g = v.groupId ? D.one('groups', v.groupId) : null;
       if (g && g.courseId) v.courseId = g.courseId;
       if (movedFromNote) v.metaAnswers = answers;

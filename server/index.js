@@ -1595,6 +1595,12 @@ async function activatePlannedGroups() {
   }
 }
 function startZoom() {
+  /* Qayta aloqa eslatmalari (kun + vaqt): har daqiqada, xotiradagi nusxadan */
+  const lr = setInterval(() => {
+    let bot = null; try { bot = require('./bot'); } catch (e) { return; }
+    require('./lead-remind').tick(store, A, bot).catch(e => console.error('qayta aloqa eslatmasi:', e.message));
+  }, 60 * 1000);
+  if (lr.unref) lr.unref();
   activatePlannedGroups().catch(e => console.error('guruh holati:', e.message));
   const ag = setInterval(() => { if (quiet.due('grpactivate', 60 * 60 * 1000, 10 * 60 * 1000)) activatePlannedGroups().catch(() => { }); }, 5 * 60 * 1000);
   if (ag.unref) ag.unref();
@@ -1974,6 +1980,12 @@ function leadTrack(oldLead, d, user, noAnsTap) {
     if (oldLead && oldLead[k] !== undefined) d[k] = oldLead[k]; else delete d[k];
   });
   delete d.noAnswerAdd;
+  /* Qayta aloqa vaqti: kim qo'ygani (mas'ul bo'lmasa eslatma shu xodimga boradi) */
+  d.nextContactTime = /^\d{2}:\d{2}$/.test(String(d.nextContactTime || '')) ? d.nextContactTime : '';
+  if (!d.nextContactTime) delete d.nextContactTime;
+  if (!oldLead || String(oldLead.nextContact || '') !== String(d.nextContact || '') || String(oldLead.nextContactTime || '') !== String(d.nextContactTime || '')) {
+    if (d.nextContactTime) { d.remById = user.id; d.remByName = who; } else { delete d.remById; delete d.remByName; }
+  } else if (oldLead) { if (oldLead.remById) { d.remById = oldLead.remById; d.remByName = oldLead.remByName; } else { delete d.remById; delete d.remByName; } }
   /* Izohlar tarixi: har yangi izoh vaqti va muallifi bilan alohida saqlanadi (mijoz o'zgartira olmaydi) */
   {
     const oldNote = oldLead ? String(oldLead.note || '') : '';

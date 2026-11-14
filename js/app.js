@@ -3840,6 +3840,7 @@
   async function startSession(user) {
     App.user = user;
     pingAs('erp');
+    setTimeout(function () { if (A.startLeadReminders && App.user && App.can && App.can('nav.leads')) A.startLeadReminders(App); }, 2000);
     /* Xodimlar paneli skriptlari — faqat kirgandan keyin */
     if (A.bundleReady && !A.bundleReady('erp')) {
       try { await A.loadBundle('erp'); }
