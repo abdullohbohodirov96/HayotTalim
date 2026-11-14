@@ -649,8 +649,15 @@
           if (A0P.cur) A0P.cur.pause();
           var a = new Audio(url); A0P.cur = a;
           if (rate) a.playbackRate = rate;
-          a.onended = fin; a.onerror = function () { if (fallbackAr && A.CourseSay) { try { A.CourseSay(fallbackAr, 0.8); } catch (e) { } setTimeout(fin, 1500); } else fin(); };
-          var p = a.play(); if (p && p.catch) p.catch(a.onerror);
+          var fell = false;
+          var onFail = function (e) {
+            if (fell) return; fell = true;   /* onerror va play().catch ikkalasi kelsa — bir marta */
+            if (e && e.name === 'AbortError') { fin(); return; }   /* boshqa ovoz bosilib to'xtatildi */
+            if (fallbackAr && A.CourseSay) { var r2; try { r2 = A.CourseSay(fallbackAr, 0.8); } catch (x) { } if (r2 && r2.then) r2.then(fin, fin); setTimeout(fin, 6000); } else fin();
+          };
+          a.onended = fin; a.onerror = onFail;
+          a.addEventListener('pause', function () { if (!a.ended) fin(); });   /* boshqa ovoz bosilsa — kutib qolmasin */
+          var p = a.play(); if (p && p.catch) p.catch(onFail);
           setTimeout(fin, 90000);
         } catch (e) { fin(); }
       });

@@ -84,10 +84,13 @@
         var au = new Audio(url);
         current = au;
         if (opts.rate && opts.rate < 0.8) au.playbackRate = 0.85;
+        /* Xato bo'lsa brauzer ovoziga BIR marta o'tamiz (onerror va play().catch ikkalasi ham kelishi mumkin — ikki marta o'qimasin) */
+        var fell = false;
+        function fallback() { if (fell) return; fell = true; if (current === au) current = null; if (au.paused === false) return; viaSynth(text, opts, wasBusy).then(resolve); }
         au.onended = function () { if (current === au) current = null; resolve(true); };
-        au.onerror = function () { if (current === au) current = null; viaSynth(text, opts, wasBusy).then(resolve); };
+        au.onerror = fallback;
         au.play().then(function () { log('fayl chalindi', text); if (opts.onStart) opts.onStart(); })
-          .catch(function () { viaSynth(text, opts, wasBusy).then(resolve); });
+          .catch(function (e) { if (e && e.name === 'AbortError') { if (current === au) current = null; resolve(true); return; } fallback(); });
       });
     }
     return viaSynth(text, opts, wasBusy);

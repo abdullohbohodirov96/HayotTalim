@@ -737,13 +737,23 @@
       run(i, st.token);
     }
     setBtn();
+    /* Boshqa joyda (qissa tashqarisida) ovoz bosilsa — qissa jim bo'ladi */
+    var lastDown = null, lastDownT = 0;
+    var onDown = function (e) { lastDown = e.target; lastDownT = Date.now(); };
+    var onOther = function () {
+      if (!st.playing || !lastDown || Date.now() - lastDownT > 2000) return;
+      if (root.contains(lastDown)) return;
+      pause();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    global.addEventListener('ht-audio-start', onOther);
 
     /* Render (MP4) rejimi: vaqtlar tashqaridan beriladi, ovoz alohida qo'shiladi */
     function renderRun(timing) {
       reset(); st.token++; st.playing = true; big.hidden = true;
       return run(0, st.token, timing);
     }
-    return { play: play, pause: pause, restart: restart, jump: jump, next: function () { jump((st.idx || 0) + 1); }, prev: function () { jump(Math.max(0, (st.idx || 0) - 1)); }, isPlaying: function () { return !!st.playing; }, renderRun: renderRun, destroy: function () { pause(); root.remove(); } };
+    return { play: play, pause: pause, restart: restart, jump: jump, next: function () { jump((st.idx || 0) + 1); }, prev: function () { jump(Math.max(0, (st.idx || 0) - 1)); }, isPlaying: function () { return !!st.playing; }, renderRun: renderRun, destroy: function () { pause(); document.removeEventListener('pointerdown', onDown, true); global.removeEventListener('ht-audio-start', onOther); root.remove(); } };
   }
 
   /** MP4 uchun vaqt jadvali: ovoz fayllari davomiyligidan (soniya) */

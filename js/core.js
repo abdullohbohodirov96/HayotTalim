@@ -1,3 +1,43 @@
+/* ===== Ovoz nazorati: bir vaqtda faqat BITTA ovoz =====
+   Kabinetda ovoz ko'p joydan chiqadi (harf, so'z, qissa, lug'at, audio pleer).
+   Bittasi o'ynab turganda boshqasi bosilsa — avvalgisi darhol jim bo'ladi,
+   yangisi o'ynaydi. «Stop» bosish shart emas. Ovozsiz (muted) videolarga tegmaydi. */
+(function (g) {
+  if (typeof g.HTMLMediaElement === 'undefined' || g.__htAudioGuard) return;
+  g.__htAudioGuard = true;
+  var playing = new Set();
+  function quiet(except) {
+    playing.forEach(function (m) {
+      if (m === except) return;
+      try { if (!m.paused) m.pause(); } catch (e) { }
+      playing.delete(m);
+    });
+  }
+  function claim(m) {
+    if (!m || m.muted) return;
+    quiet(m);
+    try { if (g.speechSynthesis && (g.speechSynthesis.speaking || g.speechSynthesis.pending)) g.speechSynthesis.cancel(); } catch (e) { }
+    playing.add(m);
+    try { g.dispatchEvent(new CustomEvent('ht-audio-start', { detail: m })); } catch (e) { }
+  }
+  var P = g.HTMLMediaElement.prototype, orig = P.play;
+  P.play = function () { claim(this); return orig.apply(this, arguments); };
+  /* Brauzerning o'z «▶» tugmasi (controls) JS orqali emas — 'play' hodisasini ushlaymiz */
+  g.document && g.document.addEventListener('play', function (e) { if (e.target && e.target !== g.document) { if (!playing.has(e.target)) claim(e.target); } }, true);
+  ['pause', 'ended', 'emptied'].forEach(function (ev) {
+    g.document && g.document.addEventListener(ev, function (e) { playing.delete(e.target); }, true);
+  });
+  /* Brauzer ovozi (TTS) boshlansa ham fayllar jim bo'ladi */
+  try {
+    var ss = g.speechSynthesis;
+    if (ss && ss.speak) {
+      var sp = ss.speak.bind(ss);
+      ss.speak = function (u) { quiet(null); try { g.dispatchEvent(new CustomEvent('ht-audio-start', { detail: u })); } catch (e) { } return sp(u); };
+    }
+  } catch (e) { }
+  g.HTAudio = { stopAll: function () { quiet(null); try { g.speechSynthesis && g.speechSynthesis.cancel(); } catch (e) { } } };
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* Albyana ERP — asos: yordamchi funksiyalar va ma'lumotlar qatlami */
 (function (global) {
   'use strict';
