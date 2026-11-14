@@ -14,6 +14,7 @@ const { A, settingsForClient, writePermFor, readBlocked, safeUser, safeStaff, sa
 const backup = require('./backup');
 const kabinet = require('./kabinet');
 const leadSplit = require('./lead-split');
+const online = require('./online');
 const gamify = require('./gamify');
 const pace = require('./pace');
 const books = require('./books');
@@ -2108,6 +2109,16 @@ async function handleApi(req, res, url) {
 
   if (route === 'health') return send(res, 200, { ok: true, mode: store.kind });
 
+  /* ---------- Jonli statistika: hozir saytda nechta odam ----------
+     Brauzer har daqiqada «men shu yerdaman» deydi. Hisob faqat server XOTIRASIDA —
+     bazaga yozilmaydi (Neon uyg'onmaydi, pul ketmaydi). Server qayta ishga tushsa nolga tushadi. */
+  if (route === 'ping' && req.method === 'POST') {
+    let b = {}; try { b = await readBody(req, 512); } catch (e) { b = {}; }
+    const sid = String(b.sid || ''), kind = ['site', 'kabinet', 'erp'].indexOf(b.kind) >= 0 ? b.kind : 'site';
+    if (/^[a-z0-9]{8,40}$/i.test(sid)) online.touch(sid, kind);
+    res.writeHead(204, { 'Cache-Control': 'no-store' }); return res.end();
+  }
+
   /* ---------- O'quvchi kabineti: shaxsiy kod bo'yicha kirish ----------
      Markaz rahbari shu yo'lni tanladi: o'quvchi faqat 4 xonali kodini
      yozadi va kabinetiga kiradi.
@@ -2827,6 +2838,7 @@ async function handleApi(req, res, url) {
       out.about = String(s.about || '');
       out.telegram = String((s.bot && s.bot.username) || '');
       out.instagram = String(s.instagram == null ? SITE.LINKS[0].url : s.instagram);
+      out.gaId = /^G-[A-Z0-9]{4,16}$/.test(process.env.GA_MEASUREMENT_ID || '') ? process.env.GA_MEASUREMENT_ID : '';
       // Kurslar: faqat nomi va (ruxsat berilgan bo'lsa) oylik narxi
       /* Tartibni MARKAZ belgilaydi: `order` kichik bo'lgani birinchi
          turadi. Saytda asosiy narx shu birinchi kursdan olinadi.       */
@@ -3354,6 +3366,10 @@ async function handleApi(req, res, url) {
   if (!user) return send(res, 401, { error: 'Kirish talab qilinadi.' });
 
   if (route === 'me') return send(res, 200, { user: safeUser(user) });
+  if (route === 'online' && req.method === 'GET') {
+    if (!(A.can(user, 'nav.leads') || A.can(user, 'settings.edit'))) return send(res, 403, { error: 'Ruxsat yo’q.' });
+    return send(res, 200, online.stats());
+  }
 
   /* --- Guruhning Telegram taklif havolasi (sinov xabari uchun) --- */
   if (route === 'group-invite') {
@@ -5296,7 +5312,7 @@ const server = http.createServer({ connectionsCheckingInterval: 5000 }, async (r
     return;
   }
   /* Odam murojaati — baza hozir uyg'oq (orqa fon ishlari shundan foydalanadi) */
-  if (url.pathname !== '/api/health' && (url.pathname.indexOf('/api/') === 0 || url.pathname === '/' || url.pathname === '/index.html')) quiet.human();
+  if (url.pathname !== '/api/health' && url.pathname !== '/api/ping' && (url.pathname.indexOf('/api/') === 0 || url.pathname === '/' || url.pathname === '/index.html')) quiet.human();
   try {
     if (url.pathname === '/bot-panel') { res.writeHead(302, { Location: '/bot-panel/' + url.search, 'Cache-Control': 'no-store' }); return res.end(); }
     if (url.pathname.indexOf('/bot-panel/') === 0) return await botPanelProxy(req, res, url);

@@ -295,6 +295,27 @@
       A.dateLabel(today) + ' · ' + (A.ROLES[user.role] || '')
     ));
 
+    /* Jonli: hozir saytda nechta odam (har 30 soniyada yangilanadi) */
+    if (D.mode === 'server' && (App.can('nav.leads') || App.can('settings.edit'))) {
+      var olBox = h('div', { class: 'ol-card' }, h('span', { class: 'muted small' }, 'Yuklanmoqda…'));
+      view.appendChild(olBox);
+      var olLoad = function () {
+        if (!document.body.contains(olBox)) { clearInterval(olT); return; }
+        D.api('GET', 'api/online').then(function (r) {
+          var L = r.live || {}, T = r.today || {};
+          UI.clear(olBox);
+          olBox.appendChild(h('div', { class: 'ol-now' }, [h('span', { class: 'ol-dot' }), h('b', {}, String(L.total || 0)), h('span', {}, 'kishi hozir onlayn')]));
+          olBox.appendChild(h('div', { class: 'ol-parts' }, [
+            h('span', {}, ['🌐 Saytda: ', h('b', {}, String(L.site || 0))]),
+            h('span', {}, ['🎓 Kabinetda: ', h('b', {}, String(L.kabinet || 0))]),
+            h('span', {}, ['💼 Xodimlar: ', h('b', {}, String(L.erp || 0))]),
+            h('span', { class: 'ol-today' }, ['Bugun jami: ', h('b', {}, String(T.total || 0)), ' (sayt ' + (T.site || 0) + ' · kabinet ' + (T.kabinet || 0) + ')'])
+          ]));
+        }).catch(function () { UI.clear(olBox); olBox.appendChild(h('span', { class: 'muted small' }, 'Onlayn statistika yangi versiyada ko‘rinadi.')); });
+      };
+      var olT = setInterval(olLoad, 30000); olLoad();
+    }
+
     // Demo eslatmasi
     if (D.all('students').some(function (s) { return s.demo; }) && App.can('settings.edit')) {
       view.appendChild(h('div', { class: 'banner info' }, [

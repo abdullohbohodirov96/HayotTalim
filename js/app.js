@@ -620,6 +620,7 @@
   function renderKabinet(prefill) {
     if (withBundle('course', function () { renderKabinet(prefill); })) return;
     if (dupView('kabinet')) return;
+    pingAs('kabinet'); publicInfo().then(function () { gaPage('Kabinet'); });
     leaveSite();
     hidePreRender();
     document.getElementById('boot').hidden = true;
@@ -1207,6 +1208,7 @@
      Uch til: o'zbek, rus, arab (arabchada sahifa o'ngdan chapga). */
   function renderTest() {
     if (dupView('test')) return;
+    pingAs('site'); publicInfo().then(function () { gaPage('Daraja testi'); });
     leaveSite();
     hidePreRender();
     document.getElementById('boot').hidden = true;
@@ -1542,6 +1544,46 @@
       }),
       levels: A.LevelsLocal && A.LevelsLocal.levelList ? A.LevelsLocal.levelList('uz').map(function (l) { return { code: l.code, name: l.name, about: l.about }; }) : []
     };
+  }
+
+  /* ---- Statistika: Google Analytics (bepul) + «hozir saytda» hisoblagichi ----
+     GA faqat ochiq sahifalarda (sayt, kabinet, test) — xodimlar paneli hisobga kirmaydi. */
+  var GA_ON = false;
+  function gaPage(title) {
+    try {
+      var id = (PUBLIC && PUBLIC.gaId) || '';
+      if (!id || D.mode !== 'server') return;
+      if (!GA_ON) {
+        GA_ON = true;
+        global.dataLayer = global.dataLayer || [];
+        global.gtag = function () { global.dataLayer.push(arguments); };
+        global.gtag('js', new Date());
+        global.gtag('config', id, { anonymize_ip: true, send_page_view: false });
+        var sc = document.createElement('script'); sc.async = true; sc.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+        document.head.appendChild(sc);
+      }
+      global.gtag('event', 'page_view', { page_title: title, page_location: location.origin + '/' + (title === 'Bosh sahifa' ? '' : '#' + title.toLowerCase().replace(/\s+/g, '-')) });
+    } catch (e) { }
+  }
+  var PING = { kind: 'site', t: null, sid: '' };
+  function pingSend() {
+    if (document.hidden || !PING.sid) return;
+    var body = JSON.stringify({ sid: PING.sid, kind: PING.kind });
+    try {
+      if (navigator.sendBeacon) navigator.sendBeacon('api/ping', new Blob([body], { type: 'application/json' }));
+      else fetch('api/ping', { method: 'POST', body: body, headers: { 'Content-Type': 'application/json' }, keepalive: true, credentials: 'same-origin' });
+    } catch (e) { }
+  }
+  function pingAs(kind) {
+    if (D.mode !== 'server') return;
+    PING.kind = kind;
+    if (!PING.sid) {
+      try { PING.sid = sessionStorage.getItem('ht_sid') || ''; } catch (e) { }
+      if (!PING.sid) { PING.sid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); try { sessionStorage.setItem('ht_sid', PING.sid); } catch (e) { } }
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) pingSend(); });
+    }
+    pingSend();
+    if (!PING.t) PING.t = setInterval(pingSend, 60000);
   }
 
   async function publicInfo() {
@@ -2843,6 +2885,7 @@
 
     async function fillPublic() {
       var d = await publicInfo();
+      pingAs('site'); gaPage('Bosh sahifa');
 
       if (d.centerName) {
         ['site-name', 'site-name-hero', 'foot-name'].forEach(function (k) { setText(k, d.centerName); });
@@ -3796,6 +3839,7 @@
 
   async function startSession(user) {
     App.user = user;
+    pingAs('erp');
     /* Xodimlar paneli skriptlari — faqat kirgandan keyin */
     if (A.bundleReady && !A.bundleReady('erp')) {
       try { await A.loadBundle('erp'); }
