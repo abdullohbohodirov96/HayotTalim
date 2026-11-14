@@ -72,6 +72,20 @@ const PAGES = [
     desc: 'Arab alifbosi noldan: 28 harf, har bir harfning chiqish joyi (maxraj), unlilar va o‘qish. Misrlik ustoz bilan to‘g‘ri talaffuz. Darsga yoziling.',
     h1: 'Arab alifbosini o‘rganish',
     lead: 'Arab tili alifbodan boshlanadi. 28 harfni, har birining og‘izdagi chiqish joyini va unlilarni (a, i, u) ustoz bilan jonli o‘rganasiz — talaffuz boshidan to‘g‘ri qo‘yiladi.',
+    body: [
+      ['Arab alifbosi qanday tuzilgan?', [
+        'Arab alifbosida 28 ta harf bor va yozuv o‘ngdan chapga yoziladi. Ko‘pchilik harflar so‘z ichida qayerda turganiga qarab (boshida, o‘rtasida, oxirida yoki alohida) shaklini biroz o‘zgartiradi — shuning uchun har bir harfni to‘rt ko‘rinishda tanib olish o‘rgatiladi.',
+        'Arab yozuvida qisqa unlilar (a, i, u) harf sifatida yozilmaydi — ular harf ustiga yoki ostiga qo‘yiladigan belgilar (harakatlar) bilan ko‘rsatiladi. Boshlang‘ich bosqichda matnlar shu belgilar bilan o‘qiladi, keyinchalik belgisiz o‘qishga o‘tiladi.'
+      ]],
+      ['O‘zbek tilida yo‘q tovushlar', [
+        'Arab tilida o‘zbek tilida uchramaydigan bir nechta tovush bor: chuqur bo‘g‘iz tovushlari (masalan ح, ع), qalin talaffuz qilinadigan harflar (ص, ض, ط, ظ) va tishlar orasidan chiqadigan tovushlar (ث, ذ). Aynan shu joyda ko‘pchilik xato qiladi.',
+        'Shuning uchun talaffuzni ona tili arab tili bo‘lgan ustozdan o‘rganish muhim: ustoz har bir harfni qanday chiqarishni ko‘rsatadi, siz takrorlaysiz va xatongiz o‘sha zahoti tuzatiladi.'
+      ]],
+      ['Darslarda alifbo qanday o‘rganiladi?', [
+        'Har darsda bir nechta harf: avval tovushi, keyin yozilishi, keyin shu harflar bilan bo‘g‘in va so‘z o‘qish. Darsdan keyin kabinetda shu harflar bo‘yicha interaktiv mashqlar va videodars turadi — uyda takrorlaysiz.',
+        'Alifbo tugagach, darhol oddiy so‘zlar va qisqa gaplarni o‘qishga o‘tasiz. Maqsad — faqat harflarni bilish emas, balki ravon o‘qish va o‘qiganini tushunish.'
+      ]]
+    ],
     extra: [['Alifboni o‘rganish qancha vaqt oladi?', 'Odatda birinchi oyda harflarni tanib, so‘zlarni o‘qiy boshlaysiz. Kabinetdagi interaktiv mashqlar bilan har kuni takrorlab borasiz.']]
   },
   {
@@ -107,6 +121,86 @@ const PAGES = [
     extra: [['Nega ona tili arab bo‘lgan ustoz muhim?', 'Talaffuz, intonatsiya va jonli so‘zlashuv ona tilida gapiradigan odamdan eng to‘g‘ri o‘rganiladi — siz kitobdagi emas, haqiqiy arab tilini eshitasiz.']]
   },
   {
+    slug: 'arab-grammatikasi', lang: 'uz', group: 'kurs',
+    title: 'Arab tili grammatikasi noldan — nahv va sarf oddiy tilda | Sabo Academy',
+    desc: 'Arab grammatikasini noldan o‘rganing: so‘z turkumlari, fe’l zamonlari, gap tuzilishi (nahv va sarf). Misrlik ustoz bilan jonli onlayn darslar, kechki guruhlar ham bor.',
+    h1: 'Arab tili grammatikasi — noldan, tushunarli tilda',
+    lead: 'Arab grammatikasi qiyin tuyuladi, lekin to‘g‘ri tartibda o‘rganilsa — mantiqiy va tushunarli. Sabo Academy’da qoidalar yodlatilmaydi: har bir qoida jonli misollar va gapirish orqali mustahkamlanadi.',
+    body: [
+      ['Arab grammatikasi nimalardan iborat?', [
+        'Arab tili grammatikasi ikki qismdan iborat: sarf (so‘zning shakli — fe’llarning zamon va shaxs bo‘yicha o‘zgarishi, so‘z yasalishi) va nahv (gap tuzilishi — so‘zlarning gapdagi o‘rni va oxirining o‘zgarishi).',
+        'Arab tilida ko‘p so‘zlar uch harfli o‘zakdan yasaladi. Masalan, k-t-b o‘zagidan «yozdi», «kitob», «yozuvchi», «maktab» kabi so‘zlar chiqadi. Shu tizimni tushungan odam yangi so‘zlarni ancha tez o‘rganadi.'
+      ]],
+      ['Qaysi tartibda o‘rganiladi?', [
+        'A0 — alifbo va o‘qish. A1 — ot va sifat, rod (muzakkar/muannas), birlik va ko‘plik, olmoshlar, oddiy gaplar. A2 — o‘tgan va hozirgi zamon fe’llari, sonlar, predloglar. B1 — buyruq fe’li, fe’l shakllari (bob), murakkab gaplar. B2 va undan yuqori — erkin nutq va matn tahlili uchun chuqur grammatika.',
+        'Har bir mavzu jonli darsda tushuntiriladi, keyin kabinetdagi videodars, mashq va testlar bilan mustahkamlanadi. 60% dan yuqori natija qilsangiz, keyingi mavzu ochiladi — bilim bo‘shliq qolmaydi.'
+      ]],
+      ['Grammatikani yodlamasdan o‘rganish mumkinmi?', [
+        'Bizning usulda grammatika gapirish uchun vosita. Qoida avval misolda ko‘rsatiladi, siz shu qolip bilan o‘zingiz gap tuzasiz va ustoz bilan suhbatda ishlatasiz. Shunda qoida yodlanmaydi — o‘zlashtiriladi.'
+      ]]
+    ],
+    extra: [['Grammatikani boshlash uchun nima bilish kerak?', 'Arab harflarini o‘qiy olish kifoya. Harflarni bilmasangiz, A0 (alifbo) guruhidan boshlaysiz — bir oyda o‘qishga o‘tasiz.']]
+  },
+  {
+    slug: 'arab-tili-darajalari', lang: 'uz', group: 'kurs',
+    title: 'Arab tili darajalari A0, A1, A2, B1, B2, C1, C2 — qaysi biridasiz? | Sabo Academy',
+    desc: 'Arab tili darajalari A0 dan C2 gacha: har bir darajada nimani bilasiz va qancha vaqt kerak. Onlayn daraja testini topshirib, o‘zingizga mos guruhni toping.',
+    h1: 'Arab tili darajalari: A0 dan C2 gacha',
+    lead: 'Arab tilini qaysi darajada bilishingizni aniqlash — to‘g‘ri guruhni tanlashning birinchi qadami. Quyida har bir daraja oddiy tilda tushuntirilgan; saytdagi onlayn test esa darajangizni bir necha daqiqada aniqlaydi.',
+    body: [
+      ['Har bir darajada nimani bilasiz?', [
+        'A0 — Alifbo: 28 harf, harakatlar va bo‘g‘in o‘qish. Arab tilini noldan boshlaganlar uchun.',
+        'A1 — Boshlang‘ich: salomlashish, tanishuv, oddiy so‘z va gaplar, o‘zingiz haqingizda gapirish.',
+        'A2 — Asosiy: kundalik vaziyatlardagi gaplar, oddiy o‘tgan zamon, do‘kon, yo‘l, oila mavzulari.',
+        'B1 — O‘rta: suhbatni davom ettirish, oddiy matnlarni o‘qib tushunish, fe’l shakllari.',
+        'B2 — O‘rtadan yuqori: erkin suhbat, matn tahlili, o‘z fikrini asoslab aytish.',
+        'C1 — Yuqori: ilmiy va publitsistik matnlar, nozik ma’no farqlari.',
+        'C2 — Mukammal: adabiy matnlar, balog‘at va chuqur sarf-nahv.'
+      ]],
+      ['Bir darajadan ikkinchisiga qancha vaqtda o‘tiladi?', [
+        'Haftada 3 marta jonli dars va uyda muntazam takrorlash bilan noldan A2–B1 darajaga taxminan 1 yilda chiqiladi. Har bir daraja oxirida test bo‘ladi — natija kabinetingizda saqlanadi.'
+      ]],
+      ['Darajamni qanday bilaman?', [
+        'Bosh sahifadagi «Daraja testi»ni topshiring: savollar osondan qiyinga qarab boradi va oxirida darajangiz hamda tavsiya etilgan guruh ko‘rsatiladi. Natijani administratorga yuborib, mos guruhga yozilasiz.'
+      ]]
+    ],
+    extra: [['Test pullikmi?', 'Yo‘q, onlayn daraja testi hamma uchun ochiq va ro‘yxatdan o‘tishni talab qilmaydi.']]
+  },
+  {
+    slug: 'arab-tili-kechki-kurs', lang: 'uz', group: 'kurs',
+    title: 'Arab tili kechki kursi — ishdan keyin, uydan turib | Sabo Academy',
+    desc: 'Ishlaydiganlar uchun arab tili kechki guruhlari: ishdan keyin qulay vaqtda, Zoom’da jonli onlayn darslar. Noldan (A0) boshlab grammatika va gapirish. Darsga yoziling.',
+    h1: 'Arab tili kechki kursi — ishdan keyin',
+    lead: 'Kunduzi ishlaysiz yoki o‘qiysiz-u, arab tilini o‘rganishga vaqt topolmayapsizmi? Kechki guruhlar aynan siz uchun: ishdan keyin, uydan turib, ustoz bilan jonli darslar.',
+    body: [
+      ['Kechki guruh qanday ishlaydi?', [
+        'Darslar kechki vaqtda, Zoom’da jonli o‘tadi — yo‘lga vaqt ketmaydi, uydan yoki istalgan joydan qatnashasiz. Aniq dars vaqtlari bosh sahifadagi «Dars vaqtlari» bo‘limida ko‘rsatilgan.',
+        'Guruh noldan (A0) boshlanadi: avval alifbo va o‘qish, keyin grammatika va gapirish. Arab tilini umuman bilmasangiz ham bemalol qo‘shilasiz.'
+      ]],
+      ['Charchab qolsam yoki darsni qoldirsam-chi?', [
+        'Har bir dars yozib olinadi va kabinetingizda turadi. Shu mavzu bo‘yicha qisqa videodars, so‘z yodlash va uy vazifasi ham bor — 20–30 daqiqada qo‘shimcha takrorlab olasiz.',
+        'Guruhda 10 kishigacha, shuning uchun ustoz har kimga vaqt ajratadi va ortda qolganlarga yordam beradi.'
+      ]]
+    ],
+    extra: [['Qaysi darajadan boshlanadi?', 'Kechki guruhlar A0 (noldan) darajadan boshlanadi. Arab tilini biroz bilsangiz, daraja testini topshirib mos guruhga qo‘shilasiz.']]
+  },
+  {
+    slug: 'arab-tili-erkaklar-uchun', lang: 'uz', group: 'kurs',
+    title: 'Erkaklar uchun arab tili kursi — alohida guruh | Sabo Academy',
+    desc: 'Erkaklar uchun alohida guruhlarda arab tili: misrlik ustoz bilan jonli onlayn darslar, haftada 3 marta, guruhda 10 kishigacha. Noldan gapirishgacha.',
+    h1: 'Erkaklar uchun arab tili kursi',
+    lead: 'Erkaklar uchun guruhlar alohida tuziladi. Darslar onlayn, jonli — ishdan keyin yoki o‘zingizga qulay vaqtda qatnashasiz.',
+    body: [
+      ['Nega alohida guruh?', [
+        'Alohida guruhda o‘quvchilar o‘zini erkin his qiladi, ko‘proq gapiradi va savol beradi. Arab tilini o‘rganishda eng muhimi — gapirish, shuning uchun qulay muhit natijaga to‘g‘ridan-to‘g‘ri ta’sir qiladi.'
+      ]],
+      ['Kimlar uchun mos?', [
+        'Arab tilini noldan boshlayotganlar, ish yoki o‘qish uchun arab tili kerak bo‘lganlar, arab davlatlariga safar qiladiganlar va arabcha matnlarni tushunmoqchi bo‘lganlar uchun.'
+      ]]
+    ],
+    extra: [['Guruhda nechta odam bo‘ladi?', 'Guruhda 10 kishigacha — ustoz har bir o‘quvchiga vaqt ajratadi va har kim gapirib ko‘radi.']]
+  },
+  {
     slug: 'ru/kursy-arabskogo-yazyka', lang: 'ru', group: 'kurs',
     title: 'Курсы арабского языка онлайн — с преподавателем из Египта | Sabo Academy',
     desc: 'Курсы арабского языка с нуля: живые онлайн-уроки в Zoom с носителем языка из Египта, 3 раза в неделю по 90 минут. Отдельные группы для женщин, мужчин и детей.',
@@ -132,7 +226,7 @@ const PAGES = [
   {
     slug: 'kr/arab-tili-kursi', lang: 'uz-Cyrl', group: 'kurs',
     title: 'Араб тили курси — нолдан, мисрлик устоз билан | Sabo Academy',
-    desc: 'Араб тилини нолдан ўрганинг: мисрлик устоз билан жонли онлайн дарслар, ҳафтада 3 марта. Аёллар, эркаклар ва болалар учун алоҳида гуруҳлар. Текин дарсга ёзилинг.',
+    desc: 'Араб тилини нолдан ўрганинг: мисрлик устоз билан жонли онлайн дарслар, ҳафтада 3 марта. Аёллар, эркаклар ва болалар учун алоҳида гуруҳлар. Дарсга ёзилинг.',
     h1: 'Араб тили курси — нолдан гапиришгача',
     lead: 'Sabo Academy’да араб тилини алифбодан бошлаб ўрганасиз ва тахминан 1 йилда арабча матнни тушуниб ўқиш ҳамда кундалик суҳбат даражасига етасиз. Дарслар жонли, устоз — мисрлик, асосий урғу гапиришга.',
     facts: [
@@ -148,9 +242,9 @@ const PAGES = [
       ['Араб тилини нолдан ўргансам бўладими?', 'Ҳа. Дарслар алифбодан бошланади: ҳарфлар, ўқиш, кейин грамматика ва суҳбат.'],
       ['Дарслар онлайнми?', 'Ҳа, Zoom орқали жонли ўтади — Ўзбекистоннинг исталган жойидан қатнашиш мумкин.'],
       ['Дарсни қолдириб кетсам нима бўлади?', 'Ҳар бир дарс ёзиб олинади ва шахсий кабинетингизда туради.'],
-      ['Текин дарсга қандай ёзиламан?', 'Telegram ботимизга ёзинг ёки қўнғироқ қилинг — администратор боғланади.']
+      ['Дарсга қандай ёзиламан?', 'Telegram ботимизга ёзинг ёки қўнғироқ қилинг — администратор боғланади.']
     ],
-    ui: { why: 'Дарслар қандай ўтади', road: 'Натижангиз', faq: 'Кўп сўраладиган саволлар', cta: 'Текин дарсга ёзилиш', call: 'Қўнғироқ қилиш', more: 'Бошқа саҳифалар', home: 'Бош саҳифа', crumb: 'Араб тили курси' }
+    ui: { why: 'Дарслар қандай ўтади', road: 'Натижангиз', faq: 'Кўп сўраладиган саволлар', cta: 'Дарсга ёзилиш', call: 'Қўнғироқ қилиш', more: 'Бошқа саҳифалар', home: 'Бош саҳифа', crumb: 'Араб тили курси' }
   }
 ];
 
@@ -269,6 +363,7 @@ function render(page, opts) {
     '<div class="cta"><a class="btn g" href="' + esc(botUrl) + '">' + esc(ui.cta) + '</a>' +
     (tel ? '<a class="btn o" href="tel:' + esc(tel) + '">📞 ' + esc(phone) + '</a>' : '') + '</div>' +
     '</div></header><main class="w">' +
+    (page.body || []).map(b => '<section><h2>' + esc(b[0]) + '</h2>' + b[1].map(t => '<p>' + esc(t) + '</p>').join('') + '</section>').join('') +
     '<section><h2>' + esc(ui.why) + '</h2><ul class="f">' + facts.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul></section>' +
     '<section><h2>' + esc(ui.road) + '</h2><div class="road">' + road.map(r => '<div><b>' + esc(r[0]) + '</b>' + esc(r[1]) + '</div>').join('') + '</div></section>' +
     '<section class="faq"><h2>' + esc(ui.faq) + '</h2>' + faq.map(f => '<h3>' + esc(f[0]) + '</h3><p>' + esc(f[1]) + '</p>').join('') + '</section>' +
