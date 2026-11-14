@@ -316,6 +316,29 @@
       var olT = setInterval(olLoad, 30000); olLoad();
     }
 
+    /* Murojaatlar: sinov darsi nazorati va voronka (foizlar bilan). Bosilsa — Murojaatlar filtri bilan ochiladi */
+    if (App.can('nav.leads')) {
+      var dFunnels = A.sortBy(D.all('funnels'), 'order'); if (!dFunnels.length) dFunnels = A.DEFAULT_FUNNELS;
+      var dFn = dFunnels.filter(function (f) { return f.id === route.fn; })[0] || dFunnels[0];
+      if (dFn) {
+        var dStages = A.funnelStages(dFn);
+        var dLeads = D.all('leads').filter(function (l) { return (l.funnelId || 'fnl_asosiy') === dFn.id; });
+        var dF = { stage: [], from: '', to: '', trial: '', pay: '', came: '', src: '', owner: '', group: '', q: '', due: false };
+        var dGo = function (nf) {
+          var p = { funnelId: dFn.id };
+          ['from', 'to', 'trial', 'pay', 'came', 'src', 'owner', 'group', 'q'].forEach(function (k) { if (nf[k]) p[k] = nf[k]; });
+          if (nf.stage && nf.stage.length) p.stage = nf.stage.join(',');
+          App.go('leads', p);
+        };
+        if (dFunnels.length > 1) view.appendChild(h('div', { class: 'filters dash-fn' }, [h('div', { class: 'seg' }, dFunnels.map(function (f) {
+          var n = D.all('leads').filter(function (l) { return (l.funnelId || 'fnl_asosiy') === f.id; }).length;
+          return h('button', { type: 'button', 'aria-pressed': f.id === dFn.id ? 'true' : 'false', onclick: function () { App.go('dashboard', { fn: f.id }); } }, f.name + ' (' + n + ')');
+        }))]));
+        if (dStages.some(function (st) { return isTrialStage(dFn, st.id); })) view.appendChild(trialControl(dLeads, dFn, dF, dGo, App));
+        view.appendChild(funnelBar(dLeads, dFn, dStages, dF, dGo));
+      }
+    }
+
     // Demo eslatmasi
     if (D.all('students').some(function (s) { return s.demo; }) && App.can('settings.edit')) {
       view.appendChild(h('div', { class: 'banner info' }, [
@@ -610,10 +633,7 @@
       if (nf.due) p.due = 1;
       App.go('leads', p);
     }
-    /* --- Sinov darsi nazorati: hammasi bir qarashda, har bir raqam bosiladi --- */
-    if (stages.some(function (st) { return isTrialStage(funnel, st.id); })) view.appendChild(trialControl(allLeads.filter(inFunnel), funnel, F, goF, App));
-    /* --- Voronka: bosqichlar ketma-ket, sonlari va o'tish foizi bilan (bosilsa — filtr) --- */
-    view.appendChild(funnelBar(allLeads.filter(function (l) { return match(l, F, 'stage'); }), funnel, stages, F, goF));
+    /* Sinov darsi nazorati va Voronka endi Bosh sahifada (foizlar bilan) */
     /* --- Filtr paneli: kichik «⚙ Filtr» tugmasi + faol filtrlar chiplari + qidiruv --- */
     var fbar = leadFilterBar(allLeads, funnel, stages, F, match, goF, leads.length, App, function () { leadBroadcast(allLeads.filter(inFunnel), funnel, App); });
     /* Ko'rinish: ro'yxat yoki ustunlar (CRM kanban) — o'ng tomonda almashtiriladi, eslab qolinadi */
@@ -885,11 +905,12 @@
     var sum = paid.reduce(function (a, l) { return a + (Number(l.trialAmount) || 0); }, 0);
     var base = { stage: [], from: F.from, to: F.to, q: '', src: F.src, owner: F.owner, group: F.group };
     function tile(label, n, nf, cls, hint) {
+      var pctTxt = real.length ? Math.round(n * 100 / real.length) + '%' : '0%';
       var on = (nf.trial || '') === (F.trial || '') && (nf.pay || '') === (F.pay || '') && (nf.came || '') === (F.came || '') && !!(F.trial || F.pay || F.came);
       return h('button', {
         type: 'button', class: 'tc-tile ' + (cls || '') + (on ? ' on' : ''), disabled: !n && !on ? 'disabled' : null,
         onclick: function () { goF(on ? Object.assign({}, base) : Object.assign({}, base, nf)); }
-      }, [h('b', {}, String(n)), h('span', {}, label), hint ? h('small', {}, hint) : null]);
+      }, [h('div', { class: 'tc-num' }, [h('b', {}, String(n)), h('em', { class: 'tc-pct' }, pctTxt)]), h('span', {}, label), hint ? h('small', {}, hint) : null]);
     }
     var old = by.student || [];
     var card = h('div', { class: 'card tc-card' }, [
