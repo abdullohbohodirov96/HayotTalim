@@ -235,32 +235,51 @@
   A.Pages.tasks = function (view, route, App) {
     App.guard('nav.tasks');
     var me = App.user;
+    /* Murojaatdan avtomatik yaratilgan vazifalar serverda yoziladi — sahifa ochilganda yangilab olamiz */
+    if (D.mode === 'server' && Date.now() - (A._tasksPulled || 0) > 5000) {
+      A._tasksPulled = Date.now();
+      D.api('GET', 'api/collection?name=tasks').then(function (r) {
+        if (r && r.items && JSON.stringify(r.items) !== JSON.stringify(D.col.tasks || {})) { D.col.tasks = r.items; if (location.hash.indexOf('#tasks') === 0) App.render(); }
+      }).catch(function () { });
+    }
     var scope = route.scope || 'mine';
     var all = D.all('tasks');
+    var today = A.today();
     var list = all.filter(function (t) {
       if (scope === 'mine') return t.assigneeId === me.id;
+      if (scope === 'today') return t.assigneeId === me.id && t.status !== 'bajarildi' && t.due && t.due <= today;
+      if (scope === 'lead') return t.assigneeId === me.id && t.leadId;
       if (scope === 'given') return t.createdById === me.id;
       return true;
     });
     if (route.status) list = list.filter(function (t) { return t.status === route.status; });
-    list = A.sortBy(list, function (t) { return (t.status === 'bajarildi' ? '9' : '0') + (t.due || '9999'); });
+    /* Bajarilganlar faqat «Barchasi»da yoki alohida so'ralsa — «Vazifalarim» toza turadi */
+    var hideDone = scope !== 'all' && !route.done;
+    var doneN = list.filter(function (t) { return t.status === 'bajarildi'; }).length;
+    if (hideDone) list = list.filter(function (t) { return t.status !== 'bajarildi'; });
+    list = A.sortBy(list, function (t) { return (t.status === 'bajarildi' ? '9' : '0') + (t.due || '9999') + (t.dueTime || '99:99'); });
 
-    view.appendChild(UI.pageHead('Vazifalar', 'Xodimlarga topshiriq berish va bajarilishini kuzatish', [
+    view.appendChild(UI.pageHead(scope === 'given' || scope === 'all' ? 'Vazifalar' : 'Vazifalarim', 'Sizga berilgan ishlar va murojaatlardagi qayta aloqa eslatmalari', [
       App.can('task.assign') ? h('button', {
         class: 'btn primary', onclick: function () { taskForm(null, App); }
       }, [UI.icon('plus'), 'Vazifa berish']) : null
     ]));
 
+    var openMine = all.filter(function (t) { return t.assigneeId === me.id && t.status !== 'bajarildi'; });
     var counts = {
-      mine: all.filter(function (t) { return t.assigneeId === me.id && t.status !== 'bajarildi'; }).length,
+      mine: openMine.length,
+      today: openMine.filter(function (t) { return t.due && t.due <= today; }).length,
+      lead: openMine.filter(function (t) { return t.leadId; }).length,
       given: all.filter(function (t) { return t.createdById === me.id && t.status !== 'bajarildi'; }).length
     };
     view.appendChild(h('div', { class: 'filters' }, [
       h('div', { class: 'seg' }, [
-        { id: 'mine', label: 'Menga berilgan (' + counts.mine + ')' },
-        { id: 'given', label: 'Men berganlarim (' + counts.given + ')' },
+        { id: 'mine', label: 'Vazifalarim (' + counts.mine + ')' },
+        { id: 'today', label: 'Bugun / kechikkan (' + counts.today + ')' },
+        { id: 'lead', label: '📞 Qayta aloqa (' + counts.lead + ')' },
+        App.can('task.assign') ? { id: 'given', label: 'Men berganlarim (' + counts.given + ')' } : null,
         { id: 'all', label: 'Barchasi' }
-      ].map(function (s) {
+      ].filter(Boolean).map(function (s) {
         return h('button', {
           type: 'button', 'aria-pressed': scope === s.id ? 'true' : 'false',
           onclick: function () { App.go('tasks', { scope: s.id }); }
@@ -280,9 +299,11 @@
     view.appendChild(UI.card(null, UI.table([
       {
         label: 'Vazifa', render: function (t) {
+          var lead = t.leadId && D.one('leads', t.leadId);
           return h('div', {}, [
             h('b', {}, t.title),
-            t.description ? h('div', { class: 'small muted' }, t.description) : null
+            t.description ? h('div', { class: 'small muted', style: 'white-space:pre-line' }, t.description) : null,
+            lead && A.leadForm ? h('button', { class: 'btn sm', style: 'margin-top:6px', onclick: function (e) { e.stopPropagation(); A.leadForm(lead, App); } }, [UI.icon('phone'), 'Murojaatni ochish']) : null
           ]);
         }
       },
@@ -291,8 +312,10 @@
       {
         label: 'Muddati', render: function (t) {
           if (!t.due) return h('span', { class: 'muted' }, '—');
-          var late = t.due < A.today() && t.status !== 'bajarildi';
-          return late ? UI.pill(A.dateLabel(t.due), 'bad') : h('span', { class: 'mono' }, A.dateLabel(t.due));
+          var txt = (t.due === today ? 'Bugun' : A.dateLabel(t.due)) + (t.dueTime ? ' · ' + t.dueTime : '');
+          var nowHm = A.nowTime ? A.nowTime() : '';
+          var late = t.status !== 'bajarildi' && (t.due < today || (t.due === today && t.dueTime && nowHm && t.dueTime < nowHm));
+          return late ? UI.pill(txt, 'bad') : (t.due === today ? UI.pill(txt, 'warn') : h('span', { class: 'mono' }, txt));
         }
       },
       { label: 'Holat', render: function (t) { var s = statusOf(t.status); return UI.pill(s.label, s.cls); } },
@@ -319,7 +342,9 @@
           ]);
         }
       }
-    ], list, { onRow: function (t) { taskForm(t, App); } }), null, null, true));
+    ], list, { onRow: function (t) { var ld = t.leadId && D.one('leads', t.leadId); if (ld && A.leadForm) A.leadForm(ld, App); else taskForm(t, App); } }), null, null, true));
+    if (hideDone && doneN) view.appendChild(h('p', { class: 'small muted' }, [doneN + ' ta bajarilgan vazifa yashirilgan. ',
+      h('a', { href: '#', onclick: function (e) { e.preventDefault(); App.go('tasks', { scope: scope, done: 1 }); } }, 'Ko‘rsatish')]));
   };
 
   function taskForm(task, App) {

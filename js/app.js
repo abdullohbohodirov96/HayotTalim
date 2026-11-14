@@ -197,7 +197,7 @@
     { id: 'books', label: 'Kitoblar va daftar', icon: 'layers', perm: 'curriculum.view' },
     { id: 'rating', label: 'Reyting', icon: 'award', perm: 'nav.students' },
     { id: 'chat', label: 'Suhbat', icon: 'chat', perm: 'nav.chat' },
-    { id: 'tasks', label: 'Vazifalar', icon: 'task', perm: 'nav.tasks' },
+    { id: 'tasks', label: 'Vazifalarim', icon: 'task', perm: 'nav.tasks' },
     { id: 'bot', label: 'Telegram bot', icon: 'bot', perm: 'nav.bot' },
     { id: 'igbot', label: 'Instagram bot', icon: 'chat', perm: 'nav.bot' },
     { id: 'settings', label: 'Sozlamalar', icon: 'gear', perm: 'settings.edit' }
@@ -208,12 +208,13 @@
   var SECTIONS = [
     { id: 's-home', label: 'Bosh sahifa', icon: 'home', items: ['dashboard'] },
     { id: 's-leads', label: 'Murojaatlar', icon: 'phone', items: ['leads', 'forms'] },
+    { id: 's-tasks', label: 'Vazifalarim', icon: 'task', items: ['tasks'] },
     { id: 's-students', label: 'O’quvchilar', icon: 'users', items: ['students', 'rating'] },
     { id: 's-groups', label: 'Guruhlar va darslar', icon: 'calendar', items: ['groups', 'schedule', 'attendance', 'zoom'] },
     { id: 's-edu', label: 'Ta’lim', icon: 'layers', items: ['course', 'learning', 'curriculum', 'books', 'videoLib', 'vocabAdmin'] },
     { id: 's-fin', label: 'Moliya', icon: 'wallet', items: ['finance'] },
     { id: 's-reports', label: 'Hisobotlar', icon: 'chart', items: ['reports', 'retention', 'progress', 'studentProgress'] },
-    { id: 's-team', label: 'Xodimlar va vazifalar', icon: 'badge', items: ['staff', 'tasks'] },
+    { id: 's-team', label: 'Xodimlar', icon: 'badge', items: ['staff'] },
     { id: 's-comm', label: 'Aloqa', icon: 'chat', items: ['chat', 'bot', 'igbot'] },
     { id: 's-set', label: 'Sozlamalar', icon: 'gear', items: ['settings'] }
   ];

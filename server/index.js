@@ -4961,6 +4961,10 @@ async function handleApi(req, res, url) {
         if (!!(oldSt && oldSt.fullAccess) !== !!body.data.fullAccess) await setFullAccess(p.split('/')[1], !!body.data.fullAccess);
       }
       await store.set(p, body.data);
+      /* Murojaatdagi qayta aloqa → xodimning vazifasi (Vazifalarim) */
+      if (p.indexOf('leads/') === 0 && body.data && typeof body.data === 'object') {
+        try { await require('./lead-task').sync(store, A, Object.assign({ id: p.split('/')[1] }, body.data), user, stamp); } catch (e) { console.error('lead vazifa:', e.message); }
+      }
       /* Murojaat bosqichi o'zgardi → Meta'ga (Conversions API, CRM) */
       if (p.indexOf('leads/') === 0) metaCapi.onLeadSaved(oldLead, Object.assign({ id: p.split('/')[1] }, body.data)).catch(() => { });
       /* Shaxsiy Telegram xabarlari (xodim botga ulangan bo'lsa) */
