@@ -2731,4 +2731,112 @@
     });
   }
   A.userForm = userForm;
+
+  /* ================= SAQLAB QOLISH (RETENTION) =================
+     Har oy: boshida nechta faol o'quvchi bor edi, oy oxirigacha nechtasi qoldi,
+     nechtasi ketdi, nechta yangi qo'shildi. O'quvchi bitta guruhdan boshqasiga
+     o'tsa — ketgan hisoblanmaydi (o'quvchi darajasida hisoblanadi).
+     Qo'shimcha: to'lov bo'yicha — shu oy to'laganlarning nechtasi keyingi oy ham to'ladi. */
+  A.Pages.retention = function (view, route, App) {
+    App.guard('nav.reports');
+    var today = A.today(), curYm = A.thisMonth();
+    var N = Math.max(3, Math.min(12, Number(route.n) || 6));
+    var months = []; for (var i = N - 1; i >= 0; i--) months.push(A.addMonths(curYm, -i));
+    var mems = D.all('memberships').filter(function (m) { return m && m.studentId; });
+    var studs = {}; D.all('students').forEach(function (s) { studs[s.id] = s; });
+    /* O'quvchining faol oraliqlari */
+    var spans = {};
+    mems.forEach(function (m) {
+      var from = String(m.joinedAt || m.createdAt || '0000-00-00').slice(0, 10);
+      var to = m.leftAt ? String(m.leftAt).slice(0, 10) : (m.status === 'faol' ? '' : from);   // chiqqan, lekin sana yo'q — hisobga olinmaydi
+      (spans[m.studentId] = spans[m.studentId] || []).push({ from: from, to: to, m: m });
+    });
+    function activeOn(sid, d) {
+      return (spans[sid] || []).some(function (x) { return x.from <= d && (!x.to || x.to > d); });
+    }
+    function firstJoin(sid) { return (spans[sid] || []).reduce(function (a, x) { return !a || x.from < a ? x.from : a; }, ''); }
+    var sids = Object.keys(spans);
+    /* To'lov bo'yicha: oyma-oy to'laganlar */
+    var paidBy = {};
+    D.all('payments').forEach(function (p) {
+      if (!p || !p.studentId || (Number(p.amount) || 0) <= 0 || p.refund || p.type === 'refund') return;
+      var ym = String(p.date || p.createdAt || '').slice(0, 7); if (!ym) return;
+      (paidBy[ym] = paidBy[ym] || {})[p.studentId] = 1;
+    });
+    var rows = months.map(function (ym) {
+      var start = A.monthStart(ym), endD = ym === curYm ? today : A.monthEnd(ym);
+      var before = A.addDays(start, -1), after = endD;
+      var atStart = sids.filter(function (sid) { return activeOn(sid, before); });
+      var stayed = atStart.filter(function (sid) { return activeOn(sid, after); });
+      var leftL = atStart.filter(function (sid) { return stayed.indexOf(sid) < 0; });
+      var newL = sids.filter(function (sid) { var f = firstJoin(sid); return f >= start && f <= endD; });
+      var newLeft = newL.filter(function (sid) { return !activeOn(sid, after); });
+      var atEnd = sids.filter(function (sid) { return activeOn(sid, after); });
+      var nextYm = A.addMonths(ym, 1), pM = Object.keys(paidBy[ym] || {}), pN = paidBy[nextYm] || {};
+      var payRet = (ym === curYm || !pM.length) ? null : Math.round(pM.filter(function (sid) { return pN[sid]; }).length * 100 / pM.length);
+      return {
+        ym: ym, cur: ym === curYm, start: atStart.length, stayed: stayed.length, left: leftL.length + newLeft.length, leftOld: leftL.length, leftIds: leftL.concat(newLeft),
+        newN: newL.length, end: atEnd.length, ret: atStart.length ? Math.round(stayed.length * 100 / atStart.length) : null,
+        churn: atStart.length ? Math.round(leftL.length * 100 / atStart.length) : null, payRet: payRet, paid: pM.length
+      };
+    });
+    var done = rows.filter(function (r) { return !r.cur && r.ret != null; });
+    var avgRet = done.length ? Math.round(done.reduce(function (a, r) { return a + r.ret; }, 0) / done.length) : null;
+    var last = done[done.length - 1] || null;
+    var cur = rows[rows.length - 1];
+    /* O'rtacha o'qish muddati (oy): ketganlar va hozir o'qiyotganlar */
+    var lifes = sids.map(function (sid) {
+      var f = firstJoin(sid); if (!f || f === '0000-00-00') return null;
+      var tEnd = activeOn(sid, today) ? today : (spans[sid].reduce(function (a, x) { return x.to && x.to > a ? x.to : a; }, f));
+      return Math.max(0, (Date.parse(tEnd) - Date.parse(f)) / (30.4 * 86400000));
+    }).filter(function (x) { return x != null; });
+    var avgLife = lifes.length ? (lifes.reduce(function (a, b) { return a + b; }, 0) / lifes.length) : 0;
+
+    view.appendChild(UI.pageHead('Saqlab qolish darajasi', 'O‘quvchilarning necha foizi keyingi oyga qolyapti va necha foizi ketyapti'));
+    view.appendChild(h('div', { class: 'filters' }, [h('div', { class: 'seg' }, [3, 6, 12].map(function (n) {
+      return h('button', { type: 'button', 'aria-pressed': N === n ? 'true' : 'false', onclick: function () { App.go('retention', { n: n }); } }, 'Oxirgi ' + n + ' oy');
+    }))]));
+    function pctCls(p) { return p == null ? '' : p >= 80 ? 'money' : p >= 60 ? '' : 'alert'; }
+    view.appendChild(h('div', { class: 'tiles' }, [
+      UI.tile({ label: 'Saqlab qolish (o‘tgan oy)', value: last ? last.ret + '%' : '—', hint: last ? A.monthLabel ? A.monthLabel(last.ym) : last.ym : 'ma’lumot yetarli emas', cls: pctCls(last && last.ret) }),
+      UI.tile({ label: 'Ketish (o‘tgan oy)', value: last ? last.churn + '%' : '—', hint: last ? last.left + ' o‘quvchi ketdi' : '', cls: last && last.churn > 20 ? 'alert' : '' }),
+      UI.tile({ label: 'O‘rtacha saqlab qolish', value: avgRet != null ? avgRet + '%' : '—', hint: done.length + ' oy bo‘yicha', cls: pctCls(avgRet) }),
+      UI.tile({ label: 'Hozir faol', value: String(cur.end), hint: 'shu oy: +' + cur.newN + ' yangi · −' + cur.left + ' ketgan' }),
+      UI.tile({ label: 'O‘rtacha o‘qish muddati', value: avgLife ? avgLife.toFixed(1) + ' oy' : '—', hint: lifes.length + ' o‘quvchi bo‘yicha' })
+    ]));
+    /* Oylar bo'yicha jadval */
+    function ymLabel(ym) { var p = ym.split('-'); return (A.MONTHS ? A.MONTHS[Number(p[1]) - 1] : p[1]) + ' ' + p[0]; }
+    function bar(p, cls) { return p == null ? h('span', { class: 'muted' }, '—') : h('div', { class: 'rt-bar ' + (cls || '') }, [h('i', { style: 'width:' + Math.max(2, p) + '%' }), h('b', {}, p + '%')]); }
+    view.appendChild(UI.card('Oylar bo‘yicha', UI.table([
+      { label: 'Oy', render: function (r) { return h('b', {}, ymLabel(r.ym) + (r.cur ? ' (davom etyapti)' : '')); } },
+      { label: 'Boshida', right: true, render: function (r) { return String(r.start); } },
+      { label: 'Qoldi', right: true, render: function (r) { return String(r.stayed); } },
+      { label: 'Ketdi', right: true, render: function (r) { return r.left ? h('button', { class: 'btn sm ghost rt-left', onclick: function () { showLeft(r); } }, String(r.left)) : '0'; } },
+      { label: 'Yangi', right: true, render: function (r) { return '+' + r.newN; } },
+      { label: 'Oxirida', right: true, render: function (r) { return String(r.end); } },
+      { label: 'Saqlab qolish', render: function (r) { return bar(r.ret, r.ret >= 80 ? 'ok' : r.ret >= 60 ? 'mid' : 'bad'); } },
+      { label: 'To‘lov bo‘yicha', render: function (r) { return r.payRet == null ? h('span', { class: 'muted small' }, r.cur ? 'oy tugamagan' : '—') : bar(r.payRet, r.payRet >= 80 ? 'ok' : r.payRet >= 60 ? 'mid' : 'bad'); } }
+    ], rows.slice().reverse())));
+    view.appendChild(h('p', { class: 'small muted' }, 'Saqlab qolish = oy boshida faol bo‘lgan o‘quvchilardan oy oxirida ham o‘qiyotganlar ulushi. ' +
+      'Guruhdan guruhga o‘tgan o‘quvchi ketgan hisoblanmaydi. «To‘lov bo‘yicha» — shu oy to‘lov qilganlarning nechtasi keyingi oy ham to‘ladi. ' +
+      '«Ketdi» sonini bossangiz — kimlar ketgani ko‘rinadi (qayta qo‘ng‘iroq qilish uchun).'));
+
+    function showLeft(r) {
+      var list = r.leftIds.map(function (sid) {
+        var s = studs[sid] || {}, sp = (spans[sid] || []).slice().sort(function (a, b) { return String(b.to).localeCompare(String(a.to)); })[0] || {};
+        var g = sp.m && D.one('groups', sp.m.groupId);
+        return { s: s, sid: sid, to: sp.to, g: g };
+      });
+      UI.modal({
+        title: ymLabel(r.ym) + ' — ketgan o‘quvchilar (' + list.length + ')', wide: true,
+        body: UI.table([
+          { label: 'O‘quvchi', render: function (x) { return h('b', {}, ((x.s.lastName || '') + ' ' + (x.s.firstName || '')).trim() || x.sid); } },
+          { label: 'Telefon', render: function (x) { return x.s.phone ? UI.phoneLink(x.s.phone) : '—'; } },
+          { label: 'Guruh', render: function (x) { return x.g ? x.g.name : '—'; } },
+          { label: 'Chiqqan sana', render: function (x) { return x.to ? A.dateLabel(x.to) : '—'; } }
+        ], list),
+        actions: [{ label: 'Yopish' }]
+      });
+    }
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

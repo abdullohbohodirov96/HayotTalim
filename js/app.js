@@ -189,6 +189,7 @@
     { id: 'finance', label: 'Moliya', icon: 'wallet', perm: 'nav.finance' },
     { id: 'staff', label: 'Xodimlar', icon: 'badge', perm: 'nav.staff' },
     { id: 'reports', label: 'Hisobotlar', icon: 'chart', perm: 'nav.reports' },
+    { id: 'retention', label: 'Saqlab qolish', icon: 'chart', perm: 'nav.reports' },
     { id: 'progress', label: 'O’quv natijalari', icon: 'chart', perm: 'reports.learning' },
     { id: 'studentProgress', label: 'O’quvchilar rivojlanishi', icon: 'chart', perm: 'lesson.log' },
     { id: 'vocabAdmin', label: 'Lug’at bazasi', icon: 'award', perm: 'curriculum.view' },
@@ -211,7 +212,7 @@
     { id: 's-groups', label: 'Guruhlar va darslar', icon: 'calendar', items: ['groups', 'schedule', 'attendance', 'zoom'] },
     { id: 's-edu', label: 'Ta’lim', icon: 'layers', items: ['course', 'learning', 'curriculum', 'books', 'videoLib', 'vocabAdmin'] },
     { id: 's-fin', label: 'Moliya', icon: 'wallet', items: ['finance'] },
-    { id: 's-reports', label: 'Hisobotlar', icon: 'chart', items: ['reports', 'progress', 'studentProgress'] },
+    { id: 's-reports', label: 'Hisobotlar', icon: 'chart', items: ['reports', 'retention', 'progress', 'studentProgress'] },
     { id: 's-team', label: 'Xodimlar va vazifalar', icon: 'badge', items: ['staff', 'tasks'] },
     { id: 's-comm', label: 'Aloqa', icon: 'chat', items: ['chat', 'bot', 'igbot'] },
     { id: 's-set', label: 'Sozlamalar', icon: 'gear', items: ['settings'] }
