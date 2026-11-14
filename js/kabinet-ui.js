@@ -10,7 +10,7 @@
 
   var NAV_ALL = [
     { id: 'asosiy', label: 'Asosiy', icon: 'home', mob: true },
-    { id: 'alifbo', label: 'A0 — o‘qish va yozish', short: 'A0', icon: 'edit' },
+    { id: 'alifbo', label: 'Alifbo — o‘qish va yozish', short: 'Alifbo', icon: 'edit' },
     { id: 'darslar', label: 'Darslarim', icon: 'play', mob: true },
     { id: 'kunlik', label: 'Kunlik mashqlar', short: 'Kunlik', icon: 'check', mob: true },
     { id: 'lugat', label: 'Mening lug’atim', short: 'Lug’at', icon: 'award', mob: true },
@@ -32,11 +32,11 @@
   function navFor(level, full) {
     var code = level && level.code;
     if (full || !code) return NAV_ALL.map(function (n) {
-      if (n.id === 'alifbo') return Object.assign({}, n, { label: 'Alifbo (A0) darslari', short: 'Alifbo' });
-      if (n.id === 'darslar') return Object.assign({}, n, { label: 'Darslarim (A1)' });
+      if (n.id === 'alifbo') return Object.assign({}, n, { label: 'Alifbo darslari', short: 'Alifbo' });
+      if (n.id === 'darslar') return Object.assign({}, n, { label: 'Darslarim (A0/A1)' });
       return n;
     });
-    if (code !== 'A0') return NAV_ALL.filter(function (n) { return n.id !== 'alifbo'; });
+    if (code !== 'ALIF') return NAV_ALL.filter(function (n) { return n.id !== 'alifbo'; });
     return NAV_ALL.filter(function (n) { return !/^(darslar|vazifalar)$/.test(n.id); }).map(function (n) {
       if (n.id === 'lugat') return { id: 'lugat', label: 'Lug’at yodlash · yopiq', short: 'Lug’at', icon: 'award' };
       if (n.id === 'alifbo') return { id: 'alifbo', label: 'Darslarim', short: 'Darslarim', icon: 'play', mob: true };
@@ -232,7 +232,7 @@
     });
     if (A.Speak) A.Speak.loadMap();
     var st = d.student, fin = d.finance || {}, att = d.attendance || {};
-    var isA0 = !!(d.level && d.level.code === 'A0') && !d.fullAccess;
+    var isA0 = !!(d.level && d.level.code === 'ALIF') && !d.fullAccess;
     NAV = navFor(d.level, d.fullAccess);
     var groups = d.groups || [];
     var first = String(st.name || '').trim().split(/\s+/).slice(-1)[0] || '';
@@ -431,7 +431,7 @@
           h('span', { class: 'sp-eyebrow' }, 'Xush kelibsiz'),
           h('h1', {}, first ? first + '!' : 'Xush kelibsiz!'),
           h('p', { class: 'sp-hero-me' }, st.name + ' · kod ' + st.code),
-          d.level ? h('button', { type: 'button', class: 'sp-lvl', onclick: function () { if (d.level.code === 'A0') go('alifbo'); } }, 'Darajangiz: ' + d.level.code + ' · ' + d.level.name + (d.level.code === 'A0' ? ' →' : '')) : null,
+          d.level ? h('button', { type: 'button', class: 'sp-lvl', onclick: function () { if (d.level.code === 'ALIF') go('alifbo'); } }, 'Darajangiz: ' + (d.level.code === 'ALIF' ? 'Alifbo' : d.level.code + ' · ' + d.level.name) + (d.level.code === 'ALIF' ? ' →' : '')) : null,
           h('p', {}, 'Bugun ham bir qadam: darsni davom ettiring, vazifani yuboring — keyingi dars o’zi ochiladi.')
         ]),
         heroR
@@ -686,7 +686,7 @@
     function vAlif(el) {
       var F = A.Alifbo;
       var box = h('div', {}, loading());
-      el.appendChild(h('p', { class: 'sp-lead' }, 'A0 — «Nabra» darsligi bo‘yicha arab tilida o‘qish va yozish: 24 dars, 2 oy (haftasiga 3 dars). Har darsda: so‘z va harflarni yodlash → video dars → mashq → test → uy vazifasi. Darslar guruhda dars o‘tilgani sari ochilib boradi.'));
+      el.appendChild(h('p', { class: 'sp-lead' }, 'Alifbo — «Nabra» darsligi bo‘yicha arab tilida o‘qish va yozish: 24 dars, 2 oy (haftasiga 3 dars). Har darsda: so‘z va harflarni yodlash → video dars → mashq → test → uy vazifasi. Darslar guruhda dars o‘tilgani sari ochilib boradi.'));
       el.appendChild(box);
       cache.alif = null;
       load('alif').then(function (v) {
@@ -754,7 +754,7 @@
         var stp = a0Steps(lv);
         wrap.appendChild(h('div', { class: 'a0-head' }, [
           h('button', { class: 'sp-link', type: 'button', onclick: function () { a0Stop(); go('alifbo'); } }, '← Darslar'),
-          h('span', { class: 'a0-eyebrow' }, 'A0 · ' + l.week + '-hafta · ' + l.n + '-dars · darslik ' + l.book + '-bo‘lim'),
+          h('span', { class: 'a0-eyebrow' }, 'Alifbo · ' + l.week + '-hafta · ' + l.n + '-dars · darslik ' + l.book + '-bo‘lim'),
           h('h2', {}, l.title),
           h('div', { class: 'a0-titlear', lang: 'ar', dir: 'rtl' }, l.titleAr)
         ]));
@@ -1130,7 +1130,7 @@
           var inp = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: async function () {
             var f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
             upSt.textContent = 'Yuklanmoqda…';
-            try { var sh = await shrink(f); var r = await src.upload({ name: 'A0-' + l.n + '-dars-daftar.jpg', type: sh.type, data: sh.b64, note: 'A0 ' + l.n + '-dars uy vazifasi' }); if (r && r.file && r.file.id) fileIds.push(r.file.id); upSt.textContent = '✓ Rasm yuborildi (' + fileIds.length + ')'; }
+            try { var sh = await shrink(f); var r = await src.upload({ name: 'Alifbo-' + l.n + '-dars-daftar.jpg', type: sh.type, data: sh.b64, note: 'Alifbo ' + l.n + '-dars uy vazifasi' }); if (r && r.file && r.file.id) fileIds.push(r.file.id); upSt.textContent = '✓ Rasm yuborildi (' + fileIds.length + ')'; }
             catch (e) { upSt.textContent = e.message || 'Yuklanmadi'; }
           } });
           area.appendChild(h('div', { class: 'a0-upload' }, [h('button', { class: 'btn sm', type: 'button', onclick: function () { inp.click(); } }, '📷 Daftar rasmini yuborish (ixtiyoriy)'), upSt, inp]));
@@ -1157,7 +1157,7 @@
               area.appendChild(h('div', { class: 'a0-result' }, [
                 h('div', { class: 'a0-big ' + (r.passed ? 'ok' : 'bad') }, r.result.percent + '%'),
                 h('h3', {}, r.passed ? 'Uy vazifasi qabul qilindi!' : 'Kamida ' + F.PASS + '% kerak — qayta urinib ko‘ring'),
-                h('p', { class: 'muted' }, r.passed ? (nx ? (nx.status === 'locked' ? (nx.lockNote ? nx.lockNote + '.' : 'Keyingi dars testdan o‘tgach ochiladi.') : 'Keyingi dars ochildi: ' + nx.n + '. ' + nx.title) : 'Tabriklaymiz — A0 kursini tugatdingiz! Endi A1 darslariga o‘tasiz.') : r.result.correct + ' / ' + r.result.total + ' to‘g‘ri.'),
+                h('p', { class: 'muted' }, r.passed ? (nx ? (nx.status === 'locked' ? (nx.lockNote ? nx.lockNote + '.' : 'Keyingi dars testdan o‘tgach ochiladi.') : 'Keyingi dars ochildi: ' + nx.n + '. ' + nx.title) : 'Tabriklaymiz — Alifbo kursini tugatdingiz! Endi A0 grammatika darslariga o‘tasiz.') : r.result.correct + ' / ' + r.result.total + ' to‘g‘ri.'),
                 h('div', { class: 'a0-row' }, [
                   h('button', { class: 'btn', type: 'button', onclick: function () { go('alifbo'); } }, 'Darslar ro‘yxati'),
                   r.passed && nx && nx.status !== 'locked' ? h('button', { class: 'btn primary', type: 'button', onclick: function () { openAlif(nx.id, 'learn'); } }, 'Keyingi dars →')
@@ -1726,7 +1726,7 @@
             h('span', { class: 'sp-dtask-i', 'aria-hidden': 'true' }, fin ? '✓' : t.icon),
             h('div', { class: 'sp-dtask-m' }, [
               h('b', {}, t.id === 'rl' ? t.title : goal ? goal + ' ta ' + t.title : t.title.charAt(0).toUpperCase() + t.title.slice(1)),
-              off ? h('span', { class: 'small muted' }, t.id === 'reviews' ? 'Hozircha takrorlanadigan so‘z yo‘q — avval yangi so‘zlarni o‘rganing' : dy.a0 && (t.id === 'newWords') ? 'A0 da asosiy urg‘u o‘qishga — lug‘at A1 da ochiladi' : 'Hozircha mavjud emas — darsni davom ettiring')
+              off ? h('span', { class: 'small muted' }, t.id === 'reviews' ? 'Hozircha takrorlanadigan so‘z yo‘q — avval yangi so‘zlarni o‘rganing' : dy.a0 && (t.id === 'newWords') ? 'Alifbo bosqichida asosiy urg‘u o‘qishga — lug‘at A0 da ochiladi' : 'Hozircha mavjud emas — darsni davom ettiring')
                 : h('div', { class: 'sp-dbar' }, [h('i', { style: 'width:' + Math.round(done * 100 / goal) + '%' }), h('span', {}, done + ' / ' + goal)]),
               off ? null : h('span', { class: 'small sp-dxp' }, xpTxt)
             ]),
@@ -1923,7 +1923,7 @@
         h('div', { class: 'sp-lock-i', 'aria-hidden': 'true' }, '🔒'),
         h('span', { class: 'sp-eyebrow' }, 'A1 darajasida ochiladi'),
         h('h2', {}, 'Hozir asosiy vazifa — o‘qishni o‘rganish'),
-        h('p', {}, 'A0 kursida diqqatimiz harflar, harakatlar va arabcha so‘zlarni ravon o‘qishga qaratilgan. So‘z yodlashga keyin o‘tamiz: avval o‘qish mustahkam bo‘lsa, yangi so‘zlar ham tezroq va oson yodlanadi.'),
+        h('p', {}, 'Alifbo kursida diqqatimiz harflar, harakatlar va arabcha so‘zlarni ravon o‘qishga qaratilgan. So‘z yodlashga keyin o‘tamiz: avval o‘qish mustahkam bo‘lsa, yangi so‘zlar ham tezroq va oson yodlanadi.'),
         h('div', { class: 'sp-lock-steps' }, [
           h('div', {}, [h('b', {}, '1'), h('span', {}, 'Alifbo darslarini tugatasiz — 24 dars')]),
           h('div', {}, [h('b', {}, '2'), h('span', {}, 'A1 darajasiga o‘tasiz')]),

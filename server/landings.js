@@ -143,13 +143,14 @@ const PAGES = [
   },
   {
     slug: 'arab-tili-darajalari', lang: 'uz', group: 'kurs',
-    title: 'Arab tili darajalari A0, A1, A2, B1, B2, C1, C2 — qaysi biridasiz? | Sabo Academy',
+    title: 'Arab tili darajalari: Alifbo, A0, A1, A2, B1, B2, C1, C2 | Sabo Academy',
     desc: 'Arab tili darajalari A0 dan C2 gacha: har bir darajada nimani bilasiz va qancha vaqt kerak. Onlayn daraja testini topshirib, o‘zingizga mos guruhni toping.',
     h1: 'Arab tili darajalari: A0 dan C2 gacha',
     lead: 'Arab tilini qaysi darajada bilishingizni aniqlash — to‘g‘ri guruhni tanlashning birinchi qadami. Quyida har bir daraja oddiy tilda tushuntirilgan; saytdagi onlayn test esa darajangizni bir necha daqiqada aniqlaydi.',
     body: [
       ['Har bir darajada nimani bilasiz?', [
-        'A0 — Alifbo: 28 harf, harakatlar va bo‘g‘in o‘qish. Arab tilini noldan boshlaganlar uchun.',
+        'Alifbo — 28 harf, harakatlar va bo‘g‘in o‘qish. Arab tilini umuman bilmaydiganlar uchun birinchi qadam.',
+        'A0 — Grammatika noldan: harflarni o‘qiy oladiganlar uchun birinchi grammatika, oddiy so‘z va gaplar.',
         'A1 — Boshlang‘ich: salomlashish, tanishuv, oddiy so‘z va gaplar, o‘zingiz haqingizda gapirish.',
         'A2 — Asosiy: kundalik vaziyatlardagi gaplar, oddiy o‘tgan zamon, do‘kon, yo‘l, oila mavzulari.',
         'B1 — O‘rta: suhbatni davom ettirish, oddiy matnlarni o‘qib tushunish, fe’l shakllari.',

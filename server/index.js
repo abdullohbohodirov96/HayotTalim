@@ -1267,6 +1267,11 @@ async function kabRenew(req, ses) {
   } catch (e) { return undefined; }
 }
 /** O'quvchining darajasi: qo'lda belgilangan → daraja testi → A0 (alifbo tugamagan bo'lsa) */
+/** O'quvchi biror darajali faol guruhdami */
+async function groupHasLevel(sid) {
+  const mem = (await store.list('memberships/')).map(r => r.data).filter(m => m && m.studentId === sid && m.status !== 'chiqdi');
+  return mem.length > 0;
+}
 async function studentLevel(st) {
   if (!st) return null;
   /* 1) Guruh darajasi: o'quvchi A0 guruhida bo'lsa — kabinetda A0 (alifbo) ochiladi.
@@ -1274,7 +1279,7 @@ async function studentLevel(st) {
      Bir nechta faol guruh bo'lsa — eng yuqori daraja. */
   let code = '';
   try {
-    const ORDER = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    const ORDER = ['ALIF', 'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const mem = (await store.list('memberships/')).map(r => r.data)
       .filter(m => m && m.studentId === st.id && m.status !== 'chiqdi');
     let best = -1;
@@ -1282,7 +1287,7 @@ async function studentLevel(st) {
       const g = await store.get('groups/' + m.groupId);
       if (!g) continue;
       let lv = String(await curriculum.levelOfGroup(store, g) || '').toUpperCase();
-      if (!lv) { const mm = /^\s*(A0|A1|A2|B1|B2|C1|C2)\b/i.exec(String(g.name || '')); if (mm) lv = mm[1].toUpperCase(); }
+      if (!lv) { if (/^\s*alifbo\b/i.test(String(g.name || ''))) lv = 'ALIF'; else { const mm = /^\s*(A0|A1|A2|B1|B2|C1|C2)\b/i.exec(String(g.name || '')); if (mm) lv = mm[1].toUpperCase(); } }
       const i = ORDER.indexOf(lv);
       if (i > best) best = i;
     }
@@ -1297,7 +1302,11 @@ async function studentLevel(st) {
   }
   if (!code) {
     const v = A.Alifbo.view((await store.get('alifprog/' + st.id)) || { lessons: {} });
-    code = v.done >= v.total ? 'A1' : 'A0';
+    code = v.done >= v.total ? 'A0' : 'ALIF';
+  }
+  /* Daraja testi «A0» desa-yu, alifbo hali tugamagan bo'lsa — avval Alifbo */
+  if (code === 'A0' && !st.level) {
+    try { const v2 = A.Alifbo.view((await store.get('alifprog/' + st.id)) || { lessons: {} }); if (v2.done < v2.total && !(await groupHasLevel(st.id))) code = 'ALIF'; } catch (e) { }
   }
   const info = levels.levelInfo(code, 'uz');
   return { code: info.code, name: info.name };
@@ -1594,7 +1603,35 @@ async function activatePlannedGroups() {
     console.log('  Guruh faollashdi (boshlanish sanasi keldi):', g.name || g.id);
   }
 }
+/* Bir martalik: avval «A0» = alifbo edi. Endi Alifbo — alohida daraja (ALIF), A0 — grammatika.
+   Eski «A0» guruhlar Alifbo'ga o'tkaziladi va nomi «Alifbo | …» bo'ladi. */
+async function migrateAlifLevel() {
+  const FLAG = 'meta/migr-alif-2026-11';
+  if (await store.get(FLAG)) return;
+  let g = 0, st = 0, md = 0;
+  for (const r of await store.list('groups/')) {
+    const x = r.data; if (!x || r.path.split('/').length !== 2) continue;
+    const nameA0 = /^\s*A0\b/i.test(String(x.name || ''));
+    if (String(x.level || '').toUpperCase() === 'A0' || (!x.level && nameA0)) {
+      x.level = 'ALIF';
+      if (nameA0) x.name = String(x.name).replace(/^\s*A0\b/i, 'Alifbo');
+      await store.set(r.path, x); g++;
+    }
+  }
+  for (const r of await store.list('students/')) {
+    const x = r.data; if (!x || r.path.split('/').length !== 2) continue;
+    if (String(x.level || '').toUpperCase() === 'A0') { x.level = 'ALIF'; await store.set(r.path, x); st++; }
+  }
+  for (const r of await store.list('modules/')) {
+    const x = r.data; if (!x || r.path.split('/').length !== 2) continue;
+    if (x.level === 'A0') { x.level = 'ALIF'; await store.set(r.path, x); md++; }
+  }
+  await store.set(FLAG, { at: stamp(), groups: g, students: st, modules: md });
+  console.log('Alifbo darajasi: ' + g + ' guruh, ' + st + ' o‘quvchi, ' + md + ' modul ko‘chirildi');
+}
+
 function startZoom() {
+  migrateAlifLevel().catch(e => console.error('alif migratsiya:', e.message));
   /* Qayta aloqa eslatmalari (kun + vaqt): har daqiqada, xotiradagi nusxadan */
   const lr = setInterval(() => {
     let bot = null; try { bot = require('./bot'); } catch (e) { return; }
@@ -2344,7 +2381,7 @@ async function handleApi(req, res, url) {
        Har dars: yodlash → video → mashq → test (serverda baholanadi) → uy vazifasi.
        Keyingi dars faqat test ≥ 60% va uy vazifasi topshirilgach ochiladi.        */
     const F0 = A.Alifbo;
-    const alifDoc = async sid => pace.attach(store, sid, (await store.get('alifprog/' + sid)) || { lessons: {} }, 'A0');   // guruh sur'ati
+    const alifDoc = async sid => pace.attach(store, sid, (await store.get('alifprog/' + sid)) || { lessons: {} }, 'ALIF');   // guruh sur'ati
     const alifLocked = (doc, lid) => F0.statuses(doc)[lid] === 'locked';
     if (sub === 'alif' && req.method === 'GET') {
       const sid = String(url.searchParams.get('studentId') || mine[0] || '');

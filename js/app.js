@@ -3297,26 +3297,26 @@
     }
 
     /* --- Darajalar: A1…C2 --- */
-    var LVL_ICO = { A0: 'card', A1: 'layers', A2: 'chat', B1: 'users', B2: 'task', C1: 'award', C2: 'edit' };
+    var LVL_ICO = { ALIF: 'card', A0: 'edit', A1: 'layers', A2: 'chat', B1: 'users', B2: 'task', C1: 'award', C2: 'edit' };
     function paintLevels(list) {
       UI.clear(lvlGrid);
       if (!list.length) {
         lvlGrid.appendChild(h('p', { class: 'muted' }, 'Darajalar ro’yxati tez orada.'));
         return;
       }
-      var TIER = { A0: 1, A1: 1, A2: 2, B1: 2, B2: 3, C1: 3, C2: 3 };
-      var items = list.slice(0, 7);
+      var TIER = { ALIF: 1, A0: 1, A1: 1, A2: 2, B1: 2, B2: 3, C1: 3, C2: 3 };
+      var items = list.slice(0, 8);
       items.forEach(function (l, i) {
         lvlGrid.appendChild(h('button', {
-          class: 'lvl tier' + (TIER[l.code] || 2) + (l.code === 'A0' ? ' lvl-start' : ''), type: 'button',
+          class: 'lvl tier' + (TIER[l.code] || 2) + (l.code === 'ALIF' ? ' lvl-start' : ''), type: 'button',
           onclick: function () { pickLevel(l.code, l.name); }
         }, [
           h('span', { class: 'lvl-top' }, [
             h('span', { class: 'lvl-ico' }, UI.icon(LVL_ICO[l.code] || 'layers')),
             h('span', { class: 'lvl-step' }, (i + 1) + '/' + items.length),
-            h('span', { class: 'lvl-code' }, l.code)
+            h('span', { class: 'lvl-code' }, l.code === 'ALIF' ? 'Alifbo' : l.code)
           ]),
-          l.code === 'A0' ? h('span', { class: 'lvl-badge' }, 'Noldan boshlovchilar uchun') : null,
+          l.code === 'ALIF' ? h('span', { class: 'lvl-badge' }, 'Noldan boshlovchilar uchun') : null,
           h('b', {}, l.name),
           h('p', {}, l.about),
           h('span', { class: 'lvl-go' }, [h('span', {}, 'Shu darajadan boshlash'), goIcon()])

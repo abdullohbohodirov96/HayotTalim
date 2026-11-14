@@ -42,6 +42,11 @@
 (function (global) {
   'use strict';
 
+  /* Daraja kodi → ko'rinadigan nom: ALIF = Alifbo (harflar), qolganlari o'zi (A0 — grammatika, A1…C2) */
+  global.A = global.A || {};
+  global.A.levelLabel = function (c) { c = String(c || ''); return c === 'ALIF' ? 'Alifbo' : c; };
+  global.A.LEVEL_CODES = ['ALIF', 'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
   /* ---------------- Vaqt (Asia/Tashkent, UTC+5) ---------------- */
   var TZ_OFFSET_MIN = 300; // +05:00
 

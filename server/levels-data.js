@@ -409,7 +409,8 @@ const KIND_LABELS = {
 
 /* Daraja nomlari — uch tilda */
 const LEVEL_NAMES = {
-  A0: { uz: 'Alifbo (harflar)', ru: 'Алфавит (буквы)', ar: 'الحروف الهجائية' },
+  ALIF: { uz: 'Alifbo (harflar)', ru: 'Алфавит (буквы)', ar: 'الحروف الهجائية' },
+  A0: { uz: 'Grammatika — noldan', ru: 'Грамматика с нуля', ar: 'القواعد للمبتدئين' },
   A1: { uz: 'Boshlang’ich', ru: 'Начальный', ar: 'مبتدئ' },
   A2: { uz: 'Asosiy', ru: 'Базовый', ar: 'أساسي' },
   B1: { uz: 'O’rta', ru: 'Средний', ar: 'متوسط' },
@@ -419,10 +420,15 @@ const LEVEL_NAMES = {
 };
 
 const LEVEL_ABOUT = {
-  A0: {
+  ALIF: {
     uz: '28 ta harf, harakatlar va bo’g’in o’qish — arab tilini noldan boshlaganlar uchun.',
     ru: '28 букв, огласовки и чтение по слогам — для начинающих с нуля.',
     ar: 'الحروف الثمانية والعشرون والحركات وقراءة المقاطع — للمبتدئين من الصفر.'
+  },
+  A0: {
+    uz: 'Harflarni o’qiy oladiganlar uchun: birinchi grammatika, oddiy so’z va gaplar, tanishuv.',
+    ru: 'Для умеющих читать: первая грамматика, простые слова и фразы, знакомство.',
+    ar: 'لمن يقرأ الحروف: القواعد الأولى والكلمات والجمل البسيطة والتعارف.'
   },
   A1: {
     uz: 'Salomlashish, tanishuv, oddiy so’z va gaplar.',

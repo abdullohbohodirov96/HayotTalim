@@ -18,7 +18,7 @@ function lang(v) { return LANGS.indexOf(String(v || '')) >= 0 ? String(v) : DEF_
 const ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 /* Ko'rsatish uchun to'liq ro'yxat: A0 (alifbo) + CEFR. Daraja testi esa
    A1…C2 ni o'lchaydi — testdan o'tolmagan odamga A0 tavsiya qilinadi.   */
-const ALL = ['A0'].concat(ORDER);
+const ALL = ['ALIF', 'A0'].concat(ORDER);
 const LEVELS = ALL.map(code => ({
   code,
   name: DATA.LEVEL_NAMES[code].uz,
@@ -345,7 +345,7 @@ function levelInfo(code, lg) {
   if (DATA.LEVEL_NAMES[code]) {
     return { code, name: DATA.LEVEL_NAMES[code][L], about: DATA.LEVEL_ABOUT[code][L] };
   }
-  return { code: 'A0', name: DATA.A0_INFO[L].name, about: DATA.A0_INFO[L].about };
+  return { code: 'ALIF', name: DATA.A0_INFO[L].name, about: DATA.A0_INFO[L].about };
 }
 
 module.exports = {

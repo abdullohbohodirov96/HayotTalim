@@ -25,11 +25,11 @@
 
   /* ================= GURUHLAR ================= */
   /* Guruh darajasi: guruhning o'zida → kursida → nomining boshida («A0 | …») */
-  var LEVELS_ORDER = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  var LEVELS_ORDER = ['ALIF', 'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function groupLevel(g) {
     var lv = String(g.level || '').toUpperCase();
     if (LEVELS_ORDER.indexOf(lv) < 0) { var c = g.courseId ? D.one('courses', g.courseId) : null; lv = String((c && c.level) || '').toUpperCase(); }
-    if (LEVELS_ORDER.indexOf(lv) < 0) { var m = /\b(A0|A1|A2|B1|B2|C1|C2)\b/i.exec(String(g.name || '') + ' ' + String((g.courseId && Q.courseName(g.courseId)) || '')); lv = m ? m[1].toUpperCase() : ''; }
+    if (LEVELS_ORDER.indexOf(lv) < 0) { var nm = String(g.name || '') + ' ' + String((g.courseId && Q.courseName(g.courseId)) || ''); if (/^\s*alifbo\b/i.test(nm)) lv = 'ALIF'; else { var m = /\b(A0|A1|A2|B1|B2|C1|C2)\b/i.exec(nm); lv = m ? m[1].toUpperCase() : ''; } }
     return lv;
   }
   /* Kim uchun: guruhda belgilangan; bo'lmasa — nomidan (ayol/erkak/bola) */
@@ -86,7 +86,7 @@
     }
     view.appendChild(h('div', { class: 'filters', style: 'flex-wrap:wrap;gap:8px' }, [
       h('div', { class: 'seg', title: 'Daraja' }, [segBtn(lvF === 'all', 'Hamma daraja', byStatus.length, function () { goF({ lvl: 'all' }); })]
-        .concat(lvls.map(function (l) { return segBtn(lvF === l, l, cnt(function (g) { return groupLevel(g) === l; }), function () { goF({ lvl: l }); }); }))
+        .concat(lvls.map(function (l) { return segBtn(lvF === l, A.levelLabel(l), cnt(function (g) { return groupLevel(g) === l; }), function () { goF({ lvl: l }); }); }))
         .concat(noLv ? [segBtn(lvF === 'none', 'Daraja yo‘q', noLv, function () { goF({ lvl: 'none' }); })] : [])),
       h('div', { class: 'seg', title: 'Kim uchun' }, [segBtn(audF === 'all', 'Hammasi', null, function () { goF({ aud: 'all' }); })]
         .concat(auds.map(function (a) { return segBtn(audF === a, (a === 'ayollar' ? '👩 ' : a === 'erkaklar' ? '👨 ' : a === 'bolalar' ? '🧒 ' : '👥 ') + AUD[a], cnt(function (g) { return groupAudience(g) === a; }), function () { goF({ aud: a }); }); }))
@@ -126,7 +126,7 @@
         App.can('group.edit') ? groupMenu(g, App) : null,
         h('div', { class: 'rowflex', style: 'justify-content:space-between;align-items:flex-start;gap:6px' + (App.can('group.edit') ? ';padding-right:34px' : '') }, [
           h('h3', { style: 'font-size:15px' }, [
-            groupLevel(g) ? h('span', { class: 'pill ok', style: 'margin-inline-end:6px' }, groupLevel(g)) : null,
+            groupLevel(g) ? h('span', { class: 'pill ok', style: 'margin-inline-end:6px' }, A.levelLabel(groupLevel(g))) : null,
             g.code ? h('span', { class: 'pill info', style: 'margin-inline-end:6px' }, g.code) : null,
             g.name,
             groupAudience(g) ? h('span', { class: 'pill', style: 'margin-inline-start:6px' }, AUD[groupAudience(g)]) : null
@@ -612,7 +612,7 @@
       },
       {
         name: 'level', label: 'Daraja', type: 'select', value: g.level || groupLevel(g) || '',
-        options: [{ value: '', label: '— kurs darajasi —' }].concat(LEVELS_ORDER.map(function (l) { return { value: l, label: l }; }))
+        options: [{ value: '', label: '— kurs darajasi —' }].concat(LEVELS_ORDER.map(function (l) { return { value: l, label: l === 'ALIF' ? 'Alifbo (harflar)' : l === 'A0' ? 'A0 — grammatika (noldan)' : l }; }))
       },
       {
         name: 'roomId', label: 'Xona (oflayn uchun)', type: 'select', value: g.roomId,

@@ -17,7 +17,9 @@
 'use strict';
 
 const TZ_MS = 5 * 3600 * 1000;             // Toshkent vaqti
-const LEVEL_RE = /\b(A0|A1|A2|B1|B2|C1|C2)\b/i;
+const LEVEL_RE = /\b(ALIF|A0|A1|A2|B1|B2|C1|C2)\b/i;
+/* «Alifbo | …» nomli guruh — ALIF darajasi */
+function lvCode(s) { s = String(s || ''); if (/^\s*alifbo\b/i.test(s)) return 'ALIF'; const m = LEVEL_RE.exec(s); return m ? m[1].toUpperCase() : ''; }
 
 function listCol(store, col) {
   return store.list(col).then(rows => rows
@@ -30,9 +32,9 @@ function groupLevel(g, courses) {
   if (!LEVEL_RE.test(lv) && g.courseId) {
     const c = courses.filter(x => x.id === g.courseId)[0];
     lv = String((c && c.level) || '').toUpperCase();
-    if (!LEVEL_RE.test(lv) && c) { const m = LEVEL_RE.exec(String(c.name || '')); lv = m ? m[1].toUpperCase() : ''; }
+    if (!LEVEL_RE.test(lv) && c) lv = lvCode(c.name);
   }
-  if (!LEVEL_RE.test(lv)) { const m = LEVEL_RE.exec(String(g.name || '')); lv = m ? m[1].toUpperCase() : ''; }
+  if (!LEVEL_RE.test(lv)) lv = lvCode(g.name);
   return lv;
 }
 

@@ -10,7 +10,7 @@
   var A = global.A, UI = A.UI, D = A.Data, h = UI.h;
   A.Pages = A.Pages || {};
 
-  var LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  var LEVELS = ['ALIF', 'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function box(text) {
     return h('div', { class: 'card' }, h('div', { class: 'card-body' },
@@ -103,7 +103,7 @@
       { name: 'name', label: 'Modul nomi', value: mod ? mod.name : '', required: true },
       {
         name: 'level', label: 'Daraja', type: 'select', value: mod ? mod.level : 'A1',
-        options: LEVELS.map(function (l) { return { value: l, label: l }; })
+        options: LEVELS.map(function (l) { return { value: l, label: A.levelLabel(l) }; })
       },
       { name: 'hours', label: 'Soat (taxminiy)', type: 'number', value: mod ? mod.hours : '' },
       { name: 'about', label: 'Izoh', type: 'textarea', value: mod ? mod.about : '' }

@@ -9,7 +9,7 @@
   var A = global.A, UI = A.UI, D = A.Data, h = UI.h;
   A.Pages = A.Pages || {};
 
-  var LEVELS = ['', 'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  var LEVELS = ['', 'ALIF', 'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   var SKILL_UZ = { vocabulary: 'Lug‘at', grammar: 'Grammatika', reading: 'O‘qish', listening: 'Tinglash', writing: 'Yozish', speaking: 'Gapirish' };
 
   function box(t) { return h('div', { class: 'card' }, h('div', { class: 'card-body' }, h('p', { class: 'muted', style: 'margin:0' }, t || 'Yuklanmoqda…'))); }
@@ -106,7 +106,7 @@
   }
   function wordForm(App, w) {
     w = w || {};
-    var lvl = h('select', { class: 'input', id: 'lv-level' }, LEVELS.map(function (l) { return h('option', { value: l, selected: (w.level || '') === l }, l || '— daraja —'); }));
+    var lvl = h('select', { class: 'input', id: 'lv-level' }, LEVELS.map(function (l) { return h('option', { value: l, selected: (w.level || '') === l }, l ? A.levelLabel(l) : '— daraja —'); }));
     var body = h('div', { class: 'form-grid' }, [
       inp('lv-ar', 'Arabcha so‘z (harakatlari bilan) *', w.ar, { ar: true }),
       inp('lv-uz', 'O‘zbekcha tarjima *', w.uz),

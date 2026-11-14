@@ -176,7 +176,7 @@ async function saveWord(A, store, body, by, stamp, opts) {
   if (id && !prev) return { error: 'So‘z topilmadi.', code: 404 };
   const w = Object.assign({}, prev || {}, {
     id: prev ? prev.id : rid('w'), ar, uz, tr: txt(body.tr, 120), ex: txt(body.ex, 400), exUz: txt(body.exUz, 400),
-    lessons, level: /^(A0|A1|A2|B1|B2|C1|C2)$/.test(String(body.level || '')) ? body.level : (prev ? prev.level || '' : ''),
+    lessons, level: /^(ALIF|A0|A1|A2|B1|B2|C1|C2)$/.test(String(body.level || '')) ? body.level : (prev ? prev.level || '' : ''),
     active: body.active !== false, updatedAt: stamp(), by: by || ''
   });
   if (!prev) w.createdAt = stamp();
@@ -451,7 +451,7 @@ async function getDay(store, sid, today, c, sv, level) {
   const words = sv ? Object.keys(sv.words).map(k => sv.words[k]) : [];
   const fresh = words.filter(s => !s.reps).length, seen = words.filter(s => s.reps).length;
   const pool = words.length;
-  const a0 = level === 'A0';
+  const a0 = level === 'ALIF';
   d = {
     studentId: sid, date: today,
     goals: {
@@ -489,7 +489,7 @@ async function quizStart(A, store, sid, today, level) {
       return { ok: true, quiz: quizPublic(day.quiz) };
     }
     const n = Math.max(1, day.goals.test);
-    const qs = level === 'A0' ? await a0Questions(A, store, sid, n, 'test') : wordQuestions(sv, dict, n, false);
+    const qs = level === 'ALIF' ? await a0Questions(A, store, sid, n, 'test') : wordQuestions(sv, dict, n, false);
     if (!qs.length) return { error: 'Savol tuzib bo‘lmadi.', code: 400 };
     day.quiz = { id: rid('q'), qs, ans: {} };
     await putDay(store, sid, day);
@@ -534,7 +534,7 @@ async function rlStart(A, store, sid, today, level) {
     const c = await conf(store);
     const day = await getDay(store, sid, today, c, sv, level);
     if (!day.goals.rl) return { error: 'Bugun mashq uchun so‘zlar hali yetarli emas.', code: 400 };
-    const qs = level === 'A0' ? await a0Questions(A, store, sid, 5, 'listen') : wordQuestions(sv, dict, 5, true);
+    const qs = level === 'ALIF' ? await a0Questions(A, store, sid, 5, 'listen') : wordQuestions(sv, dict, 5, true);
     if (!qs.length) return { error: 'Mashq tuzib bo‘lmadi.', code: 400 };
     day.rl = { id: rid('r'), qs, at: Date.now() };
     await putDay(store, sid, day);
@@ -589,7 +589,7 @@ function wordQuestions(sv, dict, n, rl) {
 /** A0 (alifbo) o'quvchisi: o'tilgan darslardan savollar */
 async function a0Questions(A, store, sid, n, kind) {
   const F = A.Alifbo; if (!F) return [];
-  const doc = await require('./pace').attach(store, sid, (await store.get('alifprog/' + sid)) || { lessons: {} }, 'A0');
+  const doc = await require('./pace').attach(store, sid, (await store.get('alifprog/' + sid)) || { lessons: {} }, 'ALIF');
   const st = F.statuses(doc);
   const open = F.LESSONS.filter(l => st[l.id] !== 'locked');
   if (!open.length) return [];
@@ -671,7 +671,7 @@ async function dailyView(A, store, sid, today, level) {
     const last7 = [];
     for (let i = 6; i >= 0; i--) { const d = addDays(today, -i); last7.push({ date: d, xp: ((sum.days || {})[d] || {}).xp || 0 }); }
     return { enabled: c.enabled, rules: c.xp, minXp: c.daily.minXp, day: dayPublic(day), xpTotal: sum.total || 0,
-      streak: streakOf(sum, today, c), last7, badges: badgeList(sum, c), a0: level === 'A0' };
+      streak: streakOf(sum, today, c), last7, badges: badgeList(sum, c), a0: level === 'ALIF' };
   });
 }
 
@@ -684,10 +684,10 @@ async function progress(A, store, sid, today, level) {
   const days = sum.days || {};
   /* Kurs: A0 (alifbo) yoki A1 (onlayn kurs) */
   let course = null, tests = [], hw = { submitted: 0, accepted: 0, returned: 0, pending: 0, total: 0 }, stepDates = [];
-  if (level === 'A0' && A.Alifbo) {
+  if (level === 'ALIF' && A.Alifbo) {
     const doc = (await store.get('alifprog/' + sid)) || { lessons: {} };
     const v = A.Alifbo.view(doc);
-    course = { code: 'A0', title: 'A0 — o‘qish va yozish (alifbo)', done: v.done, total: v.total };
+    course = { code: 'ALIF', title: 'Alifbo — o‘qish va yozish', done: v.done, total: v.total };
     v.lessons.forEach(l => {
       if (l.best != null) tests.push({ label: l.n + '-dars', percent: l.best });
       if (l.hw) { hw.submitted++; if (l.hw.ok) hw.accepted++; }
@@ -698,7 +698,7 @@ async function progress(A, store, sid, today, level) {
     const doc = (await store.get('courseprog/' + sid)) || { lessons: {} };
     const v = A.Course.buildView(doc, today);
     const done = v.lessons.filter(l => l.status === 'done').length;
-    course = { code: 'A1', title: v.course.title, done, total: v.lessons.length };
+    course = { code: level === 'A0' ? 'A0' : 'A1', title: level === 'A0' ? String(v.course.title || '').replace(/\bA1\b/, 'A0') : v.course.title, done, total: v.lessons.length };
     v.lessons.forEach(l => {
       if (l.testBest != null) tests.push({ label: l.n + '-dars', percent: l.testBest });
       if (l.hw && l.hw.submittedAt) { hw.submitted++; if (l.hw.status === 'qabul') hw.accepted++; else if (l.hw.status === 'qayta') hw.returned++; else hw.pending++; }
@@ -792,8 +792,8 @@ async function staffRows(A, store, sids, today) {
     }
     if (ap && A.Alifbo) {
       const v = A.Alifbo.view(ap);
-      course = { code: 'A0', done: v.done, total: v.total };
-      v.lessons.forEach(l => { if (l.best != null && l.best < 70) weak.push('A0 ' + l.n + '-dars «' + l.title + '» · test ' + l.best + '%');
+      course = { code: 'ALIF', done: v.done, total: v.total };
+      v.lessons.forEach(l => { if (l.best != null && l.best < 70) weak.push('Alifbo ' + l.n + '-dars «' + l.title + '» · test ' + l.best + '%');
         if (l.hw) { hw.submitted++; if (l.hw.ok) hw.accepted++; } });
     }
     if (course) course.percent = course.total ? Math.round(course.done * 100 / course.total) : 0;
